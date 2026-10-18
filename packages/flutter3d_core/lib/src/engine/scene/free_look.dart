@@ -29,6 +29,7 @@ import 'orbit_controller.dart';
 /// Holds no Flutter types and no clock; a caller hands [walk] the seconds
 /// that passed, which is what makes it steppable by hand in a test.
 final class FreeLook {
+  /// A free look moving the camera [orbit] places.
   FreeLook(this.orbit);
 
   /// The camera this moves. Both cameras drive the same state on purpose —
@@ -40,7 +41,7 @@ final class FreeLook {
   /// A scene is in metres by `ImportUnit`'s own convention, so this is about
   /// a brisk walk. Slow enough to place a camera inside a room, fast enough
   /// to cross one.
-  double metresPerSecond = 2.5;
+  double metersPerSecond = 2.5;
 
   /// The multiplier [walk] applies while a precision modifier is held.
   double slowFactor = 0.25;
@@ -98,7 +99,7 @@ final class FreeLook {
     if (length < 1e-9) return;
 
     final double speed =
-        metresPerSecond * (slow ? slowFactor : 1.0) * (fast ? fastFactor : 1.0);
+        metersPerSecond * (slow ? slowFactor : 1.0) * (fast ? fastFactor : 1.0);
     final double step = speed * seconds / length;
 
     final Vector3 ahead = _offset()..normalize();

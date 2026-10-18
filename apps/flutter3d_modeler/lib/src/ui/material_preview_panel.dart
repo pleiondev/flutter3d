@@ -17,9 +17,9 @@
 /// in step and nothing to invalidate.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import '../modeler_viewport.dart';
@@ -38,11 +38,15 @@ import 'material_studio_dialog.dart'
 /// hundred and eighty pixels of a panel that also has to hold the slider
 /// being dragged.
 enum MaterialPreviewBody {
+  /// The default parametric sphere.
   sphere('Sphere'),
+
+  /// The default parametric cuboid.
   cube('Cube');
 
   const MaterialPreviewBody(this.label);
 
+  /// What the body's chip says.
   final String label;
 }
 
@@ -53,6 +57,8 @@ const double kMaterialPreviewHeight = 180;
 
 /// The material being edited, drawn live.
 class MaterialPreviewPanel extends StatefulWidget {
+  /// A preview of [material] through [renderer], [height] logical pixels
+  /// tall.
   const MaterialPreviewPanel({
     super.key,
     required this.renderer,
@@ -60,12 +66,15 @@ class MaterialPreviewPanel extends StatefulWidget {
     this.height = kMaterialPreviewHeight,
   });
 
+  /// The document's renderer, the one the viewport draws through.
   final Renderer renderer;
 
   /// The live material — `MaterialPool`'s own instance for the object being
   /// painted, or clay where the pool has not built one yet.
-  final engine.Material material;
+  final engine.RenderMaterial material;
 
+  /// How tall the preview draws, in logical pixels; [kMaterialPreviewHeight]
+  /// unless the caller says otherwise.
   final double height;
 
   @override

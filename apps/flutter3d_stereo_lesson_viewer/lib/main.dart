@@ -4,7 +4,7 @@
 ///     flutter run -d chrome --dart-define=level=assets/levels/teardown.json
 ///
 /// **Not a copy of `flutter3d_lesson_viewer` by accident.** It is one on
-/// purpose: `LevelCubit`/`OpenKind`/`_addParts` below are the same three
+/// purpose: `LessonCubit`/`OpenKind`/`_addParts` below are the same three
 /// pieces that file already proved, with `CameraNode` swapped for
 /// `StereoRig` and `LessonView` swapped for `LessonStereoView` — `edu-06`'s
 /// own row names this as the whole of the difference between a flat screen
@@ -34,18 +34,17 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_education/lesson.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
-/// The lesson this build opens, as a bundled asset path — the same two
-/// override doors `flutter3d_lesson_viewer`'s own `kLevel` gives.
+/// The lesson this build opens, as a bundled asset path, chosen at build
+/// time with `--dart-define=level=` as `flutter3d_lesson_viewer`'s own
+/// `kLevel` is. Nothing reads the page's URL.
 const String kLevel = String.fromEnvironment(
   'level',
   defaultValue: 'assets/levels/teardown.json',
@@ -53,7 +52,9 @@ const String kLevel = String.fromEnvironment(
 
 void main() => runApp(const StereoLessonApp());
 
+/// The viewer as an application: [LessonScreen] in a bare [MaterialApp].
 class StereoLessonApp extends StatelessWidget {
+  /// The viewer on [kLevel].
   const StereoLessonApp({super.key});
 
   @override
@@ -68,6 +69,7 @@ class StereoLessonApp extends StatelessWidget {
 /// `packages/flutter3d_game/example`'s own `OpenKind` for why every type in the
 /// document is accepted and none of them given a meaning here.
 final class OpenKind extends EntityKind {
+  /// A kind that accepts entities of [type] and gives them no behaviour.
   const OpenKind(super.type);
 }
 
@@ -118,15 +120,22 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
   }
 }
 
+/// Where [LessonCubit] stands: loading, ready to play, or failed.
 sealed class LessonState {
+  /// Shared by the three states; holds nothing.
   const LessonState();
 }
 
+/// The lesson is still being read and built.
 final class LessonLoading extends LessonState {
+  /// The state the cubit starts in.
   const LessonLoading();
 }
 
+/// The lesson is built: a scene with the stereo rig on its stage, and the
+/// player that walks its steps.
 final class LessonReady extends LessonState {
+  /// A ready lesson; [nodes] is empty for a level that names no parts.
   const LessonReady(
     this.scene,
     this.rig,
@@ -135,8 +144,15 @@ final class LessonReady extends LessonState {
     required this.widgetSurfaces,
   });
 
+  /// The level's scene, with [rig]'s stage already added to it.
   final Scene scene;
+
+  /// The pair of eyes every step places, handed to the stereo view that draws
+  /// the lesson.
   final StereoRig rig;
+
+  /// The steps of the level's first `edu_sequence`, in order; empty when it
+  /// names none.
   final LessonPlayer player;
 
   /// Every fixture the level placed, by the name its own entity carries —
@@ -151,17 +167,26 @@ final class LessonReady extends LessonState {
   final WidgetSurfaceVisuals widgetSurfaces;
 }
 
+/// The lesson could not be opened; the screen says why.
 final class LessonFailed extends LessonState {
+  /// A failure carrying what was thrown.
   const LessonFailed(this.error);
 
+  /// What reading or building the level threw: a missing asset, JSON that
+  /// does not parse, or a level the loader refused.
   final Object error;
 }
 
 /// Reads [kLevel] (or [asset], for a test) and builds a [LessonPlayer] for
 /// its first `edu_sequence` — an empty one when the document names none.
 class LessonCubit extends Cubit<LessonState> {
+  /// A cubit in [LessonLoading] until [open] is called.
   LessonCubit() : super(const LessonLoading());
 
+  /// Reads [asset] on [device], builds its scene with the level's widget
+  /// surfaces and a [StereoRig] in it, and emits [LessonReady]; anything
+  /// thrown on the way is emitted as [LessonFailed]. Emits nothing once the
+  /// cubit is closed.
   Future<void> open(GraphicsDevice device, {String asset = kLevel}) async {
     try {
       final level = Level.fromJson(
@@ -208,6 +233,12 @@ class LessonCubit extends Cubit<LessonState> {
       final rig = StereoRig();
       loaded.scene.add(rig.stage);
 
+      // The screen went while the level was loading: nobody will show these
+      // surfaces, and a closed cubit cannot be handed them.
+      if (isClosed) {
+        widgets.dispose();
+        return;
+      }
       emit(
         LessonReady(
           loaded.scene,
@@ -218,12 +249,15 @@ class LessonCubit extends Cubit<LessonState> {
         ),
       );
     } catch (error) {
-      emit(LessonFailed(error));
+      if (!isClosed) emit(LessonFailed(error));
     }
   }
 }
 
+/// The viewer's one screen: opens the device, loads [kLevel], and shows the
+/// lesson in stereo once it is ready.
 class LessonScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and reads the lesson to open itself.
   const LessonScreen({super.key});
 
   @override
@@ -231,6 +265,7 @@ class LessonScreen extends StatefulWidget {
 }
 
 class _LessonScreenState extends State<LessonScreen> {
+  GraphicsDevice? _device;
   Renderer? _renderer;
   Object? _initError;
 
@@ -246,8 +281,14 @@ class _LessonScreenState extends State<LessonScreen> {
     final GraphicsDevice device;
     try {
       device = await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      setState(() => _renderer = Renderer.create(device: device));
+      if (!mounted) {
+        device.dispose();
+        return;
+      }
+      setState(() {
+        _device = device;
+        _renderer = Renderer.create(device: device);
+      });
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -255,9 +296,17 @@ class _LessonScreenState extends State<LessonScreen> {
     await _lesson.open(device);
   }
 
+  /// The device and the renderer are this screen's, not the view's: the
+  /// view borrows both (see `StereoSurface`) and leaves them alone when it
+  /// goes, so they are given back here, after the surfaces drawn on them.
   @override
   void dispose() {
+    if (_lesson.state case LessonReady(:final widgetSurfaces)) {
+      widgetSurfaces.dispose();
+    }
     unawaited(_lesson.close());
+    _renderer?.dispose();
+    _device?.dispose();
     super.dispose();
   }
 

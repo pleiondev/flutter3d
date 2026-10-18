@@ -39,33 +39,44 @@ import 'dart:async';
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:vector_math/vector_math.dart' hide Colors;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 
 import 'src/arcade_game.dart';
 
-void main() => runApp(const ArcadeApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The run's physics, chosen once: the core, which the browser fetches as
+  // WebAssembly, or the reference where it will not start.
+  await preparePhysics();
+  runApp(const _ArcadeApp());
+}
 
-class ArcadeApp extends StatelessWidget {
-  const ArcadeApp({super.key});
+/// The app around the one screen: a title and no debug banner.
+class _ArcadeApp extends StatelessWidget {
+  const _ArcadeApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'Meteor Yard',
     debugShowCheckedModeBanner: false,
-    home: ArcadeScreen(),
+    home: _ArcadeScreen(),
   );
 }
 
-class ArcadeScreen extends StatefulWidget {
-  const ArcadeScreen({super.key});
+/// The yard, the status line over it and, on a touch device, the stick:
+/// everything the game shows, in one screen.
+class _ArcadeScreen extends StatefulWidget {
+  const _ArcadeScreen();
 
   @override
-  State<ArcadeScreen> createState() => _ArcadeScreenState();
+  State<_ArcadeScreen> createState() => _ArcadeScreenState();
 }
 
-class _ArcadeScreenState extends State<ArcadeScreen> {
+class _ArcadeScreenState extends State<_ArcadeScreen> {
   /// Starts on the level `--dart-define=ARCADE_LEVEL=n` names, counting from
   /// one, so a later level can be looked at without playing through the
   /// ones before it. Set before [ArcadeGameStaging.spawnWorld], which builds
@@ -138,9 +149,14 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
   @override
   void initState() {
     super.initState();
-    if (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS) {
-      _game.addJoystick();
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android || TargetPlatform.iOS:
+        _game.addJoystick();
+      case TargetPlatform.fuchsia ||
+          TargetPlatform.linux ||
+          TargetPlatform.macOS ||
+          TargetPlatform.windows:
+        break;
     }
   }
 
@@ -152,15 +168,24 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
         Flutter3dFlameWidget(
           game: _game,
           camera: _camera,
+          settings: () => arcadeRenderSettings,
           buildScene: (GraphicsDevice device) {
             final scene = Scene();
-            _game.spawnWorld(device, scene);
+            _game
+              ..spawnWorld(device, scene)
+              ..rainMeteors();
             // The craft models arrive a moment later and replace the
             // primitives the yard was built with; see [ArcadeGameCrafts].
             unawaited(_game.dressWithCrafts());
             return scene;
           },
           onTick: _onTick,
+          // The meteors' fires draw through the 3D layer's renderer, which
+          // there is only once the scene is built.
+          onRendererReady: (Renderer renderer) => unawaited(
+            _game.meteors?.drawFires(renderer, rootBundle.load) ??
+                Future<void>.value(),
+          ),
         ),
         // Below the status bar and any notch: a phone draws the app edge to
         // edge, and the HUD sat under the clock.
@@ -199,10 +224,12 @@ class _Hud extends StatelessWidget {
         : game.levelCleared
         ? 'LEVEL $levelNumber CLEARED — next one coming'
         : game.level.hunters > 0
-        ? 'Ram them head on. Magenta bots hunt you'
+        ? 'Ram them head on. Magenta bots hunt you. Keep out of the '
+              'meteors\' shadows and their fires'
         : touch
         ? 'Ram the bots head on. Stick to fly'
-        : 'Ram the bots head on. WASD / arrows to fly';
+        : 'Ram the bots head on. WASD / arrows to fly. Keep out of the '
+              'meteors\' shadows and their fires';
 
     return DefaultTextStyle(
       style: style,

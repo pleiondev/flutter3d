@@ -25,18 +25,29 @@ import 'dart:async';
 
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 
 import 'src/river_game.dart';
+import 'src/river_water.dart';
 
-void main() => runApp(const RiverApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The core the hits' fires burn in: its library on a desktop or a phone,
+  // its module in a browser.
+  await preparePhysics();
+  runApp(const RiverApp());
+}
 
 /// Whether [platform] gets Flame's stick and fire button: a phone or a tablet,
 /// which has no keys to fly with. A desktop and a browser keep the keys.
 bool hasTouchControls(TargetPlatform platform) =>
     platform == TargetPlatform.android || platform == TargetPlatform.iOS;
 
+/// The game as an application: [RiverScreen] in a [MaterialApp].
 class RiverApp extends StatelessWidget {
+  /// The application; it takes nothing.
   const RiverApp({super.key});
 
   @override
@@ -47,7 +58,10 @@ class RiverApp extends StatelessWidget {
   );
 }
 
+/// The game's one screen: the river in a Flame widget, the craft models and
+/// the sprites loaded.
 class RiverScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and makes its own [RiverGame].
   const RiverScreen({super.key});
 
   @override
@@ -62,11 +76,19 @@ class _RiverScreenState extends State<RiverScreen> {
       const int.fromEnvironment('RIVER_LEVEL', defaultValue: 1) - 1,
     );
 
+  /// The river's own water, drawn over the game's plane once there is a
+  /// renderer: running down the valley, parting round the hulls, and
+  /// spilling over a weir under every bridge. Less of it on a phone.
+  final RiverWaterLayer _water = RiverWaterLayer(
+    light: hasTouchControls(defaultTargetPlatform),
+  );
+
   /// A phone or a tablet has no keys, so it gets Flame's stick and trigger.
   @override
   void initState() {
     super.initState();
     if (hasTouchControls(defaultTargetPlatform)) _game.addTouchControls();
+    _game.add(_water);
     // Taking off is the player's first key, touch or button, and a browser
     // lets a page make a sound only after one.
     _game.onFirstFlight = () => unawaited(_game.sound.open());
@@ -77,7 +99,9 @@ class _RiverScreenState extends State<RiverScreen> {
 
   @override
   void dispose() {
-    unawaited(_game.sound.close());
+    unawaited(_game.sound.dispose());
+    // Its worlds and meshes go before the device they are drawn on.
+    _water.close();
     // The world lives with the game, not the widget: it goes here.
     _game.close3d();
     super.dispose();

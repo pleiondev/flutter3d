@@ -23,11 +23,11 @@ import 'status_line.dart' show grouped;
 
 /// One level, as a card shows it.
 typedef LodLevelRow = ({
-  /// `LodSpec.ratio`: the share of the base mesh's triangles this level
+  /// `LodSettings.ratio`: the share of the base mesh's triangles this level
   /// keeps, from just above nought to one.
   double ratio,
 
-  /// `LodSpec.maxScreenFraction`: the share of the screen's height below
+  /// `LodSettings.maxScreenFraction`: the share of the screen's height below
   /// which this level is drawn.
   double maxScreenFraction,
 
@@ -43,6 +43,7 @@ const double kLodRatioFloor = 0.05;
 
 /// Screen 17's panel.
 final class LodPanel extends StatelessWidget {
+  /// The panel for [objectName]'s [levels].
   const LodPanel({
     super.key,
     required this.objectName,
@@ -59,6 +60,8 @@ final class LodPanel extends StatelessWidget {
   /// object the three pictures beside it are of.
   final String objectName;
 
+  /// One card per level of detail, in the order the object's levels are
+  /// stored.
   final List<LodLevelRow> levels;
 
   /// A card's slider was let go at a new ratio. Once per drag, not once per
@@ -66,7 +69,12 @@ final class LodPanel extends StatelessWidget {
   /// which is what makes a drag one step of undo rather than sixty.
   final void Function(int lodIndex, double ratio) onRatio;
 
+  /// The add button was pressed: one level more. Disabled while [refusal]
+  /// says why not.
   final VoidCallback onAddLevel;
+
+  /// The regenerate button was pressed: simplify every level's mesh again.
+  /// Disabled when there are no levels.
   final VoidCallback onRegenerate;
 
   /// Back to the object's own inspector.

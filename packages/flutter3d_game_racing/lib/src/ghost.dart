@@ -1,14 +1,7 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'vehicle/vehicle_controller.dart';
-
-/// Where a car was at one moment of a recorded lap.
-///
-/// The engine's [Pose]. Named here because a racing game says "ghost frame"
-/// and nothing is gained by making it say something else — but a place, a
-/// facing and an up have nothing to do with racing, and a platformer wanting
-/// to draw a speedrun beside the player wants exactly the same four numbers.
-typedef GhostFrame = Pose;
 
 /// A recorded lap.
 typedef GhostTape = Tape;
@@ -23,14 +16,16 @@ typedef GhostPlayer = Playback;
 /// line that knows what a car is — where a vehicle keeps its heading, its
 /// position and its own idea of up.
 final class GhostRecorder {
+  /// A recorder that keeps at most [hz] samples a second, 15 by default.
   GhostRecorder({double hz = 15.0}) : _recorder = Recorder(hz: hz);
 
   final Recorder _recorder;
 
+  /// How many samples have been kept since the last [reset], a count.
   int get frameCount => _recorder.length;
 
   /// Records the car's place at [time], if enough time has passed.
-  void tick(double time, VehicleController vehicle) => _recorder.tick(
+  void record(double time, VehicleController vehicle) => _recorder.record(
     time,
     position: vehicle.position,
     yaw: vehicle.headingYaw,
@@ -55,23 +50,48 @@ final class GhostRecorder {
 /// the file is this game's.
 extension GhostDocument on GhostTape {
   /// What the lap took. The reason anybody keeps the tape.
-  double get lapTime => seconds;
+  /// In seconds.
+  double get lapSeconds => seconds;
 
+  /// The lap in the shared envelope (`f3d.ghost`, [ghostFormatVersion]),
+  /// then `lapTime` and `frames`.
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': 1,
+    ...ghostFormat.envelope(),
     'lapTime': seconds,
     'frames': <Map<String, Object?>>[for (final frame in poses) frame.toJson()],
   };
 }
 
+/// The version of the lap document this build writes, and the newest it
+/// reads.
+///
+/// Version 1 is the bare `{"version": 1, "lapTime": …, "frames": …}` every
+/// lap before 1.0 was kept as; version 2 is the same body in the shared
+/// envelope. The body did not change, so the step between them is the
+/// identity.
+const int ghostFormatVersion = 2;
+
+/// The lap document in the registry: `f3d.ghost`.
+const FormatSpec ghostFormat = FormatSpec(
+  id: 'f3d.ghost',
+  version: ghostFormatVersion,
+  suffixes: <String>['.ghost.json'],
+  fixture: 'test/fixtures/v<N>/lap.ghost.json',
+);
+
 /// Reads a lap back from what was written.
 ///
 /// Forwards compatibility in the one direction that matters: a player's best
-/// lap is the thing they would most mind losing to a format change.
-GhostTape ghostTapeFromJson(Map<String, Object?> json) => GhostTape(
-  seconds: (json['lapTime']! as num).toDouble(),
-  poses: <GhostFrame>[
-    for (final frame in json['frames']! as List<Object?>)
-      GhostFrame.fromJson(frame! as Map<String, Object?>),
-  ],
-);
+/// lap is the thing they would most mind losing to a format change. A lap
+/// from before the envelope reads as version 1; one from a newer build, or
+/// another format's document, throws a [DocumentFormatException] saying which.
+GhostTape ghostTapeFromJson(Map<String, Object?> json) {
+  final lap = ghostFormat.open(json, refuse: DocumentFormatException.new);
+  return GhostTape(
+    seconds: (lap['lapTime']! as num).toDouble(),
+    poses: <GhostFrame>[
+      for (final frame in lap['frames']! as List<Object?>)
+        GhostFrame.fromJson(frame! as Map<String, Object?>),
+    ],
+  );
+}

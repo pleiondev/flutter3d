@@ -11,13 +11,13 @@ import 'morph_sink.dart';
 /// The key a clip's own extracted root motion sits under in
 /// [AnimationClip.extras] — `anim-16`'s own `flutter3dRootMotion`.
 ///
-/// **Matched by value to `flutter3d_model_core`'s own `kRootMotionExtra`,
+/// **Matched by value to `flutter3d_model_core`'s own `rootMotionExtra`,
 /// not by importing it.** This engine package cannot depend on an
 /// editor-specific one, the same boundary every other cross-package
 /// convention in this repository holds by agreeing on a value rather than
 /// sharing a declaration — `mat-02`'s own `_VkFormat` numbers are the same
 /// choice for the same reason.
-const String kRootMotionExtra = 'flutter3dRootMotion';
+const String rootMotionExtra = 'flutter3dRootMotion';
 
 /// Plays [AnimationClip]s onto animation targets.
 ///
@@ -45,13 +45,15 @@ const String kRootMotionExtra = 'flutter3dRootMotion';
 ///
 /// **A layer can also add rather than replace** — [AnimationBlend.additive],
 /// `gfx-10n`. The layer's distance from its clip's own
-/// [AnimationClip.referenceTime] is laid on the base: a breath over a walk, a
+/// [AnimationClip.referenceSeconds] is laid on the base: a breath over a walk, a
 /// recoil over an aim. A clip with no reference time has no delta to give and
 /// stays on the override path, so nothing about an existing clip changes.
 ///
 /// What is missing above this is a state machine that decides *which* clip —
 /// that belongs to the game layer, not here.
 final class AnimationPlayer {
+  /// A player over [clips], writing into [targets] and, where given, [morphs]
+  /// and [pointers]. Nothing plays until [play] is called.
   AnimationPlayer({
     required this.clips,
     required this.targets,
@@ -64,6 +66,7 @@ final class AnimationPlayer {
   /// nodes only, and a pointer track then plays and writes nothing.
   final AnimationPointerSink? pointers;
 
+  /// The clips this player can play, addressed by index.
   final List<AnimationClip> clips;
 
   /// Node for each index a track can address, null where the instance created
@@ -116,8 +119,10 @@ final class AnimationPlayer {
   bool _reversing = false;
 
   /// Playback rate. Negative values run the clip backwards.
+  /// A unitless multiplier on clip time.
   double speed = 1.0;
 
+  /// What happens when the base clip runs past its end; loops by default.
   AnimationWrap wrap = AnimationWrap.loop;
 
   /// Clips playing over the base, in the order they are written.
@@ -180,6 +185,8 @@ final class AnimationPlayer {
 
   final Quaternion _quaternion = Quaternion.identity();
 
+  /// Whether the base clip is advancing; false before a clip is chosen and
+  /// after [pause] or [stop].
   bool get isPlaying => _playing;
 
   /// Whether a crossfade is in progress.
@@ -187,6 +194,7 @@ final class AnimationPlayer {
 
   /// How far the crossfade has come, from 0 (all the old clip) to 1 (all the
   /// new one).
+  /// A 0..1 fraction.
   double get fadeWeight {
     if (_fadingFrom < 0 || _fadeDuration <= 0.0) return 1.0;
     final done = 1.0 - _fadeRemaining / _fadeDuration;
@@ -199,15 +207,15 @@ final class AnimationPlayer {
   /// and longer makes a reaction feel late. Fading to the clip already playing
   /// is ignored rather than restarting it, so a state machine can ask every
   /// step without stuttering.
-  void crossFadeTo(int index, {double duration = 0.15}) {
+  void crossFadeTo(int index, {double durationSeconds = 0.15}) {
     if (index < 0 || index >= clips.length) return;
     if (index == _clipIndex && _playing) return;
 
-    if (duration > 0.0 && _clipIndex >= 0 && _clipIndex < clips.length) {
+    if (durationSeconds > 0.0 && _clipIndex >= 0 && _clipIndex < clips.length) {
       _fadingFrom = _clipIndex;
       _fadeFromTime = _time;
-      _fadeDuration = duration;
-      _fadeRemaining = duration;
+      _fadeDuration = durationSeconds;
+      _fadeRemaining = durationSeconds;
       _fadeFromTracks = <int, AnimationTrack>{
         for (final track in clips[_clipIndex].tracks) _trackKey(track): track,
       };
@@ -222,10 +230,10 @@ final class AnimationPlayer {
   }
 
   /// Fades to the clip called [name], if there is one.
-  bool crossFadeToNamed(String name, {double duration = 0.15}) {
+  bool crossFadeToNamed(String name, {double durationSeconds = 0.15}) {
     for (var i = 0; i < clips.length; i++) {
       if (clips[i].name != name) continue;
-      crossFadeTo(i, duration: duration);
+      crossFadeTo(i, durationSeconds: durationSeconds);
       return true;
     }
     return false;
@@ -241,41 +249,6 @@ final class AnimationPlayer {
   static double _mix(double from, double to, double t) =>
       from + (to - from) * t;
 
-  /// Shortest-arc interpolation between two rotations.
-  ///
-  /// The sign flip is the part that matters: a quaternion and its negation are
-  /// the same rotation, so without choosing the closer of the two, half of all
-  /// blends spin the long way.
-  static Quaternion _slerp(Quaternion from, Quaternion to, double t) {
-    var dot = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
-    var sign = 1.0;
-    if (dot < 0.0) {
-      dot = -dot;
-      sign = -1.0;
-    }
-
-    double scaleFrom;
-    double scaleTo;
-    if (dot > 0.9995) {
-      // Nearly identical: the arc is so short that a straight line is closer
-      // than the trigonometry's own error.
-      scaleFrom = 1.0 - t;
-      scaleTo = t;
-    } else {
-      final theta = math.acos(dot);
-      final sinTheta = math.sin(theta);
-      scaleFrom = math.sin((1.0 - t) * theta) / sinTheta;
-      scaleTo = math.sin(t * theta) / sinTheta;
-    }
-
-    return Quaternion(
-      scaleFrom * from.x + scaleTo * sign * to.x,
-      scaleFrom * from.y + scaleTo * sign * to.y,
-      scaleFrom * from.z + scaleTo * sign * to.z,
-      scaleFrom * from.w + scaleTo * sign * to.w,
-    )..normalize();
-  }
-
   /// [q] scaled by [t]: a quarter of a turn, not a quarter of four numbers.
   ///
   /// The slerp from no rotation, written out — the identity end collapses most
@@ -285,8 +258,8 @@ final class AnimationPlayer {
   /// nowhere else — which is why the fixture for it uses a quarter.
   static Quaternion _scaledRotation(Quaternion q, double t) {
     // A quaternion and its negation are the same rotation, and the one with a
-    // positive w is the short way round — the same choice [_slerp] makes, and
-    // for the same reason.
+    // positive w is the short way round — the same choice [shortestArcSlerp]
+    // makes, and for the same reason.
     final sign = q.w < 0.0 ? -1.0 : 1.0;
     final w = sign * q.w;
     if (w > 0.9995) {
@@ -309,24 +282,28 @@ final class AnimationPlayer {
   /// One copy, shared with the layers — see [animationTrackKey].
   static int _trackKey(AnimationTrack track) => animationTrackKey(track);
 
+  /// Whether the player has any clip to play.
   bool get hasClips => clips.isNotEmpty;
 
+  /// Index of the base clip in [clips], or -1 before one is chosen.
   int get clipIndex => _clipIndex;
 
+  /// The base clip, or null before one is chosen.
   AnimationClip? get clip =>
       _clipIndex >= 0 && _clipIndex < clips.length ? clips[_clipIndex] : null;
 
   /// Current playhead position in seconds.
-  double get time => _time;
+  double get timeSeconds => _time;
 
-  double get duration => clip?.duration ?? 0.0;
+  /// The current clip's length, in seconds.
+  double get durationSeconds => clip?.durationSeconds ?? 0.0;
 
-  /// The current clip's own extracted root motion, replayed from [fromTime]
-  /// to [toTime] on [rootNodeIndex] — the runtime half `anim-16`'s own
+  /// The current clip's own extracted root motion, replayed from [fromSeconds]
+  /// to [toSeconds] on [rootNodeIndex] — the runtime half `anim-16`'s own
   /// `root_motion_commands.dart` names as a separate, later piece: that file
   /// flattens a root joint's translation track to its first key so the
   /// engine sees a root that stands still, saving what it overwrote under
-  /// [kRootMotionExtra]; this reads that back and hands a character
+  /// [rootMotionExtra]; this reads that back and hands a character
   /// controller the delta the clip would have moved the root by, so a walk
   /// cycle can drive the object it belongs to instead of dragging it across
   /// the level by itself.
@@ -337,21 +314,21 @@ final class AnimationPlayer {
   /// own row is linear root motion, and a cubic one would need the saved
   /// in/out tangents replayed too, not only the value in the middle of them.
   ///
-  /// **[toTime] may be less than [fromTime].** That is what a clip wrapping
+  /// **[toSeconds] may be less than [fromSeconds].** That is what a clip wrapping
   /// from its own end back to its start looks like — [update]'s own `%=`
   /// against the clip's duration — and the delta then covers both legs: from
-  /// [fromTime] to the track's own last key, and from its first key to
-  /// [toTime]. A caller driving this every frame passes the playhead before
+  /// [fromSeconds] to the track's own last key, and from its first key to
+  /// [toSeconds]. A caller driving this every frame passes the playhead before
   /// and after [update] moved it, in that order, whether or not a wrap
   /// happened to fall in between.
   Vector3? rootMotionDelta(
     int rootNodeIndex, {
-    required double fromTime,
-    required double toTime,
+    required double fromSeconds,
+    required double toSeconds,
   }) {
     final active = clip;
     if (active == null) return null;
-    final extra = active.extras?[kRootMotionExtra];
+    final extra = active.extras?[rootMotionExtra];
     if (extra is! List) return null;
 
     AnimationTrack? track;
@@ -393,11 +370,11 @@ final class AnimationPlayer {
       return Vector3(out[0], out[1], out[2]);
     }
 
-    if (toTime >= fromTime) {
-      return sampleAt(toTime) - sampleAt(fromTime);
+    if (toSeconds >= fromSeconds) {
+      return sampleAt(toSeconds) - sampleAt(fromSeconds);
     }
-    return (sampleAt(track.endTime) - sampleAt(fromTime)) +
-        (sampleAt(toTime) - sampleAt(track.startTime));
+    return (sampleAt(track.endSeconds) - sampleAt(fromSeconds)) +
+        (sampleAt(toSeconds) - sampleAt(track.startSeconds));
   }
 
   /// Names of the clips, for a UI that lets the user pick one.
@@ -409,7 +386,7 @@ final class AnimationPlayer {
   ///
   /// Selecting a clip applies its first pose immediately rather than waiting for
   /// the next tick, so a paused player still shows the right thing.
-  void play([int? index]) {
+  void play({int? index}) {
     if (clips.isEmpty) return;
     if (index != null) {
       if (index < 0 || index >= clips.length) {
@@ -433,13 +410,14 @@ final class AnimationPlayer {
   bool playNamed(String name) {
     for (var i = 0; i < clips.length; i++) {
       if (clips[i].name == name) {
-        play(i);
+        play(index: i);
         return true;
       }
     }
     return false;
   }
 
+  /// Stops the clock where it is, leaving the current pose applied.
   void pause() => _playing = false;
 
   /// Stops and rewinds, leaving the first pose applied.
@@ -451,7 +429,7 @@ final class AnimationPlayer {
 
   /// Moves the playhead, clamped to the clip, and applies the pose.
   void seek(double seconds) {
-    final length = duration;
+    final length = durationSeconds;
     _time = length <= 0.0 ? 0.0 : seconds.clamp(0.0, length);
     apply();
   }
@@ -465,7 +443,7 @@ final class AnimationPlayer {
       // The clip being left keeps playing while it fades, which is the whole
       // difference between a crossfade and a dissolve to a frozen pose.
       _fadeFromTime += deltaSeconds * speed;
-      final outgoing = clips[_fadingFrom].duration;
+      final outgoing = clips[_fadingFrom].durationSeconds;
       if (outgoing > 0.0) _fadeFromTime %= outgoing;
 
       _fadeRemaining -= deltaSeconds;
@@ -481,20 +459,20 @@ final class AnimationPlayer {
       return;
     }
 
-    final length = duration;
+    final length = durationSeconds;
     if (length <= 0.0) {
       apply();
       return;
     }
 
     final advanced = advanceTime(
-      time: _time,
+      seconds: _time,
       deltaSeconds: deltaSeconds * speed,
       length: length,
       wrap: wrap,
       reversing: _reversing,
     );
-    _time = advanced.time;
+    _time = advanced.timeSeconds;
     _reversing = advanced.reversing;
     if (advanced.stopped) _playing = false;
 
@@ -505,7 +483,7 @@ final class AnimationPlayer {
     for (final layer in layers) {
       final index = layer.clip;
       if (index < 0 || index >= clips.length) continue;
-      layer.advance(deltaSeconds, clips[index].duration);
+      layer.advance(deltaSeconds, clips[index].durationSeconds);
     }
   }
 
@@ -695,7 +673,7 @@ final class AnimationPlayer {
       if (_layerSample.length < track.componentCount) {
         _layerSample = Float32List(track.componentCount);
       }
-      track.sample(layer.time, _layerSample);
+      track.sample(layer.timeSeconds, _layerSample);
       // An additive layer contributes its distance from its own reference
       // frame here too — `gfx-10n`. A weight track is already a sum, so the
       // only thing additive changes is *what* is summed: a blink authored over
@@ -790,7 +768,7 @@ final class AnimationPlayer {
         // Slerp, not a component lerp: blending quaternions linearly and
         // renormalising takes the long way round whenever the two are more than
         // a quarter turn apart, which is exactly what a hurt reaction is.
-        final mixed = _slerp(_fadeQuaternion, _quaternion, weight);
+        final mixed = shortestArcSlerp(_fadeQuaternion, _quaternion, weight);
         into[0] = mixed.x;
         into[1] = mixed.y;
         into[2] = mixed.z;
@@ -804,6 +782,8 @@ final class AnimationPlayer {
 
       case AnimationPath.weights:
       case AnimationPath.pointer:
+      default:
+        // Not a joint's TRS, and nor is a path a later release adds.
         break;
     }
   }
@@ -812,7 +792,7 @@ final class AnimationPlayer {
   /// not adding — `gfx-10n`.
   ///
   /// Null covers both halves of "not adding": an override layer, and an
-  /// additive one over a clip that names no [AnimationClip.referenceTime].
+  /// additive one over a clip that names no [AnimationClip.referenceSeconds].
   /// The second is the case worth being deliberate about — a caller who asks
   /// for an additive blend over an ordinary clip gets the clip, overriding,
   /// rather than a delta measured from a pose nobody declared. Guessing at
@@ -823,7 +803,7 @@ final class AnimationPlayer {
     AnimationTrack track,
   ) {
     if (layer.blend != AnimationBlend.additive) return null;
-    final at = clip.referenceTime;
+    final at = clip.referenceSeconds;
     if (at == null) return null;
     if (_referenceSample.length < track.componentCount) {
       _referenceSample = Float32List(track.componentCount);
@@ -893,7 +873,10 @@ final class AnimationPlayer {
         break;
 
       case AnimationPath.pointer:
-        // Layers leave pointer tracks alone — see [_applyPointer].
+      // ignore: no-equal-switch-case, kept apart from weights for its reason.
+      default:
+        // Layers leave pointer tracks alone — see [_applyPointer] — and a
+        // path a later release adds is not one a layer knows how to fold.
         break;
     }
   }
@@ -916,7 +899,7 @@ final class AnimationPlayer {
       if (_layerSample.length < track.componentCount) {
         _layerSample = Float32List(track.componentCount);
       }
-      track.sample(layer.time, _layerSample);
+      track.sample(layer.timeSeconds, _layerSample);
 
       final reference = _referenceOf(layer, clips[index], track);
       if (reference != null) {
@@ -977,7 +960,7 @@ final class AnimationPlayer {
         if (_layerSample.length < track.componentCount) {
           _layerSample = Float32List(track.componentCount);
         }
-        track.sample(layer.time, _layerSample);
+        track.sample(layer.timeSeconds, _layerSample);
         _write(node, track.path, _layerSample);
       }
     }
@@ -1009,6 +992,8 @@ final class AnimationPlayer {
         // Answered before the node lookup — see `_applyWeights` and
         // `_applyPointer`. Nothing reaches here.
         break;
+      default:
+        throw UnsupportedError('a node has no $path to write');
     }
   }
 

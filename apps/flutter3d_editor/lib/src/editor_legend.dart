@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import 'editor_cubit.dart';
 
@@ -9,8 +9,10 @@ import 'editor_cubit.dart';
 /// so the one thing somebody needs before they can do anything at all was the
 /// one thing they could not read.
 final class EditorLegend extends StatelessWidget {
+  /// The legend for [state].
   const EditorLegend({super.key, required this.state});
 
+  /// The open level, whose axis, grid and lamp the legend says.
   final EditorReady state;
 
   @override
@@ -23,8 +25,8 @@ final class EditorLegend extends StatelessWidget {
       children: <Widget>[
         const Text(
           'W A S D fly · Q E down and up · shift faster · '
-          'scroll forward · drag to look · click to select · '
-          'fields on the right',
+          'scroll forward · drag to look · click to select, ⌘-click for more · '
+          'fields on the right · ⌘K every command',
           style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
         ),
         const SizedBox(height: 2),

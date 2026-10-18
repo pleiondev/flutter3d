@@ -10,19 +10,23 @@ import 'circuits.dart';
 /// three questions rather than five — is a circuit up, did it fail to read,
 /// and did the one just raced end the season or only the lap.
 sealed class RaceStatus {
+  /// For the subclasses: a status is one of the four below.
   const RaceStatus();
 }
 
 /// Before the first circuit, and between the finish line and the next one
 /// being up.
 final class RaceLoading extends RaceStatus {
+  /// The one loading status; it carries nothing.
   const RaceLoading();
 }
 
 /// A circuit is up and can be driven.
 final class Racing extends RaceStatus {
+  /// [circuit] is up.
   const Racing(this.circuit);
 
+  /// The circuit being raced.
   final Circuit circuit;
 }
 
@@ -36,15 +40,19 @@ final class Racing extends RaceStatus {
 /// that text names somewhere to go. Two classes would still need the same
 /// `if (next == null)` at the one place either is read.
 final class RaceOver extends RaceStatus {
+  /// [circuit] has been won, and [next] is raced after it, or nothing is.
   const RaceOver(this.circuit, {required this.next});
 
+  /// The circuit just won.
   final Circuit circuit;
 
   /// The circuit raced after this one, or null when [circuit] was the last —
-  /// the season is over, and the screen says so for good, since nothing here
-  /// ever calls [RaceProgress.moveOn] to leave that behind.
+  /// the season is over, and the screen says so until the player starts it
+  /// over with [RaceProgress.startOver]; nothing calls [RaceProgress.moveOn]
+  /// after the last circuit.
   final Circuit? next;
 
+  /// Whether this win ended the season: [circuit] was the last of it.
   bool get seasonComplete => next == null;
 }
 
@@ -58,8 +66,11 @@ final class RaceOver extends RaceStatus {
 /// neither for a while — the screen printed the thrown object on black, with
 /// no filename, no explanation and nothing to press.
 final class RaceFailed extends RaceStatus {
+  /// The race stopped on [error], reading [asset] if a file was the cause.
   const RaceFailed(this.error, {this.asset});
 
+  /// What was thrown: a parse error for a circuit, the device's failure
+  /// otherwise.
   final Object error;
 
   /// The circuit document that would not read, or null when the failure was
@@ -78,7 +89,10 @@ final class RaceFailed extends RaceStatus {
 /// are five writes in a season, and the alternative is a copy constructor and
 /// an emit for each.
 final class SeasonTally {
+  /// Circuits won since the season started.
   int circuits = 0;
+
+  /// Laps driven across those circuits.
   int laps = 0;
 
   /// The quickest lap of the season, or null before one is driven.
@@ -99,6 +113,7 @@ final class SeasonTally {
     }
   }
 
+  /// Back to nothing won and nothing driven, for a season started over.
   void reset() {
     circuits = 0;
     laps = 0;
@@ -120,12 +135,15 @@ final class SeasonTally {
 /// two file paths, and the render loop's own state would turn every step of
 /// it into an allocation and an emit.
 final class RaceProgress {
+  /// A season at its first circuit, loading, telling [onChanged] of each
+  /// transition after this one.
   RaceProgress({this.onChanged});
 
   /// Called after every transition. [RaceCubit] passes its own `emit` through
   /// here, the same way a game's cubit does for `RunSession`.
   void Function(RaceStatus status)? onChanged;
 
+  /// Where the season is now: loading at first, until [ready] or [failed].
   RaceStatus get status => _status;
   RaceStatus _status = const RaceLoading();
 
@@ -200,23 +218,37 @@ final class RaceProgress {
 /// nothing about state management, and this game happens to use BLoC — see
 /// the note in `packages/flutter3d_game/pubspec.yaml`.
 final class RaceCubit extends Cubit<RaceStatus> {
+  /// A cubit over [progress], starting from its status and emitting each one
+  /// after; it takes over [RaceProgress.onChanged].
   RaceCubit(this.progress) : super(progress.status) {
     progress.onChanged = emit;
   }
 
+  /// The season this cubit shows; the transitions below are its.
   final RaceProgress progress;
 
+  /// The current circuit: see [RaceProgress.current].
   Circuit get circuit => progress.current;
 
   /// What the season has come to. See [SeasonTally].
   SeasonTally get season => progress.season;
 
+  /// The current circuit is read: see [RaceProgress.ready].
   void ready() => progress.ready();
+
+  /// The circuit or the device failed: see [RaceProgress.failed].
   void failed(Object error, {String? asset}) =>
       progress.failed(error, asset: asset);
+
+  /// The current circuit is won; returns what comes next. See
+  /// [RaceProgress.finish].
   Circuit? finish({int laps = 0, double? bestLap}) =>
       progress.finish(laps: laps, bestLap: bestLap);
+
+  /// Starts reading [next]: see [RaceProgress.moveOn].
   void moveOn(Circuit next) => progress.moveOn(next);
+
+  /// The season again from the first circuit: see [RaceProgress.startOver].
   void startOver() => progress.startOver();
 
   @override

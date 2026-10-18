@@ -18,6 +18,8 @@ import 'package:vector_math/vector_math.dart';
 /// the range this game is fought at; a table of six would be five of them
 /// nobody can tell apart, and each one is a number somebody has to keep true.
 final class HitZones {
+  /// Zones with each field at the default its own doc gives: a head worth
+  /// two and a half times a hit, legs worth 0.6 of one.
   const HitZones({
     this.headAbove = 0.78,
     this.headMultiplier = 2.5,
@@ -41,11 +43,13 @@ final class HitZones {
   /// would read as having hit the chest.
   final double headAbove;
 
+  /// A unitless multiplier on the damage of a hit to the head.
   final double headMultiplier;
 
   /// Below this fraction counts as the legs.
   final double legsBelow;
 
+  /// A unitless multiplier on the damage of a hit to the legs.
   final double legsMultiplier;
 
   /// What a hit at [fractionUp] of the way up a body is worth.

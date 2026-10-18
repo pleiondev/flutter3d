@@ -24,6 +24,7 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -132,7 +133,7 @@ void main() {
 
     final replay = _stage();
     replay.sim.restore(demo.start);
-    final playback = InputTapePlayback(demo.tape);
+    final playback = InputTapePlayback.tape(demo.tape);
     final replayCheckpoints = DigestTrace();
     var replayedSteps = 0;
     while (!playback.isFinished) {

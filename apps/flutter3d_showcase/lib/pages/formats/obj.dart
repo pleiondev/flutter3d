@@ -10,8 +10,10 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `obj` page: a tetrahedron read from OBJ text with no normals and
+/// written back. Its check is four triangles, generated normals, and a
+/// writer that produced output.
 final class ObjDemo extends ShowcaseDemo {
   late final ModelDocument _decoded;
   late final Uint8List _written;
@@ -51,12 +53,15 @@ f 2 4 3
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _decoded.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.8, 0.6, 0.3, 1.0), roughness: 0.6),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.8, 0.6, 0.3, 1.0),
+          roughness: 0.6,
+        ),
         name: 'tetra',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

@@ -5,6 +5,14 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_node.dart'
+    show FrameContextInternals;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
@@ -90,7 +98,7 @@ void main() {
             emitter: const SphereEmitter(speed: Range.exact(0.0)),
             lifetime: const Range.exact(5.0),
             size: const Range.exact(0.5),
-            color: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+            color: LinearColor(1.0, 1.0, 1.0, 1.0),
           ),
           vm.Vector3(0.0, 0.0, z),
         );
@@ -128,12 +136,12 @@ void main() {
     });
 
     test('bounds every quad of what is alive', () {
-      final centre = vm.Vector3.zero();
-      final radius = threeInARow().boundsInto(centre);
-      expect(centre.z, closeTo(-3.0, 1e-9));
+      final center = vm.Vector3.zero();
+      final radius = threeInARow().boundsInto(center);
+      expect(center.z, closeTo(-3.0, 1e-9));
       // Two metres to either end, and half a quad's diagonal past that.
       expect(radius, closeTo(2.0 + 0.5 * 0.7071067811865476, 1e-9));
-      expect(ParticleSystem().boundsInto(centre), 0.0);
+      expect(ParticleSystem().boundsInto(center), 0.0);
     });
   });
 
@@ -147,14 +155,13 @@ void main() {
       encoder: pass,
       device: device,
       services: _NoServices(),
-      state: FramePassState(),
       settings: const RenderSettings(),
       width: 320,
       height: 200,
-      view: RenderView(camera: CameraNode()),
+      view: CameraView(camera: CameraNode()),
       viewProjection: vm.Matrix4.identity(),
       lights: lights,
-    );
+    )..state = FramePassState();
 
     setUp(() {
       device = FakeBackend();
@@ -166,7 +173,7 @@ void main() {
             emitter: const SphereEmitter(),
             lifetime: const Range.exact(5.0),
             size: const Range.exact(0.5),
-            color: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+            color: LinearColor(1.0, 1.0, 1.0, 1.0),
           ),
           vm.Vector3.zero(),
         );
@@ -175,7 +182,7 @@ void main() {
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(4),
-      )!;
+      );
       sheet = SixWayMaterial(positive: texture(), negative: texture());
     });
 
@@ -194,7 +201,7 @@ void main() {
       );
       expect(pass.depthWrite, isFalse);
       final pipeline = pass.recordedOf<RecordedPipeline>().single.pipeline;
-      expect(pipeline, isNotNull);
+      expect(pipeline.name, endsWith('+ParticleSixWay'));
       final textures = pass.recordedOf<RecordedTexture>();
       expect(textures.map((t) => t.slot), <String>[
         'six_way_positive',
@@ -227,32 +234,20 @@ void main() {
   });
 }
 
-final class _RecordingLights implements ContributorLights {
+final class _RecordingLights with ContributorLights {
   final List<ShaderHandle> stages = <ShaderHandle>[];
   final List<double> radii = <double>[];
 
   @override
-  void bind(
-    PassEncoder encoder,
-    ShaderHandle stage, {
-    required vm.Vector3 centre,
-    required double radius,
-  }) {
-    stages.add(stage);
-    radii.add(radius);
+  void bind(LightBindRequest request) {
+    stages.add(request.stage);
+    radii.add(request.radius);
   }
 }
 
-final class _NoServices implements RenderServices {
+final class _NoServices with RenderServices {
   @override
-  void encodeScene({
-    required NodeFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) {}
+  void encodeScene(SceneEncodeRequest request) {}
 
   @override
   void drawFullscreen(FullscreenDraw draw) {}

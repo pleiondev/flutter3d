@@ -13,8 +13,13 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// in flight. `FrameResources` released straight to the pool until the shadow
 /// passes were read closely enough to notice, which is the argument for
 /// reading working code before replacing it.
-abstract interface class FrameTextureSource {
-  TextureHandle acquire(RenderTargetSpec spec);
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class FrameTextureSource {
+  /// Lends a texture matching [spec] for the frame being encoded.
+  TextureHandle acquire(RenderTargetDescriptor spec);
 
   /// Gives a texture up. The implementation decides *when* it is safe to reuse.
   void release(TextureHandle texture);
@@ -25,12 +30,14 @@ abstract interface class FrameTextureSource {
 /// For tests and for anything that is not inside a frame in flight. Using this
 /// from a renderer is the bug described on [FrameTextureSource].
 final class ImmediateTextureSource implements FrameTextureSource {
+  /// A source lending from and giving back to [pool] at once.
   const ImmediateTextureSource(this.pool);
 
+  /// The pool every texture is lent from and given back to.
   final RenderTargetPool pool;
 
   @override
-  TextureHandle acquire(RenderTargetSpec spec) => pool.acquire(spec);
+  TextureHandle acquire(RenderTargetDescriptor spec) => pool.acquire(spec);
 
   @override
   void release(TextureHandle texture) => pool.release(texture);

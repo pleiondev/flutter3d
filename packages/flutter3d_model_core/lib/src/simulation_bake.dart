@@ -28,11 +28,16 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import 'simulation_cache.dart';
 
-/// Bakes [mesh] forward [frameCount] frames of [dt] seconds each, one
-/// `stepCloth` call per frame — cheap enough, at the scale this cache is
-/// meant for, to fit inside a `Job` chunk's own per-step time budget on the
+/// Bakes [mesh] forward [frameCount] frames of [dt] seconds each, one step
+/// of [physics]' cloth (`PhysicsBackend.cloth`) per frame — cheap enough, at
+/// the scale this cache is meant for, to fit inside a `Job` chunk's own per-step time budget on the
 /// web without batching several frames into one chunk.
-final class BakeClothJobRequest implements SimulationBakeRequest {
+final class BakeClothJobRequest with SimulationBakeRequest {
+  /// A bake of [frameCount] frames of [dt] seconds each for object [objectId]
+  /// at version [baseVersion], stepping [mesh] through [physics]' cloth. The
+  /// default backend is [DartPhysics].
+  ///
+  /// Asserts that [frameCount] is positive.
   BakeClothJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -41,7 +46,9 @@ final class BakeClothJobRequest implements SimulationBakeRequest {
     required this.dt,
     required this.frameCount,
     this.obstacles = const <ClothObstacle>[],
+    PhysicsBackend physics = const DartPhysics(),
   }) : _mesh = mesh,
+       _cloth = physics.cloth(mesh),
        vertexCount = mesh.particleCount,
        assert(frameCount > 0, 'a bake of zero frames has nothing to cache');
 
@@ -57,6 +64,7 @@ final class BakeClothJobRequest implements SimulationBakeRequest {
   @override
   final int baseVersion;
 
+  /// Cloth parameters every step runs with.
   final ClothSettings settings;
 
   /// Seconds one frame advances the solver by.
@@ -67,7 +75,15 @@ final class BakeClothJobRequest implements SimulationBakeRequest {
   @override
   final int frameCount;
 
+  /// Colliders the cloth is kept out of on every step, none by default.
   final List<ClothObstacle> obstacles;
+
+  /// Every frame's step, the same each frame.
+  late final ClothStep _step = ClothStep(
+    settings: settings,
+    dt: dt,
+    obstacles: obstacles,
+  );
 
   /// [ClothMesh.particleCount] at the moment this was built — every captured
   /// frame is this many vertices long.
@@ -75,6 +91,13 @@ final class BakeClothJobRequest implements SimulationBakeRequest {
   final int vertexCount;
 
   final ClothMesh _mesh;
+
+  /// [_mesh] on the run's physics, made with the request: the core where
+  /// the run is on it, `stepCloth` where it is on the reference. This
+  /// package does not depend on the core; a game that does chose the
+  /// backend before it asked for a bake. What the core holds for it goes
+  /// with the request, by the core's finalizer.
+  final ClothSimulation _cloth;
   final List<Float32List> _frames = <Float32List>[];
 
   /// How many frames [runChunk] has actually captured so far — grows by one
@@ -88,7 +111,7 @@ final class BakeClothJobRequest implements SimulationBakeRequest {
   /// parameter is here because this is handed to `Job<T>` as its own
   /// `runChunk` verbatim.
   Future<void> runChunk(int index) async {
-    stepCloth(_mesh, settings, dt, obstacles: obstacles);
+    _cloth.step(_step);
     _frames.add(Float32List.fromList(_mesh.positions));
   }
 

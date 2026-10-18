@@ -30,7 +30,7 @@ import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Recorder implements AnimationTarget {
+final class _Recorder with AnimationTarget {
   final Vector3 position = Vector3.zero();
   final Quaternion rotation = Quaternion.identity();
   final Vector3 scale = Vector3.all(1.0);
@@ -86,7 +86,7 @@ AnimationClip get _walk => AnimationClip(
 /// ordinary clip, which is the second group below.
 AnimationClip _breath({double? reference}) => AnimationClip(
   name: 'breath',
-  referenceTime: reference,
+  referenceSeconds: reference,
   tracks: <AnimationTrack>[
     AnimationTrack(
       nodeIndex: 0,
@@ -110,7 +110,7 @@ _Recorder _posedAt(
   double seconds = 0.5,
 }) {
   final rig = _rig(clips);
-  rig.player.play(0);
+  rig.player.play(index: 0);
   rig.player.addLayer(layer);
   rig.player.update(seconds);
   return rig.node;
@@ -179,8 +179,8 @@ void main() {
       // additive clip and knows which of its frames is at rest. A clip built
       // from tracks alone — every clip a glTF produces — is not additive, and
       // that is the guarantee that no existing character moved.
-      expect(_breath().referenceTime, isNull);
-      expect(_walk.referenceTime, isNull);
+      expect(_breath().referenceSeconds, isNull);
+      expect(_walk.referenceSeconds, isNull);
     });
 
     test('an additive layer over such a clip overrides', () {
@@ -203,7 +203,7 @@ void main() {
     /// fully reached half a second in — a `once` layer then holds it there.
     AnimationClip recoilClip(Quaternion recoil) => AnimationClip(
       name: 'recoil',
-      referenceTime: 0.0,
+      referenceSeconds: 0.0,
       tracks: <AnimationTrack>[
         _track(
           0,
@@ -293,7 +293,7 @@ void main() {
           ),
           AnimationClip(
             name: 'swell',
-            referenceTime: 0.0,
+            referenceSeconds: 0.0,
             tracks: <AnimationTrack>[
               _track(
                 0,

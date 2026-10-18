@@ -11,13 +11,14 @@
 /// callbacks route through [ModelHistory].
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 
 /// A clip's own name, the blend-duration slider, and a "Preview" button —
 /// one row, 22 logical pixels tall.
 class ClipTracksBar extends StatelessWidget {
+  /// The row for [clipName], disabled throughout while it is null.
   const ClipTracksBar({
     super.key,
     required this.clipName,
@@ -33,6 +34,9 @@ class ClipTracksBar extends StatelessWidget {
   /// The crossfade's own duration, in seconds — `TimelinePlayback.
   /// crossFadeTo`'s own `duration` argument.
   final double blendSeconds;
+
+  /// Called with a new [blendSeconds] as the slider moves, from 0 to 1
+  /// second; never called while the row is disabled.
   final ValueChanged<double> onBlendChanged;
 
   /// "Preview" was pressed — null when [clipName] is null, the same

@@ -1,0 +1,50 @@
+name: flutter3d_conformance_render
+description: >-
+  The render checks of flutter3d's conformance suite: what a plugin adds to
+  the frame, drawn through the renderer on a backend. Kept apart from
+  flutter3d_conformance because it needs the renderer.
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - gpu
+  - testing
+  - conformance
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dependencies:
+  # A test library in `dependencies`, as in `flutter3d_conformance`: this
+  # package is tests, and a plugin takes it as a dev dependency.
+  test: ^1.25.0
+  # What a check reports, `PluginCheckOutcome`, the plugin suite's own.
+  flutter3d_conformance: '>=1.0.0-rc.1 <1.1.0'
+  # The renderer a plugin's points in the frame are drawn through, and the
+  # reason this is a package of its own: the backends' contract suite does
+  # not need it, so a backend's dev dependency does not pull it in.
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
+  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
+  # The loop a plugin is installed into before its frame is drawn.
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+resolution: workspace

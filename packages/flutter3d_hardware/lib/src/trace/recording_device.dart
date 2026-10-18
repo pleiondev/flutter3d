@@ -16,26 +16,102 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
+import '../backend_id.dart';
+import '../capabilities.dart';
 import '../command_encoder.dart';
 import '../compute.dart';
 import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../gpu_timings.dart';
 import '../graphics_device.dart';
-import '../render_target_pool.dart';
+import '../pipeline_descriptor.dart';
+import '../pipeline_refusal.dart';
+import '../resources.dart';
 import '../sampler.dart';
 import '../shader.dart';
+import '../synchronous_readback.dart';
 import '../texture.dart';
+import '../transfer.dart';
 import '../vertex_layout_spec.dart';
 import 'trace_event.dart';
 
-final class RecordingDevice implements GraphicsDevice {
+/// A [GraphicsDevice] that passes every call to [inner] and keeps it as a
+/// [TraceEvent] in [events]; see the library comment.
+///
+/// A call the trace format has no event for is passed through and named in
+/// [unrecorded], so a trace that would not replay faithfully says so.
+final class RecordingDevice extends GraphicsDevice
+    with SynchronousBufferReadback {
+  /// Creates a recorder over [inner], with nothing recorded yet.
   RecordingDevice(this.inner);
 
   /// The device every call goes through to.
   final GraphicsDevice inner;
+
+  @override
+  String get backendName => inner.backendName;
+
+  @override
+  BackendId get backendId => inner.backendId;
+
+  @override
+  Stream<DeviceLoss> get lost => inner.lost;
+
+  @override
+  bool get isLost => inner.isLost;
+
+  @override
+  Stream<DeviceError> get errors => inner.errors;
+
+  /// The inner device's: its encoders are the ones that report, and a
+  /// renderer drawing through this recorder takes the reports from here.
+  @override
+  PipelineRefusals get pipelineRefusals => inner.pipelineRefusals;
+
+  /// Passed through, and written into the trace for a texture, a geometry
+  /// buffer, a pipeline or a storage buffer the trace made, so a replay
+  /// gives it the same label. Any other resource is passed through and
+  /// listed in [unrecorded].
+  @override
+  void setLabel(Object resource, String label) {
+    final named = switch (resource) {
+      final TextureHandle texture => (
+        TraceLabeled.texture,
+        _textureIds[texture],
+      ),
+      final GeometryBuffer buffer => (
+        TraceLabeled.geometry,
+        _geometryIds[buffer.backend],
+      ),
+      final PipelineHandle pipeline => (
+        TraceLabeled.pipeline,
+        _pipelineIds[pipeline],
+      ),
+      final StorageBuffer buffer => (TraceLabeled.storage, _storageIds[buffer]),
+      _ => null,
+    };
+    switch (named) {
+      case (final kind, final int id):
+        events.add(TraceSetLabel(resource: kind, id: id, label: label));
+      default:
+        _unrecorded('setLabel');
+    }
+    inner.setLabel(resource, label);
+  }
+
+  @override
+  String? labelOf(Object resource) => inner.labelOf(resource);
+
+  @override
+  void releasePipeline(PipelineHandle pipeline) =>
+      inner.releasePipeline(pipeline);
+
+  @override
+  void releaseSampler(SamplerDescriptor sampler) =>
+      inner.releaseSampler(sampler);
 
   /// What was asked, in order.
   final List<TraceEvent> events = <TraceEvent>[];
@@ -96,37 +172,10 @@ final class RecordingDevice implements GraphicsDevice {
   TextureFormat get hdrColorFormat => inner.hdrColorFormat;
   @override
   int get preferredSampleCount => inner.preferredSampleCount;
-  @override
-  bool get supportsOffscreenMsaa => inner.supportsOffscreenMsaa;
-  @override
-  bool get supportsBlendColor => inner.supportsBlendColor;
-  @override
-  bool get supportsMipmaps => inner.supportsMipmaps;
-  @override
-  bool get supportsCubeTextures => inner.supportsCubeTextures;
-  @override
-  bool get supportsRenderToMip => inner.supportsRenderToMip;
-  @override
-  bool get supportsWireframe => inner.supportsWireframe;
-  @override
-  bool get supportsStencil => inner.supportsStencil;
-  @override
-  bool supportsTextureFormat(TextureFormat format) =>
-      inner.supportsTextureFormat(format);
-  @override
-  int get maxAnisotropy => inner.maxAnisotropy;
-  @override
-  int get maxColorAttachments => inner.maxColorAttachments;
+
   @override
   ShaderLibrary get shaders => inner.shaders;
-  @override
-  bool get supportsGpuTimestamps => inner.supportsGpuTimestamps;
-  @override
-  bool get supportsCompute => inner.supportsCompute;
-  @override
-  bool get supportsFloat32Filtering => inner.supportsFloat32Filtering;
-  @override
-  bool get supportsIndependentBlend => inner.supportsIndependentBlend;
+
   @override
   List<TextureFormat> get hdrOutputFormats => inner.hdrOutputFormats;
   @override
@@ -145,7 +194,7 @@ final class RecordingDevice implements GraphicsDevice {
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
-    VertexLayoutSpec? layout,
+    VertexLayoutDescriptor? layout,
   }) {
     final pipeline = inner.createPipeline(vertex, fragment, layout: layout);
     events.add(
@@ -156,6 +205,70 @@ final class RecordingDevice implements GraphicsDevice {
         layout: layout,
       ),
     );
+    return pipeline;
+  }
+
+  /// The inner device's own asynchronous link, so a device that compiles
+  /// off the thread still does under the recorder; the pipeline is written
+  /// into the trace when the link completes, as [createPipeline] writes it.
+  /// A refused link is not recorded: there is no pipeline to name.
+  @override
+  Future<PipelineHandle> createPipelineAsync(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+  }) async {
+    final pipeline = await inner.createPipelineAsync(
+      vertex,
+      fragment,
+      layout: layout,
+    );
+    events.add(
+      TraceCreatePipeline(
+        id: _name(_pipelineIds, pipeline),
+        vertex: vertex.name,
+        fragment: fragment.name,
+        layout: layout,
+      ),
+    );
+    return pipeline;
+  }
+
+  /// The inner device's own, so a backend that reads a descriptor field
+  /// [createPipeline] has no room for still sees it under the recorder;
+  /// written into the trace as [createPipeline] writes it, with the label
+  /// as a `TraceSetLabel` after it.
+  @override
+  PipelineHandle createPipelineFrom(PipelineDescriptor descriptor) =>
+      _recordPipeline(descriptor, inner.createPipelineFrom(descriptor));
+
+  /// [createPipelineFrom], recorded when the inner device's link completes.
+  @override
+  Future<PipelineHandle> createPipelineFromAsync(
+    PipelineDescriptor descriptor,
+  ) async => _recordPipeline(
+    descriptor,
+    await inner.createPipelineFromAsync(descriptor),
+  );
+
+  PipelineHandle _recordPipeline(
+    PipelineDescriptor descriptor,
+    PipelineHandle pipeline,
+  ) {
+    final id = _name(_pipelineIds, pipeline);
+    events.add(
+      TraceCreatePipeline(
+        id: id,
+        vertex: descriptor.vertex.name,
+        fragment: descriptor.fragment.name,
+        layout: descriptor.layout,
+      ),
+    );
+    if (descriptor.label case final label?) {
+      events.add(
+        TraceSetLabel(resource: TraceLabeled.pipeline, id: id, label: label),
+      );
+    }
     return pipeline;
   }
 
@@ -195,15 +308,17 @@ final class RecordingDevice implements GraphicsDevice {
     inner.releaseGeometry(geometry);
   }
 
+  /// Recorded with its whole descriptor, whatever its shape: a pool's
+  /// target, an array, a volume, a chain or a storage texture.
   @override
-  TextureHandle createTexture(RenderTargetSpec spec) {
-    final texture = inner.createTexture(spec);
-    events.add(TraceCreateTexture(id: _texture(texture), spec: spec));
+  TextureHandle createTexture(TextureDescriptor descriptor) {
+    final texture = inner.createTexture(descriptor);
+    events.add(TraceCreateTexture(id: _texture(texture), spec: descriptor));
     return texture;
   }
 
   @override
-  TextureHandle? createTextureFromPixels({
+  TextureHandle createTextureFromPixels({
     required int width,
     required int height,
     required TextureFormat format,
@@ -217,23 +332,21 @@ final class RecordingDevice implements GraphicsDevice {
       pixels: pixels,
       mipLevels: mipLevels,
     );
-    if (texture != null) {
-      events.add(
-        TraceCreateTextureFromPixels(
-          id: _texture(texture),
-          width: width,
-          height: height,
-          format: format,
-          pixels: _copy(pixels),
-          mipLevels: mipLevels?.map(_copy).toList(),
-        ),
-      );
-    }
+    events.add(
+      TraceCreateTextureFromPixels(
+        id: _texture(texture),
+        width: width,
+        height: height,
+        format: format,
+        pixels: _copy(pixels),
+        mipLevels: mipLevels?.map(_copy).toList(),
+      ),
+    );
     return texture;
   }
 
   @override
-  TextureHandle? createCubeTextureFromPixels({
+  TextureHandle createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
@@ -245,24 +358,20 @@ final class RecordingDevice implements GraphicsDevice {
       faces: faces,
       mipLevels: mipLevels,
     );
-    if (texture != null) {
-      events.add(
-        TraceCreateCubeTextureFromPixels(
-          id: _texture(texture),
-          size: size,
-          format: format,
-          faces: faces.map(_copy).toList(),
-          mipLevels: mipLevels
-              ?.map((face) => face.map(_copy).toList())
-              .toList(),
-        ),
-      );
-    }
+    events.add(
+      TraceCreateCubeTextureFromPixels(
+        id: _texture(texture),
+        size: size,
+        format: format,
+        faces: faces.map(_copy).toList(),
+        mipLevels: mipLevels?.map((face) => face.map(_copy).toList()).toList(),
+      ),
+    );
     return texture;
   }
 
   @override
-  TextureHandle? createCubeRenderTarget({
+  TextureHandle createCubeRenderTarget({
     required int size,
     required TextureFormat format,
     int mipLevels = 1,
@@ -272,16 +381,14 @@ final class RecordingDevice implements GraphicsDevice {
       format: format,
       mipLevels: mipLevels,
     );
-    if (texture != null) {
-      events.add(
-        TraceCreateCubeRenderTarget(
-          id: _texture(texture),
-          size: size,
-          format: format,
-          mipLevels: mipLevels,
-        ),
-      );
-    }
+    events.add(
+      TraceCreateCubeRenderTarget(
+        id: _texture(texture),
+        size: size,
+        format: format,
+        mipLevels: mipLevels,
+      ),
+    );
     return texture;
   }
 
@@ -329,27 +436,37 @@ final class RecordingDevice implements GraphicsDevice {
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
     final pass = _nextPass++;
+    // The trace's pass carries every attachment field; what it does not
+    // carry is a view mask and the queries, which name resources a trace
+    // never creates. A multiview pass recorded as one view would replay as
+    // a single-view pass with nothing saying so.
+    if (descriptor.viewMask != null ||
+        descriptor.occlusionQuerySet != null ||
+        descriptor.timestampWrites != null) {
+      _unrecorded('beginRenderPass descriptor fields');
+    }
     events.add(
       TraceBeginRenderPass(
         pass: pass,
         label: descriptor.label,
         colors: <TraceColorTarget>[
           for (final c in descriptor.colors)
-            (
+            TraceColorTarget(
               texture: _texture(c.texture),
               resolveTexture: c.resolveTexture == null
                   ? null
                   : _texture(c.resolveTexture!),
               loadAction: c.loadAction,
               storeAction: c.storeAction,
-              clearValue: c.clearValue?.clone(),
+              clearValue: c.clearValue,
               face: c.face,
               mipLevel: c.mipLevel,
+              layer: c.layer,
             ),
         ],
         depth: switch (descriptor.depth) {
           null => null,
-          final d => (
+          final d => TraceDepthTarget(
             texture: _texture(d.texture),
             clearValue: d.clearValue,
             loadAction: d.loadAction,
@@ -357,17 +474,16 @@ final class RecordingDevice implements GraphicsDevice {
             stencilLoadAction: d.stencilLoadAction,
             stencilStoreAction: d.stencilStoreAction,
             stencilClearValue: d.stencilClearValue,
+            mipLevel: d.mipLevel,
+            layer: d.layer,
+            face: d.face,
+            depthReadOnly: d.depthReadOnly,
+            stencilReadOnly: d.stencilReadOnly,
           ),
         },
       ),
     );
     return _RecordingEncoder(this, pass, inner.beginRenderPass(descriptor));
-  }
-
-  @override
-  Future<ByteData?> readPixels(TextureHandle texture) {
-    events.add(TraceReadPixels(_texture(texture)));
-    return inner.readPixels(texture);
   }
 
   @override
@@ -380,22 +496,6 @@ final class RecordingDevice implements GraphicsDevice {
   void dispose() => inner.dispose();
 
   // ------------------------------------------------------------- compute
-
-  @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-  }) {
-    final buffer = inner.createStorageBuffer(bytes, hostReadable: hostReadable);
-    events.add(
-      TraceCreateStorageBuffer(
-        id: _name(_storageIds, buffer),
-        bytes: _copy(bytes),
-        hostReadable: hostReadable,
-      ),
-    );
-    return buffer;
-  }
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) {
@@ -415,9 +515,68 @@ final class RecordingDevice implements GraphicsDevice {
     return pipeline;
   }
 
+  /// The inner device's own, recorded when it completes; see
+  /// [createPipelineAsync].
   @override
-  ComputeEncoder beginComputePass({String? label}) {
-    final encoder = inner.beginComputePass(label: label);
+  Future<ComputePipelineHandle> createComputePipelineAsync(
+    ShaderHandle shader,
+  ) async {
+    final pipeline = await inner.createComputePipelineAsync(shader);
+    events.add(
+      TraceCreateComputePipeline(
+        _name(_computePipelineIds, pipeline),
+        shader.name,
+      ),
+    );
+    return pipeline;
+  }
+
+  /// The inner device's own, recorded as [createComputePipeline] is. A
+  /// trace names no compute pipeline's label, so a label is passed on and
+  /// listed in [unrecorded].
+  @override
+  ComputePipelineHandle createComputePipelineFrom(
+    ComputePipelineDescriptor descriptor,
+  ) => _recordComputePipeline(
+    descriptor,
+    inner.createComputePipelineFrom(descriptor),
+  );
+
+  /// [createComputePipelineFrom], recorded when it completes.
+  @override
+  Future<ComputePipelineHandle> createComputePipelineFromAsync(
+    ComputePipelineDescriptor descriptor,
+  ) async => _recordComputePipeline(
+    descriptor,
+    await inner.createComputePipelineFromAsync(descriptor),
+  );
+
+  ComputePipelineHandle _recordComputePipeline(
+    ComputePipelineDescriptor descriptor,
+    ComputePipelineHandle pipeline,
+  ) {
+    events.add(
+      TraceCreateComputePipeline(
+        _name(_computePipelineIds, pipeline),
+        descriptor.shader.name,
+      ),
+    );
+    if (descriptor.label != null) _unrecorded('setLabel');
+    return pipeline;
+  }
+
+  @override
+  ComputeEncoder beginComputePass({
+    String? label,
+    PassTimestampWrites? timestampWrites,
+  }) {
+    if (timestampWrites != null) {
+      _unrecorded('beginComputePass.timestampWrites');
+    }
+    final encoder = inner.beginComputePass(
+      label: label,
+      timestampWrites: timestampWrites,
+    );
     final pass = _nextPass++;
     events.add(TraceBeginComputePass(pass, label));
     return _RecordingComputeEncoder(this, pass, encoder);
@@ -428,21 +587,197 @@ final class RecordingDevice implements GraphicsDevice {
     events.add(TraceReadBuffer(_name(_storageIds, buffer)));
     return inner.readBuffer(buffer);
   }
+
+  // ------------------------------------------------------------ since 1.0
+  //
+  // **Forwarded, and named in [unrecorded] rather than traced.** `TraceEvent`
+  // is versioned with the trace format; giving every 1.0 call a
+  // variant and a codec is its own change. Until then a recording that used
+  // any of these says so: [unrecorded] lists each call by name, and a replay
+  // of such a trace is known to be incomplete rather than silently so.
+
+  /// The 1.0-surface calls this recording forwarded without tracing, in
+  /// order. Empty for every frame the engine draws today.
+  final List<String> unrecorded = <String>[];
+
+  void _unrecorded(String call) => unrecorded.add(call);
+
+  @override
+  DeviceFeatures get features => inner.features;
+  @override
+  DeviceLimits get limits => inner.limits;
+  @override
+  TextureFormatSupport textureFormatSupport(TextureFormat format) =>
+      inner.textureFormatSupport(format);
+
+  @override
+  void writeTexture(
+    TextureHandle target,
+    ByteData data, {
+    TextureRegion? region,
+    int mipLevel = 0,
+    int? bytesPerRow,
+  }) {
+    _unrecorded('writeTexture');
+    inner.writeTexture(
+      target,
+      data,
+      region: region,
+      mipLevel: mipLevel,
+      bytesPerRow: bytesPerRow,
+    );
+  }
+
+  /// A storage buffer — the usages `createStorageBuffer` made before 1.0
+  /// folded it in here, with its whole contents given or none — is recorded
+  /// as `createStorageBuffer`, the event a trace has always carried for one;
+  /// any other buffer is passed on and noted as unrecorded.
+  @override
+  StorageBuffer createBuffer(
+    BufferDescriptor descriptor, {
+    ByteData? contents,
+  }) {
+    final buffer = inner.createBuffer(descriptor, contents: contents);
+    final usage = descriptor.usage;
+    final traced =
+        usage.contains(BufferUsage.standardStorage) &&
+        _storageShaped.contains(usage) &&
+        (contents == null ||
+            contents.lengthInBytes == descriptor.lengthInBytes);
+    if (!traced) {
+      _unrecorded('createBuffer');
+      return buffer;
+    }
+    final indices = buffer.asIndices;
+    events.add(
+      TraceCreateStorageBuffer(
+        id: _name(_storageIds, buffer),
+        bytes: contents == null
+            ? ByteData(descriptor.lengthInBytes)
+            : _copy(contents),
+        hostReadable: usage.contains(BufferUsage.hostReadable),
+        // Named as geometry, so a draw that binds it is recorded as one
+        // binding any other index buffer — `H11`.
+        indices: indices == null ? null : _name(_geometryIds, indices.backend),
+      ),
+    );
+    return buffer;
+  }
+
+  /// Every usage a traced storage buffer may have.
+  static final BufferUsage _storageShaped = tracedStorageUsage(
+    hostReadable: true,
+    indices: true,
+  );
+
+  @override
+  void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) {
+    _unrecorded('writeBuffer');
+    inner.writeBuffer(target, offsetInBytes, bytes);
+  }
+
+  @override
+  QuerySet createQuerySet(QueryType type, int count) {
+    _unrecorded('createQuerySet');
+    return inner.createQuerySet(type, count);
+  }
+
+  @override
+  Future<List<int>> readQueryResults(
+    QuerySet querySet, {
+    int first = 0,
+    int? count,
+  }) {
+    _unrecorded('readQueryResults');
+    return inner.readQueryResults(querySet, first: first, count: count);
+  }
+
+  @override
+  void releaseQuerySet(QuerySet querySet) {
+    _unrecorded('releaseQuerySet');
+    inner.releaseQuerySet(querySet);
+  }
+
+  @override
+  TransferEncoder beginTransferPass({String? label}) {
+    _unrecorded('beginTransferPass');
+    return inner.beginTransferPass(label: label);
+  }
+
+  @override
+  Future<MappedBuffer> mapBuffer(
+    StorageBuffer buffer,
+    MapMode mode, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    _unrecorded('mapBuffer');
+    return inner.mapBuffer(
+      buffer,
+      mode,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
+  }
+
+  @override
+  ByteData readBufferSync(
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    _unrecorded('readBufferSync');
+    final inner = this.inner;
+    if (inner is! SynchronousBufferReadback) {
+      throw refuse(DeviceFeature.synchronousReadback);
+    }
+    return inner.readBufferSync(
+      buffer,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
+  }
+
+  @override
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) {
+    _unrecorded('createRenderBundleEncoder');
+    return inner.createRenderBundleEncoder(descriptor);
+  }
 }
 
-final class _RecordingEncoder implements CommandEncoder {
+final class _RecordingEncoder extends PassEncoder with CommandEncoder {
   _RecordingEncoder(this._device, this._pass, this._inner);
 
   final RecordingDevice _device;
   final int _pass;
   final CommandEncoder _inner;
 
+  @override
+  void pushDebugGroup(String label) {
+    _events.add(TracePushDebugGroup(_pass, label));
+    _inner.pushDebugGroup(label);
+  }
+
+  @override
+  void popDebugGroup() {
+    _events.add(TracePopDebugGroup(_pass));
+    _inner.popDebugGroup();
+  }
+
+  @override
+  void insertDebugMarker(String label) {
+    _events.add(TraceInsertDebugMarker(_pass, label));
+    _inner.insertDebugMarker(label);
+  }
+
   List<TraceEvent> get _events => _device.events;
 
   @override
-  void setViewport(ScreenRect rect) {
-    _events.add(TraceSetViewport(_pass, rect));
-    _inner.setViewport(rect);
+  void setViewport(PassViewport viewport) {
+    _events.add(TraceSetViewport(_pass, viewport));
+    _inner.setViewport(viewport);
   }
 
   @override
@@ -476,9 +811,15 @@ final class _RecordingEncoder implements CommandEncoder {
   }
 
   @override
-  void setDepthWrite(bool enabled) {
+  void setAlphaToCoverage({required bool enabled}) {
+    _events.add(TraceSetAlphaToCoverage(_pass, enabled));
+    _inner.setAlphaToCoverage(enabled: enabled);
+  }
+
+  @override
+  void setDepthWrite({required bool enabled}) {
     _events.add(TraceSetDepthWrite(_pass, enabled));
-    _inner.setDepthWrite(enabled);
+    _inner.setDepthWrite(enabled: enabled);
   }
 
   @override
@@ -506,8 +847,8 @@ final class _RecordingEncoder implements CommandEncoder {
   }
 
   @override
-  void setBlendColor(Vector4 color) {
-    _events.add(TraceSetBlendColor(_pass, color.clone()));
+  void setBlendColor(LinearColor color) {
+    _events.add(TraceSetBlendColor(_pass, color));
     _inner.setBlendColor(color);
   }
 
@@ -597,7 +938,7 @@ final class _RecordingEncoder implements CommandEncoder {
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
-    SamplerOptions? sampler,
+    SamplerDescriptor? sampler,
   }) {
     _events.add(
       TraceBindTexture(
@@ -618,9 +959,20 @@ final class _RecordingEncoder implements CommandEncoder {
   }
 
   @override
-  void draw({int instanceCount = 1}) {
-    _events.add(TraceDraw(_pass, instanceCount));
-    _inner.draw(instanceCount: instanceCount);
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    _events.add(
+      TraceDraw(
+        _pass,
+        instanceCount: instanceCount,
+        firstIndex: firstIndex,
+        indexCount: indexCount,
+      ),
+    );
+    _inner.draw(
+      instanceCount: instanceCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
   }
 
   @override
@@ -628,14 +980,197 @@ final class _RecordingEncoder implements CommandEncoder {
     _events.add(TraceSubmit(_pass));
     _inner.submit();
   }
+
+  // Since 1.0: forwarded, and named in `RecordingDevice.unrecorded`.
+
+  void _unrecorded(String call) => _device._unrecorded(call);
+
+  @override
+  void setDepthBias(DepthBias bias) {
+    _unrecorded('setDepthBias');
+    _inner.setDepthBias(bias);
+  }
+
+  @override
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) {
+    _unrecorded('setColorWriteMask');
+    _inner.setColorWriteMask(mask, attachment: attachment);
+  }
+
+  @override
+  void setDepthClamp({required bool enabled}) {
+    _unrecorded('setDepthClamp');
+    _inner.setDepthClamp(enabled: enabled);
+  }
+
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle shader,
+    String name,
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    _unrecorded('bindStorageBuffer');
+    return _inner.bindStorageBuffer(
+      shader,
+      name,
+      buffer,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
+  }
+
+  @override
+  bool bindStorageTexture(
+    ShaderHandle shader,
+    String name,
+    TextureHandle texture, {
+    int mipLevel = 0,
+    StorageTextureAccess access = StorageTextureAccess.writeOnly,
+  }) {
+    _unrecorded('bindStorageTexture');
+    return _inner.bindStorageTexture(
+      shader,
+      name,
+      texture,
+      mipLevel: mipLevel,
+      access: access,
+    );
+  }
+
+  @override
+  bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes) {
+    _unrecorded('bindUniformBytes');
+    return _inner.bindUniformBytes(shader, blockName, bytes);
+  }
+
+  @override
+  bool bindUniformBuffer(
+    ShaderHandle stage,
+    String blockName,
+    StorageBuffer buffer,
+    int offsetInBytes,
+    int sizeInBytes,
+  ) {
+    _unrecorded('bindUniformBuffer');
+    return _inner.bindUniformBuffer(
+      stage,
+      blockName,
+      buffer,
+      offsetInBytes,
+      sizeInBytes,
+    );
+  }
+
+  @override
+  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) {
+    _unrecorded('drawIndirect');
+    _inner.drawIndirect(arguments, offsetInBytes: offsetInBytes);
+  }
+
+  @override
+  void drawNonIndexed({
+    required int vertexCount,
+    int firstVertex = 0,
+    int instanceCount = 1,
+    int firstInstance = 0,
+  }) {
+    _unrecorded('drawNonIndexed');
+    _inner.drawNonIndexed(
+      vertexCount: vertexCount,
+      firstVertex: firstVertex,
+      instanceCount: instanceCount,
+      firstInstance: firstInstance,
+    );
+  }
+
+  /// Traced as the [draw] it is when the base vertex and first instance are
+  /// zero, so a frame using it replays.
+  @override
+  void drawIndexed(IndexedDraw draw) {
+    if (draw.usesBaseVertexOrInstance) {
+      _unrecorded('drawIndexed');
+      _inner.drawIndexed(draw);
+      return;
+    }
+    this.draw(
+      instanceCount: draw.instanceCount,
+      firstIndex: draw.firstIndex,
+      indexCount: draw.indexCount,
+    );
+  }
+
+  @override
+  void multiDraw(List<IndexedDraw> draws) {
+    _unrecorded('multiDraw');
+    _inner.multiDraw(draws);
+  }
+
+  @override
+  void multiDrawIndirect(
+    StorageBuffer arguments,
+    int drawCount, {
+    int offsetInBytes = 0,
+    StorageBuffer? countBuffer,
+    int countOffsetInBytes = 0,
+  }) {
+    _unrecorded('multiDrawIndirect');
+    _inner.multiDrawIndirect(
+      arguments,
+      drawCount,
+      offsetInBytes: offsetInBytes,
+      countBuffer: countBuffer,
+      countOffsetInBytes: countOffsetInBytes,
+    );
+  }
+
+  @override
+  void executeBundles(List<RenderBundle> bundles) {
+    _unrecorded('executeBundles');
+    _inner.executeBundles(bundles);
+  }
+
+  @override
+  void beginOcclusionQuery(int queryIndex) {
+    _unrecorded('beginOcclusionQuery');
+    _inner.beginOcclusionQuery(queryIndex);
+  }
+
+  @override
+  void endOcclusionQuery() {
+    _unrecorded('endOcclusionQuery');
+    _inner.endOcclusionQuery();
+  }
+
+  @override
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) {
+    _unrecorded('beginPipelineStatisticsQuery');
+    _inner.beginPipelineStatisticsQuery(querySet, queryIndex);
+  }
+
+  @override
+  void endPipelineStatisticsQuery() {
+    _unrecorded('endPipelineStatisticsQuery');
+    _inner.endPipelineStatisticsQuery();
+  }
 }
 
-final class _RecordingComputeEncoder implements ComputeEncoder {
+final class _RecordingComputeEncoder extends ComputeEncoder {
   _RecordingComputeEncoder(this._device, this._pass, this._inner);
 
   final RecordingDevice _device;
   final int _pass;
   final ComputeEncoder _inner;
+
+  @override
+  void pushDebugGroup(String label) => _inner.pushDebugGroup(label);
+
+  @override
+  void popDebugGroup() => _inner.popDebugGroup();
+
+  @override
+  void insertDebugMarker(String label) => _inner.insertDebugMarker(label);
 
   @override
   void bindPipeline(ComputePipelineHandle pipeline) {
@@ -652,8 +1187,15 @@ final class _RecordingComputeEncoder implements ComputeEncoder {
   bool bindStorageBuffer(
     ShaderHandle stage,
     String name,
-    StorageBuffer buffer,
-  ) {
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    // The trace event names the whole buffer; a range is a 1.0 argument it
+    // does not carry yet, so the bind is flagged rather than mis-recorded.
+    if (offsetInBytes != 0 || sizeInBytes != null) {
+      _device._unrecorded('bindStorageBuffer range');
+    }
     _device.events.add(
       TraceComputeBindStorageBuffer(
         pass: _pass,
@@ -662,7 +1204,13 @@ final class _RecordingComputeEncoder implements ComputeEncoder {
         buffer: _device._name(_device._storageIds, buffer),
       ),
     );
-    return _inner.bindStorageBuffer(stage, name, buffer);
+    return _inner.bindStorageBuffer(
+      stage,
+      name,
+      buffer,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
   }
 
   @override
@@ -693,4 +1241,71 @@ final class _RecordingComputeEncoder implements ComputeEncoder {
     _device.events.add(TraceComputeSubmit(_pass));
     _inner.submit();
   }
+
+  // Since 1.0: forwarded, and named in `RecordingDevice.unrecorded`.
+
+  @override
+  bool bindTexture(
+    ShaderHandle stage,
+    String name,
+    TextureHandle texture, {
+    SamplerDescriptor? sampler,
+  }) {
+    _device._unrecorded('ComputeEncoder.bindTexture');
+    return _inner.bindTexture(stage, name, texture, sampler: sampler);
+  }
+
+  @override
+  bool bindStorageTexture(
+    ShaderHandle stage,
+    String name,
+    TextureHandle texture, {
+    int mipLevel = 0,
+    StorageTextureAccess access = StorageTextureAccess.writeOnly,
+  }) {
+    _device._unrecorded('ComputeEncoder.bindStorageTexture');
+    return _inner.bindStorageTexture(
+      stage,
+      name,
+      texture,
+      mipLevel: mipLevel,
+      access: access,
+    );
+  }
+
+  @override
+  bool bindUniformBytes(ShaderHandle stage, String block, ByteData bytes) {
+    _device._unrecorded('ComputeEncoder.bindUniformBytes');
+    return _inner.bindUniformBytes(stage, block, bytes);
+  }
+
+  @override
+  void dispatchIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) {
+    _device._unrecorded('dispatchIndirect');
+    _inner.dispatchIndirect(arguments, offsetInBytes: offsetInBytes);
+  }
+
+  @override
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) {
+    _device._unrecorded('ComputeEncoder.beginPipelineStatisticsQuery');
+    _inner.beginPipelineStatisticsQuery(querySet, queryIndex);
+  }
+
+  @override
+  void endPipelineStatisticsQuery() {
+    _device._unrecorded('ComputeEncoder.endPipelineStatisticsQuery');
+    _inner.endPipelineStatisticsQuery();
+  }
 }
+
+/// The usages of a storage buffer a `createStorageBuffer` event names: the
+/// standard storage ones, with the host read and the index binding where
+/// the event says so. What a replay makes the buffer with.
+BufferUsage tracedStorageUsage({
+  required bool hostReadable,
+  required bool indices,
+}) => <BufferUsage>[
+  BufferUsage.standardStorage,
+  if (hostReadable) BufferUsage.hostReadable,
+  if (indices) BufferUsage.index,
+].reduce((BufferUsage a, BufferUsage b) => a | b);

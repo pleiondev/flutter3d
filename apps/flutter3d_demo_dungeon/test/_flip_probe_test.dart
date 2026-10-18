@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,17 +50,17 @@ void main() {
     // `operator_panel_test.dart` after it) found a bare `await` on this
     // deadlocks inside `testWidgets`'s fake async zone, since the rasteriser
     // needs the real event loop `runAsync` escapes to.
-    await tester.runAsync(surface.tick);
+    await tester.runAsync(surface.update);
 
     final result = renderer.render(
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings: const RenderSettings(),
     );
-    final readback = await device.readPixels(result.frame);
-    final pixels = readback!.buffer.asUint8List();
+    final readback = await device.readback(result.frame);
+    final pixels = readback.buffer.asUint8List();
 
     Color at(int x, int y) {
       final i = (y * 64 + x) * 4;

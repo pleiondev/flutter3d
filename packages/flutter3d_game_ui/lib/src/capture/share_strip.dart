@@ -1,0 +1,153 @@
+import 'package:flutter/material.dart';
+
+import '../access/text_scale.dart';
+import '../l10n/game_localizations.dart';
+import '../theme/game_ui_theme.dart';
+
+/// Sharing, where a run can be shared or opened: a button that files the
+/// run just played and says its code, and a field that takes somebody
+/// else's code and opens their run — raced as a ghost, watched, replayed,
+/// whatever the game does with one.
+///
+/// Both answer in a sentence — the code, or why there is none — because a
+/// share that failed silently is a code the player reads out to a friend
+/// and nobody can open.
+///
+/// The keys a test finds it by are `share:run`, `share:code`, `share:open`
+/// and `share:said`.
+final class ShareStrip extends StatefulWidget {
+  /// A strip that opens codes through [onOpen], with a share button only
+  /// when [onShare] is given.
+  const ShareStrip({
+    super.key,
+    this.onShare,
+    required this.onOpen,
+    this.shareLabel,
+    this.codeHint,
+    this.openLabel,
+  });
+
+  /// Files the run just played and answers what to say: its code, or why
+  /// not. Null when there is no finished run to share, and then there is no
+  /// button that cannot work.
+  final Future<String> Function()? onShare;
+
+  /// Opens [code], trimmed, and answers what to say.
+  final Future<String> Function(String code) onOpen;
+
+  /// The share button's words; null for
+  /// [Flutter3dGameLocalizations.shareThisRun].
+  final String? shareLabel;
+
+  /// What the empty code field says; null for
+  /// [Flutter3dGameLocalizations.aFriendsCode].
+  final String? codeHint;
+
+  /// The words on the button that opens a code — what the game does with
+  /// somebody else's run; null for [Flutter3dGameLocalizations.openTheirRun].
+  final String? openLabel;
+
+  @override
+  State<ShareStrip> createState() => _ShareStripState();
+}
+
+class _ShareStripState extends State<ShareStrip> {
+  final TextEditingController _code = TextEditingController();
+  String? _said;
+  bool _busy = false;
+
+  Future<void> _do(Future<String> Function() action) async {
+    setState(() => _busy = true);
+    final said = await action();
+    if (mounted) {
+      setState(() {
+        _said = said;
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final share = widget.onShare;
+    final words = Flutter3dGameLocalizations.of(context);
+    final theme = GameUiTheme.of(context);
+    return Theme(
+      data: theme.controlsTheme(Theme.of(context)),
+      child: _strip(context, share, words, theme),
+    );
+  }
+
+  Widget _strip(
+    BuildContext context,
+    Future<String> Function()? share,
+    Flutter3dGameLocalizations words,
+    GameUiTheme theme,
+  ) {
+    return Material(
+      color: theme.scrim,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: SizedBox(
+          width: textScaledWidth(context, 260),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              if (share != null)
+                FilledButton(
+                  key: const ValueKey<String>('share:run'),
+                  onPressed: _busy ? null : () => _do(share),
+                  child: Text(widget.shareLabel ?? words.shareThisRun),
+                ),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey<String>('share:code'),
+                      controller: _code,
+                      style: TextStyle(color: theme.text),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: widget.codeHint ?? words.aFriendsCode,
+                        // Wraps rather than trails off at a large text size.
+                        hintMaxLines: 3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    key: const ValueKey<String>('share:open'),
+                    onPressed: _busy
+                        ? null
+                        : () => _do(() => widget.onOpen(_code.text.trim())),
+                    child: Text(widget.openLabel ?? words.openTheirRun),
+                  ),
+                ],
+              ),
+              if (_said case final String said) ...<Widget>[
+                const SizedBox(height: 8),
+                Semantics(
+                  liveRegion: true,
+                  child: SelectableText(
+                    said,
+                    key: const ValueKey<String>('share:said'),
+                    style: TextStyle(color: theme.text),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -7,6 +7,7 @@ import 'mechanism.dart';
 /// here — the target, the once-only latch, the relay itself — so adding a third
 /// kind of switch is a class with one method.
 abstract base class Signal extends Mechanism {
+  /// A switch for [target], working every time unless [once].
   Signal({super.name, required this.target, this.once = false});
 
   /// The [Mechanism.name] this switches on.

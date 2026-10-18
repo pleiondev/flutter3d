@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,7 +33,7 @@ const int _height = 64;
     ..add(
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(lighting: LightingModel.lambert),
+          RenderMaterial(lighting: LightingModel.lambert),
         )
         ..setPosition(0.0, -0.05, 0.0)
         ..setScale(12.0, 0.1, 12.0),
@@ -45,8 +46,11 @@ const int _height = 64;
       final x = i - (side - 1) / 2;
       final z = j - (side - 1) / 2;
       scene.add(
-        LightNode(type: LightType.point, intensity: 2.0, range: 0.8)
-          ..setPosition(x, 0.3, z),
+        LightNode(
+          type: LightType.point,
+          intensity: 2.0 * LightNode.defaultIntensity,
+          range: 0.8,
+        )..setPosition(x, 0.3, z),
       );
       final clip = viewProjection.transformed(Vector4(x, 0.0, z, 1.0));
       final px = ((clip.x / clip.w * 0.5 + 0.5) * _width).floor();
@@ -60,7 +64,7 @@ const int _height = 64;
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

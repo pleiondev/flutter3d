@@ -37,18 +37,18 @@ Future<ModelerSettings> showQuickSetup(
   final ModelerSettings? chosen = await showDialog<ModelerSettings>(
     context: context,
     barrierDismissible: false,
-    builder: (BuildContext context) => QuickSetupScreen(settings: current),
+    builder: (BuildContext context) => _QuickSetupScreen(settings: current),
   );
   return (chosen ?? current).copyWith(quickSetupDone: true);
 }
 
-class QuickSetupScreen extends StatefulWidget {
-  const QuickSetupScreen({super.key, required this.settings});
+class _QuickSetupScreen extends StatefulWidget {
+  const _QuickSetupScreen({required this.settings});
 
   final ModelerSettings settings;
 
   @override
-  State<QuickSetupScreen> createState() => _QuickSetupScreenState();
+  State<_QuickSetupScreen> createState() => _QuickSetupScreenState();
 }
 
 /// "System", as the language row's own first option — the same sentinel
@@ -56,7 +56,7 @@ class QuickSetupScreen extends StatefulWidget {
 /// word on a menu and not a value either file stores.
 const String _system = 'system';
 
-class _QuickSetupScreenState extends State<QuickSetupScreen> {
+class _QuickSetupScreenState extends State<_QuickSetupScreen> {
   late ModelerSettings _draft = widget.settings;
 
   @override

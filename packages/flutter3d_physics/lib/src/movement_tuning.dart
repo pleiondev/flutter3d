@@ -3,64 +3,83 @@
 /// Collected rather than scattered because they are going to be changed
 /// hundreds of times, always together, and always by feel. A tuning value
 /// buried in the middle of the movement code is a tuning value nobody adjusts.
-final class MovementTuning {
-  const MovementTuning({
+final class MovementSettings {
+  /// The default feel: walking at 6 metres per second, sprinting at 10,
+  /// jumping at 8, climbing 0.4-metre steps, with a tenth of a second of
+  /// coyote time and jump buffer, and falling by the world's gravity.
+  const MovementSettings({
     this.walkSpeed = 6.0,
     this.sprintSpeed = 10.0,
     this.groundAcceleration = 70.0,
     this.groundFriction = 55.0,
     this.airAcceleration = 14.0,
-    this.gravity = 24.0,
+    this.gravity,
     this.terminalVelocity = 55.0,
     this.jumpSpeed = 8.0,
     this.stepHeight = 0.4,
-    this.coyoteTime = 0.1,
-    this.jumpBufferTime = 0.1,
+    this.coyoteSeconds = 0.1,
+    this.jumpBufferSeconds = 0.1,
     this.groundProbe = 0.08,
     this.floorSnapLength = 0.0,
   });
 
+  /// The top speed walking, in metres per second.
   final double walkSpeed;
+
+  /// The top speed sprinting, in metres per second.
   final double sprintSpeed;
 
-  /// How fast the player reaches the speed they asked for, in m/s².
+  /// How fast the player reaches the speed they asked for, in metres per
+  /// second squared.
   ///
   /// Finite rather than instant, because the answer to "with inertia" is here.
   /// High enough that the controls still feel immediate; low enough that a
   /// direction change costs something.
   final double groundAcceleration;
 
-  /// How fast the player stops when they ask for nothing.
+  /// How fast the player stops when they ask for nothing: a deceleration, in
+  /// metres per second squared.
   final double groundFriction;
 
-  /// Acceleration while airborne.
+  /// Acceleration while airborne, in metres per second squared.
   ///
   /// A fraction of the ground figure, and no air friction at all: a jump should
   /// commit the player to roughly where they were going, but not strand them
   /// helplessly.
   final double airAcceleration;
 
-  final double gravity;
+  /// The player's downward acceleration, in metres per second squared, or
+  /// null — the default — for the world's (`CollisionWorld.properties`).
+  ///
+  /// **The world's unless a game means otherwise.** It defaulted to 24 while
+  /// the rigid bodies beside it fell at 22 and the sparks at 9.81; now a
+  /// game sets its world's gravity once where it stages it (the platformer's
+  /// 24), and a character falls by that. A number here is for a character
+  /// that does not fall as its world does: a bot pinned to its plane at 0, a
+  /// diver held up by the water.
+  final double? gravity;
 
-  /// Ceiling on falling speed, so a long drop cannot outrun the sweep.
+  /// Ceiling on falling speed, so a long drop cannot outrun the sweep. In
+  /// metres per second.
   final double terminalVelocity;
 
+  /// The upward speed a jump starts with, in metres per second.
   final double jumpSpeed;
 
-  /// The tallest lip the player walks over instead of into.
+  /// The tallest lip the player walks over instead of into, in metres.
   final double stepHeight;
 
-  /// How long after walking off an edge a jump still works.
+  /// How long after walking off an edge a jump still works, in seconds.
   ///
   /// Without it the controls feel broken and the player blames themselves. It
   /// costs one timer, and every platformer worth playing has it.
-  final double coyoteTime;
+  final double coyoteSeconds;
 
   /// How long before landing a jump can be asked for and still happen.
   ///
   /// The other half of the same problem: pressing jump a frame early should not
   /// silently do nothing.
-  final double jumpBufferTime;
+  final double jumpBufferSeconds;
 
   /// How far below the feet still counts as standing on something.
   ///
@@ -103,33 +122,69 @@ final class MovementTuning {
   /// once — a floor that is ice *and* a body that is crouching. Without it the
   /// second one has to restate all thirteen numbers and silently loses whatever
   /// the first one said.
-  MovementTuning copyWith({
+  MovementSettings copyWith({
     double? walkSpeed,
     double? sprintSpeed,
     double? groundAcceleration,
     double? groundFriction,
     double? airAcceleration,
     double? gravity,
+    bool clearGravity = false,
     double? terminalVelocity,
     double? jumpSpeed,
     double? stepHeight,
-    double? coyoteTime,
-    double? jumpBufferTime,
+    double? coyoteSeconds,
+    double? jumpBufferSeconds,
     double? groundProbe,
     double? floorSnapLength,
-  }) => MovementTuning(
+  }) => MovementSettings(
     walkSpeed: walkSpeed ?? this.walkSpeed,
     sprintSpeed: sprintSpeed ?? this.sprintSpeed,
     groundAcceleration: groundAcceleration ?? this.groundAcceleration,
     groundFriction: groundFriction ?? this.groundFriction,
     airAcceleration: airAcceleration ?? this.airAcceleration,
-    gravity: gravity ?? this.gravity,
+    gravity: clearGravity ? null : (gravity ?? this.gravity),
     terminalVelocity: terminalVelocity ?? this.terminalVelocity,
     jumpSpeed: jumpSpeed ?? this.jumpSpeed,
     stepHeight: stepHeight ?? this.stepHeight,
-    coyoteTime: coyoteTime ?? this.coyoteTime,
-    jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
+    coyoteSeconds: coyoteSeconds ?? this.coyoteSeconds,
+    jumpBufferSeconds: jumpBufferSeconds ?? this.jumpBufferSeconds,
     groundProbe: groundProbe ?? this.groundProbe,
     floorSnapLength: floorSnapLength ?? this.floorSnapLength,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MovementSettings &&
+          other.walkSpeed == walkSpeed &&
+          other.sprintSpeed == sprintSpeed &&
+          other.groundAcceleration == groundAcceleration &&
+          other.groundFriction == groundFriction &&
+          other.airAcceleration == airAcceleration &&
+          other.gravity == gravity &&
+          other.terminalVelocity == terminalVelocity &&
+          other.jumpSpeed == jumpSpeed &&
+          other.stepHeight == stepHeight &&
+          other.coyoteSeconds == coyoteSeconds &&
+          other.jumpBufferSeconds == jumpBufferSeconds &&
+          other.groundProbe == groundProbe &&
+          other.floorSnapLength == floorSnapLength;
+
+  @override
+  int get hashCode => Object.hash(
+    walkSpeed,
+    sprintSpeed,
+    groundAcceleration,
+    groundFriction,
+    airAcceleration,
+    gravity,
+    terminalVelocity,
+    jumpSpeed,
+    stepHeight,
+    coyoteSeconds,
+    jumpBufferSeconds,
+    groundProbe,
+    floorSnapLength,
   );
 }

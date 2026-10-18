@@ -3,7 +3,7 @@
 `flutter3d_hardware` over WebGL2, for a build that runs in a browser.
 
 ```dart
-final device = await openWebGl(width: 1280, height: 720);
+final device = await WebGlDevice.open(width: 1280, height: 720);
 final renderer = Renderer.create(device: device);
 ```
 
@@ -26,7 +26,7 @@ and the browser drew a different sky from Impeller without anything noticing.
 
 ## Where it stands against Impeller
 
-In all thirty-two golden scenes, between 0.01% and 0.6% of pixels differ from
+In all 32 golden scenes, between 0.01% and 0.6% of pixels differ from
 Impeller by more than 8 per channel. That is the silhouette's worth of
 disagreement two rasterisers always have. `test/cross_backend_test.dart` holds
 each scene to its own measured budget, so a scene that starts drifting is named
@@ -53,7 +53,7 @@ Five of the six test files are `@TestOn('browser')`:
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

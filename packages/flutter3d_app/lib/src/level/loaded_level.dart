@@ -1,9 +1,10 @@
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+import '../hot_swap/hot_swap.dart';
 import 'visibility_culler.dart';
 
 /// A loaded level, in the two forms the game needs it.
@@ -14,6 +15,8 @@ import 'visibility_culler.dart';
 /// triangles instead would work until the first time somebody added a visual
 /// detail and made it solid by accident.
 final class LoadedLevel {
+  /// What `LevelLoader` built; [issues] is copied unmodifiable, and every
+  /// list and map left out is empty, batched per material.
   LoadedLevel({
     required this.level,
     required this.scene,
@@ -23,6 +26,9 @@ final class LoadedLevel {
     Map<String, TextureHandle?>? materialTextures,
     List<DeviceMesh>? brushMeshes,
     List<ReflectionProbeNode>? probes,
+    this.decals = const <DecalNode>[],
+    this.reflectors = const <PlanarReflectorNode>[],
+    this.screens = const <CameraView>[],
     this.culler,
     this.batching = LevelBatching.perMaterial,
   }) : issues = List.unmodifiable(issues),
@@ -44,6 +50,21 @@ final class LoadedLevel {
   /// The reflection probes the document placed, in [scene] — one per
   /// `reflection_probe` entity, kept rather than rolling.
   final List<ReflectionProbeNode> probes;
+
+  /// The decals the document placed, in [scene]. A game draws them by
+  /// turning `RenderSettings.decals` on, which it does when this is not
+  /// empty — see [wantsDecals].
+  final List<DecalNode> decals;
+
+  /// The mirrors the document placed, in [scene].
+  final List<PlanarReflectorNode> reflectors;
+
+  /// The cameras the document placed, drawing into the materials they
+  /// name; given back in [dispose].
+  final List<CameraView> screens;
+
+  /// Whether the level has decals for the frame to paint.
+  bool get wantsDecals => decals.isNotEmpty;
 
   /// Whether every probe has been drawn whole — or never will be, on a device
   /// that builds none, which must not be waited for.
@@ -78,8 +99,15 @@ final class LoadedLevel {
   /// breach groups them the same way.
   final LevelBatching batching;
 
+  /// The document the level was built from.
   final Level level;
+
+  /// What is drawn: the brush batches, lights, probes, decals, mirrors and
+  /// screens, and whatever the game adds.
   final Scene scene;
+
+  /// What is walked into, built from the same brushes as [scene]; released
+  /// through [physics] in [dispose].
   final CollisionWorld collision;
 
   /// What the validator said. Errors stop the load before this exists, so
@@ -111,6 +139,11 @@ final class LoadedLevel {
   /// all because [dispose] is the only place they can be given back.
   final List<TextureHandle> boundTextures = <TextureHandle>[];
 
+  /// [materialTextures] as `HotSwap` watches them, so an image repainted
+  /// under a running game is swapped in. Forgotten by [dispose]: a swap after
+  /// the level is gone would release what [dispose] already released.
+  final List<SwappableTexture> watchedTextures = <SwappableTexture>[];
+
   /// The baked lightmap the brush batches sample, when the level came with
   /// one that matched it. Uploaded by the loader, released by [dispose].
   TextureHandle? lightmap;
@@ -124,6 +157,10 @@ final class LoadedLevel {
   /// wall able to find the light that was baked for it.
   LightmapLayout? lightmapLayout;
 
+  /// The backend [collision] was attached to when the level was loaded —
+  /// the world's own — let go of in [dispose].
+  PhysicsBackend get physics => collision.backend;
+
   /// Gives the level's own uploads — brush meshes and material maps — back to
   /// [device].
   ///
@@ -133,6 +170,11 @@ final class LoadedLevel {
   /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
   /// `gl.delete*` per resource on WebGL2.
   void dispose(GraphicsDevice device) {
+    physics.release(collision);
+    for (final screen in screens) {
+      screen.dispose();
+    }
+    watchedTextures.forEach(HotSwap.instance.forgetTexture);
     for (final mesh in brushMeshes) {
       device.releaseGeometry(mesh.vertices);
       device.releaseGeometry(mesh.indices);

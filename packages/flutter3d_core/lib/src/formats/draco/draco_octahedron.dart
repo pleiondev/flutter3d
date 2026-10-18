@@ -22,6 +22,8 @@ import 'dart:typed_data';
 
 /// The quantisation the octahedral coordinates live in.
 final class OctahedronToolBox {
+  /// A tool box at [quantizationBits] bits a coordinate, asserted to be 2
+  /// to 30.
   OctahedronToolBox(int quantizationBits)
     : assert(
         quantizationBits >= 2 && quantizationBits <= 30,
@@ -50,10 +52,21 @@ final class OctahedronToolBox {
     return OctahedronToolBox(bits);
   }
 
+  /// Bits per octahedral coordinate, `b`, from 2 to 30.
   final int quantizationBits;
+
+  /// The largest value `b` bits hold, `2^b − 1`: what the stream stores.
   final int maxQuantizedValue;
+
+  /// The largest coordinate used, `2^b − 2`: even, so the square has a
+  /// centre on a whole step.
   final int maxValue;
+
+  /// The coordinate of the octahedron's centre, half of [maxValue].
   final int centerValue;
+
+  /// What one quantized step is across the octahedron's square, whose side runs
+  /// −1 to 1: a unitless factor.
   final double dequantizationScale;
 
   /// Whether `(s, t)`, with the centre already at the origin, is on the near
@@ -197,9 +210,9 @@ void octahedronComputeOriginal(
   int correctionS,
   int correctionT,
 ) {
-  final centre = box.centerValue;
-  point[predictedAt] -= centre;
-  point[predictedAt + 1] -= centre;
+  final center = box.centerValue;
+  point[predictedAt] -= center;
+  point[predictedAt + 1] -= center;
 
   final inDiamond = box.isInDiamond(point[predictedAt], point[predictedAt + 1]);
   if (!inDiamond) box.invertDiamond(point, predictedAt);
@@ -217,8 +230,8 @@ void octahedronComputeOriginal(
   if (!inBottomLeft) _rotate(point, predictedAt, (4 - rotation) % 4);
   if (!inDiamond) box.invertDiamond(point, predictedAt);
 
-  point[predictedAt] += centre;
-  point[predictedAt + 1] += centre;
+  point[predictedAt] += center;
+  point[predictedAt + 1] += center;
 }
 
 bool _isInBottomLeft(int s, int t) {

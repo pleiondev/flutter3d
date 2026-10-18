@@ -23,11 +23,7 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// `Key` hidden: `flutter3d_model_core`'s own is `KeyTable`'s keyframe class,
-// and this file names a widget `Key` instead — `Widget.key`'s own type,
-// which every other panel in this directory gets from `material.dart`
-// without a second thought until a package with a `Key` of its own joins it.
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'theme.dart';
 
@@ -89,6 +85,7 @@ class _KeyDrag {
 /// The scrubber, the per-track rows and the drag-to-move-a-key interaction —
 /// `anim-07`'s own `TimelinePanel`.
 class TimelinePanel extends StatefulWidget {
+  /// The panel over [clip], with its playhead at [time].
   const TimelinePanel({
     super.key,
     required this.clipIndex,
@@ -114,14 +111,22 @@ class TimelinePanel extends StatefulWidget {
   /// every [MoveKeys] this panel builds, unread otherwise.
   final int clipIndex;
 
+  /// The clip whose tracks are the rows and whose keys are the diamonds.
   final ProjectClip clip;
 
   /// The playhead, in seconds.
   final double time;
 
+  /// Frames a second: where the ruler ticks fall and, with [frameSnap], where
+  /// a dragged key lands.
   final double fps;
 
+  /// How far apart a second is drawn, in logical pixels: the zoom. A wheel
+  /// over the panel reports the next one through [onZoom], clamped between
+  /// [kTimelineZoomOut] and [kTimelineZoomIn].
   final double pixelsPerSecond;
+
+  /// The time ruler's height, in logical pixels.
   final double rulerHeight;
 
   /// Width of the label column at the left of each row.
@@ -131,7 +136,10 @@ class TimelinePanel extends StatefulWidget {
   /// itself.
   final String Function(int trackIndex, ProjectTrack track) labelOf;
 
+  /// The track of the single selected key, or null when none is selected.
   final int? selectedTrack;
+
+  /// The selected key's index inside [selectedTrack], or null.
   final int? selectedKey;
 
   /// Every key picked, as `(track, key)` pairs — `ux-46`.
@@ -343,7 +351,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
           clipIndex: widget.clipIndex,
           trackIndex: each.key,
           indices: each.value..sort(),
-          deltaTime: drag.deltaTime,
+          deltaSeconds: drag.deltaTime,
         ),
       );
     }
@@ -355,7 +363,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
     final double duration = tracks.isEmpty
         ? 0.0
         : tracks
-              .map((ProjectTrack t) => t.track.endTime)
+              .map((ProjectTrack t) => t.track.endSeconds)
               .reduce((double a, double b) => a > b ? a : b);
     // **The ruler is pinned and the rows scroll under it** — `ux-46`. A
     // seventeen-bone rig is fifty-one tracks, which at the row height this
@@ -474,6 +482,8 @@ class _TimelinePanelState extends State<TimelinePanel> {
 /// Below the first a clip is a smear nobody can aim a key at; past the
 /// second one frame fills the window and the ruler has nothing to label.
 const double kTimelineZoomOut = 4.0;
+
+/// The widest zoom; see [kTimelineZoomOut].
 const double kTimelineZoomIn = 2000.0;
 
 /// The time ruler: tick marks at every whole frame's own second, and the

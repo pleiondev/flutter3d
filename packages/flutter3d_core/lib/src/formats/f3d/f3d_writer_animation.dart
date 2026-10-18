@@ -32,8 +32,12 @@ extension _F3dWriteAnimation on F3dWriter {
 
         final record = ByteData(F3dRecord.track);
         record.setUint32(0, track.nodeIndex, Endian.little);
-        record.setUint32(4, track.path.index, Endian.little);
-        record.setUint32(8, track.interpolation.index, Endian.little);
+        record.setUint32(4, animationPathCode(track.path), Endian.little);
+        record.setUint32(
+          8,
+          interpolationCode(track.interpolation),
+          Endian.little,
+        );
         record.setUint32(12, track.componentCount, Endian.little);
         record.setUint32(16, timesOffset, Endian.little);
         record.setUint32(20, track.times.length, Endian.little);
@@ -70,7 +74,11 @@ extension _F3dWriteAnimation on F3dWriter {
         final record = ByteData(F3dRecord.pointerTrack);
         record.setUint32(0, clip, Endian.little);
         record.setUint32(4, position, Endian.little);
-        record.setUint32(8, track.interpolation.index, Endian.little);
+        record.setUint32(
+          8,
+          interpolationCode(track.interpolation),
+          Endian.little,
+        );
         record.setUint32(12, track.componentCount, Endian.little);
         record.setUint32(16, _blobAppend(track.times), Endian.little);
         record.setUint32(20, track.times.length, Endian.little);

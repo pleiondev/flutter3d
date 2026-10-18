@@ -4,13 +4,21 @@
 /// every build after the first `init` actually ships.
 library;
 
-import 'dart:io' show FileSystemException;
-
 import 'package:flutter/foundation.dart'
     show FlutterError, debugPrint, kDebugMode, kIsWeb;
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show AssetNotFoundException;
 
 import 'bundle_asset_source.dart';
+
+/// Whether [error] says the file is not there: [AssetNotFoundException] from the
+/// bundle, the `FlutterError` a source of somebody else's throws for the
+/// same, or `dart:io`'s for a file read from disk.
+bool _isMissing(Object error) =>
+    error is AssetNotFoundException ||
+    error is FlutterError ||
+    isMissingFile(error);
 
 /// `assets_src/`'s own name — the one `AssetLayout.sourcesDir` in
 /// `flutter3d_build` also uses — stripped from the front of a source path
@@ -31,15 +39,27 @@ String generatedAssetPathFor(String sourcePath) {
   return 'flutter3d_generated/$withoutExtension.f3d';
 }
 
-/// The device class every [loadModelAsset] reads as when its caller names
-/// none — `N7`. Null, the default, reads the single `.f3d` a build without
-/// classes writes.
-///
-/// **Set once, on the loading screen**, from a `DeviceClassPicker`: a class
-/// decides which files a level loads, and loaders several calls away from the
-/// application (a level's actors, `loadModelByPath`) read it here rather than
-/// each being handed it.
-DeviceClass? assetDeviceClass;
+/// Where the build hook wrote [sourcePath]'s compiled material — `P8`:
+/// `assets_src/fx/rim.f3dmat` is `flutter3d_generated/fx/rim.f3dshaders`,
+/// the mapping `AssetLayout.materialPlan` computes in `flutter3d_build`, kept
+/// beside [generatedAssetPathFor] for the reason that one is reimplemented.
+String generatedMaterialPathFor(String sourcePath) {
+  final relative = sourcePath.startsWith(_sourceDirPrefix)
+      ? sourcePath.substring(_sourceDirPrefix.length)
+      : sourcePath;
+  final dot = relative.lastIndexOf('.');
+  final withoutExtension = dot < 0 ? relative : relative.substring(0, dot);
+  return 'flutter3d_generated/$withoutExtension.f3dshaders';
+}
+
+/// Where the build hook wrote the compiled stages of a plugin's material
+/// named [material] — its stage name, `acme_ink__Ink` — for the SDK the
+/// application builds with: `flutter3d_generated/shaders/acme_ink__Ink.f3dshaders`,
+/// the key `EngineBundleStamp.projectMaterialAsset` in `flutter3d_shaders`
+/// gives, kept beside [generatedMaterialPathFor] for the reason that one is
+/// reimplemented. What `Flutter3dView` loads for every plugin's lit model.
+String pluginMaterialAssetFor(String material) =>
+    'flutter3d_generated/shaders/$material.f3dshaders';
 
 /// Every [sourcePath] this isolate has already warned about — so a control
 /// that calls [loadModelAsset] once per frame (a hot-reload preview, a level
@@ -78,39 +98,80 @@ final Set<String> _warnedMissingGenerated = <String>{};
 /// declaring throwaway fixtures in this package's own `pubspec.yaml`,
 /// which would ship them to every application that depends on it.
 ///
-/// [deviceClass] (default: [assetDeviceClass]) reads that class's own file
+/// [deviceClass] reads that class's own file
 /// first — `chair.phone.f3d` — and the single `chair.f3d` when the build
 /// wrote none for it, so a class picked before a project's manifest names any
 /// costs one missed read and nothing else.
+///
+/// [decoders] — the engine's [ModelDecoders], or `Decoders` — is what the
+/// installed plugins added, as [loadModelByPath] takes it: a path with a
+/// scheme one of them registered is read through that source and nothing
+/// else, and every request made here carries the registered decoders after
+/// its own, so a source in a format a plugin reads (a debug build's fallback
+/// to `assets_src/`) decodes. Null reads exactly as before.
+///
+/// [read] is what the file is read with ([AssetRead]): a listener told as
+/// its bytes arrive, and a cancel signal that stops the load before the
+/// next file is read or decoded, failing it with
+/// `ResourceLoadCanceledException`. A missing class file and the fallback
+/// are read with it too, so one signal stops whichever read is running.
+///
+/// [lightingModels] is the engine's table, `Renderer.lightingModels`, that
+/// a material naming its model by name is read against
+/// ([ModelLoadRequest.lightingModels]): a model drawn with a plugin's lit
+/// model reads as that model. Null reads the built-in models alone.
 Future<ModelDocument> loadModelAsset(
   String sourcePath, {
   bool debugMode = kDebugMode,
   DeviceClass? deviceClass,
   AssetSource Function(String path) generatedSource = BundleAssetSource.new,
   AssetSource Function(String path) fallbackSource = FileAssetSource.new,
+  ModelDecoders? decoders,
+  AssetRead read = AssetRead.whole,
+  LightingModels? lightingModels,
 }) async {
+  ModelLoadRequest request(AssetSource source) {
+    final plain = ModelLoadRequest(
+      source: source,
+      lightingModels: lightingModels,
+    );
+    return decoders?.withDecoders(plain) ?? plain;
+  }
+
+  if (decoders != null && decoders.sources.handles(sourcePath)) {
+    return decodeModelInIsolate(
+      request(decoders.sourceFor(sourcePath, fallback: generatedSource)),
+      read: read,
+    );
+  }
   final generatedPath = generatedAssetPathFor(sourcePath);
-  if (deviceClass ?? assetDeviceClass case final DeviceClass reading) {
+  if (deviceClass case final DeviceClass reading) {
     try {
       return await decodeModelInIsolate(
-        ModelLoadRequest(
-          source: generatedSource(deviceClassPath(generatedPath, reading)),
-        ),
+        request(generatedSource(deviceClassPath(generatedPath, reading))),
+        read: read,
       );
-    } on FlutterError {
-      // No file for this class: the single one below.
-    } on FileSystemException {
-      // The same, read from disk.
+    } catch (error) {
+      // No file for this class: the single one below. Anything else is not
+      // a missing file.
+      if (!_isMissing(error)) rethrow;
     }
   }
   try {
     return await decodeModelInIsolate(
-      ModelLoadRequest(source: generatedSource(generatedPath)),
+      request(generatedSource(generatedPath)),
+      read: read,
     );
-  } on FlutterError {
-    return _fallback(sourcePath, generatedPath, debugMode, fallbackSource);
-  } on FileSystemException {
-    return _fallback(sourcePath, generatedPath, debugMode, fallbackSource);
+  } catch (error) {
+    if (!_isMissing(error)) rethrow;
+    return _fallback(
+      sourcePath,
+      generatedPath,
+      debugMode,
+      fallbackSource,
+      request,
+      read,
+    );
   }
 }
 
@@ -129,24 +190,68 @@ Future<ModelDocument> loadModelAsset(
 ///
 /// [bundleSource] is what reads the bundle in both cases; a test stands a
 /// file in for it, for the reason [loadModelAsset]'s own factories give.
+///
+/// [decoders] — the engine's [ModelDecoders], or `Decoders` — is what a
+/// plugin added: a path with a scheme one of them registered
+/// (`pak:models/crate.glb`) is read through that source, and the decoders
+/// they registered travel with the request. Null reads exactly as before.
+///
+/// [read] is [loadModelAsset]'s: progress and a cancel signal, and
+/// [lightingModels] its table of the engine's lighting models.
 Future<ModelDocument> loadModelByPath(
   String path, {
   AssetSource Function(String path) bundleSource = BundleAssetSource.new,
-}) => path.startsWith(_sourceDirPrefix)
-    ? loadModelAsset(path, generatedSource: bundleSource)
-    : decodeModelInIsolate(ModelLoadRequest(source: bundleSource(path)));
+  ModelDecoders? decoders,
+  DeviceClass? deviceClass,
+  AssetRead read = AssetRead.whole,
+  LightingModels? lightingModels,
+}) {
+  if (decoders != null && decoders.sources.handles(path)) {
+    return decodeModelInIsolate(
+      decoders.withDecoders(
+        ModelLoadRequest(
+          source: decoders.sourceFor(path, fallback: bundleSource),
+          lightingModels: lightingModels,
+        ),
+      ),
+      read: read,
+    );
+  }
+  if (path.startsWith(_sourceDirPrefix)) {
+    return loadModelAsset(
+      path,
+      generatedSource: bundleSource,
+      decoders: decoders,
+      deviceClass: deviceClass,
+      read: read,
+      lightingModels: lightingModels,
+    );
+  }
+  final plain = ModelLoadRequest(
+    source: bundleSource(path),
+    lightingModels: lightingModels,
+  );
+  return decodeModelInIsolate(
+    decoders?.withDecoders(plain) ?? plain,
+    read: read,
+  );
+}
 
 Future<ModelDocument> _fallback(
   String sourcePath,
   String generatedPath,
   bool debugMode,
   AssetSource Function(String path) fallbackSource,
+  ModelLoadRequest Function(AssetSource source) request,
+  AssetRead read,
 ) async {
   if (!debugMode || kIsWeb) {
-    throw StateError(
-      '$generatedPath is missing. Run `dart run flutter3d_build:init` once '
-      'per project (ap-10), then build again — its hook converts '
-      '$sourcePath into $generatedPath on every build after that.',
+    throw AssetNotFoundException(
+      generatedPath,
+      detail:
+          'run `dart run flutter3d_build:init` once per project (ap-10), '
+          'then build again — its hook converts $sourcePath into '
+          '$generatedPath on every build after that',
     );
   }
   if (_warnedMissingGenerated.add(sourcePath)) {
@@ -156,7 +261,5 @@ Future<ModelDocument> _fallback(
       'build once to stop seeing this.',
     );
   }
-  return decodeModelInIsolate(
-    ModelLoadRequest(source: fallbackSource(sourcePath)),
-  );
+  return decodeModelInIsolate(request(fallbackSource(sourcePath)), read: read);
 }

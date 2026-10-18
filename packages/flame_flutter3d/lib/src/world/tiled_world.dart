@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:tiled/tiled.dart';
 
 import '../transform/plane.dart';
@@ -30,7 +30,9 @@ import 'cell_grid_component.dart';
 ///
 /// One tile is [cell] metres, the tile's top left at `(0, 0)` of this
 /// component.
-class TiledWorld3d extends PositionComponent {
+base class TiledWorld3d extends PositionComponent {
+  /// A world of [map], one metre a tile unless [cell] says, its size the
+  /// map's in metres.
   TiledWorld3d({
     required this.map,
     required this.device,
@@ -45,19 +47,24 @@ class TiledWorld3d extends PositionComponent {
   /// The level, as `flame_tiled` or `TileMapParser` read it.
   final TiledMap map;
 
+  /// The device the tile layers' blocks are made on.
   final GraphicsDevice device;
+
+  /// The scene the tile layers' blocks are drawn in.
   final Scene scene;
+
+  /// The plane the map lies on, Flame's `x` and `y` across it.
   final BridgePlane plane;
 
   /// The look of a tile layer's blocks.
-  final engine.Material Function(TileLayer layer) material;
+  final engine.RenderMaterial Function(TileLayer layer) material;
 
   /// Metres a tile.
   final double cell;
 
   /// Makes the game's component for an object, placed at its middle in
   /// metres from this component's corner; null leaves it out.
-  final Component? Function(TiledObject object, Vector2 at)? spawn;
+  final Component? Function(TiledSpawn spawn)? spawn;
 
   /// Each tile layer's grid, by the layer's name.
   final Map<String, CellGridComponent> grids = <String, CellGridComponent>{};
@@ -80,7 +87,9 @@ class TiledWorld3d extends PositionComponent {
           await add(grid);
         case final ObjectGroup objects:
           for (final object in objects.objects) {
-            final made = spawn?.call(object, _middleOf(object));
+            final made = spawn?.call(
+              TiledSpawn(object: object, at: _middleOf(object)),
+            );
             if (made != null) await add(made);
           }
         default:
@@ -109,9 +118,14 @@ class TiledWorld3d extends PositionComponent {
       elevation: _number(properties.getValue<Object>('elevation')) ?? 0.0,
       instanced: !(properties.getValue<bool>('merged') ?? false),
       hitboxes: properties.getValue<bool>('solid') ?? false,
-      colour: tint == null
+      color: tint == null
           ? null
-          : Vector4(tint.red / 255.0, tint.green / 255.0, tint.blue / 255.0, 1),
+          // The map's numbers as they always reached the vertices.
+          : LinearColor(
+              tint.red / 255.0,
+              tint.green / 255.0,
+              tint.blue / 255.0,
+            ),
     );
   }
 
@@ -129,4 +143,20 @@ class TiledWorld3d extends PositionComponent {
     final num n => n.toDouble(),
     _ => null,
   };
+}
+
+/// What [TiledWorld3d.spawn] is handed: an object of the map and where its
+/// middle is.
+///
+/// **One object, so a minor can say more** (the layer it is on) without
+/// breaking a game written against 1.0.
+final class TiledSpawn {
+  /// [object], with its middle [at].
+  const TiledSpawn({required this.object, required this.at});
+
+  /// The object, as Tiled wrote it: its name, class and properties.
+  final TiledObject object;
+
+  /// Its middle, in metres from the world component's corner.
+  final Vector2 at;
 }

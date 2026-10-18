@@ -24,6 +24,8 @@ import 'tools.dart';
 /// [parts], drawn through whichever of the three shells fits
 /// `constraints.maxWidth`.
 class ShellForWidth extends StatelessWidget {
+  /// The picker over [parts]; which shell it builds is decided by the width
+  /// it is laid out in, on every layout.
   const ShellForWidth({
     super.key,
     required this.parts,
@@ -58,38 +60,59 @@ class ShellForWidth extends StatelessWidget {
   /// The desktop shell alone — the touch shells put the panel in a sheet,
   /// which has no splitter to drag and nothing to fold it out of the way of.
   final double? propertiesWidth;
+
+  /// The splitter was dragged, with the new panel width in logical pixels.
+  /// Desktop only.
   final ValueChanged<double>? onPropertiesWidth;
+
+  /// Whether the properties panel is folded away. Desktop only.
   final bool foldedPanel;
+
+  /// Whether the tool rail is folded away. Desktop only.
   final bool foldedRail;
 
   /// Which keys the desktop rail's own tooltips name — `ux-10`. The touch
   /// shells have no tooltips of their own to carry it into.
   final Keymap? keymap;
 
+  /// The four widgets of the screen, built once and handed to whichever
+  /// shell is drawn.
   final ScreenParts parts;
 
+  /// The mode on screen, handed to all three shells.
   final ModelerMode mode;
+
+  /// A mode was picked, from whichever shell is drawn.
   final ValueChanged<ModelerMode> onMode;
 
   /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
+  /// The element level mesh mode edits at, handed to all three shells.
   final MeshSubmode submode;
+
+  /// An element level was picked.
   final ValueChanged<MeshSubmode> onSubmode;
 
   /// `ui-40d`'s own row, handed to the desktop shell alone: the tablet and
   /// phone branches below do not yet wire the animation mode's own
   /// switcher, the same as `ModelerModeSwitcher`'s own two nullable fields.
   final AnimationSubmode animationSubmode;
+
+  /// An animation sub-mode was picked. Only the desktop shell can call it.
   final ValueChanged<AnimationSubmode> onAnimationSubmode;
 
   /// The id of the armed tool, from `ModelerTool.id`. Null is the pointer.
   final String? activeTool;
+
+  /// A tool was pressed, by its `ModelerTool.id`, from the rail, the
+  /// palette or the phone's tool sheet.
   final ValueChanged<String> onTool;
 
-  /// `ModelerShell`'s own leading label — the desktop shell is the only one
-  /// of the three that shows it.
+  /// What the open document is called, for the top bar's leading label —
+  /// handed to all three shells, since `ux-21` made the tablet and the phone
+  /// draw it too.
   final String documentName;
 
   /// Whether [documentName] carries unsaved changes, for the same label.
@@ -99,6 +122,9 @@ class ShellForWidth extends StatelessWidget {
   /// [ModelerShell.bottom]'s own doc comment for why the tablet and phone
   /// branches below have no equivalent to hand it to.
   final Widget? bottom;
+
+  /// [bottom]'s height, in logical pixels; given with [bottom] or not at
+  /// all.
   final double? bottomHeight;
 
   /// `tut-16`'s own slot, handed to the desktop shell alone — see

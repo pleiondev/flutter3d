@@ -18,39 +18,20 @@ import '../settings.dart' show Workspace;
 /// How wide the properties panel is and whether the viewport is split, for
 /// one workspace.
 final class DockLayout {
+  /// A layout; the defaults are a 250-pixel panel and one unsplit viewport.
+  ///
+  /// [viewportSplit] is held between [smallestSplit] and [largestSplit]
+  /// here, the one way every layout is made, so a layout from code, from
+  /// [copyWith] and from a settings file all keep the same promise.
   const DockLayout({
     this.propertiesWidth = 250,
     this.splitViewport = false,
-    this.viewportSplit = 0.5,
-  });
-
-  /// In logical pixels — `ux-27`'s own number, moved in here so the two
-  /// halves of "how this window is arranged" are one value.
-  final double propertiesWidth;
-
-  /// Whether the viewport is drawn as two views of the same document.
-  final bool splitViewport;
-
-  /// Where the divide between them sits, as the left view's own share of the
-  /// width. Clamped on the way in rather than on the way out, so a hand-
-  /// edited settings file cannot produce a view of no pixels.
-  final double viewportSplit;
-
-  DockLayout copyWith({
-    double? propertiesWidth,
-    bool? splitViewport,
-    double? viewportSplit,
-  }) => DockLayout(
-    propertiesWidth: propertiesWidth ?? this.propertiesWidth,
-    splitViewport: splitViewport ?? this.splitViewport,
-    viewportSplit: viewportSplit ?? this.viewportSplit,
-  );
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'propertiesWidth': propertiesWidth,
-    'splitViewport': splitViewport,
-    'viewportSplit': viewportSplit,
-  };
+    double viewportSplit = 0.5,
+  }) : viewportSplit = viewportSplit < smallestSplit
+           ? smallestSplit
+           : viewportSplit > largestSplit
+           ? largestSplit
+           : viewportSplit;
 
   /// What [json] says, with the default standing in for anything it does not
   /// say or says wrongly — `settings.dart`'s own rule, and for its reason: a
@@ -68,14 +49,50 @@ final class DockLayout {
       splitViewport: json['splitViewport'] is bool
           ? json['splitViewport']! as bool
           : fallback.splitViewport,
-      // A view of nothing is not a layout anybody asked for, whatever the
-      // file says.
-      viewportSplit: number(
-        'viewportSplit',
-        fallback.viewportSplit,
-      ).clamp(0.15, 0.85),
+      // Out of range is held in range by the constructor, whatever the file
+      // says.
+      viewportSplit: number('viewportSplit', fallback.viewportSplit),
     );
   }
+
+  /// The least of the width the left view may take: a view of nothing is
+  /// not a layout anybody asked for.
+  static const double smallestSplit = 0.15;
+
+  /// The most of the width the left view may take, for the right one's
+  /// sake.
+  static const double largestSplit = 0.85;
+
+  /// In logical pixels — `ux-27`'s own number, moved in here so the two
+  /// halves of "how this window is arranged" are one value.
+  final double propertiesWidth;
+
+  /// Whether the viewport is drawn as two views of the same document.
+  final bool splitViewport;
+
+  /// Where the divide between them sits, as the left view's own share of the
+  /// width. Clamped on the way in rather than on the way out, so neither a
+  /// hand-edited settings file nor a caller can produce a view of no pixels.
+  final double viewportSplit;
+
+  /// This layout with the given fields replaced.
+  DockLayout copyWith({
+    double? propertiesWidth,
+    bool? splitViewport,
+    double? viewportSplit,
+  }) => DockLayout(
+    propertiesWidth: propertiesWidth ?? this.propertiesWidth,
+    splitViewport: splitViewport ?? this.splitViewport,
+    viewportSplit: viewportSplit ?? this.viewportSplit,
+  );
+
+  /// The three fields under their own names, as [DockLayout.fromJson] reads
+  /// them.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'propertiesWidth': propertiesWidth,
+    'splitViewport': splitViewport,
+    'viewportSplit': viewportSplit,
+  };
 
   @override
   bool operator ==(Object other) =>

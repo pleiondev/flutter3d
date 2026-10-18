@@ -15,13 +15,18 @@ import 'package:vector_math/vector_math.dart';
 /// is already in them, and a `.stl` file in particular carries no unit at
 /// all, conventionally millimetres.
 enum ImportUnit {
+  /// What a `.stl` usually means, having no unit of its own.
   millimetres(0.001),
+
+  /// Centimetres, read as a hundredth of a metre.
   centimetres(0.01),
-  metres(1.0);
+
+  /// The project's own unit: no scaling at all.
+  meters(1.0);
 
   const ImportUnit(this.scale);
 
-  /// [ImportOptions.scale]'s own value for a file authored in this unit.
+  /// [ImportSettings.scale]'s own value for a file authored in this unit.
   final double scale;
 }
 
@@ -49,17 +54,24 @@ String? refuseBeforeDecoding({
 /// warnings it carries, whether [profile] can hold it, and its own bounds
 /// read in [unit].
 final class ImportPlan {
+  /// A plan over a decoded [document]: welding on, the other two fixes off,
+  /// and the file read as metres unless told otherwise.
   ImportPlan({
     required this.document,
     required this.profile,
-    this.unit = ImportUnit.metres,
+    this.unit = ImportUnit.meters,
     this.weld = true,
     this.fixNormals = false,
     this.triangulate = false,
   });
 
+  /// The file as decoded, before any of this plan's choices are applied.
   final ModelDocument document;
+
+  /// The project's budgets, which [exceedsTriangleBudget] measures against.
   final ProjectProfile profile;
+
+  /// The unit the file is read in, which scales its bounds into metres.
   final ImportUnit unit;
 
   /// Whether coincident vertices weld at [importMeshData]'s own default
@@ -84,8 +96,12 @@ final class ImportPlan {
   /// this class into the document it wraps for one of its own numbers.
   int get triangleCount => document.triangleCount;
 
+  /// What the decoder had to say about the file, one sentence each, in the
+  /// order it said them.
   List<String> get warnings => document.warnings;
 
+  /// How many [warnings] there are: the number the screen's warnings list
+  /// is headed with.
   int get warningCount => warnings.length;
 
   /// Whether [profile]'s own triangle budget can hold [document] as
@@ -111,10 +127,10 @@ final class ImportPlan {
     return Aabb3.minMax(raw.min * scale, raw.max * scale);
   }
 
-  /// [ImportOptions] this plan's own [unit] and [upAxis] choice resolve
+  /// [ImportSettings] this plan's own [unit] and [upAxis] choice resolve
   /// to — what `fromModelDocument` actually reads.
-  ImportOptions optionsWith({UpAxis upAxis = UpAxis.y}) =>
-      ImportOptions(scale: unit.scale, upAxis: upAxis);
+  ImportSettings optionsWith({UpAxis upAxis = UpAxis.y}) =>
+      ImportSettings(scale: unit.scale, upAxis: upAxis);
 }
 
 /// `weld`'s own epsilon for [importMeshData]: the default (a millionth of

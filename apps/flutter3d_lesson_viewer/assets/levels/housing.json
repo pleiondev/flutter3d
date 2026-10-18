@@ -1,118 +1,403 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "ls-i-03/ls-e-04 control box",
-  "fogColor": [0.05, 0.04, 0.06],
+  "fogColor": [
+    0.05,
+    0.04,
+    0.06
+  ],
   "fogDensity": 0.0,
   "materials": {
-    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
-    "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
-    "pedestal": { "baseColor": [0.6, 0.56, 0.4, 1.0], "roughness": 0.5 },
-    "case": { "baseColor": [0.82, 0.35, 0.1, 1.0], "roughness": 0.4 },
-    "lid": { "baseColor": [0.82, 0.35, 0.1, 1.0], "roughness": 0.45 },
-    "board": { "baseColor": [0.1, 0.35, 0.15, 1.0], "roughness": 0.55 },
-    "battery": { "baseColor": [0.15, 0.16, 0.18, 1.0], "roughness": 0.25 }
+    "floor": {
+      "baseColor": [
+        0.42,
+        0.4,
+        0.38,
+        1.0
+      ],
+      "roughness": 0.9
+    },
+    "wall": {
+      "baseColor": [
+        0.5,
+        0.47,
+        0.44,
+        1.0
+      ],
+      "roughness": 0.85
+    },
+    "pedestal": {
+      "baseColor": [
+        0.6,
+        0.56,
+        0.4,
+        1.0
+      ],
+      "roughness": 0.5
+    },
+    "case": {
+      "baseColor": [
+        0.82,
+        0.35,
+        0.1,
+        1.0
+      ],
+      "roughness": 0.4
+    },
+    "lid": {
+      "baseColor": [
+        0.82,
+        0.35,
+        0.1,
+        1.0
+      ],
+      "roughness": 0.45
+    },
+    "board": {
+      "baseColor": [
+        0.1,
+        0.35,
+        0.15,
+        1.0
+      ],
+      "roughness": 0.55
+    },
+    "battery": {
+      "baseColor": [
+        0.15,
+        0.16,
+        0.18,
+        1.0
+      ],
+      "roughness": 0.25
+    }
   },
   "brushes": [
-    { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
-    { "at": [0.0, 4.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "wall" },
-    { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
-    { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
-    { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [0.0, 0.4, 0.0], "size": [2.0, 0.8, 2.0], "material": "pedestal" }
+    {
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        12.0,
+        1.0,
+        12.0
+      ],
+      "material": "floor",
+      "id": "8a4aa796"
+    },
+    {
+      "at": [
+        0.0,
+        4.5,
+        0.0
+      ],
+      "size": [
+        12.0,
+        1.0,
+        12.0
+      ],
+      "material": "wall",
+      "id": "e7f36b78"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        -6.5
+      ],
+      "size": [
+        12.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall",
+      "id": "f57848d2"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        6.5
+      ],
+      "size": [
+        12.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall",
+      "id": "2ecc3152"
+    },
+    {
+      "at": [
+        -6.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        14.0
+      ],
+      "material": "wall",
+      "id": "996f6266"
+    },
+    {
+      "at": [
+        6.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        14.0
+      ],
+      "material": "wall",
+      "id": "53adb7e6"
+    },
+    {
+      "at": [
+        0.0,
+        0.4,
+        0.0
+      ],
+      "size": [
+        2.0,
+        0.8,
+        2.0
+      ],
+      "material": "pedestal",
+      "id": "d80b15db"
+    }
   ],
   "lights": [
-    { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
+    {
+      "type": "point",
+      "at": [
+        0.0,
+        3.2,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.95,
+        0.85
+      ],
+      "intensity": 52115.252201999996,
+      "range": 14.0,
+      "id": "88ce8d88"
+    }
   ],
   "entities": [
     {
       "type": "edu_sequence",
       "name": "control-box-service",
-      "title": "Замена батареи в блоке управления",
-      "steps": ["step-1", "step-2", "step-3", "step-4", "step-5", "step-6", "step-7"]
+      "props": {
+        "title": "Замена батареи в блоке управления",
+        "steps": [
+          "step-1",
+          "step-2",
+          "step-3",
+          "step-4",
+          "step-5",
+          "step-6",
+          "step-7"
+        ]
+      },
+      "id": "db52445e"
     },
     {
       "type": "part",
       "name": "case-base",
-      "at": [0.0, 1.0, 0.0],
-      "size": [0.9, 0.5, 0.6],
-      "material": "case"
+      "at": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "props": {
+        "size": [
+          0.9,
+          0.5,
+          0.6
+        ],
+        "material": "case"
+      },
+      "id": "86cdf587"
     },
     {
       "type": "part",
       "name": "housing-lid",
-      "at": [0.0, 1.35, 0.0],
-      "size": [0.95, 0.15, 0.65],
-      "material": "lid"
+      "at": [
+        0.0,
+        1.35,
+        0.0
+      ],
+      "props": {
+        "size": [
+          0.95,
+          0.15,
+          0.65
+        ],
+        "material": "lid"
+      },
+      "id": "9a8ecb25"
     },
     {
       "type": "part",
       "name": "circuit-board",
-      "at": [0.0, 1.1, 0.0],
-      "size": [0.75, 0.05, 0.45],
-      "material": "board"
+      "at": [
+        0.0,
+        1.1,
+        0.0
+      ],
+      "props": {
+        "size": [
+          0.75,
+          0.05,
+          0.45
+        ],
+        "material": "board"
+      },
+      "id": "43eaa60a"
     },
     {
       "type": "part",
       "name": "battery",
-      "at": [0.25, 1.15, 0.0],
-      "size": [0.25, 0.15, 0.35],
-      "material": "battery"
+      "at": [
+        0.25,
+        1.15,
+        0.0
+      ],
+      "props": {
+        "size": [
+          0.25,
+          0.15,
+          0.35
+        ],
+        "material": "battery"
+      },
+      "id": "de14d351"
     },
     {
       "type": "edu_step",
       "name": "step-1",
-      "at": [2.0, 1.6, 2.0],
+      "at": [
+        2.0,
+        1.6,
+        2.0
+      ],
       "yaw": 2.5,
-      "caption": "Блок управления в сборе"
+      "props": {
+        "caption": "Блок управления в сборе"
+      },
+      "id": "bc353c83"
     },
     {
       "type": "edu_step",
       "name": "step-2",
-      "at": [1.4, 1.7, 1.4],
+      "at": [
+        1.4,
+        1.7,
+        1.4
+      ],
       "yaw": 2.4,
-      "caption": "Снимаем крышку",
-      "hidden": ["housing-lid"]
+      "props": {
+        "caption": "Снимаем крышку",
+        "hidden": [
+          "housing-lid"
+        ]
+      },
+      "id": "191299a3"
     },
     {
       "type": "edu_step",
       "name": "step-3",
-      "at": [1.4, 1.7, 1.4],
+      "at": [
+        1.4,
+        1.7,
+        1.4
+      ],
       "yaw": 2.4,
-      "caption": "Снимаем плату",
-      "hidden": ["circuit-board"]
+      "props": {
+        "caption": "Снимаем плату",
+        "hidden": [
+          "circuit-board"
+        ]
+      },
+      "id": "4c045068"
     },
     {
       "type": "edu_step",
       "name": "step-4",
-      "at": [1.4, 1.7, 1.4],
+      "at": [
+        1.4,
+        1.7,
+        1.4
+      ],
       "yaw": 2.4,
-      "caption": "Снимаем батарею — корпус пуст",
-      "hidden": ["battery"]
+      "props": {
+        "caption": "Снимаем батарею — корпус пуст",
+        "hidden": [
+          "battery"
+        ]
+      },
+      "id": "ea92a6c1"
     },
     {
       "type": "edu_step",
       "name": "step-5",
-      "at": [1.4, 1.7, 1.4],
+      "at": [
+        1.4,
+        1.7,
+        1.4
+      ],
       "yaw": 2.4,
-      "caption": "Устанавливаем новую батарею",
-      "visible": ["battery"]
+      "props": {
+        "caption": "Устанавливаем новую батарею",
+        "visible": [
+          "battery"
+        ]
+      },
+      "id": "c662d6d6"
     },
     {
       "type": "edu_step",
       "name": "step-6",
-      "at": [1.4, 1.7, 1.4],
+      "at": [
+        1.4,
+        1.7,
+        1.4
+      ],
       "yaw": 2.4,
-      "caption": "Возвращаем плату на место",
-      "visible": ["circuit-board"]
+      "props": {
+        "caption": "Возвращаем плату на место",
+        "visible": [
+          "circuit-board"
+        ]
+      },
+      "id": "684ff97f"
     },
     {
       "type": "edu_step",
       "name": "step-7",
-      "at": [2.0, 1.6, 2.0],
+      "at": [
+        2.0,
+        1.6,
+        2.0
+      ],
       "yaw": 2.5,
-      "caption": "Закрываем крышку — блок в сборе",
-      "visible": ["housing-lid"]
+      "props": {
+        "caption": "Закрываем крышку — блок в сборе",
+        "visible": [
+          "housing-lid"
+        ]
+      },
+      "id": "b2ae64ad"
     }
   ]
 }

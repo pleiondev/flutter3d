@@ -1,14 +1,42 @@
 import 'package:flame/game.dart'
     show FlameGame, GameWidget, OverlayWidgetBuilder;
 import 'package:flutter/foundation.dart' show setEquals;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'bridge_clock.dart';
 import 'has_flutter3d.dart';
 import 'transparent_flame_game.dart';
+
+/// A device and a renderer a host opened and keeps, lent to a
+/// [Flutter3dFlameWidget] through [Flutter3dFlameWidget.existing] rather
+/// than the widget opening its own.
+///
+/// **Lent, not given.** The widget draws with them and never closes them:
+/// they stay their owner's to close.
+final class BorrowedRenderer {
+  /// [renderer], which draws on [device].
+  const BorrowedRenderer({required this.device, required this.renderer});
+
+  /// The device [renderer] draws on.
+  final GraphicsDevice device;
+
+  /// The renderer the 3D layer draws with.
+  final Renderer renderer;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BorrowedRenderer &&
+      other.device == device &&
+      other.renderer == renderer;
+
+  @override
+  int get hashCode => Object.hash(device, renderer);
+
+  @override
+  String toString() => 'BorrowedRenderer($device)';
+}
 
 /// A 3D flutter3d layer and a 2D Flame layer, composited in one `Stack`, one
 /// frame each.
@@ -16,11 +44,10 @@ import 'transparent_flame_game.dart';
 /// **Both engines render their own layer.** [SceneSurface] draws the 3D
 /// scene [buildScene] returns; Flame's own [GameWidget] draws [game]. Neither
 /// engine's renderer is reimplemented, and neither drives the other's
-/// drawing — they sit in one `Stack`, [game]'s [GameWidget] on top, the same
-/// arrangement `apps/flutter3d_demo_platformer` already uses for its own HUD
-/// and input layer over a bare `SceneSurface`: on the web the 3D surface is a
-/// platform view that swallows pointer events, so whatever needs raw input —
-/// here, Flame itself — has to sit above it in the tree.
+/// drawing — they sit in one `Stack`, [game]'s [GameWidget] on top: on the
+/// web the 3D surface is a platform view that swallows pointer events, so
+/// whatever needs raw input — here, Flame itself — has to sit above it in
+/// the tree.
 ///
 /// **[game] must not paint an opaque background.** `GameWidget` paints
 /// `game.backgroundColor()` as a `DecoratedBox` behind its own canvas, and
@@ -49,7 +76,10 @@ import 'transparent_flame_game.dart';
 /// appeared; the old game keeps its world, or lets its device go, as it
 /// would had the widget gone. Before, the new game was drawn over the old
 /// one's scene and never had its own opened.
-class Flutter3dFlameWidget extends StatelessWidget {
+final class Flutter3dFlameWidget extends StatelessWidget {
+  /// A widget hosting [game] over a 1280 by 720 device unless told
+  /// otherwise, taking the focus when it appears. Asserts a game without
+  /// `HasFlutter3d` is given both a [camera] and a [buildScene].
   const Flutter3dFlameWidget({
     super.key,
     required this.game,
@@ -91,7 +121,7 @@ class Flutter3dFlameWidget extends StatelessWidget {
   /// opening a second `GraphicsDevice` just to show a bridged demo would be
   /// two GPU contexts open for one picture. `openDevice` runs only when this
   /// is null.
-  final ({GraphicsDevice device, Renderer renderer})? existing;
+  final BorrowedRenderer? existing;
 
   /// Called once with the [Renderer] the 3D layer draws with, as soon as
   /// there is one: after [buildScene], whether this widget opened the device
@@ -115,8 +145,11 @@ class Flutter3dFlameWidget extends StatelessWidget {
   /// zero.
   final void Function(double dt)? onTick;
 
-  /// The 3D layer's clear color, behind whatever [buildScene] draws.
-  final Vector4? clearColor;
+  /// The 3D layer's clear colour, in linear light, behind whatever
+  /// [buildScene] draws; encoded to sRGB for the view once a frame. Null
+  /// draws the game's [HasFlutter3d.clearColor], or a dark grey for a game
+  /// without it.
+  final LinearColor? clearColor;
 
   /// What the 3D layer's frame is drawn with. Re-read every frame, after
   /// [onTick] — the same contract `SceneSurface.settings` already has.
@@ -144,6 +177,9 @@ class Flutter3dFlameWidget extends StatelessWidget {
   /// screen, which `SceneSurface` already resizes the render target to
   /// independently of this.
   final int width;
+
+  /// The [GraphicsDevice]'s backing height in pixels, as [width] is its
+  /// width; 720 by default.
   final int height;
 
   @override
@@ -171,15 +207,20 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
 
   CameraNode get _camera => _config.camera ?? _owner!.camera3d;
 
-  late RenderView _view = _viewFor();
+  late CameraView _view = _viewFor();
 
-  RenderView _viewFor() => RenderView(
-    camera: _camera,
-    clearColor:
-        _config.clearColor ??
-        _owner?.clearColor ??
-        Vector4(0.05, 0.05, 0.07, 1.0),
+  CameraView _viewFor() => CameraView(camera: _camera, clearColor: _clear);
+
+  static final LinearColor _defaultClear = LinearColor.fromSrgb(
+    0.05,
+    0.05,
+    0.07,
   );
+
+  /// The clear colour as it is now: the widget's, the game's, or the
+  /// default.
+  LinearColor get _clear =>
+      _config.clearColor ?? _owner?.clearColor ?? _defaultClear;
 
   /// The camera this state put in the scene, to take out again when a
   /// rebuild hands in another; a scene kept every camera it was ever given.
@@ -482,7 +523,7 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
                   // `replaceScene3d` is drawn there.
                   scene: _owner?.has3d ?? false ? _owner!.scene : scene,
                   view: _view,
-                  moreViews: _owner?.moreViews3d ?? const <RenderView>[],
+                  moreViews: _owner?.moreViews3d ?? const <CameraView>[],
                   settings: _settings,
                   // The game's part of the canvas, read each frame: a split
                   // screen opened or closed mid-game.
@@ -491,6 +532,10 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
                     if (owner != null) {
                       _view.viewportFraction = owner.viewport3d;
                     }
+                    // Read every frame: a game assigns a new colour (a day
+                    // turning, the next level's sky) rather than changing
+                    // one in place.
+                    _view.clearColor = _clear;
                   },
                   presentFrame: presentFrame,
                 ),

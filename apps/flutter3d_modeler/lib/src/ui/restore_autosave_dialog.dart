@@ -10,7 +10,10 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 
+/// Asks whether to bring back an autosave, saying how many objects it
+/// holds.
 class RestoreAutosaveDialog extends StatelessWidget {
+  /// The question for an autosave of [objectCount] objects.
   const RestoreAutosaveDialog({required this.objectCount, super.key});
 
   /// How many objects the autosave would bring back — the number

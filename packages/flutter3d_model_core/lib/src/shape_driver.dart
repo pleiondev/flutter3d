@@ -36,11 +36,12 @@ import 'package:vector_math/vector_math.dart';
 
 import 'key_table.dart';
 import 'project_animation.dart';
+import 'project_format.dart' show ProjectFormatException;
 
 /// Which local axis of a joint's rotation a [ShapeDriver] reads.
 ///
 /// A `final class` with `static const` instances rather than an `enum` —
-/// the same choice `BlendMode` beside `PaintLayer` makes and for the same
+/// the same choice `PaintBlendMode` beside `PaintLayer` makes and for the same
 /// reason: this is a published package, and an `enum` there is a promise
 /// nobody adds a fourth axis later. Its own [vector] is computed from three
 /// `const`-compatible doubles rather than stored as a `Vector3` field,
@@ -57,9 +58,27 @@ final class DriverAxis {
   /// The unit axis this instance names.
   Vector3 get vector => Vector3(_x, _y, _z);
 
+  /// The joint's local X axis.
   static const DriverAxis x = DriverAxis._('x', 1, 0, 0);
+
+  /// The joint's local Y axis.
   static const DriverAxis y = DriverAxis._('y', 0, 1, 0);
+
+  /// The joint's local Z axis.
   static const DriverAxis z = DriverAxis._('z', 0, 0, 1);
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<DriverAxis> values = <DriverAxis>[x, y, z];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DriverAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'DriverAxis.$name';
@@ -76,13 +95,17 @@ final class DriverAxis {
 final class ShapeDriverCurve {
   const ShapeDriverCurve._(this.name, this._apply);
 
+  /// What the curve is called in a project file and in a command's arguments.
   final String name;
   final double Function(double t) _apply;
 
+  /// Returns [t], a fraction from nought to one, remapped by this curve; still
+  /// a fraction from nought to one.
   double apply(double t) => _apply(t);
 
   static double _linear(double t) => t;
 
+  /// The output equals the input: half the span reads as half the weight.
   static const ShapeDriverCurve linear = ShapeDriverCurve._('linear', _linear);
 
   @override
@@ -93,6 +116,9 @@ final class ShapeDriverCurve {
 /// person's own slider — the project-side half of a face that flinches when
 /// an elbow locks, without anyone keying the flinch by hand.
 final class ShapeDriver {
+  /// A driver setting shape [shapeIndex] from joint [jointId]'s turn about
+  /// [axis], nought at [from] radians and one at [to], remapped linearly unless
+  /// [curve] says otherwise.
   const ShapeDriver({
     required this.shapeIndex,
     required this.jointId,
@@ -109,6 +135,7 @@ final class ShapeDriver {
   /// [ProjectSkeleton.joints] and [ProjectTrack.objectId] already use.
   final int jointId;
 
+  /// Which local axis of the joint's rotation is read, as the twist about it.
   final DriverAxis axis;
 
   /// The [axis] angle, in radians, that maps to an output of 0.
@@ -117,6 +144,8 @@ final class ShapeDriver {
   /// The [axis] angle, in radians, that maps to an output of 1.
   final double to;
 
+  /// How the clamped fraction is remapped before it becomes the weight,
+  /// [ShapeDriverCurve.linear] by default.
   final ShapeDriverCurve curve;
 
   /// A copy with some fields replaced — the same shape [ShapeSet.copyWith]
@@ -155,15 +184,15 @@ final class ShapeDriver {
     'curve': curve.name,
   };
 
-  /// A [ShapeDriver] from its own [toJson], or null when [json] is missing a
-  /// field or has one of the wrong type — the same "null and not an
-  /// exception" rule `modelCommandFromJson` itself keeps, since this feeds
-  /// straight into one of its own readers. [curve] always reads back as
+  /// A [ShapeDriver] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when [json] is missing a field or has one of
+  /// the wrong type; the journal reader that feeds on it skips the entry
+  /// rather than failing the file. [curve] always reads back as
   /// [ShapeDriverCurve.linear] — the only kind that exists yet, so there is
   /// nothing else a name in the file could mean, the same reasoning
   /// [DriverAxis]'s own `x` fallback gives for a name this build does not
   /// know.
-  static ShapeDriver? fromJson(Object? json) {
+  static ShapeDriver fromJson(Object? json) {
     if (json case {
       'shapeIndex': final int shapeIndex,
       'jointId': final int jointId,
@@ -183,7 +212,10 @@ final class ShapeDriver {
         to: to.toDouble(),
       );
     }
-    return null;
+    throw const ProjectFormatException(
+      'a shape driver names its whole "shapeIndex" and "jointId", and its '
+      '"from" and "to" as numbers',
+    );
   }
 
   /// The twist [rotation] carries about [axis], in radians — see this
@@ -229,7 +261,7 @@ Quaternion? _jointRotationAt(ProjectClip clip, int jointId, double time) {
   return null;
 }
 
-/// Every driver in [drivers] evaluated against [clip] at [time], summed per
+/// Every driver in [drivers] evaluated against [clip] at [timeSeconds], summed per
 /// shape index into a [shapeCount]-long weight list — the additive
 /// combination the row's own "аддитивно" asks for: two drivers naming the
 /// same [ShapeDriver.shapeIndex] add rather than the second overwriting the
@@ -242,14 +274,15 @@ Quaternion? _jointRotationAt(ProjectClip clip, int jointId, double time) {
 List<double> evaluateShapeDriversLive({
   required ProjectClip clip,
   required List<ShapeDriver> drivers,
-  required double time,
+  required double timeSeconds,
   required int shapeCount,
 }) {
   final weights = List<double>.filled(shapeCount, 0.0);
   for (final driver in drivers) {
     if (driver.shapeIndex < 0 || driver.shapeIndex >= shapeCount) continue;
     final rotation =
-        _jointRotationAt(clip, driver.jointId, time) ?? Quaternion.identity();
+        _jointRotationAt(clip, driver.jointId, timeSeconds) ??
+        Quaternion.identity();
     weights[driver.shapeIndex] += driver.evaluate(rotation);
   }
   return weights;
@@ -291,7 +324,7 @@ ProjectClip bakeShapeDrivers({
       evaluateShapeDriversLive(
         clip: clip,
         drivers: drivers,
-        time: time,
+        timeSeconds: time,
         shapeCount: shapeCount,
       ),
     );

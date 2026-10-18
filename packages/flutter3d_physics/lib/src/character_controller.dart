@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'character_mover.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
@@ -18,11 +19,16 @@ export 'movement_tuning.dart';
 /// than to bounce. A general solver would give all three and be harder to tune
 /// into something that feels right.
 final class CharacterController {
+  /// A body in [world], registered there as a kinematic collider on
+  /// [layer] (bit one by default).
+  ///
+  /// The shape defaults to a box 0.7 metres wide and 1.8 metres tall, and
+  /// [position] to the origin; the position is copied.
   CharacterController({
     required this.world,
     CollisionShape? shape,
     Vector3? position,
-    this.tuning = const MovementTuning(),
+    this.tuning = const MovementSettings(),
     // Bit one, which a game usually calls its player — a controller is what a
     // game drives an actor with. Named at the call site rather than here, for
     // the reason on [Layers].
@@ -32,7 +38,7 @@ final class CharacterController {
     // The body registers itself, so monsters see the player as an obstacle and
     // triggers see them walk in. A controller that only reads the world is a
     // controller nothing else can react to.
-    collider = world.add(
+    _collider = world.add(
       Collider(
         shape: _shape,
         position: this.position,
@@ -40,8 +46,11 @@ final class CharacterController {
         layer: layer,
       ),
     );
+    world.shiftsWithOrigin(this.position);
   }
 
+  /// The world the body moves through and is registered in, which shifts
+  /// [position] with its origin.
   final CollisionWorld world;
 
   /// The body's collision volume.
@@ -55,8 +64,10 @@ final class CharacterController {
   CollisionShape get shape => _shape;
   CollisionShape _shape;
 
+  late final Collider _collider;
+
   /// This body's entry in the world, kept in step with [position].
-  late final Collider collider;
+  Collider get collider => _collider;
 
   /// Which contacts this body's own movement counts, or null for all of them.
   ///
@@ -71,12 +82,38 @@ final class CharacterController {
   /// monster does not walk through a wall because the player can.
   ContactFilter? solidFilter;
 
+  /// Layers this body meets only as a floor from above — one-way platforms:
+  /// jumped up through, walked through from the side, landed on. Said as a
+  /// rule rather than asked of a [solidFilter], so the physics core can keep
+  /// it too: a body with a filter keeps its own sweeps, one with this does
+  /// not have to.
+  int fromAboveLayers = 0;
+
+  /// Whether the [fromAboveLayers] are not there at all this step: dropping
+  /// through the platform underfoot.
+  bool dropThrough = false;
+
+  /// What the sweeps ask about each contact: [solidFilter], with the
+  /// [fromAboveLayers] rule before it.
+  ContactFilter? get _allow => fromAboveLayers == 0 ? solidFilter : _fromAbove;
+  late final ContactFilter _fromAbove = _countsAsSolid;
+
+  bool _countsAsSolid(SweptContact contact) {
+    if (contact.other.layer & fromAboveLayers != 0) {
+      return !dropThrough &&
+          contact.normal.y > _walkableNormalY &&
+          velocity.y <= 0.0;
+    }
+    return solidFilter?.call(contact) ?? true;
+  }
+
   /// The scratch this controller hands its own [solidFilter] when it asks
   /// directly rather than through a sweep. See [SweptContact].
   final SweptContact _contact = SweptContact();
 
   /// Half the body's bounding box: radius in X and Z, half the height in Y.
-  Vector3 get halfExtents => shape.boundsHalfExtents;
+  /// A copy; the body is resized with [tryResize].
+  Vector3 get halfExtents => _shape.boundsHalfExtents.clone();
 
   /// Every number that decides how this body feels — and **swappable**.
   ///
@@ -89,11 +126,12 @@ final class CharacterController {
   /// [save] does not carry it, deliberately: it is a reference to a constant
   /// the game owns, so the game saves *which* one it had and reassigns on
   /// restore. The same reasoning as [groundBody].
-  MovementTuning tuning;
+  MovementSettings tuning;
 
   /// Centre of the box. The eye sits above this.
   final Vector3 position;
 
+  /// The body's velocity, in metres per second. Carried by [save].
   final Vector3 velocity = Vector3.zero();
 
   bool _grounded = false;
@@ -131,7 +169,8 @@ final class CharacterController {
   /// Straight up while airborne rather than null, so a caller doing
   /// arithmetic with it does not have to branch: falling is the same as
   /// standing on level ground as far as any slope calculation is concerned.
-  Vector3 get groundNormal => _groundNormal;
+  /// A copy the caller owns, refreshed by each step's probe.
+  Vector3 get groundNormal => _groundNormal.clone();
   final Vector3 _groundNormal = Vector3(0.0, 1.0, 0.0);
 
   /// What the feet are on, **when it moves under its own power**. Null on a
@@ -159,7 +198,7 @@ final class CharacterController {
   /// How far the last step lifted the body onto a ledge, in metres.
   ///
   /// Climbing a stair is a *teleport*: [_moveHorizontally] raises the body by
-  /// [MovementTuning.stepHeight], carries it across and sets it down, and all
+  /// [MovementSettings.stepHeight], carries it across and sets it down, and all
   /// of that is one step of simulated time. The simulation wants it that way.
   /// A renderer does not — fifteen centimetres inside a sixtieth of a second is
   /// nine metres a second, which pitches the horizon on every riser — so it is
@@ -184,12 +223,12 @@ final class CharacterController {
   ///
   /// Buffered rather than acted on immediately, so the request survives the
   /// fraction of a second before landing.
-  void requestJump() => _jumpBuffer = tuning.jumpBufferTime;
+  void requestJump() => _jumpBuffer = tuning.jumpBufferSeconds;
 
   /// Says that the body is leaving the ground **on purpose**, so the next
   /// ground probe must not pull it back.
   ///
-  /// [MovementTuning.floorSnapLength] keeps the feet on a floor they already
+  /// [MovementSettings.floorSnapLength] keeps the feet on a floor they already
   /// had. That is what a stair edge wants and the opposite of what a spring, a
   /// bounce or a jump the game owns wants — and from in here the two look
   /// identical, because both are a body that was grounded last step with its
@@ -228,6 +267,11 @@ final class CharacterController {
     'jumpBuffer': _jumpBuffer,
   };
 
+  /// Puts back what [save] wrote in [from], moving the collider with it.
+  ///
+  /// Throws nothing: a missing or malformed vector leaves that vector as it
+  /// was, and a missing timer starts at nought. [groundBody] is cleared
+  /// until the next ground probe.
   void restore(Map<String, Object?> from) {
     readVector(from['at'], position);
     readVector(from['velocity'], velocity);
@@ -263,7 +307,7 @@ final class CharacterController {
   /// [restore]; one that forgets restores a standing body inside a crawlspace
   /// and is ejected from it on the next step.
   bool tryResize(CollisionShape to, {bool keepFeet = true}) {
-    final was = halfExtents;
+    final was = _shape.boundsHalfExtents;
     final will = to.boundsHalfExtents;
     final feet = position.y - was.y;
     _resizeAt.setValues(
@@ -289,9 +333,10 @@ final class CharacterController {
         // upward is which way a body grows: a one-way platform overhead is not
         // in the way of standing up, for the same reason it is not in the way
         // of jumping.
-        if (solidFilter == null) return false;
+        final allow = _allow;
+        if (allow == null) return false;
         _contact.set(other, _up);
-        if (solidFilter!(_contact)) return false;
+        if (allow(_contact)) return false;
       }
     }
 
@@ -322,6 +367,7 @@ final class CharacterController {
   // second, so none of this is allocated per call.
   final SweepHit _hit = SweepHit();
   final Vector3 _delta = Vector3.zero();
+  late final CharacterMove _move = CharacterMove(body: this, delta: _delta);
   final Vector3 _correction = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
   final Vector3 _plainPosition = Vector3.zero();
@@ -330,6 +376,7 @@ final class CharacterController {
   final Vector3 _stepVelocity = Vector3.zero();
   final Vector3 _scratchDelta = Vector3.zero();
   final Vector3 _probe = Vector3.zero();
+  final Vector3 _wall = Vector3.zero();
   final Vector3 _resizeAt = Vector3.zero();
   final Vector3 _up = Vector3(0.0, 1.0, 0.0);
   final List<Collider> _clearance = <Collider>[];
@@ -362,7 +409,7 @@ final class CharacterController {
   /// degrees is what *this controller* means by standing, and a game that wants
   /// a different limit for a tank and a scout is a game whose units have
   /// different rules — which belongs where those rules are, above this, reading
-  /// [groundNormal]. A number moved into [MovementTuning] would be one more
+  /// [groundNormal]. A number moved into [MovementSettings] would be one more
   /// dial that every genre has to have an opinion about, and thirteen is
   /// already the number that has to be explained to somebody starting a game.
   static const double _walkableNormalY = 0.5;
@@ -372,7 +419,18 @@ final class CharacterController {
   /// [wishDirection] is where the player wants to go, in world space and
   /// horizontal; it need not be normalised, and its length scales the requested
   /// speed so an analogue stick works. [sprint] picks which top speed applies.
-  void step(double dt, {required Vector3 wishDirection, bool sprint = false}) {
+  ///
+  /// [drivenBy], when given, is how far along the floor this step goes
+  /// instead — root motion, an animation's own stride handed over by its
+  /// graph — and [wishDirection] is not accelerated towards: the body moves
+  /// at that displacement's speed, swept as any move is, so a walk cycle
+  /// stops at a wall and climbs a step, and falls and jumps as it would.
+  void step(
+    double dt, {
+    required Vector3 wishDirection,
+    bool sprint = false,
+    Vector3? drivenBy,
+  }) {
     _contacts = 0;
     _steppedUp = 0.0;
     _climbed = false;
@@ -380,13 +438,31 @@ final class CharacterController {
     _jumpBuffer = math.max(0.0, _jumpBuffer - dt);
 
     _carryWithGround(dt);
-    _resolveOverlap();
-    _accelerate(dt, wishDirection, sprint);
+    final mover = world.characterMover;
+    final moved = mover != null && solidFilter == null;
+    // **One volume, the mover's.** The box this controller pushes out of
+    // what it overlaps is not the shape a mover moves — the core moves the
+    // capsule inside it — and the box's corners overlap a riser the
+    // capsule's round foot stands on: pushed back out each step, a body
+    // never got onto a step lower than its radius. A mover pushes its own
+    // volume out of what was moved into it.
+    if (!moved) _resolveOverlap();
+    if (drivenBy != null && dt > 0.0) {
+      velocity
+        ..x = drivenBy.x / dt
+        ..z = drivenBy.z / dt;
+    } else {
+      _accelerate(dt, wishDirection, sprint);
+    }
     _applyGravity(dt);
     _tryJump();
-    _moveHorizontally(dt);
-    _moveVertically(dt);
-    _probeGround();
+    if (moved) {
+      _moveBy(mover, dt);
+    } else {
+      _moveHorizontally(dt);
+      _moveVertically(dt);
+      _probeGround();
+    }
 
     // Collider holds its own copy of the position — it clones on construction,
     // and relying on a shared vector would have been a silent aliasing bug the
@@ -419,13 +495,26 @@ final class CharacterController {
     }
   }
 
+  /// What the body is pushed out of when it overlaps: what [_allow] counts
+  /// as solid, less the [fromAboveLayers] — a body inside a surface solid
+  /// only from above passes through it, up or down. Counted, the box of a
+  /// jump that did not clear such a platform was pushed up onto its top as
+  /// it began to fall, where the physics core lets it fall back down.
+  ContactFilter? get _allowOverlap =>
+      fromAboveLayers == 0 ? solidFilter : _overlapFilter;
+  late final ContactFilter _overlapFilter = _solidToOverlap;
+
+  bool _solidToOverlap(SweptContact contact) =>
+      contact.other.layer & fromAboveLayers == 0 &&
+      (solidFilter?.call(contact) ?? true);
+
   void _resolveOverlap() {
     if (world.depenetrate(
       position,
-      halfExtents,
+      _shape.boundsHalfExtents,
       _correction,
       ignore: collider,
-      allow: solidFilter,
+      allow: _allowOverlap,
     )) {
       position.add(_correction);
       // A ceiling pressing down should not leave upward speed, and a floor
@@ -499,12 +588,17 @@ final class CharacterController {
     }
   }
 
+  /// What this character falls by, m/s² down y: its tuning's own, or the
+  /// world's (`CollisionWorld.properties`, its strength — a character stands
+  /// up y whatever way its world pulls).
+  double get gravity => tuning.gravity ?? world.properties.gravityMagnitude;
+
   void _applyGravity(double dt) {
     if (_grounded && velocity.y <= 0.0) {
       // A small downward bias keeps the box pressed against the floor, so the
       // ground probe below keeps finding it on the way down a staircase.
       //
-      // Kept even though [MovementTuning.floorSnapLength] now does that job
+      // Kept even though [MovementSettings.floorSnapLength] now does that job
       // properly, because it is also what the *default* has instead of a snap:
       // removing it would change how every existing game walks, which is a
       // re-baselining this change is not worth. A sixtieth of a second of it
@@ -512,10 +606,7 @@ final class CharacterController {
       velocity.y = -1.0;
       return;
     }
-    velocity.y = math.max(
-      -tuning.terminalVelocity,
-      velocity.y - tuning.gravity * dt,
-    );
+    velocity.y = math.max(-tuning.terminalVelocity, velocity.y - gravity * dt);
   }
 
   void _tryJump() {
@@ -607,7 +698,7 @@ final class CharacterController {
       _probe,
       _hit,
       ignore: collider,
-      allow: solidFilter,
+      allow: _allow,
     )) {
       point.add(_probe);
       return true;
@@ -641,7 +732,7 @@ final class CharacterController {
         delta,
         _hit,
         ignore: collider,
-        allow: solidFilter,
+        allow: _allow,
       )) {
         point.add(delta);
         delta.setZero();
@@ -657,14 +748,34 @@ final class CharacterController {
         ..y += delta.y * travel + _hit.normal.y * _skin
         ..z += delta.z * travel + _hit.normal.z * _skin;
 
+      // **A face too steep to stand on is a wall to anything not falling.**
+      // Stripped along its own normal, a walk into a sixty-degree face kept
+      // the part of the push that runs up it: 1.8 m/s of rise from 6 m/s of
+      // walk, and every airborne push after it lifted the body by more than
+      // 9.81 took away, so it coasted a metre up a face it cannot stand on.
+      // Moving sideways or up, such a face is met as the vertical wall its
+      // horizontal half is; falling onto it, the body slides down its slope.
+      final steep =
+          _hit.normal.y > 0.0 &&
+          _hit.normal.y <= _walkableNormalY &&
+          delta.y >= 0.0;
+      if (steep) {
+        final across = math.sqrt(
+          _hit.normal.x * _hit.normal.x + _hit.normal.z * _hit.normal.z,
+        );
+        _wall.setValues(_hit.normal.x / across, 0.0, _hit.normal.z / across);
+      } else {
+        _wall.setFrom(_hit.normal);
+      }
+
       // Keep only the part of the remaining motion that runs along the surface.
       final remaining = 1.0 - travel;
       delta.scale(remaining);
-      final intoSurface = delta.dot(_hit.normal);
+      final intoSurface = delta.dot(_wall);
       if (intoSurface < 0.0) {
-        delta.x -= _hit.normal.x * intoSurface;
-        delta.y -= _hit.normal.y * intoSurface;
-        delta.z -= _hit.normal.z * intoSurface;
+        delta.x -= _wall.x * intoSurface;
+        delta.y -= _wall.y * intoSurface;
+        delta.z -= _wall.z * intoSurface;
       }
 
       // **A walkable face under the body is a slope being climbed, not a wall
@@ -678,11 +789,11 @@ final class CharacterController {
 
       // Speed into the surface is gone for good, or the player would keep
       // accelerating into a wall and shoot along it the moment it ended.
-      final speedIntoSurface = vel.dot(_hit.normal);
+      final speedIntoSurface = vel.dot(_wall);
       if (speedIntoSurface < 0.0) {
-        vel.x -= _hit.normal.x * speedIntoSurface;
-        vel.y -= _hit.normal.y * speedIntoSurface;
-        vel.z -= _hit.normal.z * speedIntoSurface;
+        vel.x -= _wall.x * speedIntoSurface;
+        vel.y -= _wall.y * speedIntoSurface;
+        vel.z -= _wall.z * speedIntoSurface;
       }
     }
 
@@ -711,7 +822,7 @@ final class CharacterController {
       return;
     }
 
-    // How far down to look. Past [MovementTuning.groundProbe] only to *keep* a
+    // How far down to look. Past [MovementSettings.groundProbe] only to *keep* a
     // floor: the feet must have been on something as of last step, and must
     // not have chosen to leave it. A body that was already airborne gets the
     // short probe, so the long reach can never find ground the body was not
@@ -737,7 +848,7 @@ final class CharacterController {
           _probe,
           _hit,
           ignore: collider,
-          allow: solidFilter,
+          allow: _allow,
         ) ||
         _hit.normal.y <= _walkableNormalY) {
       _setAirborne();
@@ -753,7 +864,44 @@ final class CharacterController {
     // noise — true of carrying, and it threw away the answer to every other
     // question about the floor. [groundBody] still narrows it.
     _ground = _hit.collider;
-    _coyote = tuning.coyoteTime;
+    _coyote = tuning.coyoteSeconds;
+  }
+
+  /// The step's geometry by [mover]: the whole of this step's motion handed
+  /// over at once, and what came back read as the sweeps above read their
+  /// own — the speed into what it met gone, standing where it stood, lifted
+  /// by a step it climbed.
+  ///
+  /// [contactsLastStep] counts the kinds of surface met — a wall, a ceiling,
+  /// a floor — rather than every face: the mover reports no more.
+  void _moveBy(CharacterMover mover, double dt) {
+    final leftDeliberately = _snapSuppressed;
+    _snapSuppressed = false;
+    _delta.setValues(velocity.x * dt, velocity.y * dt, velocity.z * dt);
+    final moved = mover.move(
+      _move
+        ..stepHeight = tuning.stepHeight
+        ..walkableNormalY = _walkableNormalY
+        ..mayStep = _grounded,
+    );
+    position.setFrom(moved.position);
+    velocity.setFrom(moved.velocity);
+    _contacts =
+        (moved.hitWall ? 1 : 0) +
+        (moved.hitCeiling ? 1 : 0) +
+        (moved.grounded ? 1 : 0);
+    _steppedUp = moved.steppedUp;
+    // Ground met on the way is ground — a slope climbed is stood on — unless
+    // the body is leaving it on purpose: a jump rises off the floor it met.
+    if (!moved.grounded || (velocity.y > 0.0 && leftDeliberately)) {
+      _setAirborne();
+      return;
+    }
+    velocity.y = 0.0;
+    _grounded = true;
+    _groundNormal.setFrom(moved.groundNormal);
+    _ground = moved.ground;
+    _coyote = tuning.coyoteSeconds;
   }
 
   void _setAirborne() {

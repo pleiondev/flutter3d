@@ -53,7 +53,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       // Mutation: report `topologyChanged: true` and a viewport rebuilds the
       // layout plan on every frame of a drag — sixty-eight milliseconds where
       // one microsecond would do.
@@ -112,7 +112,7 @@ void main() {
       // Mutation: return `OpResult.done` with nothing moved, and a person
       // pressing the key with an empty selection sees no message and no change
       // and cannot tell which of the two happened.
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('selected'));
       expect(mesh.positionOf(0).x, closeTo(-0.5, 1e-6));
     });

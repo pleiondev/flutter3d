@@ -16,6 +16,8 @@ import 'tools.dart';
 
 /// The keyboard, over the whole shell.
 class ModelerKeys extends StatelessWidget {
+  /// The shortcuts of the live keymap over [child]; each key calls the matching
+  /// callback, and one whose callback is null is not bound.
   const ModelerKeys({
     super.key,
     required this.onKey,
@@ -61,23 +63,43 @@ class ModelerKeys extends StatelessWidget {
   /// The application's own actions, each null where the caller has none to
   /// give — a preview viewport with no document to save, a test.
   final VoidCallback? onSave;
+
+  /// `Delete` or `Backspace`: delete what is selected.
   final VoidCallback? onDelete;
+
+  /// `Tab`: switch between object and mesh mode.
   final VoidCallback? onToggleObjectMesh;
+
+  /// `.` (and `F` outside the modal-keys preset): put the camera on what is
+  /// selected.
   final VoidCallback? onFrameSelection;
+
+  /// `Home`: put the camera on everything.
   final VoidCallback? onFrameAll;
+
+  /// `Space`: play or pause the timeline.
   final VoidCallback? onPlayPause;
+
+  /// Numpad 1, 3 or 7: look from the front, side or top, handed the
+  /// [ModelerAction] of the view.
   final ValueChanged<ModelerAction>? onStandardView;
 
   /// A key that a transform in progress may want. Answers whether it took it,
   /// so the shortcuts below only see the ones it did not.
   final bool Function(LogicalKeyboardKey key, String? character) onKey;
 
+  /// The command key with `Z`: undo.
   final VoidCallback onUndo;
+
+  /// The command key with shift and `Z`, or control and `Y` off Apple
+  /// platforms: redo.
   final VoidCallback onRedo;
 
   /// ⌘E. Bound to the container rather than to a menu, because it is the
   /// export a person repeats: the one that goes back into the game.
   final VoidCallback onExport;
+
+  /// A rail tool's key in the live keymap was pressed, with the tool's id.
   final ValueChanged<String> onTool;
 
   /// Which sub-mode's own digit keys are live — `ui-40d`'s own row.
@@ -88,10 +110,21 @@ class ModelerKeys extends StatelessWidget {
   /// digit key meaning one thing at a time, the same "a shortcut means one
   /// thing within a mode" rule the tool table itself already keeps.
   final ModelerMode mode;
+
+  /// A digit key in mesh or UV mode: switch to that element level.
   final ValueChanged<MeshSubmode> onLevel;
+
+  /// A digit key in animation mode: switch to that sub-mode.
   final ValueChanged<AnimationSubmode> onAnimationLevel;
+
+  /// Select everything, on the select-all key of the live keymap.
   final VoidCallback onSelectAll;
+
+  /// `Alt` with `A`: clear the selection.
   final VoidCallback onSelectNone;
+
+  /// The command key with `I`: select what is not selected and nothing that
+  /// is.
   final VoidCallback onInvertSelection;
 
   /// `?`. `ui-32n`'s own way in, beside the Help button in the top bar.
@@ -104,18 +137,29 @@ class ModelerKeys extends StatelessWidget {
 
   /// `ux-27`'s own two folds. Null where there is no shell to fold.
   final VoidCallback? onFoldPanel;
+
+  /// Shift with `T`: fold the tool rail away, or back.
   final VoidCallback? onFoldRail;
 
   /// `ux-28`'s own two: one ring of neighbours more, and one less.
   final VoidCallback? onGrowSelection;
+
+  /// The command key with minus: one ring of neighbours less.
   final VoidCallback? onShrinkSelection;
 
   /// `ux-24`'s own two: the weight brush narrower and wider. Null outside
   /// the weights sub-mode, where the keys mean nothing rather than moving a
   /// brush nobody can see.
   final VoidCallback? onBrushNarrower;
+
+  /// `]`: the weight brush wider. Null outside the weights sub-mode, like
+  /// [onBrushNarrower].
   final VoidCallback? onBrushWider;
+
+  /// The rail's tools in the current mode; only these get their keys bound.
   final List<ModelerTool> tools;
+
+  /// The shell the keys are bound over.
   final Widget child;
 
   @override

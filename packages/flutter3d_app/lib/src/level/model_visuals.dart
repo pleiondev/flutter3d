@@ -1,6 +1,5 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import '../diagnostics/issues.dart';
 
@@ -20,17 +19,37 @@ import '../diagnostics/issues.dart';
 /// `prop` ever needs to be — `"engine-body#valve_cover"`, not just
 /// `"engine-body"`.
 final class ModelVisuals {
+  /// Models for [scene], uploaded through [device]; read from the bundle,
+  /// reporting by printing, with the engine's own readers and lighting
+  /// models, unless said otherwise.
   ModelVisuals(
     this.scene, {
     required this.device,
     AssetSource Function(String path)? source,
     IssueSink? onIssue,
+    this.decoders,
+    this.lightingModels,
   }) : _source = source ?? BundleAssetSource.new,
        onIssue = onIssue ?? printIssue;
 
+  /// Where each model's root is added, in the order [add] was called.
   final Scene scene;
+
+  /// What the models' meshes and textures are uploaded through.
   final GraphicsDevice device;
+
+  /// Told about a `model` entity with no asset, or one whose file would not
+  /// load; the entity is then left out.
   final IssueSink onIssue;
+
+  /// What the engine's plugins read files with — their formats, schemes
+  /// and image codecs (`Flutter3dEngine.decoders`) — or null for the
+  /// engine's readers alone.
+  final ModelDecoders? decoders;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) a model's
+  /// materials are read against, or null for the built-in ones alone.
+  final LightingModels? lightingModels;
 
   /// How [loadModelByPath] reads a `model` entity's `asset` out of the
   /// bundle. [BundleAssetSource] by default — the same source every
@@ -39,6 +58,7 @@ final class ModelVisuals {
   /// faking Flutter's asset bundle.
   final AssetSource Function(String path) _source;
 
+  /// The entity type [add] builds; every other type it leaves alone.
   static const String entityType = 'model';
 
   final List<ModelAsset> _assets = <ModelAsset>[];
@@ -51,6 +71,8 @@ final class ModelVisuals {
   /// `"engine-body#valve_cover"`.
   final Map<String, SceneNode> _nodes = <String, SceneNode>{};
 
+  /// The roots and named sub-nodes by name, `entity` or `entity#node`; an
+  /// unmodifiable copy.
   Map<String, SceneNode> get nodes =>
       Map<String, SceneNode>.unmodifiable(_nodes);
 
@@ -69,6 +91,11 @@ final class ModelVisuals {
   /// position the moment the level opens, so the model has to already be in
   /// the scene by the time [LevelReady]/[LessonReady] is emitted, not two
   /// frames later.
+  ///
+  /// **Into the scene in the order [add] was called, not the order the files
+  /// arrive in** — see [Scene.reserveTurn]. A caller that started several
+  /// adds and waited for them together had them go in in whichever order
+  /// their isolates finished.
   Future<SceneNode?> add(EntityDef entity) async {
     if (entity.type != entityType) return null;
 
@@ -78,17 +105,43 @@ final class ModelVisuals {
       return null;
     }
 
+    final turn = scene.reserveTurn();
+    _turns.add(turn);
+    try {
+      return await _addInTurn(entity, path, turn.ready);
+    } finally {
+      _turns.remove(turn);
+      turn.release();
+    }
+  }
+
+  /// The turns [add]s still loading hold, released by [dispose]: a level let
+  /// go of while a file is still being read must not keep whatever is asked
+  /// of the scene next waiting on it.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
+
+  Future<SceneNode?> _addInTurn(
+    EntityDef entity,
+    String path,
+    Future<void> previous,
+  ) async {
     final generation = _generation;
     final ModelAsset asset;
     try {
       // Whichever kind of path the level wrote: an `assets_src/` source goes
       // to the file the build hook converted it into, anything else is read
       // as it stands — see [loadModelByPath].
-      final document = await loadModelByPath(path, bundleSource: _source);
+      final document = await loadModelByPath(
+        path,
+        bundleSource: _source,
+        decoders: decoders,
+        lightingModels: lightingModels,
+      );
       asset = await ModelAsset.fromDocument(
         document,
         device: device,
         name: path,
+        codecs: decoders?.textureCodecs,
       );
     } catch (error) {
       onIssue(
@@ -98,18 +151,40 @@ final class ModelVisuals {
       );
       return null;
     }
+    await previous;
     // [dispose] ran while the file was being read: the upload is released
     // here, since no list [dispose] walks will ever hold it, and nothing goes
     // into a scene nobody draws any more.
     if (generation != _generation) {
-      asset.release(device);
+      asset.dispose();
       return null;
     }
     _assets.add(asset);
 
     final instance = asset.instantiate(scene, name: entity.name);
     instance.root.setPositionFrom(entity.position);
-    instance.root.setRotationYawPitchRoll(entity.yaw, 0.0, 0.0);
+    // `tilt` is the rest of a rotation after `yaw`, applied first, and
+    // `scale` the row's own: what `flutter3d convert` writes for a model a
+    // scene placed at an angle a yaw cannot say. Both absent is every
+    // hand-written level.
+    final tilt = entity.properties['tilt'];
+    if (tilt is List &&
+        tilt.length == 4 &&
+        tilt.every((Object? v) => v is num)) {
+      final turn = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw);
+      final rest = Quaternion(
+        (tilt[0] as num).toDouble(),
+        (tilt[1] as num).toDouble(),
+        (tilt[2] as num).toDouble(),
+        (tilt[3] as num).toDouble(),
+      ).normalized();
+      instance.root.setRotation(turn * rest);
+    } else {
+      instance.root.setRotationYawPitchRoll(entity.yaw, 0.0, 0.0);
+    }
+    if (entity.vector('scale') case final Vector3 scale) {
+      instance.root.setScale(scale.x, scale.y, scale.z);
+    }
     _instances.add(instance);
 
     final entityName = entity.name;
@@ -131,11 +206,15 @@ final class ModelVisuals {
   /// shares.
   void dispose() {
     _generation++;
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     for (final instance in _instances) {
       instance.removeFromScene();
     }
     for (final asset in _assets) {
-      asset.release(device);
+      asset.dispose();
     }
     _instances.clear();
     _assets.clear();

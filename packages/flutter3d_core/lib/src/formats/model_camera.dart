@@ -9,13 +9,15 @@
 /// `aspectRatio` may be absent on purpose, meaning "follow the viewport",
 /// which `Projection` has no way to represent since it is always handed a
 /// concrete one.
-sealed class ModelCameraProjection {
+abstract final class ModelCameraProjection {
   const ModelCameraProjection();
 }
 
 /// `camera.perspective` — a field of view and a near plane, an aspect ratio
 /// and a far plane that both may be absent.
 final class ModelPerspectiveCamera extends ModelCameraProjection {
+  /// A perspective of [yfov] radians from [znear]; a null [aspectRatio]
+  /// follows the viewport and a null [zfar] is infinite.
   const ModelPerspectiveCamera({
     required this.yfov,
     this.aspectRatio,
@@ -24,6 +26,13 @@ final class ModelPerspectiveCamera extends ModelCameraProjection {
   });
 
   /// Vertical field of view, in radians.
+  ///
+  /// **`yfov` because it is glTF's field**, spelled as the specification
+  /// spells it so a reader and a writer map one name to one key, like
+  /// [znear] and [zfar]. Everywhere else the engine says `fovY`
+  /// (`PerspectiveProjection.fovY`, `OffAxisProjection.symmetric`,
+  /// `OrbitController.frameBounds`), and `Projection.verticalFieldOfView` is
+  /// the same angle asked of any projection, null for one that has none.
   final double yfov;
 
   /// Absent means the camera follows the viewport's own aspect ratio,
@@ -32,18 +41,21 @@ final class ModelPerspectiveCamera extends ModelCameraProjection {
   /// stays one.
   final double? aspectRatio;
 
+  /// Distance to the near clip plane, in metres.
   final double znear;
 
   /// Absent means an infinite far plane, which the specification allows
   /// only for a perspective camera — an orthographic one requires both
   /// planes finite, which is why [ModelOrthographicCamera.zfar] is not
   /// nullable the way this one is.
+  /// Distance to the far clip plane, in metres.
   final double? zfar;
 }
 
 /// `camera.orthographic` — a view volume's own half-extents, both planes
 /// required.
 final class ModelOrthographicCamera extends ModelCameraProjection {
+  /// A view volume [xmag] by [ymag] half-extents, from [znear] to [zfar].
   const ModelOrthographicCamera({
     required this.xmag,
     required this.ymag,
@@ -55,9 +67,13 @@ final class ModelOrthographicCamera extends ModelCameraProjection {
   final double xmag;
 
   /// Half the view volume's height.
+  /// In metres.
   final double ymag;
 
+  /// Distance to the near clip plane, in metres.
   final double znear;
+
+  /// Distance to the far clip plane, in metres.
   final double zfar;
 }
 
@@ -65,9 +81,15 @@ final class ModelOrthographicCamera extends ModelCameraProjection {
 /// encode into it — `fmt-28`'s own row, the other half beside
 /// [ModelLight].
 final class ModelCamera {
+  /// A camera projecting by [projection], named [name] when the file named
+  /// it.
   const ModelCamera({required this.projection, this.name});
 
+  /// How the camera projects: a [ModelPerspectiveCamera] or a
+  /// [ModelOrthographicCamera].
   final ModelCameraProjection projection;
+
+  /// The camera's `name` in the file; null when it has none.
   final String? name;
 
   @override

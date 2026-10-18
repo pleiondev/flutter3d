@@ -1,5 +1,7 @@
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
+import '../loop/contact_event.dart';
+import '../loop/game_event.dart';
 import 'mechanism.dart';
 
 /// The order the world is stepped in, which three games had written out.
@@ -12,7 +14,7 @@ import 'mechanism.dart';
 /// reason". A thing three files agree about, and one of them explains, is a
 /// thing that should be somewhere none of them is.
 ///
-/// This exists for the reason [GameLoop] gives about itself: small enough to
+/// This exists for the reason `EngineLoop` gives about the frame: small enough to
 /// inline at the call site and deliberately not inlined, because the order is
 /// the part that is easy to get wrong and every place that steps a world would
 /// otherwise have to get it right again.
@@ -60,11 +62,35 @@ import 'mechanism.dart';
 /// constraints instead of enforcing them, which is the honest trade: what was
 /// duplicated was never the six calls, it was the paragraph explaining them.
 final class WorldStep {
-  WorldStep({required this.collision, this.mechanisms, this.dynamics});
+  /// The phases of a step over [collision], with the optional parts a
+  /// game has.
+  WorldStep({
+    required this.collision,
+    this.mechanisms,
+    this.dynamics,
+    this.raise,
+  });
 
+  /// The collision world the phases update and reindex.
   final CollisionWorld collision;
+
+  /// The level's machinery, stepped and published; null for a game with
+  /// none.
   final MechanismWorld? mechanisms;
-  final Dynamics? dynamics;
+
+  /// The rigid bodies [index] steps after the reindex; null for a game with
+  /// no dynamics.
+  final RigidDynamics? dynamics;
+
+  /// Where the step's own events go: what [dynamics] touched, as one
+  /// [ContactEvent] a contact, raised by [index] once the bodies have
+  /// moved. A game hands it what publishes onto its bus; null raises
+  /// nothing.
+  ///
+  /// **Here, so every game that steps bodies says what they touched**, on
+  /// either core, in the order the dynamics list them — rather than one
+  /// genre remembering to and the others not.
+  final void Function(GameEvent event)? raise;
 
   /// Whether a step has run [movers] and not yet reached [publish].
   ///
@@ -106,11 +132,16 @@ final class WorldStep {
     mechanisms?.step(dt);
   }
 
-  /// Rebuilds the broadphase over what has just moved, and runs the rigid
-  /// bodies.
+  /// Rebuilds the broadphase over what has just moved, runs the rigid
+  /// bodies, and raises what they touched ([raise]).
   void index(double dt) {
     collision.reindex();
-    dynamics?.step(dt);
+    final dynamics = this.dynamics;
+    if (dynamics == null) return;
+    dynamics.step(dt);
+    if (raise case final raise?) {
+      ContactEvent.publishAll(dynamics.contacts, raise);
+    }
   }
 
   /// Dispatches the overlaps, after the game's own bodies have moved.

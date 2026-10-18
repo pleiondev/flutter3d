@@ -6,18 +6,24 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `baked-visibility` page: a corridor and a room, with an eye whose
+/// side of a solid wall stays visible. Its check is that the near side shows
+/// and the far side behind a wall with no doorway is hidden.
 final class BakedVisibilityDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Where the eye stands along x, in metres, -1 to 10.9; written each frame
+  /// while [walking].
   double eyeX = 0.0;
+
+  /// Whether the eye walks back and forth on its own; dragging the slider
+  /// stops it.
   bool walking = true;
 
   late final VisibilityCuller _live;
@@ -42,8 +48,8 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
     final level = Level(
       name: 'corridor',
       brushes: <Brush>[
-        Brush(centre: Vector3(5, -2, 2), size: Vector3(14, 4, 4)),
-        Brush(centre: Vector3(5, 1, 2), size: Vector3(1.0, 8, 4)),
+        Brush(center: Vector3(5, -2, 2), size: Vector3(14, 4, 4)),
+        Brush(center: Vector3(5, 1, 2), size: Vector3(1.0, 8, 4)),
       ],
     );
     // #endregion level
@@ -52,9 +58,9 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
     final visibility = LevelVisibility.bake(level, cellSize: 1.0);
     // #endregion bake
 
-    final material = f3d.Material(
+    final material = f3d.RenderMaterial(
       name: 'room',
-      baseColor: Vector4(0.6, 0.6, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.8, 1.0),
     );
     final nearMarker = MeshNode(
       DeviceMesh.upload(context.device, CuboidShape().build()),
@@ -69,11 +75,11 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
 
     // #region cull
     final culler = VisibilityCuller(visibility, <VisibilityBatch>[
-      (
+      VisibilityBatch(
         node: nearMarker,
         bounds: Aabb3.minMax(Vector3(-1, 0, 1), Vector3(1, 2, 3)),
       ),
-      (
+      VisibilityBatch(
         node: farMarker,
         bounds: Aabb3.minMax(Vector3(9, 0, 1), Vector3(11, 2, 3)),
       ),
@@ -83,8 +89,8 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
 
     _report =
         'standing on the near side, $hiddenFromNearSide of 2 batches are '
-        'hidden; near marker visible: ${nearMarker.visible}, far marker '
-        'visible: ${farMarker.visible}';
+        'hidden; near marker visible: ${nearMarker.isVisible}, far marker '
+        'visible: ${farMarker.isVisible}';
 
     // #region live
     // The same culler, over four markers, asked again from wherever the eye
@@ -102,7 +108,7 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
     ];
     _live = VisibilityCuller(visibility, <VisibilityBatch>[
       for (final MeshNode marker in markers)
-        (
+        VisibilityBatch(
           node: marker,
           bounds: Aabb3.minMax(
             marker.readPosition() - Vector3.all(0.7),

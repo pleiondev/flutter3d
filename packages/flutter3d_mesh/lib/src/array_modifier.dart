@@ -16,6 +16,8 @@ part of 'modifier.dart';
 /// real work worth doing when something actually depends on it rather than
 /// carried here on the chance it might.
 final class ArrayModifier extends Modifier {
+  /// An array of [count] copies spaced by [offset], welded within
+  /// [mergeDistance] metres when it is not null.
   const ArrayModifier({
     required this.count,
     required this.offset,
@@ -36,6 +38,7 @@ final class ArrayModifier extends Modifier {
   /// purpose: `0` still runs [mergeByDistance] and welds only vertices that
   /// land exactly together (`offset` chosen so copies touch), while `null`
   /// skips the pass entirely for a caller that knows its copies never meet.
+  /// In metres.
   final double? mergeDistance;
 
   @override
@@ -84,7 +87,7 @@ final class ArrayModifier extends Modifier {
       result.endStep();
     }
     if (mergeDistance != null) {
-      final (EditMesh merged, _) = mergeByDistance(
+      final MergedMesh(mesh: merged) = mergeByDistance(
         result,
         distance: mergeDistance,
       );
@@ -101,9 +104,9 @@ final class ArrayModifier extends Modifier {
     'mergeDistance': mergeDistance,
   };
 
-  /// [ArrayModifier] from its own [toJson], or null when a field is missing
-  /// or of the wrong type.
-  static ArrayModifier? fromJson(Map<String, Object?> json) => switch ((
+  /// [ArrayModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when a field is missing or of the wrong type.
+  static ArrayModifier fromJson(Map<String, Object?> json) => switch ((
     json['count'],
     json['offset'],
   )) {
@@ -115,6 +118,8 @@ final class ArrayModifier extends Modifier {
         _ => null,
       },
     ),
-    _ => null,
+    _ => throw const ModifierFormatException(
+      'an array modifier names its whole "count" and its three-number "offset"',
+    ),
   };
 }

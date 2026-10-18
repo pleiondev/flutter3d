@@ -32,8 +32,8 @@ const int _width = 64;
 const int _height = 48;
 
 /// An application node that fails. Registered in the overlay phase, it runs
-/// after the id pass, so the frame goes down with a question the device has
-/// already been handed.
+/// after the id pass, and it is quarantined: the frame goes on, and the
+/// question the device has already been handed is the device's to answer.
 final class _FailingNode extends RenderNode {
   const _FailingNode();
 
@@ -41,13 +41,13 @@ final class _FailingNode extends RenderNode {
   String get name => 'failing overlay';
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) => throw StateError('the overlay went wrong');
+  void execute(RenderFrame frame) => throw StateError('the overlay went wrong');
 }
 
 /// An application node that reads a name nothing writes. The graph refuses it
@@ -66,10 +66,10 @@ final class _MisreadingNode extends RenderNode {
   ];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {}
+  void execute(RenderFrame frame) {}
 }
 
 /// One pixel's worth of bytes carrying [id].
@@ -86,7 +86,7 @@ void main() {
   late FakeBackend device;
   late Renderer renderer;
   late Scene scene;
-  late RenderView view;
+  late CameraView view;
   late MeshNode left;
   late MeshNode right;
 
@@ -95,26 +95,26 @@ void main() {
     renderer = Renderer.create(device: device);
     left = MeshNode(
       DeviceMesh.upload(device, CuboidShape().build()),
-      Material(),
+      RenderMaterial(),
       name: 'left',
     )..setPosition(-1.5, 0.0, -5.0);
     right = MeshNode(
       DeviceMesh.upload(device, CuboidShape().build()),
-      Material(),
+      RenderMaterial(),
       name: 'right',
     )..setPosition(1.5, 0.0, -5.0);
     scene = Scene()
       ..add(left)
       ..add(right)
       ..add(CameraNode());
-    view = RenderView(camera: scene.cameras.single);
+    view = CameraView(camera: scene.cameras.single);
   });
 
   void frame() => renderer.render(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[view],
+    views: <CameraView>[view],
   );
 
   /// The pass drawing ids: the only one with a frame-sized eight-bit colour
@@ -141,7 +141,7 @@ void main() {
 
     final pass = idPasses().single;
     expect(pass.submitted, isTrue);
-    expect(pass.color.clearValue?.storage, <double>[
+    expect(pass.color.clearValue?.channels, <double>[
       0.0,
       0.0,
       0.0,
@@ -242,12 +242,12 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     left.material
       ..albedo = holes
       ..alphaMode = MaterialAlphaMode.mask
       ..alphaCutoff = 0.3
-      ..baseColor.w = 0.5;
+      ..baseColor = left.material.baseColor.withAlpha(0.5);
     renderer.pickPixel(0.5, 0.5).ignore();
     frame();
 
@@ -283,7 +283,7 @@ void main() {
       // renderer outside the `try` that builds the frame — the completer is
       // on no list anybody finishes, and this test hangs on the await until
       // the runner gives up on it.
-      renderer.addNode(const _MisreadingNode());
+      renderer.renderSteps.addNode(const _MisreadingNode());
       final asked = renderer.pickPixel(0.5, 0.5);
       expect(frame, throwsA(isA<FrameGraphError>()));
       expect(idPasses(), isEmpty, reason: 'no pass ran');
@@ -330,12 +330,18 @@ void main() {
     'a question whose frame fails is answered with the failure, once',
     () async {
       // The id pass has run and handed its readback to the device by the time
-      // the overlay throws, so the question is answered twice over: by the
-      // frame's catch, with the failure, and a microtask later by the device,
-      // with a pixel. Mutation: drop the `isCompleted` check in the pick pass —
-      // the second answer throws "Future already completed" from inside a
-      // `then`, which is an unhandled error nobody's `await` sees.
-      renderer.addNode(const _FailingNode());
+      // the device refuses a pass of the engine's after it, so the question
+      // is answered twice over: by the frame's catch, with the failure, and a
+      // microtask later by the device, with a pixel. The engine's own pass
+      // ends the frame; an application's would be quarantined instead.
+      // Mutation: drop the `isCompleted` check in the pick pass — the second
+      // answer throws "Future already completed" from inside a `then`, which
+      // is an unhandled error nobody's `await` sees.
+      device.onBeginRenderPass = (_) {
+        if (device.readbacks.isNotEmpty) {
+          throw StateError('the device went away');
+        }
+      };
       final asked = renderer.pickPixel(0.5, 0.5);
       expect(frame, throwsStateError);
       expect(device.readbacks, hasLength(1), reason: 'the id pass had run');
@@ -344,4 +350,27 @@ void main() {
       await pumpEventQueue();
     },
   );
+
+  test('an overlay of the application\'s that throws is quarantined, and the '
+      'question is answered with a pixel, once', () async {
+    // Mutation: rethrow from the per-node catch in `Renderer.render` for
+    // the application's nodes too — the frame fails, and the question is
+    // answered with the overlay's failure rather than with the mesh.
+    device.answerReadback = (_, _) => _pixelWith(2);
+    renderer.renderSteps.addNode(const _FailingNode());
+    final asked = renderer.pickPixel(0.5, 0.5);
+    final drawn = renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: <CameraView>[view],
+    );
+    final failure = drawn.nodeFailures.single;
+    expect(failure.node, 'failing overlay');
+    expect(failure.owner, 'the application');
+    expect(failure.error, isStateError);
+    expect(device.readbacks, hasLength(1), reason: 'the id pass ran');
+    expect(identical(await asked, right), isTrue);
+    await pumpEventQueue();
+  });
 }

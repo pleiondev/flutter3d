@@ -10,13 +10,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
+/// The `widget-surface` page: a console widget with a clock and a progress
+/// bar drawn on a plane on a stand. Its check is that the surface is drawn
+/// and that changing the widget marks it dirty.
 final class WidgetSurfaceDemo extends ShowcaseDemo {
+  /// How fast the console's clock runs, 0 to 4 times real time.
   double speed = 1.0;
 
   late final WidgetSurface _surface;
@@ -70,7 +73,10 @@ final class WidgetSurfaceDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(5, 0.2, 5)).build(),
       ),
-      f3d.Material(name: 'floor', baseColor: Vector4(0.4, 0.44, 0.42, 1.0)),
+      f3d.RenderMaterial(
+        name: 'floor',
+        baseColor: LinearColor.fromSrgb(0.4, 0.44, 0.42, 1.0),
+      ),
       name: 'floor',
     )..setPosition(0, -0.1, 0);
     // A stand for it, so it reads as a screen and not a card in mid-air.
@@ -79,7 +85,10 @@ final class WidgetSurfaceDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(0.12, _height - 0.4, 0.12)).build(),
       ),
-      f3d.Material(name: 'stand', baseColor: Vector4(0.25, 0.27, 0.3, 1.0)),
+      f3d.RenderMaterial(
+        name: 'stand',
+        baseColor: LinearColor.fromSrgb(0.25, 0.27, 0.3, 1.0),
+      ),
       name: 'stand',
     )..setPosition(0, (_height - 0.4) / 2, 0.06);
     return Scene()
@@ -87,7 +96,7 @@ final class WidgetSurfaceDemo extends ShowcaseDemo {
       ..add(floor)
       ..add(stand)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -101,7 +110,7 @@ final class WidgetSurfaceDemo extends ShowcaseDemo {
     // not queued behind by another.
     if (!_uploading) {
       _uploading = true;
-      unawaited(_surface.tick().whenComplete(() => _uploading = false));
+      unawaited(_surface.update().whenComplete(() => _uploading = false));
     }
     // #endregion tick
   }

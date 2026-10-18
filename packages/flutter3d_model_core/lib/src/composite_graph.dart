@@ -53,25 +53,47 @@ final class CompositePass {
   /// drawing them without one.
   final bool fixed;
 
+  /// Draws the scene itself. Always runs.
   static const CompositePass scene = CompositePass._('scene', 0, fixed: true);
+
+  /// Screen-space ambient occlusion, named `ssao`.
   static const CompositePass ambientOcclusion = CompositePass._(
     'ssao',
     1,
     fixed: false,
   );
+
+  /// Screen-space reflections.
   static const CompositePass reflections = CompositePass._(
     'reflections',
     2,
     fixed: false,
   );
+
+  /// Bloom: the bright parts bleed light into their neighbours.
   static const CompositePass bloom = CompositePass._('bloom', 3, fixed: false);
+
+  /// Tonemapping from linear light to the display's range.
   static const CompositePass tonemap = CompositePass._(
     'tonemap',
     4,
     fixed: false,
   );
+
+  /// The look: contrast, saturation and colour temperature.
   static const CompositePass look = CompositePass._('look', 5, fixed: false);
+
+  /// Writes the frame out. Always runs.
   static const CompositePass output = CompositePass._('output', 6, fixed: true);
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static CompositePass? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The chain, in the order it runs.
   static const List<CompositePass> values = <CompositePass>[
@@ -99,6 +121,7 @@ final class CompositePass {
 /// Which passes of the chain are on, and what an edit to one of them
 /// reached.
 final class CompositeGraph {
+  /// A chain running [enabled], with [dirty] empty unless given.
   const CompositeGraph({
     required this.enabled,
     this.dirty = const <CompositePass>{},
@@ -129,6 +152,8 @@ final class CompositeGraph {
   /// edited. See the library comment.
   final Set<CompositePass> dirty;
 
+  /// Whether [pass] runs: always for a fixed pass, otherwise when it is in
+  /// [enabled].
   bool isOn(CompositePass pass) => pass.fixed || enabled.contains(pass);
 
   /// This chain written back into [settings].
@@ -219,7 +244,7 @@ final class CompositeGraph {
 /// caller that got one without the other would have to work the other out,
 /// and working out which passes a bloom edit reached is exactly the thing
 /// this file exists to answer once.
-({RenderSettings settings, CompositeGraph graph}) renderPost(
+PostEdit renderPost(
   RenderSettings from,
   CompositeGraph graph, {
   BloomSettings? bloom,
@@ -240,5 +265,28 @@ final class CompositeGraph {
     settings = settings.copyWith(look: look);
     touched = touched.touched(CompositePass.look);
   }
-  return (settings: settings, graph: touched);
+  return PostEdit(settings: settings, graph: touched);
+}
+
+/// The render settings after a post-pass edit and the graph marking which
+/// passes it reached: what [renderPost] answers.
+final class PostEdit {
+  /// The edited [settings] with the [graph] it dirtied.
+  const PostEdit({required this.settings, required this.graph});
+
+  /// The settings with the edit applied.
+  final RenderSettings settings;
+
+  /// The composite graph with every pass the edit reached marked touched.
+  final CompositeGraph graph;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PostEdit && other.settings == settings && other.graph == graph;
+
+  @override
+  int get hashCode => Object.hash(settings, graph);
+
+  @override
+  String toString() => 'PostEdit($graph)';
 }

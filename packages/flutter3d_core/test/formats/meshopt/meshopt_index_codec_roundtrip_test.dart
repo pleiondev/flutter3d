@@ -8,6 +8,7 @@ library;
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/src/formats/format_exceptions.dart';
 import 'package:flutter3d_core/src/formats/meshopt/meshopt_index_codec.dart';
 import 'package:test/test.dart';
 
@@ -109,7 +110,7 @@ void main() {
   test('a wrong header byte is refused, not silently misread', () {
     expect(
       () => decodeMeshoptIndexBuffer(Uint8List.fromList(<int>[0xff]), 0),
-      throwsFormatException,
+      throwsA(isA<MeshoptFormatException>()),
     );
   });
 

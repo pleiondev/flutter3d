@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/translate.dart'
+    show BundleSectionFormatException;
 import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -110,11 +112,11 @@ void main() {
     test('bytes that are not the document', () {
       expect(
         () => decodeWebGpuSection(bytes(<Object>[])),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<BundleSectionFormatException>()),
       );
       expect(
         () => decodeWebGpuSection(bytes(<String, Object>{'vertex': 1})),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<BundleSectionFormatException>()),
       );
     });
 
@@ -132,7 +134,7 @@ void main() {
             'fragment': <String, Object>{},
           }),
         ),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<BundleSectionFormatException>()),
       );
     });
 
@@ -160,7 +162,7 @@ void main() {
             'fragment': <String, Object>{},
           }),
         ),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<BundleSectionFormatException>()),
       );
     });
 
@@ -180,15 +182,78 @@ void main() {
                     'group': 1,
                     'texture': 0,
                     'sampler': 1,
-                    'dimension': '3d',
+                    // `3d` became a view this backend has in 1.0; a name
+                    // `GPUTextureViewDimension` does not have stays refused.
+                    'dimension': '4d',
                   },
                 ],
               },
             },
           }),
         ),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<BundleSectionFormatException>()),
       );
     });
+  });
+
+  test('a comparison sampler and the 1.0 shapes come back as they went', () {
+    // Mutation: drop `comparison` from the writer. The slot comes back an
+    // ordinary one, its layout says `filtering`, and the comparison sampler
+    // bound to it is a bind group the browser refuses.
+    final shapes = WebGpuStage(
+      wgsl: '',
+      attributes: const <WebGpuAttribute>[],
+      blocks: const <WebGpuBlock>[],
+      samplers: <WebGpuSampler>[
+        const WebGpuSampler(
+          name: 'shadow_map',
+          group: 1,
+          textureBinding: 0,
+          samplerBinding: 1,
+          dimension: WebGpuTextureDimension.twoDimensionalArray,
+          comparison: true,
+        ),
+        for (final (i, dimension) in <WebGpuTextureDimension>[
+          WebGpuTextureDimension.oneDimensional,
+          WebGpuTextureDimension.threeDimensional,
+          WebGpuTextureDimension.cubeArray,
+        ].indexed)
+          WebGpuSampler(
+            name: 'map$i',
+            group: 1,
+            textureBinding: 2 + i * 2,
+            samplerBinding: 3 + i * 2,
+            dimension: dimension,
+          ),
+      ],
+    );
+    final back = decodeWebGpuSection(
+      encodeWebGpuSection(
+        vertex: const <String, WebGpuStage>{},
+        fragment: <String, WebGpuStage>{'Shadowed': shapes},
+      ),
+    ).fragment['Shadowed']!;
+    expect(
+      back.samplers.map((WebGpuSampler s) => (s.dimension, s.comparison)),
+      <(WebGpuTextureDimension, bool)>[
+        (WebGpuTextureDimension.twoDimensionalArray, true),
+        (WebGpuTextureDimension.oneDimensional, false),
+        (WebGpuTextureDimension.threeDimensional, false),
+        (WebGpuTextureDimension.cubeArray, false),
+      ],
+    );
+  });
+
+  test('a section with no comparison slot is written as it always was', () {
+    // Mutation: write `comparison: false` for every sampler. A section packed
+    // before 1.0 and repacked now differs by a key in every sampler, and the
+    // bundle hash moves with nothing having changed.
+    final json = utf8.decode(
+      encodeWebGpuSection(
+        vertex: <String, WebGpuStage>{'MeshVertex': stage},
+        fragment: const <String, WebGpuStage>{},
+      ).buffer.asUint8List(),
+    );
+    expect(json, isNot(contains('comparison')));
   });
 }

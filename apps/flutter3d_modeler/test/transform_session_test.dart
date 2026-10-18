@@ -20,7 +20,6 @@ import 'package:flutter3d_modeler/src/transform_gizmo.dart';
 import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter3d_modeler/src/transform_session.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'support/fake_graphics_backend.dart';
 
@@ -205,7 +204,7 @@ void main() {
     PickingView fixedView() => PickingView(
       camera: CameraNode(
         projection: PerspectiveProjection(
-          fovYRadians: math.pi / 4,
+          fovY: math.pi / 4,
           near: 0.1,
           far: 100.0,
         ),
@@ -694,6 +693,7 @@ void main() {
       );
       final int after = stepsOf(made.cubit);
       made.session
+        // Two moves on purpose: the step must land once, at their sum.
         ..valueDragged(const Offset(40, 0))
         ..valueDragged(const Offset(40, 0))
         ..commitValueDrag();

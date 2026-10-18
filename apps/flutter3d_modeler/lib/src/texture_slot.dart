@@ -25,6 +25,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// A slot's own texcoord set, per `mat-05`'s acceptance: always 0, whatever a
@@ -34,6 +36,7 @@ const int textureSlotTexCoordSet = 0;
 /// What a texture slot's row needs to draw, computed once from an image's
 /// encoded bytes.
 final class TextureSlotDisplay {
+  /// A row's words and picture, worked out by the caller once per image.
   const TextureSlotDisplay({
     required this.name,
     required this.dimensionsText,
@@ -106,12 +109,14 @@ String? formatBadgeFor(TextureFileFormat format) => switch (format) {
   TextureFileFormat.etc2Rgba8 => 'ETC2',
   TextureFileFormat.astc4x4 => 'ASTC 4×4',
   TextureFileFormat.other => 'KTX2',
+  _ => format.name.toUpperCase(),
 };
 
 /// The four numbers a `TextureSampling` actually varies, as the words a
 /// parameter row shows rather than the booleans and enum this repository's
 /// [TextureSampling] itself is stored as.
 final class TextureSamplingDisplay {
+  /// The four labels, as [textureSamplingDisplay] words them.
   const TextureSamplingDisplay({
     required this.magFilterLabel,
     required this.minFilterLabel,
@@ -119,9 +124,18 @@ final class TextureSamplingDisplay {
     required this.wrapTLabel,
   });
 
+  /// How the texture is magnified: `Linear` or `Nearest`.
   final String magFilterLabel;
+
+  /// How it is minified, with whether and how it reads its mips folded in:
+  /// `Linear, mipmapped`, for one.
   final String minFilterLabel;
+
+  /// What happens past the edge across: `Repeat`, `Clamp to edge` or
+  /// `Mirrored repeat`.
   final String wrapSLabel;
+
+  /// What happens past the edge up and down, worded as [wrapSLabel] is.
   final String wrapTLabel;
 }
 
@@ -146,8 +160,9 @@ String _minFilterLabel(TextureSampling sampling) {
   return '$base, ${sampling.mipLinear ? 'mipmapped' : 'mipmapped (nearest mip)'}';
 }
 
-String _wrapLabel(TextureWrap wrap) => switch (wrap) {
-  TextureWrap.repeat => 'Repeat',
-  TextureWrap.clampToEdge => 'Clamp to edge',
-  TextureWrap.mirroredRepeat => 'Mirrored repeat',
+String _wrapLabel(SamplerAddressMode wrap) => switch (wrap) {
+  SamplerAddressMode.repeat => 'Repeat',
+  SamplerAddressMode.clampToEdge => 'Clamp to edge',
+  SamplerAddressMode.mirror => 'Mirrored repeat',
+  _ => wrap.name,
 };

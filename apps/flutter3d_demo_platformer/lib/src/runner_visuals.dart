@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'runner_clips.dart';
 
@@ -17,6 +16,7 @@ import 'runner_clips.dart';
 /// to reconcile — where a model's feet are and which way it was exported facing
 /// — are stated once, next to the code that applies them.
 final class RunnerVisuals {
+  /// Visuals dressing the runner in [model], exported facing [modelFacing].
   RunnerVisuals({required this.model, this.modelFacing = 0.0});
 
   /// The asset to dress the runner in, once it has been read.
@@ -60,9 +60,9 @@ final class RunnerVisuals {
   SceneNode box(GraphicsDevice device, Scene scene, Runner runner) {
     final box = MeshNode(
       SharedMeshes(device).box(runner.body.halfExtents * 2.0),
-      Material(
+      RenderMaterial(
         name: 'runner',
-        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
+        baseColor: LinearColor.fromSrgb(0.90, 0.42, 0.28, 1.0),
         lighting: LightingModel.pbr,
       )..roughness = 0.5,
       name: 'runner box',
@@ -141,7 +141,7 @@ final class RunnerVisuals {
       // standing there while the body is already in the air.
       player.crossFadeToNamed(
         wanted,
-        duration: wanted == RunnerClips.jump ? 0.06 : 0.14,
+        durationSeconds: wanted == RunnerClips.jump ? 0.06 : 0.14,
       );
       _clip = wanted;
     }

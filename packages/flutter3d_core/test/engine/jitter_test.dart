@@ -11,20 +11,20 @@ import 'package:vector_math/vector_math.dart';
 void main() {
   test('the offsets stay inside the pixel and repeat after the sequence', () {
     for (var frame = 0; frame < 64; frame++) {
-      final (x, y) = jitterOffset(frame, 16);
+      final PixelJitter(:x, :y) = jitterOffset(frame, 16);
       expect(x, inInclusiveRange(-0.5, 0.5));
       expect(y, inInclusiveRange(-0.5, 0.5));
-      expect(jitterOffset(frame + 16, 16), (x, y));
+      expect(jitterOffset(frame + 16, 16), PixelJitter(x: x, y: y));
     }
   });
 
   test('sixteen offsets are sixteen different places centred on the pixel', () {
-    final offsets = <(double, double)>{
+    final offsets = <PixelJitter>{
       for (var frame = 0; frame < 16; frame++) jitterOffset(frame, 16),
     };
     expect(offsets, hasLength(16));
-    final meanX = offsets.fold(0.0, (a, o) => a + o.$1) / 16;
-    final meanY = offsets.fold(0.0, (a, o) => a + o.$2) / 16;
+    final meanX = offsets.fold(0.0, (a, o) => a + o.x) / 16;
+    final meanY = offsets.fold(0.0, (a, o) => a + o.y) / 16;
     // Halton is low-discrepancy, not exactly balanced over a prefix: the mean
     // lands within a sixteenth of a pixel of the centre, where sixteen random
     // offsets would typically miss it by a tenth.
@@ -35,8 +35,8 @@ void main() {
   test('the first offset is not the pixel centre', () {
     // Mutation: count the sequence from zero. Halton's first point is
     // (0, 0), which is (-0.5, -0.5) here, and a corner weighted twice.
-    expect(jitterOffset(0, 16), isNot((-0.5, -0.5)));
-    final (x, y) = jitterOffset(0, 16);
+    expect(jitterOffset(0, 16), isNot(const PixelJitter(x: -0.5, y: -0.5)));
+    final PixelJitter(:x, :y) = jitterOffset(0, 16);
     expect(x, 0.0);
     expect(y, closeTo(-1 / 6, 1e-12));
   });
@@ -50,7 +50,7 @@ void main() {
       width: 200,
       height: 100,
     );
-    final (x, y) = jitterOffset(3, 16);
+    final PixelJitter(:x, :y) = jitterOffset(3, 16);
     for (final point in <Vector3>[
       Vector3(0, 0, -2),
       Vector3(1, -0.5, -7),

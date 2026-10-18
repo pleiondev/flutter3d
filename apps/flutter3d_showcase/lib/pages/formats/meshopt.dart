@@ -8,8 +8,10 @@ import 'dart:convert';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `meshopt` page: a ball written with `EXT_meshopt_compression` and
+/// read back. Its check is that meshopt was used, the triangles came back
+/// the same, and the file is smaller.
 final class MeshoptDemo extends ShowcaseDemo {
   late final bool _usedMeshopt;
   late final List<DocumentDifference> _differences;
@@ -68,12 +70,15 @@ final class MeshoptDemo extends ShowcaseDemo {
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _readBack.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.6, 0.7, 0.85, 1.0), roughness: 0.5),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.6, 0.7, 0.85, 1.0),
+          roughness: 0.5,
+        ),
         name: 'ball',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

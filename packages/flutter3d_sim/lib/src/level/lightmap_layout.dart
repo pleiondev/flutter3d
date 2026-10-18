@@ -37,6 +37,8 @@ import 'level.dart';
 
 /// One face's place in the atlas and its frame in the world.
 final class LightmapFace {
+  /// Face [face] of brush [brush], framed in the world and placed at
+  /// ([x], [y]) in the atlas.
   const LightmapFace({
     required this.brush,
     required this.face,
@@ -55,31 +57,55 @@ final class LightmapFace {
   /// Index of the brush in `Level.brushes`, and which of
   /// [BrushGeometry.faceAxes] this is.
   final int brush;
+
+  /// Index of the face in [BrushGeometry.faceAxes], nought to five.
   final int face;
 
   /// The face's corner at texel `(0, 0)`, and the unit axes texels run along.
   final Vector3 origin;
+
+  /// The unit axis texel `x` runs along, in the world.
   final Vector3 u;
+
+  /// The unit axis texel `y` runs along, in the world.
   final Vector3 v;
+
+  /// The face's outward normal, a unit vector in the world.
   final Vector3 normal;
 
   /// The face's size along [u] and [v], in metres.
   final double extentU;
+
+  /// The face's size along [v], in metres.
   final double extentV;
 
   /// The rectangle of texels this face owns.
   final int x;
+
+  /// The top row of the face's rectangle in the atlas, in texels.
   final int y;
+
+  /// Width of the face's rectangle, in texels.
   final int width;
+
+  /// Height of the face's rectangle, in texels.
   final int height;
 
+  /// Count of texels the face owns: [width] times [height].
   int get texelCount => width * height;
 }
 
 /// The atlas: its size, its density, and every face's place in it.
+///
+/// **In `flutter3d_sim`, though no step reads it**, because it is a level
+/// asset rather than a picture: baked from the level's brushes, stored in a
+/// format sim registers and read beside the level document, with no renderer
+/// type in it — the same reason the navigation mesh lives here. A view
+/// package would have to reach back into the level format for every one of
+/// those, and the renderer already reads it from here.
 final class LightmapLayout {
   LightmapLayout._({
-    required this.texelsPerMetre,
+    required this.texelsPerMeter,
     required this.width,
     required this.height,
     required this.faces,
@@ -88,10 +114,15 @@ final class LightmapLayout {
        };
 
   /// Texels along a metre of face.
-  final double texelsPerMetre;
+  final double texelsPerMeter;
 
+  /// Width of the atlas, in texels; at most [maxSize].
   final int width;
+
+  /// Height of the atlas, in texels; at most [maxSize].
   final int height;
+
+  /// Every planned face, in the order they were planned.
   final List<LightmapFace> faces;
   final Map<(int, int), LightmapFace> _byFace;
 
@@ -100,22 +131,31 @@ final class LightmapLayout {
 
   /// Where the reserved texel is: the one every unplanned vertex points at.
   static const int reservedX = 0;
+
+  /// The reserved texel's row, with [reservedX] its column.
   static const int reservedY = 0;
 
   /// The largest atlas this will plan. Past it the level wants a lower
   /// density, and the planner says so rather than guessing one.
-  static const int maxSize = 4096;
+  ///
+  /// **A getter, not a constant**: it is what this build plans, not a limit
+  /// a caller should compile in, and a later release may raise it.
+  static int get maxSize => _maxSize;
+  static const int _maxSize = 4096;
 
+  /// Count of texels in the atlas: [width] times [height].
   int get texelCount => width * height;
 
+  /// Where face [face] of brush [brush] is planned, or null for one that
+  /// is not: a ramp's faces, or a brush the plan did not include.
   LightmapFace? faceOf(int brush, int face) => _byFace[(brush, face)];
 
   /// The second texture coordinate of a face's corner, where `su` and `sv`
   /// are −1 or 1 along [LightmapFace.u] and [LightmapFace.v] — the same
   /// corners `BrushGeometry` emits.
-  (double, double) uvAt(LightmapFace face, double su, double sv) => (
-    (face.x + (su + 1.0) * 0.5 * face.extentU * texelsPerMetre) / width,
-    (face.y + (sv + 1.0) * 0.5 * face.extentV * texelsPerMetre) / height,
+  LightmapUv uvAt(LightmapFace face, double su, double sv) => LightmapUv(
+    u: (face.x + (su + 1.0) * 0.5 * face.extentU * texelsPerMeter) / width,
+    v: (face.y + (sv + 1.0) * 0.5 * face.extentV * texelsPerMeter) / height,
   );
 
   /// The second texture coordinate of any point on [face]'s plane.
@@ -129,15 +169,15 @@ final class LightmapLayout {
   /// with the wrong face, and reading a neighbour's texels would look like
   /// light and not like a mistake. Compare [texelOf], which clamps because the
   /// baker is walking texels it already owns.
-  (double, double) uvOfPoint(LightmapFace face, double x, double y, double z) {
+  LightmapUv uvOfPoint(LightmapFace face, double x, double y, double z) {
     final dx = x - face.origin.x;
     final dy = y - face.origin.y;
     final dz = z - face.origin.z;
     final along = dx * face.u.x + dy * face.u.y + dz * face.u.z;
     final across = dx * face.v.x + dy * face.v.y + dz * face.v.z;
-    return (
-      (face.x + along * texelsPerMetre) / width,
-      (face.y + across * texelsPerMetre) / height,
+    return LightmapUv(
+      u: (face.x + along * texelsPerMeter) / width,
+      v: (face.y + across * texelsPerMeter) / height,
     );
   }
 
@@ -155,33 +195,33 @@ final class LightmapLayout {
   }
 
   /// The centre of the reserved texel.
-  (double, double) get neutralUv =>
-      ((reservedX + 0.5) / width, (reservedY + 0.5) / height);
+  LightmapUv get neutralUv =>
+      LightmapUv(u: (reservedX + 0.5) / width, v: (reservedY + 0.5) / height);
 
   /// The texel a point on [face] falls in, clamped to the face's rectangle.
-  (int, int) texelOf(LightmapFace face, Vector3 point) {
+  LightmapTexel texelOf(LightmapFace face, Vector3 point) {
     final dx = point.x - face.origin.x;
     final dy = point.y - face.origin.y;
     final dz = point.z - face.origin.z;
     final along = dx * face.u.x + dy * face.u.y + dz * face.u.z;
     final across = dx * face.v.x + dy * face.v.y + dz * face.v.z;
-    return (
-      (along * texelsPerMetre).floor().clamp(0, face.width - 1),
-      (across * texelsPerMetre).floor().clamp(0, face.height - 1),
+    return LightmapTexel(
+      x: (along * texelsPerMeter).floor().clamp(0, face.width - 1),
+      y: (across * texelsPerMeter).floor().clamp(0, face.height - 1),
     );
   }
 
   /// The world position of the centre of texel `(i, j)` of [face].
-  void texelCentre(LightmapFace face, int i, int j, Vector3 out) {
-    final along = (i + 0.5) / texelsPerMetre;
-    final across = (j + 0.5) / texelsPerMetre;
+  void texelCenter(LightmapFace face, int i, int j, Vector3 out) {
+    final along = (i + 0.5) / texelsPerMeter;
+    final across = (j + 0.5) / texelsPerMeter;
     out
       ..setFrom(face.origin)
       ..addScaled(face.u, along)
       ..addScaled(face.v, across);
   }
 
-  /// Plans the atlas for [level] at [texelsPerMetre].
+  /// Plans the atlas for [level] at [texelsPerMeter].
   ///
   /// Deterministic: the faces come in brush order, the packing sorts them
   /// stably, and nothing here reads anything but the level. Throws
@@ -198,11 +238,11 @@ final class LightmapLayout {
   /// construction rather than by luck, for every density anyone can type.
   static LightmapLayout plan(
     Level level, {
-    double texelsPerMetre = 4.0,
+    double texelsPerMeter = 4.0,
     bool cullHiddenFaces = true,
     double cellSize = 8.0,
   }) {
-    final density = (Float32List(1)..[0] = texelsPerMetre)[0];
+    final density = (Float32List(1)..[0] = texelsPerMeter)[0];
     final geometry = BrushGeometry(
       cullHiddenFaces: cullHiddenFaces,
       cellSize: cellSize,
@@ -260,7 +300,7 @@ final class LightmapLayout {
       );
     }
     return LightmapLayout._(
-      texelsPerMetre: density,
+      texelsPerMeter: density,
       width: width,
       height: height,
       faces: faces,
@@ -290,9 +330,9 @@ final class _Planned {
     brush: face.brush,
     face: face.face,
     origin: Vector3(
-      face.centreX - face.u.x * face.halfU - face.v.x * face.halfV,
-      face.centreY - face.u.y * face.halfU - face.v.y * face.halfV,
-      face.centreZ - face.u.z * face.halfU - face.v.z * face.halfV,
+      face.centerX - face.u.x * face.halfU - face.v.x * face.halfV,
+      face.centerY - face.u.y * face.halfU - face.v.y * face.halfV,
+      face.centerZ - face.u.z * face.halfU - face.v.z * face.halfV,
     ),
     u: face.u,
     v: face.v,
@@ -304,4 +344,51 @@ final class _Planned {
     width: width,
     height: height,
   );
+}
+
+/// A place in a [LightmapLayout]'s atlas as the second texture coordinate:
+/// what [LightmapLayout.uvAt], [LightmapLayout.uvOfPoint] and
+/// [LightmapLayout.neutralUv] answer.
+final class LightmapUv {
+  /// The coordinate ([u], [v]), each a fraction of the atlas.
+  const LightmapUv({required this.u, required this.v});
+
+  /// Across the atlas, a fraction of its width from 0 to 1.
+  final double u;
+
+  /// Down the atlas, a fraction of its height from 0 to 1.
+  final double v;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightmapUv && other.u == u && other.v == v;
+
+  @override
+  int get hashCode => Object.hash(u, v);
+
+  @override
+  String toString() => 'LightmapUv($u, $v)';
+}
+
+/// A texel of a [LightmapFace], counted from the face's own corner: what
+/// [LightmapLayout.texelOf] answers.
+final class LightmapTexel {
+  /// The texel ([x], [y]) of a face, from its own corner.
+  const LightmapTexel({required this.x, required this.y});
+
+  /// Texels along the face's `u` axis, from 0 to its width less one.
+  final int x;
+
+  /// Texels along the face's `v` axis, from 0 to its height less one.
+  final int y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightmapTexel && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'LightmapTexel($x, $y)';
 }

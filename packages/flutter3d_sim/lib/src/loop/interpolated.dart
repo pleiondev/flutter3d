@@ -1,15 +1,15 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../math/motion.dart';
-import '../math/portable_math.dart';
 
 /// A position the simulation writes at a fixed rate and the renderer reads at
 /// the display's rate.
 ///
 /// Holds the previous and the current simulated value and blends between them by
-/// [FixedStep.alpha]. Without this the renderer shows the newest state on every
+/// `EngineLoop.alpha`. Without this the renderer shows the newest state on every
 /// frame, which on a display faster than the simulation means several frames in
 /// a row show the same position and then one jumps — the classic 60-on-120
 /// stutter.
@@ -18,6 +18,10 @@ import '../math/portable_math.dart';
 /// project: it is called once per drawn object per frame, and returning a fresh
 /// [Vector3] there is a guaranteed allocation on the hottest path there is.
 final class InterpolatedVector3 {
+  /// A value standing still at [initial], or at the origin when null.
+  ///
+  /// Asserts that [stepLimit] (metres) is not negative and [stepRecovery]
+  /// (seconds) is above nought.
   InterpolatedVector3({
     Vector3? initial,
     this.stepLimit = 0.0,
@@ -69,7 +73,7 @@ final class InterpolatedVector3 {
   /// This is what the simulation itself must read — collision, AI and damage all
   /// have to agree on one authoritative position, and the interpolated one is a
   /// display artefact that exists between two of them.
-  Vector3 get current => _current;
+  Vector3 get current => _current.clone();
 
   /// Records a new simulated value, keeping the one before it to blend from.
   ///
@@ -107,7 +111,7 @@ final class InterpolatedVector3 {
     _currentHidden = 0.0;
   }
 
-  /// Blends into [out] by [alpha], which [FixedStep] supplies.
+  /// Blends into [out] by [alpha], which `EngineLoop.alpha` supplies.
   void read(double alpha, Vector3 out) {
     final t = alpha.clamp(0.0, 1.0);
     // Written out rather than through a helper: `vector_math` 2.2.0 has no
@@ -130,6 +134,7 @@ final class InterpolatedVector3 {
 /// way and almost a full turn the other, and a plain lerp always picks the long
 /// one. A monster turning to face the player crosses that boundary constantly.
 final class InterpolatedAngle {
+  /// An angle standing still at [initial] radians.
   InterpolatedAngle([double initial = 0.0])
     : _previous = initial,
       _current = initial;
@@ -137,18 +142,25 @@ final class InterpolatedAngle {
   double _previous;
   double _current;
 
+  /// The latest pushed angle, in radians.
   double get current => _current;
 
+  /// Records a new simulated angle in radians, keeping the one before it to
+  /// blend from.
   void push(double value) {
     _previous = _current;
     _current = value;
   }
 
+  /// Sets both endpoints to [value] radians, so the next frame shows no
+  /// turn: for a spawn or a teleport.
   void jumpTo(double value) {
     _previous = value;
     _current = value;
   }
 
+  /// The angle in radians blended by [alpha], clamped to nought to one,
+  /// along the shorter way round between the last two pushes.
   double read(double alpha) {
     final t = alpha.clamp(0.0, 1.0);
     return _previous + shortestAngle(_previous, _current) * t;

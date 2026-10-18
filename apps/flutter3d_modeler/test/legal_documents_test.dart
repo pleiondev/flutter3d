@@ -46,32 +46,30 @@ final class _Bundle extends CachingAssetBundle {
   }
 }
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
-final class _BinaryStorage implements BinaryStorage {
+final class _BinaryStorage extends BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
 
   @override
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
@@ -161,7 +159,7 @@ void main() {
           // — so they are not part of this claim.
           if (block is LegalCode) continue;
           final String text = switch (block) {
-            LegalParagraph(:final text) => legalPlainText(text),
+            LegalParagraph(:final text) ||
             LegalHeading(:final text) => legalPlainText(text),
             LegalList(:final items) => items.map(legalPlainText).join(' '),
             LegalTable(:final header, :final rows) => <String>[

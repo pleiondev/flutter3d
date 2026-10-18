@@ -15,8 +15,8 @@ library;
 /// The prefix an [AssetBundle] key starts with, for anything drawing these
 /// models in a running application.
 ///
-///     rootBundle.load('$kSamplesAsset/BoxTextured.glb')
-const String kSamplesAsset = 'packages/flutter3d_samples/assets';
+///     rootBundle.load('$samplesAsset/BoxTextured.glb')
+const String samplesAsset = 'packages/flutter3d_samples/assets';
 
 /// Where the files are on disk, relative to a sibling package's directory.
 ///
@@ -28,6 +28,6 @@ const String kSamplesAsset = 'packages/flutter3d_samples/assets';
 ///
 /// A consumer who installed this package from pub has these files inside the
 /// package archive rather than beside their own, and reaches them through
-/// [kSamplesAsset] or through their own resolution of `package:` URIs. The
+/// [samplesAsset] or through their own resolution of `package:` URIs. The
 /// tests that use the constant below are ours and do not ship runnable.
-const String kSamplesPath = '../flutter3d_samples/assets';
+const String samplesPath = '../flutter3d_samples/assets';

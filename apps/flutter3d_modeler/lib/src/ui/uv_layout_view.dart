@@ -29,6 +29,7 @@ typedef UvTriangleTap = void Function(int islandId, int triangleIndex);
 /// The 400×400 UV-space picture: a checker, every island tinted by stretch,
 /// and a tap that reports which triangle it hit.
 final class UvLayoutView extends StatelessWidget {
+  /// The picture of [islands], [size] across.
   const UvLayoutView({
     super.key,
     required this.islands,

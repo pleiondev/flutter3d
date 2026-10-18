@@ -19,10 +19,15 @@
 ///
 /// Row layout, which `renderer_light_list.dart` writes and only this reads:
 ///
-///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot,
+///    3 area, and a plugin's own light type from 16, as `LightTypes` gives
+///    the codes out)
 ///  * texel 1 — rgb linear colour, w intensity
 ///  * texel 2 — xyz the direction it points, w range
-///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///  * texel 3 — x cos(inner), y cos(outer); z the shadow atlas row plus one
+///    and w its shape, which the fog reads. An area light's holds an edge
+///    of the rectangle, and a plugin type's is what its `LightTypeHook`
+///    packs, read by a material as `lightParams`
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.

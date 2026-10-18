@@ -7,6 +7,7 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 /// because its key model and its maps have no licence traced, and a second game
 /// repeating that would be repeating a known mistake.
 abstract final class Sounds {
+  /// A coin collected, its pitch varied a little each time.
   static const SoundDef coin = SoundDef(
     name: 'coin',
     asset: 'assets/sounds/coin.wav',
@@ -20,6 +21,7 @@ abstract final class Sounds {
     rateVariance: 0.12,
   );
 
+  /// A jump from the ground.
   static const SoundDef jump = SoundDef(
     name: 'jump',
     asset: 'assets/sounds/jump.wav',
@@ -28,6 +30,7 @@ abstract final class Sounds {
     rateVariance: 0.08,
   );
 
+  /// A jump in mid air.
   static const SoundDef airJump = SoundDef(
     name: 'airJump',
     asset: 'assets/sounds/airjump.wav',
@@ -35,6 +38,7 @@ abstract final class Sounds {
     maxInstances: 2,
   );
 
+  /// Coming down onto the ground.
   static const SoundDef land = SoundDef(
     name: 'land',
     asset: 'assets/sounds/land.wav',
@@ -43,6 +47,7 @@ abstract final class Sounds {
     rateVariance: 0.1,
   );
 
+  /// A dash.
   static const SoundDef dash = SoundDef(
     name: 'dash',
     asset: 'assets/sounds/dash.wav',
@@ -51,6 +56,7 @@ abstract final class Sounds {
     rateVariance: 0.06,
   );
 
+  /// The runner dying; played over everything else.
   static const SoundDef death = SoundDef(
     name: 'death',
     asset: 'assets/sounds/death.wav',
@@ -59,6 +65,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// A checkpoint reached.
   static const SoundDef checkpoint = SoundDef(
     name: 'checkpoint',
     asset: 'assets/sounds/checkpoint.wav',
@@ -147,6 +154,7 @@ abstract final class Sounds {
     rateVariance: 0.14,
   );
 
+  /// A footstep on stone.
   static const SoundDef stepStone = SoundDef(
     name: 'step_stone',
     asset: 'assets/sounds/step_stone.wav',
@@ -156,6 +164,7 @@ abstract final class Sounds {
     rateVariance: 0.14,
   );
 
+  /// A footstep on ice.
   static const SoundDef stepIce = SoundDef(
     name: 'step_ice',
     asset: 'assets/sounds/step_ice.wav',

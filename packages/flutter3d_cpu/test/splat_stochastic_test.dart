@@ -24,6 +24,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -33,20 +35,20 @@ const int _height = 48;
 /// Round splats of [sigma] at the given places, colours and opacities.
 SplatCloud _cloud(List<(Vector3, Vector4)> splats, {double sigma = 0.6}) {
   final n = splats.length;
-  final centres = Float32List(n * 3);
-  final colours = Float32List(n * 4);
+  final centers = Float32List(n * 3);
+  final colors = Float32List(n * 4);
   final scales = Float32List(n * 3);
   final rotations = Float32List(n * 4);
   for (var i = 0; i < n; i++) {
-    final (where, colour) = splats[i];
-    centres.setAll(i * 3, <double>[where.x, where.y, where.z]);
-    colours.setAll(i * 4, <double>[colour.x, colour.y, colour.z, colour.w]);
+    final (where, color) = splats[i];
+    centers.setAll(i * 3, <double>[where.x, where.y, where.z]);
+    colors.setAll(i * 4, <double>[color.x, color.y, color.z, color.w]);
     scales.setAll(i * 3, <double>[sigma, sigma, sigma]);
     rotations[i * 4 + 3] = 1.0;
   }
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
   );
@@ -83,15 +85,15 @@ Float32List _render(
     ..ambientIntensity = 0.0
     ..add(camera);
   final renderer = Renderer.create(device: device)
-    ..addContributor(SplatContributor(cloud, composite: composite));
+    ..renderSteps.addContributor(SplatContributor(cloud, composite: composite));
   final settings = RenderSettings(
     tonemap: false,
     bloom: const BloomSettings(enabled: false),
     antiAlias: AntiAliasSettings(temporal: TemporalSettings(enabled: temporal)),
   );
-  final view = RenderView(
+  final view = CameraView(
     camera: camera,
-    clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+    clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
   );
   late FrameResult result;
   for (var i = 0; i < frames; i++) {
@@ -99,7 +101,7 @@ Float32List _render(
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: settings,
     );
     everyFrame?.call(device.readHdrPixels(result.frame));

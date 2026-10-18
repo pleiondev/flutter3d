@@ -23,18 +23,26 @@ import 'scene_sync.dart';
 /// The coarse half of a timeline's own transport — what a `Cubit` would hold
 /// as `playback`.
 enum PlaybackStatus {
+  /// Nothing playing, and the playhead back at the start.
   stopped,
+
+  /// A clip is advancing with every tick.
   playing,
+
+  /// Held where it was; playing again resumes from there.
   paused;
 
+  /// Whether this is [playing]: what the transport's play button shows.
   bool get isPlaying => this == playing;
 }
 
 /// A playback snapshot: immutable, value-equal, and small enough that a
-/// `Cubit` comparing two of them is comparing three fields, not two whole
+/// `Cubit` comparing two of them is comparing four fields, not two whole
 /// `AnimationPlayer`s.
 @immutable
 final class Playback {
+  /// A snapshot; with nothing given, it is the stopped transport before any
+  /// clip has been chosen.
   const Playback({
     this.status = PlaybackStatus.stopped,
     this.clipIndex = -1,
@@ -42,6 +50,7 @@ final class Playback {
     this.wrap = AnimationWrap.loop,
   });
 
+  /// Whether the clip is stopped, playing or paused.
   final PlaybackStatus status;
 
   /// [AnimationPlayer.clipIndex] as of the last change this class made —
@@ -49,6 +58,8 @@ final class Playback {
   /// [AnimationPlayer.clipIndex] itself starts at.
   final int clipIndex;
 
+  /// [AnimationPlayer.speed] as of the last change: 1 is real time, 0.5 half
+  /// as fast.
   final double speed;
 
   /// [AnimationPlayer.wrap] as of the last change this class made — `S2`'s
@@ -58,8 +69,10 @@ final class Playback {
   /// toggle already agrees with the player it describes.
   final AnimationWrap wrap;
 
+  /// Whether [status] is [PlaybackStatus.playing].
   bool get isPlaying => status.isPlaying;
 
+  /// This snapshot with the given fields replaced.
   Playback copyWith({
     PlaybackStatus? status,
     int? clipIndex,
@@ -134,6 +147,8 @@ AnimationPlayer buildPreviewPlayer(ModelProject project, SceneSync sync) {
 /// `Ticker` (or a test) calls — and reports the two granularities of change
 /// [Playback]'s own class comment describes.
 final class TimelinePlayback {
+  /// A transport over [player], at [fps] frames a second unless told
+  /// otherwise.
   TimelinePlayback({
     required this.player,
     this.fps = 30.0,
@@ -141,6 +156,7 @@ final class TimelinePlayback {
     this.onFrameChanged,
   });
 
+  /// The player every call here drives, and the clock [time] reads.
   final AnimationPlayer player;
 
   /// Frames a second — [KeyTable.timeOfFrame]/[KeyTable.frameOfTime]'s own
@@ -148,23 +164,30 @@ final class TimelinePlayback {
   /// frame a [KeyTable]-backed command would key.
   final double fps;
 
+  /// Told the new [Playback] whenever its coarse half changes: play, pause,
+  /// stop, the clip, the speed or the loop. Never per frame.
   final ValueChanged<Playback>? onPlaybackChanged;
+
+  /// Told the playhead's frame whenever it may have moved: every tick, a
+  /// seek, a start and a stop.
   final ValueChanged<int>? onFrameChanged;
 
   Playback _playback = const Playback();
 
+  /// The transport's coarse state as last reported to [onPlaybackChanged].
   Playback get playback => _playback;
 
   /// The playhead, in whole frames at [fps] — [KeyTable.frameOfTime] applied
-  /// to [AnimationPlayer.time].
-  int get frame => KeyTable.frameOfTime(player.time, fps);
+  /// to [AnimationPlayer.timeSeconds].
+  int get frame => KeyTable.frameOfTime(player.timeSeconds, fps);
 
-  double get time => player.time;
+  /// The playhead, in seconds into the current clip.
+  double get time => player.timeSeconds;
 
   /// Starts [clipIndex], or resumes the current clip when it is null —
   /// [AnimationPlayer.play]'s own contract, carried through unchanged.
   void play([int? clipIndex]) {
-    player.play(clipIndex);
+    player.play(index: clipIndex);
     _setPlayback(
       _playback.copyWith(
         status: PlaybackStatus.playing,
@@ -174,6 +197,7 @@ final class TimelinePlayback {
     _notifyFrame();
   }
 
+  /// Holds the playhead where it is.
   void pause() {
     player.pause();
     _setPlayback(_playback.copyWith(status: PlaybackStatus.paused));
@@ -187,6 +211,8 @@ final class TimelinePlayback {
     _notifyFrame();
   }
 
+  /// Moves the playhead to [seconds] into the clip, whether or not it is
+  /// playing.
   void seek(double seconds) {
     player.seek(seconds);
     _notifyFrame();
@@ -197,6 +223,7 @@ final class TimelinePlayback {
   void seekFrame(int targetFrame) =>
       seek(KeyTable.timeOfFrame(targetFrame, fps));
 
+  /// Plays at [speed] times real time from now on.
   void setSpeed(double speed) {
     player.speed = speed;
     _setPlayback(_playback.copyWith(speed: speed));
@@ -215,7 +242,7 @@ final class TimelinePlayback {
   /// "switch action" is a play, not a seek, so both hooks fire the way
   /// [play] itself makes them.
   void crossFadeTo(int index, {double duration = 0.15}) {
-    player.crossFadeTo(index, duration: duration);
+    player.crossFadeTo(index, durationSeconds: duration);
     _setPlayback(
       _playback.copyWith(
         status: PlaybackStatus.playing,

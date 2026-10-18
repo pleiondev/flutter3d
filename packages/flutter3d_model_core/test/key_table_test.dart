@@ -100,7 +100,7 @@ void main() {
         ..setKey(1.0, <double>[1.0])
         ..setKey(0.0, <double>[0.0])
         ..setKey(0.5, <double>[0.5]);
-      expect(table.keys.map((k) => k.time), <double>[0.0, 0.5, 1.0]);
+      expect(table.keys.map((k) => k.timeSeconds), <double>[0.0, 0.5, 1.0]);
     });
 
     test('a key at an existing time replaces it rather than adding a '
@@ -125,7 +125,7 @@ void main() {
       // moved key would still read 1.5 (correct), but `keys` would list it
       // before the key at time 1.0 instead of after, which this order
       // check catches and a value-only check would not.
-      expect(table.keys.map((k) => k.time), <double>[1.0, 1.5, 2.0]);
+      expect(table.keys.map((k) => k.timeSeconds), <double>[1.0, 1.5, 2.0]);
     });
   });
 
@@ -137,7 +137,7 @@ void main() {
         ..setKey(2.0, <double>[2.0]);
       table.deleteKeys(<int>[0, 2]);
       expect(table.keyCount, 1);
-      expect(table.keys.single.time, 1.0);
+      expect(table.keys.single.timeSeconds, 1.0);
     });
 
     test('deleting indices out of ascending order still removes the right '
@@ -152,7 +152,7 @@ void main() {
       // key, leaving two keys instead of one.
       table.deleteKeys(<int>[2, 0]);
       expect(table.keyCount, 1);
-      expect(table.keys.single.time, 1.0);
+      expect(table.keys.single.timeSeconds, 1.0);
     });
   });
 
@@ -172,7 +172,7 @@ void main() {
       table.setInterpolation(AnimationInterpolation.linear);
       table.setInterpolation(AnimationInterpolation.cubicSpline);
 
-      // Mutation: have `setInterpolation` rebuild each `Key` and drop its
+      // Mutation: have `setInterpolation` rebuild each `Keyframe` and drop its
       // tangents when switching to linear — this reads null instead of the
       // original values after switching back.
       expect(table.keys.single.inTangent, <double>[9.0]);

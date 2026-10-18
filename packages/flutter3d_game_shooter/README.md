@@ -21,7 +21,7 @@ everyone's memory.
 | | |
 |---|---|
 | `GameSimulation` | The step order of a shooter: aim, fire, projectiles, blasts, actors, pickups, mechanisms. |
-| `Arsenal`, `WeaponDef`, `WeaponBehaviour` | Hitscan, projectile and blast, as data rather than as three classes. |
+| `Arsenal`, `WeaponDef`, `WeaponBehavior` | Hitscan, projectile and blast, as data rather than as three classes. |
 | `Bestiary`, `MonsterDef`, `ChaseBrain` | What a monster is: what it does when it sees you, when it hears you, and when it is hurt. |
 | `Inventory`, `Gift`, `Pickup` | What is carried, what is given, and what refuses to be picked up because you are already full. |
 | `Player` | An eye, a body and what it is holding. |
@@ -44,7 +44,7 @@ has one yet. They are named here so that the gap reads as a decision.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

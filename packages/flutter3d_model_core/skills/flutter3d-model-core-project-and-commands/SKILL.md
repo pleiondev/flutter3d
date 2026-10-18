@@ -13,7 +13,7 @@ the container check cover it from the first commit. What goes here is in
 
 ## Plain Dart, checked through the graph
 
-No Flutter, no renderer, no disk. `flutter3d_model_mcp` cannot start on a
+No Flutter, no renderer, no disk. `flutter3d_mcp/model.dart` cannot start on a
 machine with only the Dart SDK if anything in this graph reaches the Flutter SDK
 — including transitively, which the text-matching scan does not see. Check what
 a new dependency drags in, not just what it imports.

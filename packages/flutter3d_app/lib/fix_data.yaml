@@ -1,0 +1,171 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: ff5772a3c77c0712
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: testing-MaterialProgramStage (MaterialProgramStage)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_testing/flutter3d_testing.dart']
+      class: 'MaterialProgramStage'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_app/software.dart']
+          class: 'MaterialProgramStage'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-WidgetSurface-WidgetSurface'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      constructor: ''
+      inClass: 'WidgetSurface'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'pixelsPerMetre'
+        newName: 'pixelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-TerrainTiles-TerrainTiles'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      constructor: ''
+      inClass: 'TerrainTiles'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresPerTexture'
+        newName: 'metersPerTexture'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-TerrainTiles-metresPerTexture'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      field: 'metresPerTexture'
+      inClass: 'TerrainTiles'
+    changes:
+      - kind: 'rename'
+        newName: 'metersPerTexture'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-kFixedResolution'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      variable: 'kFixedResolution'
+    changes:
+      - kind: 'rename'
+        newName: 'fixedResolution'
+  - title: 'flutter3d 1.0.0-rc.1: f1-rename-app-DocumentText'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      typedef: 'DocumentText'
+    changes:
+      - kind: 'rename'
+        newName: 'LevelDocumentText'
+  - title: 'flutter3d after 1.0.0-rc.1: app-Scene3D-onSceneCreated'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      constructor: ''
+      inClass: 'Scene3D'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'onSceneCreated'
+        newName: 'onCreated'
+  - title: 'flutter3d after 1.0.0-rc.1: app-Scene3D-onSceneCreated-field'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      field: 'onSceneCreated'
+      inClass: 'Scene3D'
+    changes:
+      - kind: 'rename'
+        newName: 'onCreated'
+  - title: 'flutter3d after 1.0.0-rc.1: app-FrameClock-elapsed'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      getter: 'elapsed'
+      inClass: 'FrameClock'
+    changes:
+      - kind: 'rename'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-FrameClock-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      method: 'tick'
+      inClass: 'FrameClock'
+    changes:
+      - kind: 'rename'
+        newName: 'nextFrameSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-WidgetSurface-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      method: 'tick'
+      inClass: 'WidgetSurface'
+    changes:
+      - kind: 'rename'
+        newName: 'update'
+  - title: 'flutter3d after 1.0.0-rc.1: app-XrFrame-XrFrame'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'XrFrame'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'predictedDisplayPeriod'
+        newName: 'predictedDisplayPeriodSeconds'
+      - kind: 'renameParameter'
+        oldName: 'predictedDisplayTime'
+        newName: 'predictedDisplaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-XrFrame-predictedDisplayPeriod'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      field: 'predictedDisplayPeriod'
+      inClass: 'XrFrame'
+    changes:
+      - kind: 'rename'
+        newName: 'predictedDisplayPeriodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-XrFrame-predictedDisplayTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      field: 'predictedDisplayTime'
+      inClass: 'XrFrame'
+    changes:
+      - kind: 'rename'
+        newName: 'predictedDisplaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-FakeXrSession-FakeXrSession'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/xr_testing.dart']
+      constructor: ''
+      inClass: 'FakeXrSession'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'period'
+        newName: 'periodSeconds'
+      - kind: 'renameParameter'
+        oldName: 'startTime'
+        newName: 'startSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-FakeXrSession-period'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/xr_testing.dart']
+      field: 'period'
+      inClass: 'FakeXrSession'
+    changes:
+      - kind: 'rename'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: app-FakeXrSession-startTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/xr_testing.dart']
+      field: 'startTime'
+      inClass: 'FakeXrSession'
+    changes:
+      - kind: 'rename'
+        newName: 'startSeconds'

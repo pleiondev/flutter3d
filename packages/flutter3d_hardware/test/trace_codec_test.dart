@@ -8,15 +8,25 @@
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 ByteData _bytes(List<int> values) =>
     ByteData.sublistView(Uint8List.fromList(values));
 
 const ScreenRect _rect = ScreenRect(x: 1, y: 2, width: 30, height: 40);
+const PassViewport _viewport = PassViewport(x: 1, y: 2, width: 30, height: 40);
+const PassViewport _depthViewport = PassViewport(
+  x: 0.5,
+  y: 2,
+  width: 30.25,
+  height: 40,
+  minDepth: 0.25,
+  maxDepth: 0.75,
+);
 const TraceGeometryRange _range = (buffer: 0, offset: 16, length: 48);
 
 /// One of every event, with every optional field filled, so nothing a
@@ -32,7 +42,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
   const TraceReleaseGeometry(0),
   const TraceCreateTexture(
     id: 1,
-    spec: RenderTargetSpec(
+    spec: RenderTargetDescriptor(
       width: 8,
       height: 4,
       format: TextureFormat.r16g16b16a16Float,
@@ -81,7 +91,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     id: 5,
     vertex: 'MeshVertex',
     fragment: 'Pbr',
-    layout: VertexLayoutSpec(<BufferLayout>[
+    layout: VertexLayoutDescriptor(<BufferLayout>[
       BufferLayout(
         strideInBytes: 12,
         stepMode: VertexStepMode.instance,
@@ -99,17 +109,27 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     pass: 0,
     label: 'scene',
     colors: <TraceColorTarget>[
-      (
+      TraceColorTarget(
         texture: 1,
         resolveTexture: 2,
         loadAction: LoadAction.load,
         storeAction: StoreAction.multisampleResolve,
-        clearValue: Vector4(0.1, 0.2, 0.3, 1.0),
+        clearValue: const ClearColor(0.1, 0.2, 0.3, 1.0),
         face: 2,
         mipLevel: 1,
+        layer: 3,
+      ),
+      // An id buffer clears past 2^24 exactly, which a float32 could not.
+      const TraceColorTarget(
+        texture: 3,
+        clearValue: ClearColor.uint(4294967295, 16777217, 0, 1),
+      ),
+      const TraceColorTarget(
+        texture: 4,
+        clearValue: ClearColor.sint(-2147483648, -1, 0, 1),
       ),
     ],
-    depth: (
+    depth: const TraceDepthTarget(
       texture: 1,
       clearValue: 0.5,
       loadAction: LoadAction.load,
@@ -117,15 +137,22 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
       stencilLoadAction: LoadAction.load,
       stencilStoreAction: StoreAction.store,
       stencilClearValue: 7,
+      mipLevel: 2,
+      layer: 1,
+      face: 4,
+      depthReadOnly: true,
+      stencilReadOnly: true,
     ),
   ),
-  const TraceSetViewport(0, _rect),
+  const TraceSetViewport(0, _viewport),
+  const TraceSetViewport(0, _depthViewport),
   const TraceSetScissor(0, _rect),
   const TraceSetPrimitiveType(0, PrimitiveType.lineStrip),
   const TraceSetPolygonMode(0, PolygonMode.line),
   const TraceSetCullMode(0, CullMode.frontFace),
   const TraceSetWindingOrder(0, WindingOrder.clockwise),
   const TraceSetDepthWrite(0, false),
+  const TraceSetAlphaToCoverage(0, true),
   const TraceSetDepthCompare(0, CompareFunction.greaterEqual),
   const TraceSetStencil(
     0,
@@ -147,7 +174,15 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     ),
     1,
   ),
-  TraceSetBlendColor(0, Vector4(1.0, 0.5, 0.25, 0.125)),
+  const TraceSetBlendColor(0, LinearColor(1.0, 0.5, 0.25, 0.125)),
+  const TracePushDebugGroup(0, 'opaque'),
+  const TraceInsertDebugMarker(0, 'floor'),
+  const TracePopDebugGroup(0),
+  const TraceSetLabel(
+    resource: TraceLabeled.texture,
+    id: 1,
+    label: 'scene colour',
+  ),
   const TraceBindPipeline(0, 5),
   const TraceBindVertexBuffer(pass: 0, buffer: _range, vertexCount: 3, slot: 1),
   TraceBindVertexData(
@@ -181,10 +216,13 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     shader: 'Pbr',
     slot: 'base_color_texture',
     texture: 2,
-    sampler: SamplerOptions.nearestClamp,
+    sampler: SamplerDescriptor(
+      widthAddressMode: SamplerAddressMode.clampToBorder,
+      borderColor: SamplerBorderColor.opaqueWhite,
+    ),
   ),
   const TraceClearBindings(0),
-  const TraceDraw(0, 4),
+  const TraceDraw(0, instanceCount: 4, firstIndex: 3, indexCount: 6),
   const TraceSubmit(0),
   const TraceReadPixels(1),
   const TraceReadback(texture: 1, region: _rect),
@@ -192,6 +230,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     id: 6,
     bytes: _bytes(<int>[1, 2, 3, 4]),
     hostReadable: true,
+    indices: 9,
   ),
   const TraceCreateComputePipeline(7, 'PrefixSum'),
   const TraceBeginComputePass(1, 'sum'),
@@ -219,10 +258,15 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
 void main() {
   test('every kind of event is here once', () {
     // A kind added to the hierarchy and not to this list would be a kind the
-    // round trip below never tries.
+    // round trip below never tries. Only the viewport comes twice, once
+    // with the default depth range and once with fractions and its own.
     final kinds = _everyEvent().map((e) => e.kind).toList();
-    expect(kinds.toSet(), hasLength(kinds.length));
-    expect(kinds, hasLength(47));
+    expect(
+      kinds.where((kind) => kind != 'setViewport').toSet(),
+      hasLength(kinds.length - 2),
+    );
+    expect(kinds.where((kind) => kind == 'setViewport'), hasLength(2));
+    expect(kinds.toSet(), hasLength(52));
   });
 
   test('a file read back writes the same file', () {
@@ -236,13 +280,81 @@ void main() {
     expect(Trace(read.events, metadata: read.metadata).encode(), first);
   });
 
-  test('a trace from another format version is refused by name', () {
+  test('a texture descriptor reaches the trace whole', () {
+    // Mutation: write only the five fields a pool's target has, as the
+    // trace did. The array reads back as one 2D layer with no chain and no
+    // storage usage, and its replay is a different texture.
+    final spec = TextureDescriptor(
+      width: 4,
+      height: 4,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      dimension: TextureDimension.d2Array,
+      depthOrArrayLayers: 3,
+      mipLevelCount: 2,
+      usage: TextureUsage.storage | TextureUsage.copySource,
+      label: 'atlas',
+    );
+    const target = RenderTargetDescriptor(
+      width: 8,
+      height: 4,
+      format: TextureFormat.r16g16b16a16Float,
+      sampleCount: 4,
+    );
+    final read = Trace.decode(
+      Trace(<TraceEvent>[
+        TraceCreateTexture(id: 0, spec: spec),
+        const TraceCreateTexture(id: 1, spec: target),
+      ]).encode(),
+    ).events.cast<TraceCreateTexture>();
+    expect(read.first.spec, spec);
+    expect(read.first.spec, isNot(isA<RenderTargetDescriptor>()));
+    expect(read.last.spec, target);
+    expect(read.last.spec, isA<RenderTargetDescriptor>());
+  });
+
+  test('an attachment keeps its layer, level, face and read-only flags', () {
+    // Mutation: drop `layer` from the colour target's codec. A pass into
+    // layer three of an array replays into layer zero.
+    final read =
+        Trace.decode(
+              Trace(<TraceEvent>[
+                _everyEvent().whereType<TraceBeginRenderPass>().single,
+              ]).encode(),
+            ).events.single
+            as TraceBeginRenderPass;
+    expect(read.colors.map((c) => c.layer), <int>[3, 0, 0]);
+    final depth = read.depth!;
+    expect(
+      (
+        depth.mipLevel,
+        depth.layer,
+        depth.face,
+        depth.depthReadOnly,
+        depth.stencilReadOnly,
+      ),
+      (2, 1, 4, true, true),
+    );
+  });
+
+  test('a draw of the whole binding reads back as the whole binding', () {
+    // A trace recorded before windows existed has neither key, and has to
+    // read as the draw it was without a new format version.
+    final read = Trace.decode(
+      Trace(const <TraceEvent>[TraceDraw(0, instanceCount: 2)]).encode(),
+    );
+    final draw = read.events.single as TraceDraw;
+    expect(draw.instanceCount, 2);
+    expect(draw.firstIndex, 0);
+    expect(draw.indexCount, isNull);
+  });
+
+  test('a trace from a newer format version is refused by name', () {
     final bytes = Trace(const <TraceEvent>[]).encode();
     ByteData.sublistView(bytes).setUint32(8, 99, Endian.little);
     expect(
       () => Trace.decode(bytes),
       throwsA(
-        isA<FormatException>().having(
+        isA<TraceFormatException>().having(
           (e) => e.message,
           'message',
           contains('format 99'),

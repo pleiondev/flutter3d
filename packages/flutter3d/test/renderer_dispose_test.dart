@@ -1,12 +1,12 @@
 /// `Renderer.dispose` releases every reference it holds.
 ///
-/// "Releases" means what it means everywhere else in this engine: no backend
-/// here exposes an explicit free for a buffer, a texture or a pipeline, so
-/// there is nothing lower-level to call. What `dispose` can do, and what this
-/// pins, is drop the last Dart reference each cache holds — the pipeline
-/// cache, the fragment-shader cache, the target pool's free list, and the two
+/// It drops the last Dart reference each cache holds — the pipeline cache,
+/// the fragment-shader cache, the target pool's free list, and the two
 /// fallback textures — which is the same contract `ResourceCache.clear`
-/// already keeps for asset caches.
+/// already keeps for asset caches, and gives every pipeline it built back to
+/// the device through `PipelineHandle.dispose`, which a backend with driver
+/// pipelines answers with `releasePipeline`. So does a reload of the shaders,
+/// once the frames in flight are done with the old ones.
 library;
 
 import 'dart:typed_data';
@@ -31,7 +31,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -47,7 +47,7 @@ void main() {
           device,
           const PlaneShape(width: 4.0, depth: 4.0).build(),
         ),
-        Material(name: 'floor'),
+        RenderMaterial(name: 'floor'),
         name: 'floor',
       ),
     );
@@ -56,7 +56,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
     expect(
       renderer.pipelineCount,
@@ -76,7 +76,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -93,7 +93,7 @@ void main() {
         width: 32,
         height: 32,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
       );
       device.finishOldestFrame();
     }
@@ -101,7 +101,7 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
     );
 
     renderer.dispose();
@@ -117,7 +117,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -130,6 +130,51 @@ void main() {
     expect(() => renderer.fallbackNormal, throwsStateError);
   });
 
+  test('dispose gives every pipeline it built back to the device', () {
+    // Mutation: drop the release from `dispose` — the fake still holds every
+    // pipeline the frame linked.
+    final device = FakeBackend();
+    final renderer = Renderer.create(device: device);
+    final drawn = _floor(device);
+    renderer.render(
+      width: 32,
+      height: 32,
+      scene: drawn.scene,
+      views: <CameraView>[CameraView(camera: drawn.camera)],
+    );
+    expect(_livePipelines(device), greaterThan(0));
+
+    renderer.dispose();
+
+    expect(_livePipelines(device), 0);
+  });
+
+  test('a shader reload gives the old pipelines back after the frames '
+      'in flight', () {
+    // Mutation: clear the caches in `relinkShaders` without retiring what
+    // they held — each reload adds a full set of live pipelines.
+    final device = FakeBackend();
+    final renderer = Renderer.create(device: device);
+    final drawn = _floor(device);
+    void frame() => renderer.render(
+      width: 32,
+      height: 32,
+      scene: drawn.scene,
+      views: <CameraView>[CameraView(camera: drawn.camera)],
+    );
+    for (var i = 0; i < 4; i++) {
+      frame();
+    }
+    final settled = _livePipelines(device);
+
+    renderer.relinkShaders();
+    for (var i = 0; i < 4; i++) {
+      frame();
+    }
+
+    expect(_livePipelines(device), lessThanOrEqualTo(settled));
+  });
+
   test('dispose is idempotent', () {
     final device = FakeBackend();
     final renderer = Renderer.create(device: device);
@@ -137,4 +182,25 @@ void main() {
     renderer.dispose();
     expect(renderer.dispose, returnsNormally);
   });
+}
+
+int _livePipelines(FakeBackend device) =>
+    device.liveHandles.whereType<PipelineHandle>().length;
+
+/// A camera over a plane, on [device].
+({Scene scene, CameraNode camera}) _floor(FakeBackend device) {
+  final scene = Scene(name: 'floor');
+  final camera = CameraNode(name: 'eye');
+  scene.root.add(camera);
+  scene.add(
+    MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 4.0, depth: 4.0).build(),
+      ),
+      RenderMaterial(name: 'floor'),
+      name: 'floor',
+    ),
+  );
+  return (scene: scene, camera: camera);
 }

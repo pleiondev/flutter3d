@@ -1,0 +1,3 @@
+# The catalog's research data and its generators are the source of the
+# generated catalog, not part of what a user depends on.
+tool/data/

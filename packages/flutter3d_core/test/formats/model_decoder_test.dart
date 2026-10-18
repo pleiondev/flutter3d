@@ -12,20 +12,19 @@ import 'package:test/test.dart';
 
 /// A decoder claiming every file with [suffix], the way an application adds
 /// a format — or replaces one.
-final class _Claims implements ModelDecoder {
+final class _Claims extends ModelDecoder {
   const _Claims(this.suffix);
 
   final String suffix;
 
   @override
-  bool handles(String fileName, Uint8List bytes) => fileName.endsWith(suffix);
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    return fileName.endsWith(suffix);
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async =>
+  Future<ModelDocument> decode(ModelDecodeContext context) async =>
       const PlainModelDocument(warnings: <String>['read by the application']);
 }
 
@@ -38,7 +37,7 @@ final class _Named extends AssetSource {
   String get key => 'memory:$name';
 
   @override
-  Future<Uint8List> read() async => Uint8List(0);
+  Future<Uint8List> read(AssetRead request) async => Uint8List(0);
 
   @override
   AssetUriResolver get resolveUri =>
@@ -60,7 +59,9 @@ void main() {
           ModelLoadRequest(source: _Named('x${each.key}')),
         );
         expect(
-          decoder.handles('part${each.key}', nothing),
+          decoder.handles(
+            ModelProbe(fileName: 'part${each.key}', bytes: nothing),
+          ),
           isTrue,
           reason: each.key,
         );
@@ -68,9 +69,20 @@ void main() {
     });
 
     test('a reader does not claim another format\'s suffix', () {
-      expect(GltfLoader().handles('part.obj', nothing), isFalse);
-      expect(ObjLoader().handles('part.glb', nothing), isFalse);
-      expect(const F3dDecoder().handles('part.stl', nothing), isFalse);
+      expect(
+        GltfLoader().handles(ModelProbe(fileName: 'part.obj', bytes: nothing)),
+        isFalse,
+      );
+      expect(
+        ObjLoader().handles(ModelProbe(fileName: 'part.glb', bytes: nothing)),
+        isFalse,
+      );
+      expect(
+        const F3dDecoder().handles(
+          ModelProbe(fileName: 'part.stl', bytes: nothing),
+        ),
+        isFalse,
+      );
     });
   });
 

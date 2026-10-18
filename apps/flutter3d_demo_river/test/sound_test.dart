@@ -16,8 +16,10 @@ Future<(RiverGame, SilentBackend)> _newGame() async {
   final ears = SilentBackend();
   final game = await initializeGame(
     () => RiverGame(
-      speakers: () async =>
-          (scene: AudioScene(backend: ears), close: () async {}),
+      speakers: () async => Speakers(
+        backend: ears,
+        scene: AudioScene(backend: ears),
+      ),
     ),
   );
   game.open3d(cpuTestDevice(width: 32, height: 24).device);

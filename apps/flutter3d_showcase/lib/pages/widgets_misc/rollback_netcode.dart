@@ -15,7 +15,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region transport
 /// A pair of transports joined by a fixed delay and a loss rate, so a test
@@ -43,6 +42,7 @@ final class _LoopbackTransport {
     final a = _LoopbackTransport._(delaySteps, lossRate, random);
     final b = _LoopbackTransport._(delaySteps, lossRate, random);
     a._peer = b;
+    // ignore: avoid-late-final-reassignment, this is b's field, a's was set above
     b._peer = a;
     return (a, b);
   }
@@ -65,16 +65,21 @@ final class _LoopbackTransport {
 }
 // #endregion transport
 
+/// The `rollback-netcode` page: two peers of a fixed-step simulation over an
+/// unreliable transport. Its check is that both learn the other reached the
+/// same step at a 30% loss, and that resending keeps them close to the truth.
 final class RollbackNetcodeDemo extends ShowcaseDemo {
+  /// The share of messages the transport drops, 0 to 0.9; the run is played
+  /// again when it changes.
   double lossRate = 0.3;
   late String _report;
 
   @override
   Scene build(DemoContext context) {
     _report = _run(lossRate);
-    final material = Material(
+    final material = RenderMaterial(
       name: 'peer',
-      baseColor: Vector4(0.5, 0.6, 0.9, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.6, 0.9, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -83,7 +88,7 @@ final class RollbackNetcodeDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

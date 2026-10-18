@@ -7,12 +7,21 @@ import 'mikktspace.dart';
 import 'vertex_layout.dart';
 
 /// How [MeshTangents.withGeneratedTangents] derives a frame from the UVs.
-enum TangentMethod {
+///
+/// A `final class` with const instances rather than an enum, the rule for a
+/// type a published package exports and may grow: a third method in a later
+/// release does not break a `switch` outside. [name] is its wire name.
+final class TangentMethod {
+  const TangentMethod._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// MikkTSpace, the frame glTF asks for and every common baker assumes.
   ///
   /// The default, because a normal map is only right against the frame it
   /// was baked in, and the maps a loader meets were baked in this one.
-  mikkTSpace,
+  static const TangentMethod mikkTSpace = TangentMethod._('mikkTSpace');
 
   /// Lengyel's method: each triangle's unnormalised dP/du summed at its
   /// vertices over the mesh's own index list.
@@ -24,7 +33,41 @@ enum TangentMethod {
   /// gradients on uneven meshes, and a vertex shared across a mirrored UV
   /// seam averages two opposite frames into nothing and gets a fixed axis.
   /// For a mesh whose maps were made for it, or one redrawn every frame.
-  lengyel,
+  static const TangentMethod lengyel = TangentMethod._('lengyel');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static TangentMethod? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every method.
+  static const List<TangentMethod> values = <TangentMethod>[
+    mikkTSpace,
+    lengyel,
+  ];
+
+  @override
+  String toString() => 'TangentMethod.$name';
+}
+
+/// What [MeshTangents.generateTangents] gives back: the [mesh] with its
+/// tangents, and for each vertex it appended at a mirrored seam, the vertex
+/// it [copiedFrom].
+final class GeneratedTangents {
+  /// The result of one generation: [mesh] and the seam copies' sources.
+  const GeneratedTangents({required this.mesh, required this.copiedFrom});
+
+  /// The mesh with a tangent per vertex, longer than the input where a seam
+  /// was split.
+  final MeshData mesh;
+
+  /// `copiedFrom[i]` is the source of vertex `vertexCount + i` of the input;
+  /// empty when nothing was split.
+  final Uint32List copiedFrom;
 }
 
 /// Tangent generation, split out of [MeshData] because it is a
@@ -68,7 +111,7 @@ extension MeshTangents on MeshData {
   /// copied: `copiedFrom[i]` is the source of vertex `vertexCount + i` of the
   /// input. Empty when nothing was split, which is every mesh without a
   /// mirrored seam and every run of [TangentMethod.lengyel].
-  ({MeshData mesh, Uint32List copiedFrom}) generateTangents({
+  GeneratedTangents generateTangents({
     VertexLayout? target,
     TangentMethod method = TangentMethod.mikkTSpace,
     bool splitSeams = true,
@@ -109,7 +152,7 @@ extension MeshTangents on MeshData {
             indices: Uint32List.fromList(result.indices),
           )
         : result;
-    final unsplit = (mesh: out, copiedFrom: Uint32List(0));
+    final unsplit = GeneratedTangents(mesh: out, copiedFrom: Uint32List(0));
 
     if (normalOffset < 0 || uvOffset < 0) {
       for (var v = 0; v < out.vertexCount; v++) {
@@ -144,7 +187,7 @@ extension MeshTangents on MeshData {
 /// and a vertex takes the frame its corners agree on. They agree exactly,
 /// bit for bit, wherever MikkTSpace did not split them, because corners of
 /// one group are handed one computed frame.
-({MeshData mesh, Uint32List copiedFrom}) _mikkTSpace(
+GeneratedTangents _mikkTSpace(
   MeshData mesh, {
   required int stride,
   required int tangentOffset,
@@ -267,7 +310,7 @@ extension MeshTangents on MeshData {
     grown[to + 3] = referenced ? frame[at + 3] : 1.0;
   }
 
-  return (
+  return GeneratedTangents(
     mesh: MeshData(layout: mesh.layout, vertices: grown, indices: indices),
     copiedFrom: Uint32List.fromList(copiedFrom),
   );
@@ -285,6 +328,7 @@ void _perpendicularise(Vector3 tangent, Vector3 normal) {
       normal.z.abs() < 0.9 ? Vector3(0.0, 0.0, 1.0) : Vector3(1.0, 0.0, 0.0),
     );
     tangent.sub(normal.scaled(normal.dot(tangent)));
+    // ignore: no-equal-nested-conditions, the tangent changed in between.
     if (tangent.length2 < 1e-16) tangent.setValues(1.0, 0.0, 0.0);
   }
   tangent.normalize();

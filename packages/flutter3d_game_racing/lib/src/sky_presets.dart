@@ -1,4 +1,6 @@
-import 'package:vector_math/vector_math.dart';
+import 'dart:math' as math;
+
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'sky.dart';
 
@@ -14,13 +16,13 @@ abstract final class SkyPresets {
   /// far side of the circuit.
   static final SkyPreset dawn = SkyPreset(
     name: 'dawn',
-    sunElevationDeg: 4.0,
-    sunAzimuthDeg: 95.0,
-    sunColor: Vector3(1.0, 0.62, 0.38),
+    sunElevation: 4.0 * (math.pi / 180.0),
+    sunAzimuth: 95.0 * (math.pi / 180.0),
+    sunColor: LinearColor(1.0, 0.62, 0.38),
     sunIntensity: 2.1,
-    zenith: Vector3(0.16, 0.24, 0.42),
-    horizon: Vector3(0.72, 0.52, 0.44),
-    belowHorizon: Vector3(0.16, 0.15, 0.17),
+    zenith: LinearColor(0.16, 0.24, 0.42),
+    horizon: LinearColor(0.72, 0.52, 0.44),
+    belowHorizon: LinearColor(0.16, 0.15, 0.17),
     glowWide: 5.0,
     glowStrength: 0.55,
     fogDensity: 0.0060,
@@ -35,19 +37,22 @@ abstract final class SkyPresets {
   /// the whole lap through.
   static final SkyPreset morning = SkyPreset(
     name: 'morning',
-    sunElevationDeg: 34.0,
-    sunAzimuthDeg: 112.0,
-    sunColor: Vector3(1.0, 0.95, 0.86),
+    sunElevation: 34.0 * (math.pi / 180.0),
+    sunAzimuth: 112.0 * (math.pi / 180.0),
+    sunColor: LinearColor(1.0, 0.95, 0.86),
     sunIntensity: 3.1,
-    zenith: Vector3(0.26, 0.42, 0.72),
-    horizon: Vector3(0.66, 0.75, 0.85),
-    belowHorizon: Vector3(0.20, 0.21, 0.22),
+    zenith: LinearColor(0.26, 0.42, 0.72),
+    horizon: LinearColor(0.66, 0.75, 0.85),
+    belowHorizon: LinearColor(0.20, 0.21, 0.22),
     glowWide: 6.0,
     glowStrength: 0.30,
     fogDensity: 0.0042,
     fogBacklitExponent: 6.0,
     fogBacklitStrength: 0.35,
     ambientIntensity: 0.10,
+    // The engine's default, `RenderSettings.defaultExposure`: the default
+    // morning is the default frame. Written out because this half of the
+    // package does not reach the renderer; `sky_test.dart` holds it there.
     exposure: 1.6,
     sunDisc: 14.0,
   );
@@ -56,13 +61,13 @@ abstract final class SkyPresets {
   /// shows whether the track reads without any help from the sky.
   static final SkyPreset noon = SkyPreset(
     name: 'noon',
-    sunElevationDeg: 78.0,
-    sunAzimuthDeg: 150.0,
-    sunColor: Vector3(1.0, 0.99, 0.96),
+    sunElevation: 78.0 * (math.pi / 180.0),
+    sunAzimuth: 150.0 * (math.pi / 180.0),
+    sunColor: LinearColor(1.0, 0.99, 0.96),
     sunIntensity: 3.6,
-    zenith: Vector3(0.20, 0.38, 0.76),
-    horizon: Vector3(0.62, 0.72, 0.86),
-    belowHorizon: Vector3(0.22, 0.23, 0.24),
+    zenith: LinearColor(0.20, 0.38, 0.76),
+    horizon: LinearColor(0.62, 0.72, 0.86),
+    belowHorizon: LinearColor(0.22, 0.23, 0.24),
     glowWide: 8.0,
     glowStrength: 0.18,
     fogDensity: 0.0030,
@@ -78,13 +83,13 @@ abstract final class SkyPresets {
   /// different places.
   static final SkyPreset golden = SkyPreset(
     name: 'golden',
-    sunElevationDeg: 11.0,
-    sunAzimuthDeg: 285.0,
-    sunColor: Vector3(1.0, 0.78, 0.52),
+    sunElevation: 11.0 * (math.pi / 180.0),
+    sunAzimuth: 285.0 * (math.pi / 180.0),
+    sunColor: LinearColor(1.0, 0.78, 0.52),
     sunIntensity: 2.6,
-    zenith: Vector3(0.22, 0.34, 0.60),
-    horizon: Vector3(0.86, 0.62, 0.40),
-    belowHorizon: Vector3(0.20, 0.17, 0.15),
+    zenith: LinearColor(0.22, 0.34, 0.60),
+    horizon: LinearColor(0.86, 0.62, 0.40),
+    belowHorizon: LinearColor(0.20, 0.17, 0.15),
     glowWide: 4.5,
     glowStrength: 0.70,
     fogDensity: 0.0050,
@@ -99,13 +104,13 @@ abstract final class SkyPresets {
   /// blue instead of warm.
   static final SkyPreset dusk = SkyPreset(
     name: 'dusk',
-    sunElevationDeg: -2.0,
-    sunAzimuthDeg: 292.0,
-    sunColor: Vector3(0.72, 0.60, 0.66),
+    sunElevation: -2.0 * (math.pi / 180.0),
+    sunAzimuth: 292.0 * (math.pi / 180.0),
+    sunColor: LinearColor(0.72, 0.60, 0.66),
     sunIntensity: 1.2,
-    zenith: Vector3(0.10, 0.14, 0.30),
-    horizon: Vector3(0.44, 0.38, 0.48),
-    belowHorizon: Vector3(0.09, 0.09, 0.12),
+    zenith: LinearColor(0.10, 0.14, 0.30),
+    horizon: LinearColor(0.44, 0.38, 0.48),
+    belowHorizon: LinearColor(0.09, 0.09, 0.12),
     glowWide: 4.0,
     glowStrength: 0.40,
     fogDensity: 0.0075,
@@ -116,6 +121,8 @@ abstract final class SkyPresets {
     sunDisc: 0.0,
   );
 
+  /// Every preset, in the order of the day from dawn to dusk; what [byName]
+  /// searches.
   static final List<SkyPreset> all = <SkyPreset>[
     dawn,
     morning,

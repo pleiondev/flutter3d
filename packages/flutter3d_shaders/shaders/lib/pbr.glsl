@@ -6,8 +6,13 @@
 // layers on top — `M1`. Everything under `#ifdef F3D_LAYERED` is the layered
 // stage's alone, and everything under its `#else` is what plain metal-rough
 // always was, kept as it was so that stage compiles to what it compiled to.
-// Formulations follow Filament, which is also what the glTF spec describes, so
-// imported glTF materials will land on the same look.
+// Formulations are the ones the glTF 2.0 specification's BRDF appendix gives:
+// the GGX distribution of Walter et al., "Microfacet Models for Refraction
+// through Rough Surfaces" (EGSR 2007), the height-correlated Smith masking of
+// Heitz, "Understanding the Masking-Shadowing Function in Microfacet-Based
+// BRDFs" (JCGT 2014), and Schlick, "An Inexpensive BRDF Model for
+// Physically-based Rendering" (Computer Graphics Forum, 1994), so imported
+// glTF materials will land on the same look.
 //
 // Image-based lighting is here when a scene supplies an environment, and the
 // flat hemispheric ambient stands in when it does not. `frame_params.w` carries
@@ -31,6 +36,7 @@
 
 #include <lib/material_maps.glsl>
 #include <lib/shadow.glsl>
+#include <lib/shading_constants.glsl>
 
 #ifdef F3D_LAYERED
 /// What a layered material adds to metal-rough — `M1`. A block of its own
@@ -56,7 +62,8 @@ uniform LayerInfo {
   /// `KHR_materials_dispersion` — `M3`.
   vec4 transmission;
 
-  /// rgb: the volume's attenuation colour, linear. w: unused.
+  /// rgb: the volume's attenuation colour, linear. w: one when the volume
+  /// is a convex body — `MaterialExtensions.convexVolume`.
   vec4 attenuation;
 
   /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
@@ -78,7 +85,7 @@ uniform LayerInfo {
   /// levels the copy has, its base included, and nought outside the pass
   /// that draws them, where the environment stands in as it always did. y,
   /// z: one over the copy's width and height in texels. w: unused.
-  vec4 scene_colour;
+  vec4 scene_color;
 
   /// Where this view sits in the copy's base level, in its texture
   /// coordinates: xy the corner, zw the size.
@@ -86,7 +93,7 @@ uniform LayerInfo {
 
   /// Each level's rectangle in the copy, in its texture coordinates: xy the
   /// corner, zw the size. The levels share one texture side by side — see
-  /// `SceneColourChain`.
+  /// `SceneColorChain`.
   vec4 scene_levels[6];
 
   /// The view-projection the draw was made with, turned to the rows of the
@@ -120,13 +127,13 @@ uniform sampler2D sheen_texture;
 /// The scene as it stood before the transmissive draws, every level of it in
 /// one texture — `M3`. Black, and never read, outside the pass that draws
 /// them. The stage's sixteenth sampler, and the last WebGL2 promises.
-uniform sampler2D scene_colour_texture;
+uniform sampler2D scene_color_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
 /// coat — how much, how rough, which way it faces, and what it leaves of what
 /// is under it.
-vec3 g_f0_dielectric = vec3(0.04);
+vec3 g_f0_dielectric = vec3(kDielectricF0);
 float g_f90 = 1.0;
 float g_coat = 0.0;
 float g_coat_roughness = 0.02;
@@ -152,7 +159,17 @@ float g_transmission = 0.0;
 float g_thickness = 0.0;
 vec3 g_transmittance = vec3(1.0);
 float g_iridescence = 0.0;
-vec3 g_irid_fresnel = vec3(0.04);
+vec3 g_irid_fresnel = vec3(kDielectricF0);
+
+/// Whether this is a thin pane over whatever is behind it — `M3`: a blended
+/// surface that transmits and has no volume. Light crosses a thin wall
+/// without bending, so what is behind it is exactly what the target already
+/// holds where it is drawn, and the blend lets that through
+/// ([g_pass_through]) rather than the shader reading it from the copy. The
+/// copy is taken before any transmissive draw, so read from it, the liquid
+/// in a glass tube vanished behind the tube's own wall, which showed the
+/// table where the liquid stood.
+bool g_pane = false;
 
 /// Whether the index is `KHR_materials_ior`'s nought: the value its
 /// specular-glossiness migration writes, which means an index of infinity —
@@ -200,6 +217,15 @@ void ReadLayers(Surface s) {
   // `M3`: the coat map's other two lanes.
   g_transmission = clamp(layer_info.transmission.x * coatTexel.b, 0.0, 1.0);
   g_thickness = max(layer_info.transmission.y * coatTexel.a, 0.0);
+  // `MaterialExtensions.convexVolume`: the thickness is the body's depth
+  // through its middle, and a ray crosses as much of it as squarely as the
+  // bent ray meets the surface, as if the body were a solid sphere. Kept
+  // above nought, where nought means a thin wall.
+  if (layer_info.attenuation.w > 0.5 && g_thickness > 0.0) {
+    vec3 bent = refract(-s.v, s.n, 1.0 / RefractionIor());
+    g_thickness = max(g_thickness * max(-dot(s.n, bent), 0.0),
+                      1e-4 * g_thickness);
+  }
   // Beer's law over the thickness: what is left of each colour after the
   // attenuation distance is the attenuation colour.
   float distance = layer_info.transmission.z;
@@ -214,7 +240,8 @@ void ReadLayers(Surface s) {
   // The coat is a dielectric of index 1.5, and what it reflects towards the
   // eye does not reach the layer under it: everything beneath is scaled by
   // what its Fresnel lets through.
-  float fc = 0.04 + 0.96 * pow(1.0 - g_coat_n_dot_v, 5.0);
+  float fc =
+      kDielectricF0 + (1.0 - kDielectricF0) * pow(1.0 - g_coat_n_dot_v, 5.0);
   g_coat_through = 1.0 - g_coat * fc;
 }
 
@@ -294,18 +321,30 @@ float V_SmithGGXCorrelated(float n_dot_v, float n_dot_l, float alpha) {
   return 0.5 / max(lambda_v + lambda_l, 1e-5);
 }
 
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 vec3 F_Schlick(vec3 f0, float v_dot_h) {
   float f = pow(1.0 - v_dot_h, 5.0);
   return f0 + (vec3(1.0) - f0) * f;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 #ifdef F3D_LAYERED
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 /// [F_Schlick] towards [f90] rather than towards one at grazing — what
 /// `KHR_materials_specular`'s strength scales.
 vec3 F_SchlickF90(vec3 f0, vec3 f90, float v_dot_h) {
   float f = pow(1.0 - v_dot_h, 5.0);
   return f0 + (f90 - f0) * f;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// The clear coat's own GGX lobe for [light], on the coat's normal, with the
 /// Fresnel of a dielectric of index 1.5. Scaled so that the loop's `n_dot_l`,
@@ -323,7 +362,9 @@ vec3 F_SchlickF90(vec3 f0, vec3 f90, float v_dot_h) {
 float CoatLobe(Surface s, LightSample light) {
   if (light.integrated > 0.5) {
     vec3 ltc = LtcRectangle(g_coat_n, s.v, g_coat_roughness, g_rect_corners);
-    return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
+    return ltc.x *
+           (kDielectricF0 * ltc.y + (1.0 - kDielectricF0) * ltc.z) *
+           frag_info.material.w /
            max(light.n_dot_l, 1e-6);
   }
   float lobe = max(g_coat_roughness, kMinGgxRoughness);
@@ -332,13 +373,14 @@ float CoatLobe(Surface s, LightSample light) {
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(g_coat_n_dot_v, n_dot_l, alpha);
-  float f = 0.04 + 0.96 * pow(1.0 - light.v_dot_h, 5.0);
+  float f = kDielectricF0 + (1.0 - kDielectricF0) * pow(1.0 - light.v_dot_h, 5.0);
   return d * vis * f * frag_info.material.w * n_dot_l /
          max(light.n_dot_l, 1e-6);
 }
 
-/// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
-/// floor on `sin²θ` so the power stays inside a half float.
+/// The Charlie sheen distribution of Estevez and Kulla, "Production Friendly
+/// Microfacet Sheen BRDF" (Sony Pictures Imageworks, 2017), with `sin²θ`
+/// floored at 2⁻⁷ so the power stays inside a half float.
 float D_Charlie(float roughness, float n_dot_h) {
   float inv_alpha = 1.0 / (roughness * roughness);
   float sin2h = max(1.0 - n_dot_h * n_dot_h, 0.0078125);
@@ -349,8 +391,8 @@ float D_Charlie(float roughness, float n_dot_h) {
 /// optical path difference [opd] in nanometres and a phase [shift]: the
 /// spectral sensitivity of the eye, as Gaussians in XYZ, taken to linear
 /// Rec. 709. Belcour and Barla, "A Practical Extension to Microfacet Theory
-/// for the Modeling of Varying Iridescence", 2017, with the constants the
-/// glTF sample viewer uses.
+/// for the Modeling of Varying Iridescence" (ACM Transactions on Graphics,
+/// SIGGRAPH 2017), with the Gaussian fit from the paper's supplemental code.
 vec3 IridescenceSensitivity(float opd, vec3 shift) {
   float phase = 2.0 * kPi * opd * 1.0e-9;
   vec3 val = vec3(5.4856e-13, 4.4201e-13, 5.2481e-13);
@@ -439,33 +481,33 @@ vec3 TransmittedRadiance(Surface s, float levels) {
 }
 
 /// Whether this draw has the copy of the scene to read — `M3`.
-bool SceneColourBound() { return layer_info.scene_colour.x > 0.0; }
+bool SceneColorBound() { return layer_info.scene_color.x > 0.0; }
 
 /// Level [level] of the copy at [uv], a coordinate of the picture as a whole.
 /// Held half a texel inside the level's rectangle, so a bilinear tap never
 /// reaches the level beside it in the same texture.
-vec3 SceneColourLevel(vec2 uv, int level) {
+vec3 SceneColorLevel(vec2 uv, int level) {
   vec4 rect = layer_info.scene_levels[level];
-  vec2 inset = 0.5 * layer_info.scene_colour.yz;
+  vec2 inset = 0.5 * layer_info.scene_color.yz;
   vec2 at = rect.xy + clamp(uv * rect.zw, inset, max(rect.zw - inset, inset));
-  return textureLod(scene_colour_texture, at, 0.0).rgb;
+  return textureLod(scene_color_texture, at, 0.0).rgb;
 }
 
 /// The copy where [world] lands on the screen, blurred to level [lod] and
 /// blended between the two levels either side of it, as a trilinear sampler
 /// would. Held inside this view, so a ray bent past its edge reads the edge
 /// rather than the view beside it.
-vec3 SceneColourAt(vec3 world, float lod) {
+vec3 SceneColorAt(vec3 world, float lod) {
   vec4 clip = layer_info.scene_view_projection * vec4(world, 1.0);
   vec2 ndc = clip.xy / max(clip.w, 1e-6);
   vec2 view = clamp(vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5), vec2(0.0),
                     vec2(1.0));
   vec2 uv = layer_info.scene_viewport.xy + view * layer_info.scene_viewport.zw;
-  float top = layer_info.scene_colour.x - 1.0;
+  float top = layer_info.scene_color.x - 1.0;
   float level = clamp(lod, 0.0, top);
   float lower = floor(level);
-  vec3 near = SceneColourLevel(uv, int(lower));
-  vec3 far = SceneColourLevel(uv, int(min(lower + 1.0, top)));
+  vec3 near = SceneColorLevel(uv, int(lower));
+  vec3 far = SceneColorLevel(uv, int(min(lower + 1.0, top)));
   return mix(near, far, level - lower);
 }
 
@@ -482,7 +524,7 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// single texel. Scaled by the chain instead, a 0.5-rough glass at an index
 /// of 1.5 read level 2.5 where it should read 5, a blur of about six texels
 /// against thirty-two, and frosted glass looked nearly clear. The chain
-/// still ends at `SceneColourChain.maxLevels`, where [SceneColourAt] clamps,
+/// still ends at `SceneColorChain.maxLevels`, where [SceneColorAt] clamps,
 /// so at a thousand texels wide anything rougher than about half reads its
 /// last level.
 ///
@@ -490,23 +532,24 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// texel of the texture, which is the size of the scene the chain was copied
 /// from.
 ///
-/// **The thickness is in world units as authored.** glTF measures it in the
-/// mesh's own space; a node scaled up or down refracts as if it were not,
-/// because the stage has no model matrix to scale it by.
+/// **The thickness is in world units.** glTF measures it in the mesh's own
+/// space; the renderer scales it by the node's scale, the geometric mean of
+/// its axes, when it binds `layer_info` for the draw, so the stage needs no
+/// model matrix of its own.
 vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
   float width =
-      layer_info.scene_levels[0].z / max(layer_info.scene_colour.y, 1e-9);
+      layer_info.scene_levels[0].z / max(layer_info.scene_color.y, 1e-9);
   float lod = log2(max(width, 1.0)) * s.roughness *
               clamp(ior * 2.0 - 2.0, 0.0, 1.0);
   bool thin = g_thickness <= 0.0;
   vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
   vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
   vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
-  return vec3(SceneColourAt(v_world_position + red * g_thickness, lod).r,
-              SceneColourAt(v_world_position + green * g_thickness, lod).g,
-              SceneColourAt(v_world_position + blue * g_thickness, lod).b);
+  return vec3(SceneColorAt(v_world_position + red * g_thickness, lod).r,
+              SceneColorAt(v_world_position + green * g_thickness, lod).g,
+              SceneColorAt(v_world_position + blue * g_thickness, lod).b);
 }
 
 /// Neubelt and Pettineo's visibility for cloth.
@@ -548,11 +591,17 @@ bool EnergyCompensation() { return frag_info.target_origin.z > 0.5; }
 /// Fdez-Agüera's. With the albedo the split sum already reads — the albedo of the very lobe it
 /// scales, at the roughness [ShadeLight] evaluates it at, or the white
 /// furnace would not come back white.
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
 vec3 MultiscatterScale(vec3 f0, Surface s) {
   vec2 ab = EnvBrdf(max(s.roughness, kMinGgxRoughness), s.n_dot_v);
   float ess = max(ab.x + ab.y, 1e-4);
   return vec3(1.0) + f0 * (1.0 / ess - 1.0);
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// Whether the diffuse lobe is EON rather than Lambert — `L8`,
 /// `RenderSettings.diffuseModel`, in `FragInfo.ambient_sky.w`.
@@ -616,7 +665,33 @@ vec3 EonAlbedo(vec3 rho, float r, float mu) {
   return rho * e + EonMultiAlbedo(rho, FonAverage(r)) * (1.0 - e);
 }
 
+// **The injection points of a material lit by this model** — version 3 of
+// the material language, `lighting standard;`. A material switches each on
+// with its define before it includes this file and defines it after:
+// `ShadeSurfaceHook` rewrites the surface once its maps are applied,
+// `ShadeLightHook` answers each light given this model's own answer, and
+// `F3dLightTypeHook` (in `lib/surface.glsl`) lets a plugin's light type into
+// the loop. The engine's own stages define none of them, and compile to what
+// they did.
+#ifdef F3D_SURFACE_HOOK
+void ShadeSurfaceHook(inout Surface s);
+#endif
+#ifdef F3D_LIGHT_HOOK
+vec3 ShadeLightHook(Surface s, LightSample light, vec3 standard);
+
+// The model's answer to one light, before a material's light hook. Split
+// from `ShadeLight` only under the hook, so a stage without one keeps the
+// single function it always had.
+vec3 StandardLight(Surface s, LightSample light);
+
 vec3 ShadeLight(Surface s, LightSample light) {
+  return ShadeLightHook(s, light, StandardLight(s, light));
+}
+
+vec3 StandardLight(Surface s, LightSample light) {
+#else
+vec3 ShadeLight(Surface s, LightSample light) {
+#endif
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
   // the roughness slider feel linear. Held at the lobe's own floor, which
   // sits above the surface's.
@@ -630,7 +705,7 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 f0 = mix(g_f0_dielectric, s.albedo, s.metallic);
   vec3 f90 = vec3(mix(g_f90, 1.0, s.metallic));
 #else
-  vec3 f0 = mix(vec3(0.04), s.albedo, s.metallic);
+  vec3 f0 = mix(vec3(kDielectricF0), s.albedo, s.metallic);
 #endif
   vec3 diffuseColor = s.albedo * (1.0 - s.metallic);
 
@@ -713,6 +788,9 @@ void main() {
   ReadLayersOnMaps(s);
   ReadIridescence(s);
 #endif
+#ifdef F3D_SURFACE_HOOK
+  ShadeSurfaceHook(s);
+#endif
 
   float metallic = clamp(s.metallic, 0.0, 1.0);
   vec3 diffuseColor = s.albedo * (1.0 - metallic);
@@ -732,7 +810,9 @@ void main() {
   // `M3`: without an environment the light passing through is the flat
   // ambient too, less what the medium takes — unless the scene behind is
   // there to be read, when that share is the scene instead (below).
-  ambient *= mix(vec3(1.0), SceneColourBound() ? vec3(0.0) : g_transmittance,
+  g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
+  ambient *= mix(vec3(1.0),
+                 SceneColorBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -764,7 +844,7 @@ void main() {
     }
     vec3 reflected = reflect(-s.v, bent);
 #else
-    vec3 f0 = mix(vec3(0.04), s.albedo, metallic);
+    vec3 f0 = mix(vec3(kDielectricF0), s.albedo, metallic);
     vec3 reflected = reflect(-s.v, s.n);
 #endif
 
@@ -814,7 +894,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound()
+    vec3 through = SceneColorBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -827,7 +907,8 @@ void main() {
                                       g_coat_roughness * levels)
                                .rgb;
     vec2 coatAb = EnvBrdf(g_coat_roughness, g_coat_n_dot_v);
-    coatAmbient = coatPrefiltered * (0.04 * coatAb.x + coatAb.y) * g_coat *
+    coatAmbient = coatPrefiltered * (kDielectricF0 * coatAb.x + coatAb.y) *
+                  g_coat *
                   frag_info.material.z * s.occlusion;
     sheenIncoming =
         textureLod(environment_texture, s.n, g_sheen_roughness * levels).rgb *
@@ -839,13 +920,18 @@ void main() {
   // copy of it — less what the dielectric reflects and what the medium
   // takes, tinted by the base colour. Light already, so neither the ambient
   // strength nor the occlusion scales it.
-  if (SceneColourBound()) {
-    vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
-    vec3 sceneReflects =
-        mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
-        g_f90 * sceneAb.y;
-    ambient += diffuseColor * SceneBehind(s) * g_transmittance *
-               (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
+  vec3 sceneReflects =
+      mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
+      g_f90 * sceneAb.y;
+  vec3 passes = diffuseColor * g_transmittance *
+                (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  if (g_pane) {
+    // One alpha for the three colours: a pane's tint is kept as its mean,
+    // which is what clear and faintly tinted glass needs.
+    g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
+  } else if (SceneColorBound()) {
+    ambient += SceneBehind(s) * passes;
   }
 #endif
   // The light the level's walls throw on each other, baked: diffuse only,
@@ -869,19 +955,15 @@ void main() {
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
   vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion +
-          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
-              g_coat_through +
-          coatAmbient,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion +
+             (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+                 g_coat_through +
+             coatAmbient;
 #else
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
 #endif
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 #endif  // PBR_GLSL_

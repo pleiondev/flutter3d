@@ -17,6 +17,10 @@ import 'scene_node.dart';
 /// joint count is not on the table. The spike behind that decision is recorded
 /// in ARCHITECTURE.md §2.
 final class Skeleton {
+  /// A skeleton following [joints], with one inverse bind matrix each.
+  ///
+  /// Throws an [ArgumentError] when the two lists differ in length or there
+  /// are more joints than [maxJoints].
   Skeleton({
     required List<SceneNode> joints,
     required List<Matrix4> inverseBindMatrices,
@@ -45,8 +49,13 @@ final class Skeleton {
   /// into the per-frame host buffer on every skinned draw: at 64 bytes a matrix
   /// this is a 4 KB upload, and doubling it doubles that cost for every skinned
   /// mesh whether or not it has the joints to justify it.
-  static const int maxJoints = 64;
+  ///
+  /// A getter, not a constant, so the shader may hold more in a later release
+  /// without breaking code that reads it.
+  static int get maxJoints => _maxJoints;
+  static const int _maxJoints = 64;
 
+  /// The skin's name from the source file, or null; used in error messages.
   final String? name;
 
   /// The nodes being followed, in the order the vertex attribute indexes them.
@@ -64,7 +73,14 @@ final class Skeleton {
   /// render list was shaped to avoid.
   final Float32List matrices = Float32List(maxJoints * 16);
 
+  /// How many joints the skeleton follows, a count, at most [maxJoints].
   int get jointCount => joints.length;
+
+  /// Joint [index] in its bind pose, in the skinned mesh's own space: the
+  /// inverse of its inverse bind matrix. Times the mesh's world matrix, where
+  /// the joint stood when the skin was bound — the rest a ragdoll takes its
+  /// joints' limits from.
+  Matrix4 bindPoseOf(int index) => Matrix4.inverted(_inverseBind[index]);
 
   final Matrix4 _scratch = Matrix4.identity();
   final Matrix4 _measure = Matrix4.identity();

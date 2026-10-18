@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "The Deep",
   "generatedBy": "apps/flutter3d_demo_dungeon/tool/make_deep.py",
   "fogColor": [0.034, 0.034, 0.034],
@@ -8,7 +11,7 @@
     "floor": {
       "baseColor": [0.62, 0.6, 0.56, 1.0],
       "roughness": 0.9,
-      "texelsPerMetre": 0.5,
+      "texelsPerMeter": 0.5,
       "albedo": "assets/textures/floor_albedo.jpg",
       "normal": "assets/textures/floor_normal.png",
       "orm": "assets/textures/floor_orm.png"
@@ -16,7 +19,7 @@
     "wall": {
       "baseColor": [0.7, 0.66, 0.6, 1.0],
       "roughness": 0.85,
-      "texelsPerMetre": 0.4,
+      "texelsPerMeter": 0.4,
       "albedo": "assets/textures/wall_albedo.jpg",
       "normal": "assets/textures/wall_normal.png",
       "orm": "assets/textures/wall_orm.png"
@@ -24,7 +27,7 @@
     "ceiling": {
       "baseColor": [0.34, 0.32, 0.3, 1.0],
       "roughness": 0.95,
-      "texelsPerMetre": 0.35,
+      "texelsPerMeter": 0.35,
       "albedo": "assets/textures/ceiling_albedo.jpg",
       "normal": "assets/textures/ceiling_normal.png",
       "orm": "assets/textures/ceiling_orm.png"
@@ -32,7 +35,7 @@
     "stone": {
       "baseColor": [0.68, 0.65, 0.6, 1.0],
       "roughness": 0.8,
-      "texelsPerMetre": 0.7,
+      "texelsPerMeter": 0.7,
       "albedo": "assets/textures/stone_albedo.jpg",
       "normal": "assets/textures/stone_normal.png",
       "orm": "assets/textures/stone_orm.png"
@@ -40,7 +43,7 @@
     "iron": {
       "baseColor": [0.72, 0.7, 0.68, 1.0],
       "roughness": 0.6,
-      "texelsPerMetre": 1.2,
+      "texelsPerMeter": 1.2,
       "albedo": "assets/textures/metal_albedo.jpg",
       "normal": "assets/textures/metal_normal.png",
       "orm": "assets/textures/metal_orm.png"
@@ -48,149 +51,454 @@
     "keymetal": {"baseColor": [0.92, 0.72, 0.26, 1.0], "roughness": 0.35, "metallic": 0.9}
   },
   "brushes": [
-    {"at": [0.0, -0.5, 4.0], "size": [10.0, 1.0, 10.0], "material": "floor"},
-    {"at": [0.0, 4.0, 4.0], "size": [10.0, 1.0, 10.0], "material": "ceiling"},
-    {"at": [-3.25, 1.75, -0.5], "size": [3.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 3.25, -0.5], "size": [3.0, 0.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [3.25, 1.75, -0.5], "size": [3.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 1.75, 8.5], "size": [10.0, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [4.5, 1.75, 4.0], "size": [1.0, 3.5, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-4.5, 1.75, 4.0], "size": [1.0, 3.5, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, -1.75], "size": [5.0, 1.0, 4.5], "material": "floor"},
-    {"at": [0.0, 3.5, -1.75], "size": [5.0, 1.0, 4.5], "material": "ceiling"},
-    {"at": [-2.0, 1.5, -3.5], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -3.5], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.0, 1.5, 0.0], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, 0.0], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -1.75], "size": [1.0, 3.0, 2.5], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.0, 1.5, -1.75], "size": [1.0, 3.0, 2.5], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, -8.0], "size": [12.0, 1.0, 10.0], "material": "floor"},
-    {"at": [0.0, 4.0, -8.0], "size": [12.0, 1.0, 10.0], "material": "ceiling"},
-    {"at": [-3.75, 1.75, -12.5], "size": [4.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 3.25, -12.5], "size": [3.0, 0.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [3.75, 1.75, -12.5], "size": [4.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-3.75, 1.75, -3.5], "size": [4.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 3.25, -3.5], "size": [3.0, 0.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [3.75, 1.75, -3.5], "size": [4.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [5.5, 1.75, -8.0], "size": [1.0, 3.5, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-5.5, 1.75, -8.0], "size": [1.0, 3.5, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 1.75, -10.0], "size": [1.6, 3.5, 1.6], "material": "stone"},
-    {"at": [0.0, -0.5, -13.75], "size": [5.0, 1.0, 4.5], "material": "floor"},
-    {"at": [0.0, 3.5, -13.75], "size": [5.0, 1.0, 4.5], "material": "ceiling"},
-    {"at": [-2.0, 1.5, -15.5], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -15.5], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.0, 1.5, -12.0], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -12.0], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -13.75], "size": [1.0, 3.0, 2.5], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.0, 1.5, -13.75], "size": [1.0, 3.0, 2.5], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, -20.0], "size": [14.0, 1.0, 12.0], "material": "floor"},
-    {"at": [0.0, 4.0, -20.0], "size": [14.0, 1.0, 12.0], "material": "ceiling"},
-    {"at": [-4.25, 1.75, -25.5], "size": [5.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 3.25, -25.5], "size": [3.0, 0.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [4.25, 1.75, -25.5], "size": [5.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-4.25, 1.75, -14.5], "size": [5.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 3.25, -14.5], "size": [3.0, 0.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [4.25, 1.75, -14.5], "size": [5.5, 3.5, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [6.5, 1.75, -20.0], "size": [1.0, 3.5, 10.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-6.5, 1.75, -20.0], "size": [1.0, 3.5, 10.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-3.0, 1.75, -20.0], "size": [1.4, 3.5, 1.4], "material": "stone"},
-    {"at": [3.0, 1.75, -20.0], "size": [1.4, 3.5, 1.4], "material": "stone"},
-    {"at": [0.0, -0.5, -26.75], "size": [5.0, 1.0, 4.5], "material": "floor"},
-    {"at": [0.0, 3.5, -26.75], "size": [5.0, 1.0, 4.5], "material": "ceiling"},
-    {"at": [-2.0, 1.5, -28.5], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -28.5], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.0, 1.5, -25.0], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -25.0], "size": [1.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.0, 1.5, -26.75], "size": [1.0, 3.0, 2.5], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.0, 1.5, -26.75], "size": [1.0, 3.0, 2.5], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, -34.0], "size": [18.0, 1.0, 14.0], "material": "floor"},
-    {"at": [0.0, 5.5, -34.0], "size": [18.0, 1.0, 14.0], "material": "ceiling"},
-    {"at": [0.0, 2.5, -40.5], "size": [18.0, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-5.25, 2.5, -27.5], "size": [7.5, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 4.0, -27.5], "size": [3.0, 2.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [5.25, 2.5, -27.5], "size": [7.5, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [8.5, 2.5, -34.0], "size": [1.0, 5.0, 12.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-8.5, 2.5, -34.0], "size": [1.0, 5.0, 12.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-5.0, 2.5, -31.0], "size": [1.4, 5.0, 1.4], "material": "stone"},
-    {"at": [5.0, 2.5, -31.0], "size": [1.4, 5.0, 1.4], "material": "stone"}
+    {"at": [0.0, -0.5, 4.0], "size": [10.0, 1.0, 10.0], "material": "floor", "id": "574ee6de"},
+    {"at": [0.0, 4.0, 4.0], "size": [10.0, 1.0, 10.0], "material": "ceiling", "id": "cb56c836"},
+    {
+      "at": [-3.25, 1.75, -0.5],
+      "size": [3.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "305bff10"
+    },
+    {
+      "at": [0.0, 3.25, -0.5],
+      "size": [3.0, 0.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "b1c7fcce"
+    },
+    {
+      "at": [3.25, 1.75, -0.5],
+      "size": [3.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "c49d7590"
+    },
+    {
+      "at": [0.0, 1.75, 8.5],
+      "size": [10.0, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "af74d4b2"
+    },
+    {
+      "at": [4.5, 1.75, 4.0],
+      "size": [1.0, 3.5, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "21766a47"
+    },
+    {
+      "at": [-4.5, 1.75, 4.0],
+      "size": [1.0, 3.5, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "059fb7c7"
+    },
+    {"at": [0.0, -0.5, -1.75], "size": [5.0, 1.0, 4.5], "material": "floor", "id": "005900bd"},
+    {"at": [0.0, 3.5, -1.75], "size": [5.0, 1.0, 4.5], "material": "ceiling", "id": "9ed145b5"},
+    {
+      "at": [-2.0, 1.5, -3.5],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "64f941c0"
+    },
+    {
+      "at": [2.0, 1.5, -3.5],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7cfef840"
+    },
+    {
+      "at": [-2.0, 1.5, 0.0],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "14052f84"
+    },
+    {
+      "at": [2.0, 1.5, 0.0],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "18a1c504"
+    },
+    {
+      "at": [2.0, 1.5, -1.75],
+      "size": [1.0, 3.0, 2.5],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "188bd16a"
+    },
+    {
+      "at": [-2.0, 1.5, -1.75],
+      "size": [1.0, 3.0, 2.5],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "92f158ea"
+    },
+    {"at": [0.0, -0.5, -8.0], "size": [12.0, 1.0, 10.0], "material": "floor", "id": "b72ccaea"},
+    {"at": [0.0, 4.0, -8.0], "size": [12.0, 1.0, 10.0], "material": "ceiling", "id": "c39e4c6a"},
+    {
+      "at": [-3.75, 1.75, -12.5],
+      "size": [4.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "fadb5f92"
+    },
+    {
+      "at": [0.0, 3.25, -12.5],
+      "size": [3.0, 0.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "9b0e8b36"
+    },
+    {
+      "at": [3.75, 1.75, -12.5],
+      "size": [4.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "6273ed12"
+    },
+    {
+      "at": [-3.75, 1.75, -3.5],
+      "size": [4.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5ea6f8dd"
+    },
+    {
+      "at": [0.0, 3.25, -3.5],
+      "size": [3.0, 0.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "c42f5e8d"
+    },
+    {
+      "at": [3.75, 1.75, -3.5],
+      "size": [4.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "c63f865d"
+    },
+    {
+      "at": [5.5, 1.75, -8.0],
+      "size": [1.0, 3.5, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "622ed7bb"
+    },
+    {
+      "at": [-5.5, 1.75, -8.0],
+      "size": [1.0, 3.5, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "8ab4d63b"
+    },
+    {"at": [0.0, 1.75, -10.0], "size": [1.6, 3.5, 1.6], "material": "stone", "id": "522bbacc"},
+    {"at": [0.0, -0.5, -13.75], "size": [5.0, 1.0, 4.5], "material": "floor", "id": "26f2dbd3"},
+    {"at": [0.0, 3.5, -13.75], "size": [5.0, 1.0, 4.5], "material": "ceiling", "id": "43e40273"},
+    {
+      "at": [-2.0, 1.5, -15.5],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "ccf9728d"
+    },
+    {
+      "at": [2.0, 1.5, -15.5],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "e4ff290d"
+    },
+    {
+      "at": [-2.0, 1.5, -12.0],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "63da140c"
+    },
+    {
+      "at": [2.0, 1.5, -12.0],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "6d15768c"
+    },
+    {
+      "at": [2.0, 1.5, -13.75],
+      "size": [1.0, 3.0, 2.5],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "39fb9e6c"
+    },
+    {
+      "at": [-2.0, 1.5, -13.75],
+      "size": [1.0, 3.0, 2.5],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7af503ec"
+    },
+    {"at": [0.0, -0.5, -20.0], "size": [14.0, 1.0, 12.0], "material": "floor", "id": "f921d25e"},
+    {"at": [0.0, 4.0, -20.0], "size": [14.0, 1.0, 12.0], "material": "ceiling", "id": "bb0dfb66"},
+    {
+      "at": [-4.25, 1.75, -25.5],
+      "size": [5.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "a3863733"
+    },
+    {
+      "at": [0.0, 3.25, -25.5],
+      "size": [3.0, 0.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "fb729386"
+    },
+    {
+      "at": [4.25, 1.75, -25.5],
+      "size": [5.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "3e196fb3"
+    },
+    {
+      "at": [-4.25, 1.75, -14.5],
+      "size": [5.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "40bc5d07"
+    },
+    {
+      "at": [0.0, 3.25, -14.5],
+      "size": [3.0, 0.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7a738682"
+    },
+    {
+      "at": [4.25, 1.75, -14.5],
+      "size": [5.5, 3.5, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7e940a87"
+    },
+    {
+      "at": [6.5, 1.75, -20.0],
+      "size": [1.0, 3.5, 10.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "240f1947"
+    },
+    {
+      "at": [-6.5, 1.75, -20.0],
+      "size": [1.0, 3.5, 10.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "369813c7"
+    },
+    {"at": [-3.0, 1.75, -20.0], "size": [1.4, 3.5, 1.4], "material": "stone", "id": "8365b068"},
+    {"at": [3.0, 1.75, -20.0], "size": [1.4, 3.5, 1.4], "material": "stone", "id": "72ebf5e8"},
+    {"at": [0.0, -0.5, -26.75], "size": [5.0, 1.0, 4.5], "material": "floor", "id": "912eb4e6"},
+    {"at": [0.0, 3.5, -26.75], "size": [5.0, 1.0, 4.5], "material": "ceiling", "id": "43fac62e"},
+    {
+      "at": [-2.0, 1.5, -28.5],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "2a437450"
+    },
+    {
+      "at": [2.0, 1.5, -28.5],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "e58d9fd0"
+    },
+    {
+      "at": [-2.0, 1.5, -25.0],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "9624e087"
+    },
+    {
+      "at": [2.0, 1.5, -25.0],
+      "size": [1.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5664c507"
+    },
+    {
+      "at": [2.0, 1.5, -26.75],
+      "size": [1.0, 3.0, 2.5],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "c207c267"
+    },
+    {
+      "at": [-2.0, 1.5, -26.75],
+      "size": [1.0, 3.0, 2.5],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5fcd43e7"
+    },
+    {"at": [0.0, -0.5, -34.0], "size": [18.0, 1.0, 14.0], "material": "floor", "id": "80ab8a75"},
+    {"at": [0.0, 5.5, -34.0], "size": [18.0, 1.0, 14.0], "material": "ceiling", "id": "e4d0fa6f"},
+    {
+      "at": [0.0, 2.5, -40.5],
+      "size": [18.0, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "cc813a1a"
+    },
+    {
+      "at": [-5.25, 2.5, -27.5],
+      "size": [7.5, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5054bfa4"
+    },
+    {
+      "at": [0.0, 4.0, -27.5],
+      "size": [3.0, 2.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "a20a926d"
+    },
+    {
+      "at": [5.25, 2.5, -27.5],
+      "size": [7.5, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "58d81524"
+    },
+    {
+      "at": [8.5, 2.5, -34.0],
+      "size": [1.0, 5.0, 12.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "634a31a4"
+    },
+    {
+      "at": [-8.5, 2.5, -34.0],
+      "size": [1.0, 5.0, 12.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "64af2b24"
+    },
+    {"at": [-5.0, 2.5, -31.0], "size": [1.4, 5.0, 1.4], "material": "stone", "id": "2f1dc9d0"},
+    {"at": [5.0, 2.5, -31.0], "size": [1.4, 5.0, 1.4], "material": "stone", "id": "5ecbc250"}
   ],
   "lights": [
     {
       "type": "point",
       "at": [-3.4, 2.4, 5.0],
       "color": [0.55, 0.78, 1.0],
-      "intensity": 4.5,
+      "intensity": 26057.626100999998,
       "range": 13.0,
       "castsShadow": true,
-      "name": "arrival_west"
+      "name": "arrival_west",
+      "id": "3ecfef4e"
     },
     {
       "type": "point",
       "at": [4.4, 2.4, -8.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 4.0,
+      "intensity": 23162.334312,
       "range": 13.0,
       "castsShadow": true,
-      "name": "first_east"
+      "name": "first_east",
+      "id": "6448e07f"
     },
     {
       "type": "point",
       "at": [-5.4, 2.4, -17.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 4.0,
+      "intensity": 23162.334312,
       "range": 13.0,
       "castsShadow": true,
-      "name": "narrow_west"
+      "name": "narrow_west",
+      "id": "5dbadcf4"
     },
     {
       "type": "point",
       "at": [5.4, 2.4, -23.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 4.0,
+      "intensity": 23162.334312,
       "range": 13.0,
       "castsShadow": true,
-      "name": "narrow_east"
+      "name": "narrow_east",
+      "id": "54ffc558"
     },
     {
       "type": "point",
       "at": [0.0, 4.2, -34.0],
       "color": [0.55, 0.78, 1.0],
-      "intensity": 6.0,
+      "intensity": 34743.501468,
       "range": 18.0,
       "castsShadow": true,
-      "name": "last_lamp"
+      "name": "last_lamp",
+      "id": "621b103e"
     }
   ],
   "entities": [
-    {"type": "reflection_probe", "at": [0.0, 1.75, 4.0]},
-    {"type": "player_spawn", "at": [0.0, 0.0, 6.0], "yaw": 0.0},
-    {"type": "torch", "at": [-3.75, 2.4, 5.0], "yaw": 1.5708, "light": "arrival_west"},
+    {"type": "reflection_probe", "at": [0.0, 1.75, 4.0], "id": "c20e9331"},
+    {"type": "player_spawn", "at": [0.0, 0.0, 6.0], "yaw": 0.0, "id": "74a87681"},
+    {
+      "type": "torch",
+      "at": [-3.75, 2.4, 5.0],
+      "yaw": 1.5708,
+      "props": {"light": "arrival_west"},
+      "id": "1c742241"
+    },
     {
       "type": "note",
       "at": [-2.5, 1.6, 0.03],
       "yaw": 0.0,
-      "text": "Nothing below here was buried. It came down on its own."
+      "props": {"text": "Nothing below here was buried. It came down on its own."},
+      "id": "4a36ce4e"
     },
-    {"type": "pickup", "at": [2.5, 0.8, 6.0], "gives": "shells", "amount": 8},
-    {"type": "reflection_probe", "at": [0.0, 1.75, -8.0]},
-    {"type": "torch", "at": [4.75, 2.4, -8.0], "yaw": -1.5708, "light": "first_east"},
-    {"type": "monster", "at": [0.0, 0.0, -11.0], "kind": "tank"},
-    {"type": "pickup", "at": [-4.0, 0.8, -6.0], "gives": "health", "amount": 25},
-    {"type": "reflection_probe", "at": [0.0, 1.75, -20.0]},
-    {"type": "torch", "at": [-5.75, 2.4, -17.0], "yaw": 1.5708, "light": "narrow_west"},
-    {"type": "torch", "at": [5.75, 2.4, -23.0], "yaw": -1.5708, "light": "narrow_east"},
-    {"type": "monster", "at": [-4.0, 0.0, -23.0], "kind": "tank"},
-    {"type": "monster", "at": [4.0, 0.0, -17.0], "kind": "shooter"},
-    {"type": "monster", "at": [4.0, 0.0, -23.0], "kind": "runner"},
-    {"type": "pickup", "at": [0.0, 0.8, -17.0], "gives": "bullets", "amount": 20},
-    {"type": "reflection_probe", "at": [0.0, 2.5, -34.0]},
-    {"type": "lamp", "at": [0.0, 4.2, -34.0], "light": "last_lamp", "color": [0.55, 0.78, 1.0]},
-    {"type": "monster", "at": [-6.0, 0.0, -37.0], "kind": "tank"},
-    {"type": "monster", "at": [6.0, 0.0, -37.0], "kind": "tank"},
-    {"type": "monster", "at": [0.0, 0.0, -38.0], "kind": "shooter"},
-    {"type": "pickup", "at": [0.0, 0.8, -30.0], "gives": "rockets", "amount": 4},
-    {"type": "pickup", "at": [-7.0, 0.8, -30.0], "gives": "armour", "amount": 25},
-    {"type": "exit", "name": "the_surface", "at": [0.0, 1.3, -39.0]}
+    {"type": "pickup", "at": [2.5, 0.8, 6.0], "props": {"gives": "shells", "amount": 8}, "id": "a9e77cba"},
+    {"type": "reflection_probe", "at": [0.0, 1.75, -8.0], "id": "80c08dc1"},
+    {"type": "torch", "at": [4.75, 2.4, -8.0], "yaw": -1.5708, "props": {"light": "first_east"}, "id": "26b88c24"},
+    {"type": "monster", "at": [0.0, 0.0, -11.0], "props": {"kind": "tank"}, "id": "ca710db7"},
+    {"type": "pickup", "at": [-4.0, 0.8, -6.0], "props": {"gives": "health", "amount": 25}, "id": "41047b76"},
+    {"type": "reflection_probe", "at": [0.0, 1.75, -20.0], "id": "97e6bad5"},
+    {
+      "type": "torch",
+      "at": [-5.75, 2.4, -17.0],
+      "yaw": 1.5708,
+      "props": {"light": "narrow_west"},
+      "id": "fbeda61d"
+    },
+    {
+      "type": "torch",
+      "at": [5.75, 2.4, -23.0],
+      "yaw": -1.5708,
+      "props": {"light": "narrow_east"},
+      "id": "5575e483"
+    },
+    {"type": "monster", "at": [-4.0, 0.0, -23.0], "props": {"kind": "tank"}, "id": "14eb259e"},
+    {"type": "monster", "at": [4.0, 0.0, -17.0], "props": {"kind": "shooter"}, "id": "bb7113d4"},
+    {"type": "monster", "at": [4.0, 0.0, -23.0], "props": {"kind": "runner"}, "id": "d7dd131e"},
+    {"type": "pickup", "at": [0.0, 0.8, -17.0], "props": {"gives": "bullets", "amount": 20}, "id": "d81991a7"},
+    {"type": "reflection_probe", "at": [0.0, 2.5, -34.0], "id": "244377b3"},
+    {
+      "type": "lamp",
+      "at": [0.0, 4.2, -34.0],
+      "props": {"light": "last_lamp", "color": [0.55, 0.78, 1.0]},
+      "id": "35ce45cd"
+    },
+    {"type": "monster", "at": [-6.0, 0.0, -37.0], "props": {"kind": "tank"}, "id": "538a84f3"},
+    {"type": "monster", "at": [6.0, 0.0, -37.0], "props": {"kind": "tank"}, "id": "795b1773"},
+    {"type": "monster", "at": [0.0, 0.0, -38.0], "props": {"kind": "shooter"}, "id": "9e3c6302"},
+    {"type": "pickup", "at": [0.0, 0.8, -30.0], "props": {"gives": "rockets", "amount": 4}, "id": "8fbe847c"},
+    {"type": "pickup", "at": [-7.0, 0.8, -30.0], "props": {"gives": "armour", "amount": 25}, "id": "47783480"},
+    {"type": "exit", "name": "the_surface", "at": [0.0, 1.3, -39.0], "id": "e42cafe2"}
   ],
   "next": "assets/levels/cistern.json"
 }

@@ -10,13 +10,16 @@ import 'tape.dart';
 /// between a sample every sixtieth of a second and every fifteenth is invisible
 /// once the gaps are interpolated — while the file is a quarter of the size.
 final class Recorder {
+  /// A recorder writing [hz] poses a second, fifteen by default.
   Recorder({this.hz = 15.0});
 
+  /// Poses written per second of the run, in hertz.
   final double hz;
 
-  final List<Pose> _poses = <Pose>[];
+  final List<GhostFrame> _poses = <GhostFrame>[];
   double _nextAt = 0.0;
 
+  /// Count of poses written so far.
   int get length => _poses.length;
 
   /// Records a place at [time], if enough time has passed since the last one.
@@ -24,7 +27,7 @@ final class Recorder {
   /// Called every step and mostly does nothing, which is the point: the caller
   /// does not have to know the rate, so changing it changes one number here
   /// rather than a condition at every call site.
-  void tick(
+  void record(
     double time, {
     required Vector3 position,
     required double yaw,
@@ -32,7 +35,8 @@ final class Recorder {
   }) {
     if (_poses.isNotEmpty && time < _nextAt) return;
 
-    final pose = Pose(time: time, yaw: yaw)..position.setFrom(position);
+    final pose = GhostFrame(timeSeconds: time, yaw: yaw)
+      ..position.setFrom(position);
     if (up != null) pose.up.setFrom(up);
 
     _poses.add(pose);
@@ -41,7 +45,7 @@ final class Recorder {
 
   /// Ends the recording and hands over what was recorded.
   Tape finish(double seconds) =>
-      Tape(poses: List<Pose>.of(_poses), seconds: seconds);
+      Tape(poses: List<GhostFrame>.of(_poses), seconds: seconds);
 
   /// Throws the recording away and starts again.
   void reset() {

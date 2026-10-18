@@ -6,12 +6,21 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `cascaded-shadows` page: a long row of pillars under the sun, its
+/// shadow split into cascades. Its check is that the sun got its shadow.
 final class CascadedShadowsDemo extends ShowcaseDemo {
+  /// How many cascades the sun's shadow is split into, 1 to 4.
   int cascades = 3;
+
+  /// How the cascades are spaced, 0.1 to 0.95, between even and logarithmic.
   double split = 0.7;
+
+  /// How far from the eye the cascades reach, in metres, 10 to 120.
   double viewDistance = 60.0;
+
+  /// The size of each cascade's map: 0 for 512, 1 for 1024, 2 for 2048
+  /// texels.
   int resolutionChoice = 1;
 
   static const List<int> _resolutions = <int>[512, 1024, 2048];
@@ -28,9 +37,9 @@ final class CascadedShadowsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region floor
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.72, 0.7, 0.66, 1.0),
+      baseColor: LinearColor.fromSrgb(0.72, 0.7, 0.66, 1.0),
       roughness: 0.85,
     );
     final MeshNode floor = MeshNode(
@@ -59,8 +68,11 @@ final class CascadedShadowsDemo extends ShowcaseDemo {
 
     // #region sun
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0, castsShadow: true)
-        ..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
+      LightNode(
+        name: 'sun',
+        intensity: 3.0 * LightNode.defaultIntensity,
+        castsShadow: true,
+      )..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
     );
     // #endregion sun
     return scene;

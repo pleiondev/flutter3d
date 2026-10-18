@@ -2,14 +2,24 @@ part of 'river_game.dart';
 
 /// Which model plays which part.
 enum Craft {
+  /// The player's jet.
   player('assets/models/jet_player.glb', 2.3, floats: false),
+
+  /// An enemy jet.
   enemyJet('assets/models/jet_enemy.glb', 2.5, floats: false),
+
+  /// A helicopter.
   helicopter('assets/models/helicopter.glb', 2.8, floats: false),
+
+  /// A tanker, the first of two hulls.
   tankerA('assets/models/tanker_a.glb', 3.7, floats: true),
+
+  /// A tanker, the second hull.
   tankerB('assets/models/tanker_b.glb', 3.7, floats: true);
 
   const Craft(this.file, this.length, {required this.floats});
 
+  /// The model's asset.
   final String file;
 
   /// Nose to tail once fitted, in metres: about the length of the hitbox
@@ -28,6 +38,7 @@ enum Craft {
     offset: floats ? Vector3(0.0, -0.15, 0.0) : null,
   );
 
+  /// How every craft is worn, for the wardrobe that dresses them.
   static Map<Craft, ModelLook> get looks => <Craft, ModelLook>{
     for (final craft in values) craft: craft.look,
   };
@@ -43,12 +54,18 @@ final class _Kit {
   _Kit(this.device)
     : playerJet = _upload(
         device,
-        jetMesh(Vector4(0.9, 0.2, 0.15, 1.0), Vector4(0.95, 0.95, 0.9, 1.0)),
+        jetPlaneMesh(
+          const LinearColor(0.9, 0.2, 0.15),
+          const LinearColor(0.95, 0.95, 0.9),
+        ),
         math.pi,
       ),
       enemyJet = _upload(
         device,
-        jetMesh(Vector4(0.25, 0.3, 0.55, 1.0), Vector4(0.6, 0.65, 0.75, 1.0)),
+        jetPlaneMesh(
+          const LinearColor(0.25, 0.3, 0.55),
+          const LinearColor(0.6, 0.65, 0.75),
+        ),
         math.pi,
       ),
       tanker = _upload(device, tankerMesh(), -math.pi / 2.0),
@@ -56,6 +73,7 @@ final class _Kit {
       rotor = DeviceMesh.upload(device, rotorMesh()),
       depot = DeviceMesh.upload(device, depotMesh()),
       shot = DeviceMesh.upload(device, shotMesh()),
+      bullet = DeviceMesh.upload(device, bulletMesh()),
       shard = DeviceMesh.upload(device, shardMesh()),
       puff = DeviceMesh.upload(device, puffMesh()),
       water = DeviceMesh.upload(device, waterMesh());
@@ -68,46 +86,47 @@ final class _Kit {
   final DeviceMesh rotor;
   final DeviceMesh depot;
   final DeviceMesh shot;
+  final DeviceMesh bullet;
   final DeviceMesh shard;
   final DeviceMesh puff;
   final DeviceMesh water;
 
   /// White, so the vertex colours are the colours.
-  final engine.Material painted = engine.Material(
+  final engine.RenderMaterial painted = engine.RenderMaterial(
     name: 'painted',
-    baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+    baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     roughness: 0.8,
   );
 
-  final engine.Material waterMaterial = engine.Material(
+  final engine.RenderMaterial waterMaterial = engine.RenderMaterial(
     name: 'water',
-    baseColor: Vector4(0.02, 0.09, 0.26, 1.0),
+    baseColor: LinearColor.fromSrgb(0.02, 0.09, 0.26, 1.0),
     roughness: 0.15,
   );
 
   /// A shot: lit from inside, so it reads against the water and the land.
-  final engine.Material glow = engine.Material(
+  final engine.RenderMaterial glow = engine.RenderMaterial(
     name: 'glow',
-    baseColor: Vector4(1.0, 0.85, 0.4, 1.0),
-    emissive: Vector3(1.0, 0.75, 0.3),
-    emissiveStrength: 4.0,
+    baseColor: LinearColor.fromSrgb(1.0, 0.85, 0.4, 1.0),
+    emissive: LinearColor(1.0, 0.75, 0.3),
+    emissiveStrength: 4.0 * RenderMaterial.defaultEmissiveStrength,
   );
 
   /// A helicopter's bullet: red, so it reads as the enemy's and not a
   /// shot of the jet's own.
-  final engine.Material tracer = engine.Material(
+  final engine.RenderMaterial tracer = engine.RenderMaterial(
     name: 'tracer',
-    baseColor: Vector4(1.0, 0.2, 0.15, 1.0),
-    emissive: Vector3(1.0, 0.15, 0.1),
-    emissiveStrength: 6.0,
+    baseColor: LinearColor.fromSrgb(1.0, 0.2, 0.15, 1.0),
+    emissive: LinearColor(1.0, 0.15, 0.1),
+    emissiveStrength: 6.0 * RenderMaterial.defaultEmissiveStrength,
   );
 
   /// A bridge's shield, while the level's task is not done.
-  final engine.Material shield = engine.Material(
+  final engine.RenderMaterial shield = engine.RenderMaterial(
     name: 'shield',
-    baseColor: Vector4(0.3, 0.95, 1.0, 1.0),
-    emissive: Vector3(0.2, 0.9, 1.0),
-    emissiveStrength: 5.0,
+    baseColor: LinearColor.fromSrgb(0.3, 0.95, 1.0, 1.0),
+    emissive: LinearColor(0.2, 0.9, 1.0),
+    emissiveStrength: 5.0 * RenderMaterial.defaultEmissiveStrength,
   );
 
   static DeviceMesh _upload(GraphicsDevice device, MeshData mesh, double yaw) =>

@@ -1,3 +1,47 @@
+## 1.0.0-rc.1
+
+* **The package carries the engine's number.** It moves from 0.5.1 to
+  `1.0.0-rc.1`, the version every package of flutter3d is at, though it
+  names none of them: it is released with the engine, so its number says
+  which engine it goes with, and the engine asks for it with the same
+  `'>=1.0.0-rc.1 <1.1.0'` it asks of every sibling. The API is unchanged;
+  an application that pinned `^0.5.0` moves the pin, which `migrate` does.
+
+## 0.5.1
+
+* **A platform without the native side reads as no controller.** The event
+  channel's subscription handles the `MissingPluginException` and the
+  `PlatformException` a native side can raise, so an error never reaches
+  the zone of whoever read a pad first, and every pad reads disconnected.
+* **The channel and its message words are held against the four native
+  sides.** `test/native_sources_test.dart` reads the Kotlin, Swift, Windows
+  and Linux sources and checks each opens `dev.flutter3d/gamepad/events`
+  and writes the keys (`event`, `device`, `slot`, `axes`, `code`, `down`)
+  and the event words its Dart mirror reads. A key spelled differently on
+  one side used to read as absent there, with nothing to say so.
+
+## 0.5.0
+
+* **Breaking: `GamepadPlatform.readPad` takes a `PadReadContext`** (new),
+  the slot and the snapshot to fill, which a `Gamepad` reuses for every
+  read. A backend written outside keeps compiling when a minor hands it
+  more.
+* **Breaking: `PadAxis` is an open set**, a class with constants rather than
+  an enum: pads report more axes than these six (a gyro, a touchpad). The
+  constants, `values` and `name` are as they were. `PadConnection` stays an
+  enum, closed for good.
+* **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `PadSnapshot.connected` is `isConnected`. `dart fix` carries the renames.
+* **Controllers on Windows and Linux.** Windows asks XInput's four slots
+  about a hundred and twenty times a second; Linux reads the kernel's
+  joystick devices, `/dev/input/js0` to `js3`. Both plugins send the
+  platform's own numbers untouched, and `XInputPadState` and
+  `JoystickPadState` read them in Dart, where a test can see that XInput's
+  stick y is up-positive and Linux's is not, which number the `xpad` driver
+  gives which button, and that a trigger at rest on Linux reads −32767.
+  Neither plugin could be built where this was written; the desktop jobs
+  in CI build them.
+
 ## 0.4.3+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

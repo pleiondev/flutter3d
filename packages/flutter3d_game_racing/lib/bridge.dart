@@ -18,7 +18,6 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'flutter3d_game_racing.dart';
 
@@ -26,13 +25,29 @@ export 'src/hud.dart';
 
 /// How finely the road is cut into rings.
 final class RoadMeshSettings {
+  /// Settings with each field at the default its own doc gives.
   const RoadMeshSettings({
     this.sagitta = 0.04,
     this.minStep = 1.5,
     this.maxStep = 8.0,
-    this.metresPerTile = 9.0,
+    this.metersPerTile = 9.0,
     this.barrierHeight = 1.1,
   });
+
+  /// A copy with the given fields replaced.
+  RoadMeshSettings copyWith({
+    double? sagitta,
+    double? minStep,
+    double? maxStep,
+    double? metersPerTile,
+    double? barrierHeight,
+  }) => RoadMeshSettings(
+    sagitta: sagitta ?? this.sagitta,
+    minStep: minStep ?? this.minStep,
+    maxStep: maxStep ?? this.maxStep,
+    metersPerTile: metersPerTile ?? this.metersPerTile,
+    barrierHeight: barrierHeight ?? this.barrierHeight,
+  );
 
   /// How far the middle of a straight edge may sit from the curve it stands in
   /// for, in metres.
@@ -49,14 +64,32 @@ final class RoadMeshSettings {
   /// The maximum is not about accuracy — a straight is a straight at any step —
   /// but about everything computed per vertex: lighting, fog, and how much of a
   /// crest is between two rings.
+  /// Both in metres of track.
   final double minStep;
+
+  /// The longest, in metres.
   final double maxStep;
 
   /// How many metres of road one repeat of the texture covers.
-  final double metresPerTile;
+  final double metersPerTile;
 
   /// How tall a barrier stands above the road it guards.
+  /// In metres.
   final double barrierHeight;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RoadMeshSettings &&
+          other.sagitta == sagitta &&
+          other.minStep == minStep &&
+          other.maxStep == maxStep &&
+          other.metersPerTile == metersPerTile &&
+          other.barrierHeight == barrierHeight;
+
+  @override
+  int get hashCode =>
+      Object.hash(sagitta, minStep, maxStep, metersPerTile, barrierHeight);
 }
 
 /// The road surface itself, kerb to kerb.
@@ -165,7 +198,7 @@ List<MeshData> buildBarrierMeshes(
       ..setFrom(frame.right)
       ..scale(-sign);
 
-    final v = s / settings.metresPerTile;
+    final v = s / settings.metersPerTile;
     final bottom = builder.addVertex(
       position: foot,
       normal: normal,
@@ -200,7 +233,7 @@ List<Vector2> trackOutline(TrackSpline track, {double step = 12.0}) {
   final points = <Vector2>[];
   final at = Vector3.zero();
   for (var s = 0.0; s < track.length; s += step) {
-    track.centreAt(s, at);
+    track.centerAt(s, at);
     points.add(Vector2(at.x, at.z));
   }
   return points;
@@ -214,7 +247,7 @@ Iterable<double> _stations(TrackSpline track, RoadMeshSettings settings) sync* {
   var s = 0.0;
   while (s < track.length) {
     yield s;
-    final bend = track.centre.curvatureAt(s).abs();
+    final bend = track.center.curvatureAt(s).abs();
     final wanted = bend < 1e-6
         ? settings.maxStep
         : math.sqrt(8.0 * settings.sagitta / bend);
@@ -229,6 +262,8 @@ MeshData _ribbon(
   VertexLayout? layout, {
   required double Function(double s) inner,
   required double Function(double s) outer,
+
+  /// A unitless multiplier on the settings' metres per tile.
   double tileScale = 1.0,
 }) {
   final builder = MeshBuilder(layout ?? VertexLayout.standard);
@@ -263,7 +298,7 @@ MeshData _ribbon(
       ..setFrom(frame.position)
       ..addScaled(frame.right, high);
 
-    final v = s / (settings.metresPerTile * tileScale);
+    final v = s / (settings.metersPerTile * tileScale);
     final a = builder.addVertex(
       position: left,
       normal: frame.up,

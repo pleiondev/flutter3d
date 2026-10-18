@@ -90,9 +90,14 @@ ByteData padded(ByteData bytes, int granule) {
 /// everything written through it is on the grid: the padding the allocator
 /// would add is always zero, so its arithmetic reduces to "add the length".
 final class BlockCursor {
+  /// A cursor at the start of a block of [blockLength] bytes, with nothing
+  /// crossed.
   BlockCursor({required this.blockLength, required this.granule});
 
+  /// Length of one allocator block in bytes, a whole number of [granule]s.
   final int blockLength;
+
+  /// The grid in bytes every write through the cursor is rounded to.
   final int granule;
 
   /// Bytes taken from the current block.

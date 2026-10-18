@@ -7,16 +7,45 @@
 /// always show the file. The site colours the same files with highlight.js;
 /// this is for the app, which has no HTML to hand it to.
 ///
-/// No Flutter import: the widget that turns tokens into spans is in
-/// `source_view.dart`.
+/// No Flutter import: what turns tokens into coloured spans is in
+/// `code_text.dart`.
 library;
 
-enum TokenKind { comment, string, number, keyword, type, annotation, plain }
+/// What a run of source text is, which picks its colour.
+enum TokenKind {
+  /// A `//` comment to the end of its line, `///` included; a `/* */` block
+  /// is not read as one.
+  comment,
 
+  /// A string literal, quotes included.
+  string,
+
+  /// A number literal.
+  number,
+
+  /// A word in the tokenizer's list of Dart's reserved and built-in words.
+  keyword,
+
+  /// A name that starts with a capital and has a lower-case letter in it,
+  /// which is how a type is told from a constant without parsing.
+  type,
+
+  /// An `@` and the name after it.
+  annotation,
+
+  /// Anything else: names, punctuation and whitespace.
+  plain,
+}
+
+/// One run of source text and what kind of run it is.
 final class Token {
+  /// A token of [kind] covering [text].
   const Token(this.kind, this.text);
 
+  /// What colour the run is drawn in.
   final TokenKind kind;
+
+  /// The source text, exactly as it stands in the file, whitespace included.
   final String text;
 }
 

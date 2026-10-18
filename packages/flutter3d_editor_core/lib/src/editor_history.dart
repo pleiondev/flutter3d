@@ -38,6 +38,8 @@ typedef _Step = ({String says, Map<String, Object?> document, int state});
 /// the question `ModelHistory` answers by identity, asked of a document that
 /// is rebuilt from JSON and so has no identity to ask about.
 final class EditorHistory {
+  /// An empty history of [editing], whose document as it stands counts as
+  /// saved.
   EditorHistory(this.editing);
 
   /// The document this remembers. It replaces [Editing.level] when it goes back.
@@ -81,7 +83,10 @@ final class EditorHistory {
   /// with a light selected did nothing without having to compare the document
   /// with itself. A command that answers false leaves no step, because a step
   /// that puts back what is already there is an undo that appears not to work.
-  bool run(EditorCommand command) =>
+  ///
+  /// Either family: the editor's own [EditorCommand]s and a plugin's
+  /// [PluginCommand]s are undone the same way, by the document this kept.
+  bool run(DocumentCommand command) =>
       transaction(command.says, () => command.apply(editing));
 
   /// Runs [body] and leaves at most one step behind, whatever it changed.

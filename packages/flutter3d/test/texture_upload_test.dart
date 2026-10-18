@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/build_ktx2.dart';
 
 Uint8List _readSample(String name) =>
-    File('$kSamplesPath/$name').readAsBytesSync();
+    File('$samplesPath/$name').readAsBytesSync();
 
 /// Every call in this file takes the KTX2 branch, which never reaches
 /// [ImageDecoder] — so this exists only to satisfy the parameter, and a call
@@ -45,14 +45,13 @@ void main() {
       );
       final reports = <String>[];
 
-      final handle = await uploadEncodedImage(
+      await uploadEncodedImage(
         device,
         bytes,
         decodeImage: _neverDecodes,
         report: reports.add,
       );
 
-      expect(handle, isNotNull);
       expect(reports, isEmpty);
       final spec = device.uploadedTextures.single;
       expect(spec.format, TextureFormat.bc7RGBAUNormInt);
@@ -63,8 +62,10 @@ void main() {
     },
   );
 
+  // Mutation: answer null for a format the device does not sample, as it
+  // did before 1.0, and this sees no exception.
   test(
-    'a device that does not sample the format gets no texture and a reason',
+    'a device that does not sample the format refuses it, saying which',
     () async {
       final device = FakeBackend(
         unsupportedFormats: const <TextureFormat>{
@@ -72,19 +73,18 @@ void main() {
         },
       );
       final bytes = buildKtx2(vkFormat: VkFormat.bc7UNormBlock);
-      final reports = <String>[];
 
-      expect(
-        await uploadEncodedImage(
-          device,
-          bytes,
-          decodeImage: _neverDecodes,
-          report: reports.add,
+      await expectLater(
+        uploadEncodedImage(device, bytes, decodeImage: _neverDecodes),
+        throwsA(
+          isA<DeviceResourceException>().having(
+            (DeviceResourceException e) => e.reason,
+            'reason',
+            contains('bc7RGBAUNormInt'),
+          ),
         ),
-        isNull,
       );
       expect(device.uploadedTextures, isEmpty);
-      expect(reports.single, contains('bc7RGBAUNormInt'));
     },
   );
 
@@ -101,19 +101,16 @@ void main() {
         pixelHeight: 6,
         levels: [List<int>.filled(64, 0)],
       );
-      final reports = <String>[];
-
-      expect(
-        await uploadEncodedImage(
-          device,
-          bytes,
-          decodeImage: _neverDecodes,
-          report: reports.add,
+      await expectLater(
+        uploadEncodedImage(device, bytes, decodeImage: _neverDecodes),
+        throwsA(
+          isA<DeviceResourceException>().having(
+            (DeviceResourceException e) => e.reason,
+            'reason',
+            allOf(contains('6x6'), contains('4x4')),
+          ),
         ),
-        isNull,
       );
-      expect(reports.single, contains('6x6'));
-      expect(reports.single, contains('4x4'));
     },
   );
 
@@ -187,13 +184,8 @@ void main() {
       final device = FakeBackend();
       final bytes = _readSample('ktx2/etc1s_alpha_mips.ktx2');
 
-      final handle = await uploadEncodedImage(
-        device,
-        bytes,
-        decodeImage: _neverDecodes,
-      );
+      await uploadEncodedImage(device, bytes, decodeImage: _neverDecodes);
 
-      expect(handle, isNotNull);
       final spec = device.uploadedTextures.single;
       expect(spec.format, TextureFormat.r8g8b8a8UNormInt);
       expect(spec.width, 16);
@@ -206,36 +198,30 @@ void main() {
     },
   );
 
-  test('a refused feature is reported in a sentence, not swallowed', () async {
+  test('a refused feature throws, saying which', () async {
     final device = FakeBackend();
     final bytes = buildKtx2(
       supercompressionScheme: Ktx2SupercompressionScheme.zstandard,
     );
-    final reports = <String>[];
 
-    expect(
-      await uploadEncodedImage(
-        device,
-        bytes,
-        decodeImage: _neverDecodes,
-        report: reports.add,
+    await expectLater(
+      uploadEncodedImage(device, bytes, decodeImage: _neverDecodes),
+      throwsA(
+        isA<Ktx2FormatException>().having(
+          (Ktx2FormatException e) => e.message,
+          'message',
+          contains('Zstandard'),
+        ),
       ),
-      isNull,
     );
-    expect(reports.single, contains('Zstandard'));
   });
 
   test('a Basis Universal KTX2 file uploads as plain RGBA8', () async {
     final device = FakeBackend();
     final bytes = _readSample('ktx2/etc1s_gradient_quadrants.ktx2');
 
-    final handle = await uploadEncodedImage(
-      device,
-      bytes,
-      decodeImage: _neverDecodes,
-    );
+    await uploadEncodedImage(device, bytes, decodeImage: _neverDecodes);
 
-    expect(handle, isNotNull);
     expect(device.uploadedTextures, hasLength(1));
     final spec = device.uploadedTextures.single;
     expect(spec.width, 8);
@@ -268,7 +254,7 @@ void main() {
       final device = FakeBackend();
       final reports = <String>[];
 
-      final handle = await uploadEncodedImage(
+      await uploadEncodedImage(
         device,
         File('$fixtures/uastc_alpha_mips.ktx2').readAsBytesSync(),
         decodeImage: _neverDecodes,
@@ -276,7 +262,6 @@ void main() {
       );
 
       expect(reports, isEmpty);
-      expect(handle, isNotNull);
       final spec = device.uploadedTextures.single;
       expect(spec.width, 64);
       expect(spec.height, 64);
@@ -317,9 +302,7 @@ void main() {
             ),
           ),
         ],
-        keyValues: const <String, String>{
-          kUniversalBlockKey: kUniversalBlockRgb,
-        },
+        keyValues: const <String, String>{universalBlockKey: universalBlockRgb},
       );
 
       for (final (name, unsupported, expected)
@@ -352,14 +335,13 @@ void main() {
           final device = FakeBackend(unsupportedFormats: unsupported);
           final reports = <String>[];
 
-          final handle = await uploadEncodedImage(
+          await uploadEncodedImage(
             device,
             cooked,
             decodeImage: _neverDecodes,
             report: reports.add,
           );
 
-          expect(handle, isNotNull);
           expect(reports, isEmpty);
           expect(device.uploadedTextures.single.format, expected);
           expect(device.uploadedTextures.single.width, 4);
@@ -368,28 +350,41 @@ void main() {
     },
   );
 
-  test('empty bytes upload nothing', () async {
+  test('empty bytes upload nothing and say so', () async {
     final device = FakeBackend();
-    expect(
-      await uploadEncodedImage(
-        device,
-        Uint8List(0),
-        decodeImage: _neverDecodes,
-      ),
-      isNull,
+    await expectLater(
+      uploadEncodedImage(device, Uint8List(0), decodeImage: _neverDecodes),
+      throwsA(isA<ImageFormatException>()),
     );
     expect(device.uploadedTextures, isEmpty);
   });
 
-  test('a truncated KTX2 file degrades to no texture', () async {
+  test('a truncated KTX2 file throws its format exception', () async {
     final device = FakeBackend();
     final bytes = _readSample('ktx2/etc1s_gradient_quadrants.ktx2');
     final truncated = Uint8List.sublistView(bytes, 0, 16);
 
-    expect(
-      await uploadEncodedImage(device, truncated, decodeImage: _neverDecodes),
-      isNull,
+    await expectLater(
+      uploadEncodedImage(device, truncated, decodeImage: _neverDecodes),
+      throwsA(isA<Ktx2FormatException>()),
     );
     expect(device.uploadedTextures, isEmpty);
   });
+
+  // Mutation: answer null when the decoder reads no image, as before 1.0.
+  test(
+    'an image the decoder cannot read throws an image format exception',
+    () async {
+      final device = FakeBackend();
+      await expectLater(
+        uploadEncodedImage(
+          device,
+          Uint8List.fromList(<int>[1, 2, 3, 4]),
+          decodeImage: (_) async => null,
+          platformDecode: false,
+        ),
+        throwsA(isA<ImageFormatException>()),
+      );
+    },
+  );
 }

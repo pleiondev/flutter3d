@@ -8,6 +8,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -22,7 +23,7 @@ final class _Field {
     );
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final Runner runner;
 
@@ -98,7 +99,7 @@ void main() {
     // Mutation: never set `_dashCooldown`. The second dash fires immediately
     // and the runner crosses the field at dash speed for ever.
     final field = _Field()..step(forward: true, dash: true);
-    expect(field.runner.dashCooldown, greaterThan(0.0));
+    expect(field.runner.dashCooldownSeconds, greaterThan(0.0));
 
     // Measured as speed, not as distance travelled in a step: the runner is
     // still carrying the first dash, so a step's length says nothing about
@@ -111,7 +112,7 @@ void main() {
 
     field.run(20, forward: true);
     expect(
-      field.runner.dashCooldown,
+      field.runner.dashCooldownSeconds,
       greaterThan(0.0),
       reason: 'still cooling',
     );
@@ -119,7 +120,7 @@ void main() {
     expect(flatSpeed(), lessThan(12.0), reason: 'the press was refused');
 
     field.run(40, forward: true);
-    expect(field.runner.dashCooldown, 0.0);
+    expect(field.runner.dashCooldownSeconds, 0.0);
     field.step(forward: true, dash: true);
     expect(flatSpeed(), greaterThan(17.0), reason: 'and now it fires');
   });

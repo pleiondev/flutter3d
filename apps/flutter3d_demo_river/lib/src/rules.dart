@@ -25,7 +25,10 @@ final class RunState {
   /// Below this the gauge warns.
   static const double lowFuel = 0.25;
 
+  /// Points scored this run.
   int score = 0;
+
+  /// Jets left in reserve, not counting the one flying.
   int reserve = startingReserve;
 
   /// From empty at zero to full at one.
@@ -58,7 +61,10 @@ final class RunState {
     tally.clear();
   }
 
+  /// Whether the tank is empty.
   bool get outOfFuel => fuel <= 0.0;
+
+  /// Whether the gauge warns.
   bool get fuelLow => fuel < lowFuel;
 
   /// Adds [points], and a jet in reserve for every threshold they carry the
@@ -71,8 +77,10 @@ final class RunState {
     }
   }
 
+  /// Burns [dt] seconds of fuel.
   void burn(double dt) => fuel = math.max(0.0, fuel - dt / tankSeconds);
 
+  /// Fills [dt] seconds' worth over a depot, up to full.
   void refuel(double dt) => fuel = math.min(1.0, fuel + dt / refillSeconds);
 
   /// The bridge at the end of section [index] is down: the next jet starts

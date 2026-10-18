@@ -99,8 +99,8 @@ void main() {
 
     expect(loaded.player.lap, it.player.lap);
     expect(loaded.player.bestLap, closeTo(it.player.bestLap!, 1e-6));
-    expect(loaded.player.totalTime, closeTo(it.player.totalTime, 1e-6));
-    expect(loaded.race.elapsed, closeTo(it.race.elapsed, 1e-6));
+    expect(loaded.player.totalSeconds, closeTo(it.player.totalSeconds, 1e-6));
+    expect(loaded.race.elapsedSeconds, closeTo(it.race.elapsedSeconds, 1e-6));
   });
 
   test('and a lap that was never driven is not a lap driven in no time', () {
@@ -192,7 +192,7 @@ void main() {
     loaded.simulation.step(_step);
 
     expect(
-      loaded.simulation.events.drain(),
+      loaded.heard.take(),
       isEmpty,
       reason: 'a restored car reported passing what it had already passed',
     );
@@ -228,7 +228,7 @@ void main() {
     final saved = roundTrip(it.simulation.save());
     final loaded = Race()..simulation.restore(saved);
 
-    expect(loaded.simulation.events.drain(), isEmpty);
+    expect(loaded.heard.take(), isEmpty);
   });
 
   test('a saved race says which format it is in', () {

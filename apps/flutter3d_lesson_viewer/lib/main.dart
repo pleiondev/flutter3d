@@ -10,40 +10,40 @@
 /// anything, so building one would be state nothing reads.
 ///
 /// `edu-02`'s own honest-scope line: this plays a step's `at`/`yaw` and its
-/// `visible`/`hidden` lists (through `applyLessonStepToCamera`) and renders
-/// `widget_surface` annotations through the same pipeline the dungeon's
-/// terminal (`wg-02`) already proved. It does not apply `offsets`, does not
-/// draw an `edu_clip_plane`, does not read `bindings`/`edu_data_source`, and
-/// does not ask a `check` question — see `src/lesson_player.dart`'s own doc
-/// comment for why each is a separate, later step.
+/// `visible`/`hidden` lists (through `flutter3d_stereo`'s
+/// `applyLessonStepTo`, the one lesson player for a flat screen and a
+/// holder) and renders `widget_surface` annotations through the same
+/// pipeline the dungeon's terminal (`wg-02`) already proved. It does not
+/// draw an `edu_clip_plane` and does not read `bindings`/`edu_data_source`:
+/// each is a separate, later step.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_education/lesson.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show LessonPlayer;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
-import 'src/lesson_player.dart';
+import 'src/lesson_loading_screen.dart';
+import 'src/lesson_theme.dart';
 import 'src/lesson_view.dart';
 
 /// The lesson this build opens, as a bundled asset path.
 ///
-/// Overridable two ways: `--dart-define=level=` for a local run, and
-/// `?level=` in the page's own URL for a build served from the cloud
-/// (`edu-02`'s own service picks a lesson this way, the same query-param
-/// door `flutter3d_modeler` opens for `?model=`). Unlike that door, this one
-/// needs no same-origin check: `rootBundle.loadString` only ever reads a
-/// path bundled into this build, never a URL, so a `?level=` naming
-/// something outside `assets/levels/` fails to load rather than fetching
-/// anything.
+/// Chosen at build time with `--dart-define=level=`; nothing reads the
+/// page's URL, so a build opens the one lesson it was built for. No
+/// same-origin check is needed either way: `rootBundle.loadString` only
+/// ever reads a path bundled into this build, never a URL, so a `level`
+/// naming something outside `assets/levels/` fails to load rather than
+/// fetching anything.
 const String kLevel = String.fromEnvironment(
   'level',
   defaultValue: 'assets/levels/tour.json',
@@ -51,7 +51,9 @@ const String kLevel = String.fromEnvironment(
 
 void main() => runApp(const LessonViewerApp());
 
+/// The viewer as an application: [LessonScreen] in a bare [MaterialApp].
 class LessonViewerApp extends StatelessWidget {
+  /// The viewer on [kLevel].
   const LessonViewerApp({super.key});
 
   @override
@@ -68,6 +70,7 @@ class LessonViewerApp extends StatelessWidget {
 /// import, because this viewer stands on `flutter3d_app` and not on the game
 /// layer.
 final class OpenKind extends EntityKind {
+  /// A kind that accepts entities of [type] and gives them no behaviour.
   const OpenKind(super.type);
 }
 
@@ -81,7 +84,7 @@ final class OpenKind extends EntityKind {
 /// warning, not a running caption — is the row a *reactive* widget_surface
 /// belongs to, once one is written.
 Widget _viewerCaption(BuildContext context) => const ColoredBox(
-  color: Color(0xCC0E1013),
+  color: LessonTheme.scrim,
   child: Center(
     child: Padding(
       padding: EdgeInsets.all(16.0),
@@ -89,7 +92,7 @@ Widget _viewerCaption(BuildContext context) => const ColoredBox(
         'Обойти изделие',
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: Colors.white,
+          color: LessonTheme.text,
           fontSize: 20.0,
           fontWeight: FontWeight.w600,
         ),
@@ -100,9 +103,30 @@ Widget _viewerCaption(BuildContext context) => const ColoredBox(
 
 /// Every widget a `widget_surface` entity in this application's own levels
 /// may name.
-Map<String, WidgetBuilder> widgetRegistry() => <String, WidgetBuilder>{
-  'viewer-caption': _viewerCaption,
-};
+///
+/// **The student's reduced-motion flag, carried in.** A surface is built in
+/// a pipeline of its own, under a `MediaQuery` that knows the texture's size
+/// and nothing of the system's settings, so a widget hosted there would
+/// animate whatever the student asked for. With [reduceMotion], each one
+/// reads `MediaQuery.disableAnimationsOf` as the screen around it does.
+Map<String, WidgetBuilder> widgetRegistry({
+  ValueListenable<bool>? reduceMotion,
+}) {
+  WidgetBuilder carried(WidgetBuilder build) => reduceMotion == null
+      ? build
+      : (BuildContext context) => ValueListenableBuilder<bool>(
+          valueListenable: reduceMotion,
+          builder: (BuildContext context, bool reduce, Widget? child) =>
+              MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(disableAnimations: reduce),
+                child: child!,
+              ),
+          child: Builder(builder: build),
+        );
+  return <String, WidgetBuilder>{'viewer-caption': carried(_viewerCaption)};
+}
 
 /// [level]'s own `part` entities — `ls-e-00`'s removable pieces — as plain
 /// boxed [MeshNode]s, named after their own entity so an `edu_step`'s
@@ -135,15 +159,23 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
   }
 }
 
+/// Where [LessonCubit] stands: loading, ready to play, or failed.
 sealed class LessonState {
+  /// Shared by the three states; holds nothing.
   const LessonState();
 }
 
+/// The lesson is still being read and built; the screen shows its loading
+/// screen.
 final class LessonLoading extends LessonState {
+  /// The state the cubit starts in.
   const LessonLoading();
 }
 
+/// The lesson is built: a scene with the camera in it, and the player that
+/// walks its steps.
 final class LessonReady extends LessonState {
+  /// A ready lesson; [nodes] is empty for a level that names no parts.
   const LessonReady(
     this.scene,
     this.camera,
@@ -152,20 +184,34 @@ final class LessonReady extends LessonState {
     this.nodes = const <String, SceneNode>{},
   });
 
+  /// The level's scene, with [camera] already added to it.
   final Scene scene;
+
+  /// The eye every step moves; the same node the screen handed to
+  /// [LessonCubit.open].
   final CameraNode camera;
+
+  /// The steps of the level's first `edu_sequence`, in order; empty when it
+  /// names none.
   final LessonPlayer player;
+
+  /// The `widget_surface` panels the level placed, drawn each frame; the
+  /// cubit disposes of them when it closes.
   final WidgetSurfaceVisuals? widgetSurfaces;
 
   /// Every fixture the level placed, by the name its own entity carries —
   /// what a step's `visible`/`hidden` list reaches through
-  /// `applyLessonStepToCamera`.
+  /// `applyLessonStepTo`.
   final Map<String, SceneNode> nodes;
 }
 
+/// The lesson could not be opened; the screen says why.
 final class LessonFailed extends LessonState {
+  /// A failure carrying what was thrown.
   const LessonFailed(this.error);
 
+  /// What reading or building the level threw: a missing asset, JSON that
+  /// does not parse, or a level the loader refused.
   final Object error;
 }
 
@@ -175,8 +221,13 @@ final class LessonFailed extends LessonState {
 /// than a thrown error, since a level with no sequence is a level this
 /// screen can still show, just with nothing for its buttons to do.
 class LessonCubit extends Cubit<LessonState> {
+  /// A cubit in [LessonLoading] until [open] is called.
   LessonCubit() : super(const LessonLoading());
 
+  /// Reads [asset] on [device], builds its scene around [camera] with the
+  /// level's widget surfaces resolved through [widgetRegistry], and emits
+  /// [LessonReady]; anything thrown on the way is emitted as
+  /// [LessonFailed]. Emits nothing once the cubit is closed.
   Future<void> open(
     GraphicsDevice device, {
     required CameraNode camera,
@@ -219,7 +270,7 @@ class LessonCubit extends Cubit<LessonState> {
       }
 
       // `ls-e-00`'s own nodes map: every fixture the level placed, by the
-      // name its own entity carries — `applyLessonStepToCamera`'s own doc
+      // name its own entity carries — `applyLessonStepTo`'s own doc
       // comment names this split (the engine says what a step means, an
       // application says which node that name resolves to). Built *after*
       // `widgetSurfaces` rather than before: a `widget_surface`'s own
@@ -233,6 +284,12 @@ class LessonCubit extends Cubit<LessonState> {
         for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
       };
 
+      // The screen went while the level was loading: nobody will show these
+      // surfaces, and a closed cubit cannot be handed them.
+      if (isClosed) {
+        widgetSurfaces.dispose();
+        return;
+      }
       emit(
         LessonReady(
           loaded.scene..add(camera),
@@ -243,7 +300,7 @@ class LessonCubit extends Cubit<LessonState> {
         ),
       );
     } catch (error) {
-      emit(LessonFailed(error));
+      if (!isClosed) emit(LessonFailed(error));
     }
   }
 
@@ -255,7 +312,10 @@ class LessonCubit extends Cubit<LessonState> {
   }
 }
 
+/// The viewer's one screen: opens the device, loads [kLevel], and shows the
+/// lesson once it is ready.
 class LessonScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and reads the lesson to open itself.
   const LessonScreen({super.key});
 
   @override
@@ -264,6 +324,7 @@ class LessonScreen extends StatefulWidget {
 
 class _LessonScreenState extends State<LessonScreen>
     with SingleTickerProviderStateMixin {
+  GraphicsDevice? _device;
   Renderer? _renderer;
   Object? _initError;
 
@@ -272,18 +333,34 @@ class _LessonScreenState extends State<LessonScreen>
 
   Ticker? _ticker;
 
+  /// The system's reduced-motion flag, handed to the widgets the lesson's
+  /// surfaces host ([widgetRegistry]), which cannot read it themselves.
+  final ValueNotifier<bool> _reduceMotion = ValueNotifier<bool>(false);
+
   @override
   void initState() {
     super.initState();
     unawaited(_open());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion.value = MediaQuery.disableAnimationsOf(context);
+  }
+
   Future<void> _open() async {
     final GraphicsDevice device;
     try {
       device = await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      setState(() => _renderer = Renderer.create(device: device));
+      if (!mounted) {
+        device.dispose();
+        return;
+      }
+      setState(() {
+        _device = device;
+        _renderer = Renderer.create(device: device);
+      });
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -291,8 +368,11 @@ class _LessonScreenState extends State<LessonScreen>
     await _lesson.open(
       device,
       camera: _camera,
-      widgetRegistry: widgetRegistry(),
+      widgetRegistry: widgetRegistry(reduceMotion: _reduceMotion),
     );
+    // Gone while the lesson loaded: a ticker cannot be made for a disposed
+    // state.
+    if (!mounted) return;
     // `widgetSurfaces.tickAll()` redraws whichever `widget_surface` this
     // lesson named, only on the frames its own pipeline marks dirty
     // (`wg-00`'s own rule) — driven by a ticker rather than only by the step
@@ -304,10 +384,17 @@ class _LessonScreenState extends State<LessonScreen>
     })..start();
   }
 
+  /// The device and the renderer are this screen's: `SceneSurface` only
+  /// borrows them, so they are given back here — after `close`, which
+  /// disposes the lesson's widget surfaces before it awaits anything, since
+  /// those surfaces release their meshes and textures to this same device.
   @override
   void dispose() {
     _ticker?.dispose();
     unawaited(_lesson.close());
+    _renderer?.dispose();
+    _device?.dispose();
+    _reduceMotion.dispose();
     super.dispose();
   }
 
@@ -338,12 +425,9 @@ class _LessonScreenState extends State<LessonScreen>
 
   Widget _didNotStart(Object error) => DidNotStart(
     error,
-    background: const Color(0xFF14161A),
-    foreground: const Color(0xFFFF8A80),
+    background: LessonTheme.background,
+    foreground: LessonTheme.error,
   );
 
-  Widget _loading() => const Scaffold(
-    backgroundColor: Color(0xFF14161A),
-    body: Center(child: CircularProgressIndicator()),
-  );
+  Widget _loading() => const LessonLoadingScreen();
 }

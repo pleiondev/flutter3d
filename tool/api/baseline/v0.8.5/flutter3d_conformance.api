@@ -1,0 +1,116 @@
+# The public API of flutter3d_conformance.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_conformance/flutter3d_conformance.dart
+
+typedef ConformanceCheck = ({String name, Future<void> Function(GraphicsDevice device) run});
+
+final class ConformanceDeclined implements Exception
+  String toString()
+  const ConformanceDeclined(this.reason)
+  final String reason
+
+final class ConformanceFailure implements Exception
+  String toString()
+  const ConformanceFailure(this.message)
+  final String message
+
+typedef DeviceFactory = FutureOr<GraphicsDevice> Function({required int width, required int height});
+
+final class FoldPowerOfTwo extends FuzzTransform
+  FuzzProgram? apply(FuzzProgram program)
+  Set<int> get involves
+  String toString()
+  const FoldPowerOfTwo(this.draw, this.exponent)
+  final int draw
+  final int exponent
+
+final class FuzzDraw
+  FuzzDraw copyWith({List<FuzzVertex>? triangles, int? exponent})
+  const FuzzDraw({required this.viewport, required this.triangles, this.scissor, this.blend, this.depthWrite = false, this.depthCompare = CompareFunction.always, this.exponent = 0})
+  final BlendState? blend
+  final CompareFunction depthCompare
+  final List<FuzzVertex> triangles
+  final ScreenRect viewport
+  final ScreenRect? scissor
+  final bool depthWrite
+  final int exponent
+  int get triangleCount
+
+final class FuzzFinding
+  String toString()
+  const FuzzFinding({required this.seed, required this.program, required this.transform, required this.differingBytes})
+  final FuzzProgram program
+  final FuzzTransform transform
+  final int differingBytes
+  final int seed
+
+final class FuzzProgram
+  FuzzProgram withDraws(List<FuzzDraw> draws)
+  Trace toTrace({required TextureFormat depthFormat})
+  const FuzzProgram({required this.width, required this.height, required this.clear, required this.depth, required this.draws})
+  final List<FuzzDraw> draws
+  final List<double> clear
+  final bool depth
+  final int height
+  final int width
+
+final class FuzzRandom
+  FuzzRandom(int seed)
+  T pick<T>(List<T> from)
+  bool chance(int percent)
+  double between(double lo, double hi)
+  int below(int n)
+
+sealed class FuzzTransform
+  FuzzProgram? apply(FuzzProgram program)
+  Set<int> get involves
+  const FuzzTransform()
+
+typedef OwnShaderSection = ({String id, ByteData bytes, String sdk});
+
+final class SplitDraw extends FuzzTransform
+  FuzzProgram? apply(FuzzProgram program)
+  Set<int> get involves
+  String toString()
+  const SplitDraw(this.draw, this.at)
+  final int at
+  final int draw
+
+final class SwapDisjointDraws extends FuzzTransform
+  FuzzProgram? apply(FuzzProgram program)
+  Set<int> get involves
+  String toString()
+  const SwapDisjointDraws(this.draw)
+  final int draw
+
+List<ConformanceCheck> get computeChecks
+
+List<ConformanceCheck> get conformanceChecks
+
+List<ConformanceCheck> conformanceChecksWith(Future<OwnShaderSection?> Function() ownShaders)
+
+List<ConformanceCheck> get coreChecks
+
+Never decline(GraphicsDevice device, String why)
+
+Future<Uint8List> drawFuzzProgram(FuzzProgram program, DeviceFactory makeDevice)
+
+Future<double> fuzzDifference(int seed, {required DeviceFactory device, required DeviceFactory reference, int threshold = 8})
+
+Future<List<FuzzFinding>> fuzzSeed(int seed, DeviceFactory makeDevice)
+
+FuzzProgram generateFuzzProgram(int seed)
+
+List<ConformanceCheck> loadedBundleChecks(Future<OwnShaderSection?> Function() ownShaders)
+
+void require(bool condition, String message)
+
+void runDeviceConformance({required String backend, required DeviceFactory makeDevice, Future<OwnShaderSection?> Function()? ownShaders})
+
+List<ConformanceCheck> get shaderChecks
+
+Future<FuzzFinding> shrinkFinding(FuzzFinding finding, DeviceFactory makeDevice)
+
+List<FuzzTransform> transformsFor(FuzzProgram program, int seed)

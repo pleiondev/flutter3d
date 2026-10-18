@@ -33,10 +33,10 @@ String materialKey(SurfaceMaterial surface, {bool named = true}) =>
     jsonEncode(<String, Object?>{
       if (named) 'name': surface.name,
       'baseColor': <double>[
-        surface.baseColor.x,
-        surface.baseColor.y,
-        surface.baseColor.z,
-        surface.baseColor.w,
+        surface.baseColor.toSrgb().r,
+        surface.baseColor.toSrgb().g,
+        surface.baseColor.toSrgb().b,
+        surface.baseColor.a,
       ],
       'metallic': surface.metallic,
       'roughness': surface.roughness,
@@ -48,9 +48,9 @@ String materialKey(SurfaceMaterial surface, {bool named = true}) =>
       'occlusionStrength': surface.occlusionStrength,
       'emissiveTexture': _bindingKey(surface.emissiveTexture),
       'emissive': <double>[
-        surface.emissive.x,
-        surface.emissive.y,
-        surface.emissive.z,
+        surface.emissive.r,
+        surface.emissive.g,
+        surface.emissive.b,
       ],
       'emissiveStrength': surface.emissiveStrength,
       'alphaMode': surface.alphaMode.name,

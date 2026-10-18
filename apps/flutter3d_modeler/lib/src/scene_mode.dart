@@ -15,7 +15,7 @@ library;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// How many lights `Renderer`'s own shadow pass ever serves in one frame —
-/// `Renderer.kShadowedLights` in `packages/flutter3d/lib/src/engine/render/
+/// `Renderer.shadowedLights` in `packages/flutter3d/lib/src/engine/render/
 /// renderer.dart`, restated here rather than imported because this package
 /// depends on `flutter3d_model_core`, not the engine, and a status line does
 /// not need a `GraphicsDevice` nearby to know what its own denominator is.
@@ -27,6 +27,8 @@ const int kSceneShadowCap = 6;
 
 /// What the status line says, and whether it should read as a warning.
 final class SceneStatus {
+  /// A status of [lightCount] lights, [shadowedCount] of them shadowing out
+  /// of [shadowCap].
   const SceneStatus({
     required this.lightCount,
     required this.shadowedCount,
@@ -61,7 +63,7 @@ final class SceneStatus {
 /// measured while drawing the thing.
 ///
 /// **The ninth light lights the warning, not a count this file guesses at.**
-/// `LightBuffer.maxLights` is 8; a ninth light in one draw is the light
+/// `LightNode.maxLights` is 8; a ninth light in one draw is the light
 /// `Renderer.render` could not fit, and it is *that* render's own
 /// `lightsDropped` this function is handed — see `mat-24`'s own acceptance,
 /// "девятый источник → оранжевый статус". Reading `lights.length > 8` here

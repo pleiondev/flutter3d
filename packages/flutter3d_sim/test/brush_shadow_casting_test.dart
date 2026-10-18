@@ -133,7 +133,7 @@ void main() {
       // Mutation: `whenAbsent: false` on the `shadowCasting` field. The
       // editor saves a level and the mode is gone from the document.
       final written = Brush(
-        centre: Vector3.zero(),
+        center: Vector3.zero(),
         size: Vector3.all(1.0),
         shadowCasting: ShadowCasting.doubleSided,
       ).toJson();
@@ -163,12 +163,12 @@ void main() {
     Level walls(ShadowCasting other) => Level(
       brushes: <Brush>[
         Brush(
-          centre: Vector3(0.0, 2.0, 0.0),
+          center: Vector3(0.0, 2.0, 0.0),
           size: Vector3(4.0, 4.0, 1.0),
           material: 'wall',
         ),
         Brush(
-          centre: Vector3(20.0, 2.0, 0.0),
+          center: Vector3(20.0, 2.0, 0.0),
           size: Vector3(4.0, 4.0, 1.0),
           material: 'wall',
           shadowCasting: other,

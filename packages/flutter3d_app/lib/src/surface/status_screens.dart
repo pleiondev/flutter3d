@@ -19,42 +19,50 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// Shown between a renderer that has started and a level that has not yet.
-class LoadingScreen extends StatelessWidget {
-  const LoadingScreen({super.key, this.message = 'Loading…'});
+import '../l10n/app_localizations.dart';
 
-  final String message;
+/// Shown between a renderer that has started and a level that has not yet.
+final class LoadingScreen extends StatelessWidget {
+  /// A black screen saying [message], or the localised "loading".
+  const LoadingScreen({super.key, this.message});
+
+  /// What it says; null says [Flutter3dAppLocalizations.loading].
+  final String? message;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
     body: Center(
-      child: Text(message, style: const TextStyle(color: Colors.white54)),
+      child: Text(
+        message ?? Flutter3dAppLocalizations.of(context).loading,
+        style: const TextStyle(color: Colors.white54),
+      ),
     ),
   );
 }
 
 /// Shown before the renderer exists, and if it never does.
 ///
-/// The shader-bundle sentence is here rather than in a game because it is the
-/// engine's own build step that produces the thing that is missing, and a
-/// person meeting this screen is far more likely to have changed the Flutter
-/// SDK than to have broken their game.
-class RendererFailure extends StatelessWidget {
+/// The shader-bundle sentence ([Flutter3dAppLocalizations.rebuildShaderBundle])
+/// is here rather than in a game because it is the engine's own build that
+/// produces the thing that is missing, and a person meeting this screen is
+/// far more likely to have changed the Flutter SDK than to have broken their
+/// game.
+final class RendererFailure extends StatelessWidget {
+  /// A screen showing [error] and the shader-bundle sentence.
   const RendererFailure({super.key, required this.error});
 
-  static const String _bundleHint =
-      'The shader bundle is built by '
-      'packages/flutter3d_impeller/tool/build_shaders.sh, and has to be '
-      'rebuilt after every Flutter SDK change.';
-
+  /// What the renderer threw, shown as its `toString`; null shows `null`.
   final Object? error;
 
   @override
-  Widget build(BuildContext context) => _Sheet(
-    title: 'The renderer did not start.',
-    lines: <String>['$error', _bundleHint],
-  );
+  Widget build(BuildContext context) {
+    final words = Flutter3dAppLocalizations.of(context);
+    return _Sheet(
+      title: words.rendererDidNotStart,
+      lines: <String>['$error', words.rebuildShaderBundle],
+    );
+  }
 }
 
 /// Shown when [asset] threw rather than loaded.
@@ -67,28 +75,43 @@ class RendererFailure extends StatelessWidget {
 /// [onStartOver] is the way out, and is optional. Where a game has one, the
 /// failing level is usually the saved one and throwing the run away is the
 /// only thing that rescues the player.
-class LevelLoadFailed extends StatelessWidget {
+final class LevelLoadFailed extends StatelessWidget {
+  /// A screen naming [asset] and [error], with a way out only when
+  /// [onStartOver] is given.
   const LevelLoadFailed({
     super.key,
     required this.asset,
     required this.error,
     this.onStartOver,
-    this.startOverLabel = 'Throw the run away and start again',
+    this.startOverLabel,
   });
 
+  /// The level file that would not load, shown first.
   final String asset;
+
+  /// What the load threw, shown under [asset].
   final Object error;
+
+  /// What the way-out button does; null shows no button.
   final VoidCallback? onStartOver;
-  final String startOverLabel;
+
+  /// The way out's label; null says [Flutter3dAppLocalizations.startOver].
+  final String? startOverLabel;
 
   @override
-  Widget build(BuildContext context) => _Sheet(
-    title: 'That level would not load.',
-    lines: <String>[asset, '$error'],
-    action: onStartOver == null
-        ? null
-        : TextButton(onPressed: onStartOver, child: Text(startOverLabel)),
-  );
+  Widget build(BuildContext context) {
+    final words = Flutter3dAppLocalizations.of(context);
+    return _Sheet(
+      title: words.levelWouldNotLoad,
+      lines: <String>[asset, '$error'],
+      action: onStartOver == null
+          ? null
+          : TextButton(
+              onPressed: onStartOver,
+              child: Text(startOverLabel ?? words.startOver),
+            ),
+    );
+  }
 }
 
 /// The shape all three share: black, centred, readable at a phone's width.

@@ -1,3 +1,70 @@
+## 1.0.0-rc.1
+
+- **Breaking: a time in a `double` says seconds in its name.**
+  `HolderXrSession.period` is `HolderXrSession.periodSeconds`; the value and
+  its unit are what they were. `dart fix` carries each rename out.
+- **Breaking: `RenderView` is `CameraView`.** `StereoRig` changed with it.
+  `package:flutter/rendering.dart` exports a `RenderView` too, the root of a
+  render tree, so a file importing both had to hide one.
+  `RenderViewSettings` is `CameraViewSettings` and `FrameView.ofRenderView`
+  is `FrameView.ofCameraView`; `dart fix` renames them.
+- **Breaking: `HeadPose` is `flutter3d_foundation`'s `RigidPose`.** Its
+  turn is `orientation` where it said `rotation`, and
+  `RigidPose.identity()` is `HeadPose.still()`.
+- **New: one lesson player for a flat screen and a holder.**
+  `applyLessonStepTo(viewer, step)` and `LessonPlayer.applyCurrentTo(viewer)`
+  take any `SceneNode`, a flat viewer's camera or a rig's stage;
+  `applyLessonStep` and `applyCurrent` keep taking a `StereoRig` and call
+  them. The flat lesson viewer's own copy of the player is gone.
+- **Stereo stands on the XR session.** `HolderXrSession` is a phone in a
+  holder, or held up, as an inline `XrSession`: the head from a
+  `HeadTracker`, the eyes turned with it, each frustum the holder's lenses'
+  own as four angles. `StereoRig.applyFrame` takes the rig's head and eyes
+  from any session's frame, a headset's or a holder's.
+- **Breaking: `LessonStereoView` and `StereoSurface` are `final`.** A
+  widget is composed, not subclassed; a class that extended one builds one
+  instead.
+- **Docs**: `StereoRig.interpupillaryDistance` says its default, 64 mm.
+- **`StereoSurface.onListenerMoved` is handed a `ListenerPose`**, as
+  `Flutter3dView`'s is: position, forward, up and the scene's origin.
+- **Breaking: `StereoSurface` is a `Flutter3dView`.** It draws the rig's
+  two views through the view, which owns the frame clock, focus and the
+  pause a route change brings, so the pair redraws every frame without the
+  caller rebuilding it; `onBeforeFrame` runs each frame before it is drawn,
+  and `onListenerMoved` follows the left eye. The renderer is borrowed, as
+  before. `verticalFieldOfView` is `fovY` on `StereoSurface`, on
+  `StereoRig.fitToViewport` and on `StereoRig` itself. `dart fix` carries
+  the renames. `LessonStereoView`'s step buttons read their tooltips from
+  `Flutter3dAppLocalizations`.
+- **Breaking: `headRotationFromSensor(displayRotationDegrees:)` is
+  `displayRotation:`**, a `double` in radians (docs/CONTRACTS.md).
+  `decodeSensorEvent` converts the platform's degrees where it reads them.
+- **Each eye keeps its own past.** The rig's two `RenderView`s are kept for
+  its life, and since 1.0 a view, not a camera, holds the reprojection's last
+  frame; `StereoRig.dispose` gives back what renderers kept for them.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Breaking: `HeadTracker` is an `abstract base class`**, extended rather
+  than implemented, so a member added in a minor release can arrive with a
+  body. `start` and `stop` do nothing by default; a tracker says where the
+  head is. `SensorHeadTracker` extends it.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
+`PassEncoder.draw` a window of the bound indices and every `PassEncoder`
+`setAlphaToCoverage`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

@@ -54,6 +54,7 @@ enum ShortcutSection {
 
 /// One row of the shortcut table: the key, and what it does.
 final class ShortcutEntry {
+  /// A row saying that [keys] does [label], filed under [section].
   const ShortcutEntry({
     required this.label,
     required this.keys,
@@ -69,6 +70,7 @@ final class ShortcutEntry {
   /// mention the camera would be missing the first question people ask.
   final String keys;
 
+  /// Which section of the help screen the row is listed under.
   final ShortcutSection section;
 }
 

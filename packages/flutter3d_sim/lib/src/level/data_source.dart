@@ -13,7 +13,11 @@ import 'entity_def.dart';
 /// `WebSocketDataSource` are therefore adapters a caller writes against this
 /// interface, in whatever package can afford to know about sockets; this
 /// package ships the one implementation it can prove without one.
-abstract class EduDataSource {
+///
+/// **A base class**, extended rather than implemented, so a member added in
+/// a minor arrives with a default and an adapter keeps compiling.
+abstract base class EduDataSource {
+  /// Lets a subclass be const.
   const EduDataSource();
 
   /// The payload this source held at [step] — whatever shape the real sensor
@@ -31,6 +35,8 @@ abstract class EduDataSource {
 /// factory is wired up, and a test that branches a run at step 50 has to
 /// reach the same value twice, on two different machines, forever.
 final class SamplerDataSource extends EduDataSource {
+  /// A source answering each step with what the given function returns
+  /// for it; the function must give the same answer for the same step.
   const SamplerDataSource(this._sample);
 
   final Object? Function(int step) _sample;
@@ -41,11 +47,13 @@ final class SamplerDataSource extends EduDataSource {
 
 /// Every [EduDataSource] a level's `bindings` may name, by [EntityDef.name].
 final class DataSourceRegistry {
+  /// A registry of [sources] by name; the map is copied.
   DataSourceRegistry(Map<String, EduDataSource> sources)
     : _sources = Map<String, EduDataSource>.of(sources);
 
   final Map<String, EduDataSource> _sources;
 
+  /// The source called [name], or null when none is.
   EduDataSource? operator [](String name) => _sources[name];
 
   /// Swaps in a different source under the same name — the whole of a

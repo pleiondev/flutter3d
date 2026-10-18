@@ -5,11 +5,15 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `instancing` page: a field of coloured capsules in one
+/// `InstancedMeshNode`, turning. Its check is that all of them were drawn
+/// from it.
 final class InstancingDemo extends ShowcaseDemo {
+  /// How many capsules the field holds, and its capacity.
   static const int instanceCount = 64;
 
+  /// How fast the field turns, in radians a second, 0 to 1.5.
   double rotationSpeed = 0.25;
   double _angle = 0.0;
 
@@ -36,9 +40,9 @@ final class InstancingDemo extends ShowcaseDemo {
           rings: 6,
         ).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'instance material',
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
         roughness: 0.48,
       ),
       capacity: instanceCount,
@@ -58,7 +62,7 @@ final class InstancingDemo extends ShowcaseDemo {
         ..scaleByDouble(1.0, 0.85 + height * 0.2, 1.0, 1.0);
       _field.addInstance(
         transform,
-        color: Vector4(
+        color: LinearColor(
           0.3 + x / 12.0,
           0.32 + z / 13.0,
           0.78 - (x + z) / 36.0,
@@ -70,11 +74,11 @@ final class InstancingDemo extends ShowcaseDemo {
 
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.52, 0.68)
-      ..ambientIntensity = 0.13
+      ..ambientColor = LinearColor(0.45, 0.52, 0.68)
+      ..ambientIntensity = 0.13 * LightNode.defaultIntensity
       ..add(_field)
       ..add(
-        LightNode(name: 'sun', intensity: 3.2)
+        LightNode(name: 'sun', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.5, -0.8, -0.32)),
       );
     // #endregion scene

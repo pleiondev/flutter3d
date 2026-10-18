@@ -24,7 +24,8 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException, defaultStorage;
 
 import 'recent_projects.dart' show RecentModels;
 import 'ui/dock_layout.dart';
@@ -45,6 +46,8 @@ enum NavigationScheme {
   /// comes from the Select tool or `B`; the right button held is free-look.
   leftDragOrbit;
 
+  /// What a settings file stores for the scheme. Never changes, whatever the
+  /// label says.
   String get id => switch (this) {
     NavigationScheme.middleMouseOrbit => 'middle-mouse-orbit',
     NavigationScheme.leftDragOrbit => 'left-drag-orbit',
@@ -58,6 +61,7 @@ enum NavigationScheme {
     NavigationScheme.leftDragOrbit => 'Left-drag orbit',
   };
 
+  /// The scheme stored as [id], or null for one this build does not know.
   static NavigationScheme? byId(String? id) {
     for (final NavigationScheme it in NavigationScheme.values) {
       if (it.id == id) return it;
@@ -79,18 +83,22 @@ enum KeymapPreset {
   /// navigate.
   toolKeys;
 
+  /// What a settings file stores for the preset.
   String get id => switch (this) {
     KeymapPreset.standard => 'standard',
     KeymapPreset.modalKeys => 'modal-keys',
     KeymapPreset.toolKeys => 'tool-keys',
   };
 
+  /// What the Settings screen shows, in English, as [NavigationScheme.label]
+  /// is.
   String get label => switch (this) {
     KeymapPreset.standard => 'Default',
     KeymapPreset.modalKeys => 'Modal keys',
     KeymapPreset.toolKeys => 'Tool keys',
   };
 
+  /// The preset stored as [id], or null for one this build does not know.
   static KeymapPreset? byId(String? id) {
     for (final KeymapPreset it in KeymapPreset.values) {
       if (it.id == id) return it;
@@ -109,16 +117,20 @@ enum TransformStart {
   /// what this application did before there was a choice.
   armThenDrag;
 
+  /// What a settings file stores for the choice.
   String get id => switch (this) {
     TransformStart.modalOnPress => 'modal-on-press',
     TransformStart.armThenDrag => 'arm-then-drag',
   };
 
+  /// What the Settings screen shows, in English, as [NavigationScheme.label]
+  /// is.
   String get label => switch (this) {
     TransformStart.modalOnPress => 'Modal on press',
     TransformStart.armThenDrag => 'Arm, then drag',
   };
 
+  /// The choice stored as [id], or null for one this build does not know.
   static TransformStart? byId(String? id) {
     for (final TransformStart it in TransformStart.values) {
       if (it.id == id) return it;
@@ -136,16 +148,20 @@ enum Workspace {
   /// Everything the application has, Mesh and Animation included.
   full;
 
+  /// What a settings file stores for the workspace.
   String get id => switch (this) {
     Workspace.essential => 'essential',
     Workspace.full => 'full',
   };
 
+  /// What the Settings screen shows, in English, as [NavigationScheme.label]
+  /// is.
   String get label => switch (this) {
     Workspace.essential => 'Essential',
     Workspace.full => 'Full',
   };
 
+  /// The workspace stored as [id], or null for one this build does not know.
   static Workspace? byId(String? id) {
     for (final Workspace it in Workspace.values) {
       if (it.id == id) return it;
@@ -161,6 +177,8 @@ enum Workspace {
 /// readers can never disagree about what the settings are halfway through a
 /// write.
 final class ModelerSettings {
+  /// The settings of a first launch, with any choice given replacing its
+  /// default.
   const ModelerSettings({
     this.navigation = NavigationScheme.middleMouseOrbit,
     this.keymap = KeymapPreset.standard,
@@ -176,133 +194,6 @@ final class ModelerSettings {
     this.propertiesWidth = 250,
     this.layouts = const <String, DockLayout>{},
   });
-
-  /// How the camera is driven.
-  final NavigationScheme navigation;
-
-  /// Which keys are live.
-  final KeymapPreset keymap;
-
-  /// How `G`/`R`/`S` begin.
-  ///
-  /// Defaults to what the application already did, so an existing person's
-  /// hands are not retrained by an upgrade; Quick Setup is where the other
-  /// one is offered.
-  final TransformStart transformStart;
-
-  /// Which screens the mode switcher offers.
-  final Workspace workspace;
-
-  /// The language code the interface is shown in — `ru` or `en` — or null for
-  /// whatever the system says, which is what a first launch gets.
-  final String? language;
-
-  /// Whether the Home screen opens at launch — `ux-42`'s own row. On by
-  /// default: a person who has just installed a modeller has no file open and
-  /// nothing to look at but a cube.
-  final bool showHomeAtLaunch;
-
-  /// Whether a project is written with its own undo history in it.
-  ///
-  /// On, because the alternative is a save that silently drops what a person
-  /// could still have undone. The review found this asked as a dialog on
-  /// every save, which is a question with the same answer every time.
-  final bool saveWithHistory;
-
-  /// Whether the one-page setup has been through once — `ux-42` shows it on a
-  /// first launch and never again.
-  final bool quickSetupDone;
-
-  /// How coarse a held snap is, per kind of transform — `ux-11`.
-  ///
-  /// **Settings rather than three constants in `transform_modal.dart`.** The
-  /// steps every modeller ships with are a tenth of a unit, fifteen degrees
-  /// and a tenth of a factor, and they are right until somebody is working at
-  /// a scale where they are not: a millimetre part wants a millimetre step,
-  /// and an architectural scene wants a quarter metre. The chips the viewport
-  /// shows during a transform read these, so what the modifier will do is
-  /// legible before it is held.
-  final double snapMove;
-
-  /// In degrees, because that is what a person types. `TransformModal` takes
-  /// radians and the conversion happens where the two meet.
-  final double snapTurnDegrees;
-
-  final double snapScale;
-
-  /// How wide the properties panel is, in logical pixels — `ux-27`.
-  ///
-  /// Remembered because it is a choice about the window a person makes once
-  /// and expects to find again, the same as which keys are live: dragging a
-  /// panel back to the width you work at on every launch is the kind of
-  /// thing people stop doing and then work narrow instead.
-  final double propertiesWidth;
-
-  /// How each workspace has its window arranged — `ux-38`.
-  ///
-  /// **Beside [propertiesWidth] rather than instead of it.** That field is
-  /// what every build before this one wrote, and a settings file from one of
-  /// them has to keep opening at the width its owner dragged the panel to;
-  /// `layoutFor` falls back to it for a workspace with no entry here yet, so
-  /// the first launch after an upgrade looks exactly like the last one
-  /// before it.
-  final DockLayouts layouts;
-
-  ModelerSettings copyWith({
-    NavigationScheme? navigation,
-    KeymapPreset? keymap,
-    TransformStart? transformStart,
-    Workspace? workspace,
-    String? language,
-    bool clearLanguage = false,
-    bool? showHomeAtLaunch,
-    bool? saveWithHistory,
-    bool? quickSetupDone,
-    double? snapMove,
-    double? snapTurnDegrees,
-    double? snapScale,
-    double? propertiesWidth,
-    DockLayouts? layouts,
-  }) => ModelerSettings(
-    navigation: navigation ?? this.navigation,
-    keymap: keymap ?? this.keymap,
-    transformStart: transformStart ?? this.transformStart,
-    workspace: workspace ?? this.workspace,
-    language: clearLanguage ? null : (language ?? this.language),
-    showHomeAtLaunch: showHomeAtLaunch ?? this.showHomeAtLaunch,
-    saveWithHistory: saveWithHistory ?? this.saveWithHistory,
-    quickSetupDone: quickSetupDone ?? this.quickSetupDone,
-    snapMove: snapMove ?? this.snapMove,
-    snapTurnDegrees: snapTurnDegrees ?? this.snapTurnDegrees,
-    snapScale: snapScale ?? this.snapScale,
-    propertiesWidth: propertiesWidth ?? this.propertiesWidth,
-    layouts: layouts ?? this.layouts,
-  );
-
-  /// [workspace]'s own layout, falling back to [propertiesWidth] for a
-  /// workspace this file has never arranged.
-  DockLayout layoutOf(Workspace workspace) =>
-      layouts[workspace.id] ?? DockLayout(propertiesWidth: propertiesWidth);
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'navigation': navigation.id,
-    'keymap': keymap.id,
-    'transformStart': transformStart.id,
-    'workspace': workspace.id,
-    if (language != null) 'language': language,
-    'showHomeAtLaunch': showHomeAtLaunch,
-    'saveWithHistory': saveWithHistory,
-    'quickSetupDone': quickSetupDone,
-    'snapMove': snapMove,
-    'snapTurnDegrees': snapTurnDegrees,
-    'snapScale': snapScale,
-    'propertiesWidth': propertiesWidth,
-    if (layouts.isNotEmpty)
-      'layouts': <String, Object?>{
-        for (final MapEntry<String, DockLayout> each in layouts.entries)
-          each.key: each.value.toJson(),
-      },
-  };
 
   /// What [json] says, with the default standing in for anything it does not
   /// say or says wrongly — see the library comment for why that is not an
@@ -361,6 +252,139 @@ final class ModelerSettings {
       },
     );
   }
+
+  /// How the camera is driven.
+  final NavigationScheme navigation;
+
+  /// Which keys are live.
+  final KeymapPreset keymap;
+
+  /// How `G`/`R`/`S` begin.
+  ///
+  /// Defaults to what the application already did, so an existing person's
+  /// hands are not retrained by an upgrade; Quick Setup is where the other
+  /// one is offered.
+  final TransformStart transformStart;
+
+  /// Which screens the mode switcher offers.
+  final Workspace workspace;
+
+  /// The language code the interface is shown in — `ru` or `en` — or null for
+  /// whatever the system says, which is what a first launch gets.
+  final String? language;
+
+  /// Whether the Home screen opens at launch — `ux-42`'s own row. On by
+  /// default: a person who has just installed a modeller has no file open and
+  /// nothing to look at but a cube.
+  final bool showHomeAtLaunch;
+
+  /// Whether a project is written with its own undo history in it.
+  ///
+  /// On, because the alternative is a save that silently drops what a person
+  /// could still have undone. The review found this asked as a dialog on
+  /// every save, which is a question with the same answer every time.
+  final bool saveWithHistory;
+
+  /// Whether the one-page setup has been through once — `ux-42` shows it on a
+  /// first launch and never again.
+  final bool quickSetupDone;
+
+  /// How coarse a held snap is, per kind of transform — `ux-11`.
+  ///
+  /// **Settings rather than three constants in `transform_modal.dart`.** The
+  /// steps every modeller ships with are a tenth of a unit, fifteen degrees
+  /// and a tenth of a factor, and they are right until somebody is working at
+  /// a scale where they are not: a millimetre part wants a millimetre step,
+  /// and an architectural scene wants a quarter metre. The chips the viewport
+  /// shows during a transform read these, so what the modifier will do is
+  /// legible before it is held.
+  final double snapMove;
+
+  /// In degrees, because that is what a person types. `TransformModal` takes
+  /// radians and the conversion happens where the two meet.
+  final double snapTurnDegrees;
+
+  /// The step a held snap modifier scales by, as a fraction: 0.1 is ten per
+  /// cent a step.
+  final double snapScale;
+
+  /// How wide the properties panel is, in logical pixels — `ux-27`.
+  ///
+  /// Remembered because it is a choice about the window a person makes once
+  /// and expects to find again, the same as which keys are live: dragging a
+  /// panel back to the width you work at on every launch is the kind of
+  /// thing people stop doing and then work narrow instead.
+  final double propertiesWidth;
+
+  /// How each workspace has its window arranged — `ux-38`.
+  ///
+  /// **Beside [propertiesWidth] rather than instead of it.** That field is
+  /// what every build before this one wrote, and a settings file from one of
+  /// them has to keep opening at the width its owner dragged the panel to;
+  /// `layoutFor` falls back to it for a workspace with no entry here yet, so
+  /// the first launch after an upgrade looks exactly like the last one
+  /// before it.
+  final DockLayouts layouts;
+
+  /// These settings with the given ones replaced; [clearLanguage] goes back
+  /// to following the system, which a null [language] cannot say.
+  ModelerSettings copyWith({
+    NavigationScheme? navigation,
+    KeymapPreset? keymap,
+    TransformStart? transformStart,
+    Workspace? workspace,
+    String? language,
+    bool clearLanguage = false,
+    bool? showHomeAtLaunch,
+    bool? saveWithHistory,
+    bool? quickSetupDone,
+    double? snapMove,
+    double? snapTurnDegrees,
+    double? snapScale,
+    double? propertiesWidth,
+    DockLayouts? layouts,
+  }) => ModelerSettings(
+    navigation: navigation ?? this.navigation,
+    keymap: keymap ?? this.keymap,
+    transformStart: transformStart ?? this.transformStart,
+    workspace: workspace ?? this.workspace,
+    language: clearLanguage ? null : (language ?? this.language),
+    showHomeAtLaunch: showHomeAtLaunch ?? this.showHomeAtLaunch,
+    saveWithHistory: saveWithHistory ?? this.saveWithHistory,
+    quickSetupDone: quickSetupDone ?? this.quickSetupDone,
+    snapMove: snapMove ?? this.snapMove,
+    snapTurnDegrees: snapTurnDegrees ?? this.snapTurnDegrees,
+    snapScale: snapScale ?? this.snapScale,
+    propertiesWidth: propertiesWidth ?? this.propertiesWidth,
+    layouts: layouts ?? this.layouts,
+  );
+
+  /// [workspace]'s own layout, falling back to [propertiesWidth] for a
+  /// workspace this file has never arranged.
+  DockLayout layoutOf(Workspace workspace) =>
+      layouts[workspace.id] ?? DockLayout(propertiesWidth: propertiesWidth);
+
+  /// The document [ModelerSettings.fromJson] reads back, with each choice
+  /// written as its stable id.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'navigation': navigation.id,
+    'keymap': keymap.id,
+    'transformStart': transformStart.id,
+    'workspace': workspace.id,
+    if (language != null) 'language': language,
+    'showHomeAtLaunch': showHomeAtLaunch,
+    'saveWithHistory': saveWithHistory,
+    'quickSetupDone': quickSetupDone,
+    'snapMove': snapMove,
+    'snapTurnDegrees': snapTurnDegrees,
+    'snapScale': snapScale,
+    'propertiesWidth': propertiesWidth,
+    if (layouts.isNotEmpty)
+      'layouts': <String, Object?>{
+        for (final MapEntry<String, DockLayout> each in layouts.entries)
+          each.key: each.value.toJson(),
+      },
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -425,13 +449,14 @@ final class SettingsStore {
   /// Beside `recent.json`, in the same per-platform directory.
   static const String name = 'settings.json';
 
+  /// Where the document is read from and written to.
   final Storage storage;
 
   /// What is stored, or the defaults on a first launch — and on a document
   /// that will not parse, which is the same thing as far as a person can
   /// tell.
-  ModelerSettings read() {
-    final String? text = storage.read(name);
+  Future<ModelerSettings> read() async {
+    final String? text = await storage.read(name);
     if (text == null) return const ModelerSettings();
     try {
       final Object? json = jsonDecode(text);
@@ -449,8 +474,15 @@ final class SettingsStore {
   /// remembered — unlike the recent list, which is a convenience nobody
   /// requested — and a preference that silently did not stick is worse than
   /// one that says so.
-  bool write(ModelerSettings settings) => storage.write(
-    name,
-    const JsonEncoder.withIndent('  ').convert(settings.toJson()),
-  );
+  Future<bool> write(ModelerSettings settings) async {
+    try {
+      await storage.write(
+        name,
+        const JsonEncoder.withIndent('  ').convert(settings.toJson()),
+      );
+      return true;
+    } on StorageException {
+      return false;
+    }
+  }
 }

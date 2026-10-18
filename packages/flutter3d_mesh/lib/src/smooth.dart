@@ -33,6 +33,8 @@ OpResult smoothVertices(
   EditMesh mesh,
   Selection selection, {
   required int iterations,
+
+  /// The 0..1 fraction of the way each step moves toward the average.
   double lambda = 0.5,
   bool preserveVolume = false,
 }) {

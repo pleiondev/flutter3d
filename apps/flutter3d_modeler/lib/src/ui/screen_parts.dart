@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 /// One screen's worth of content, built once and not yet arranged into a
 /// shell.
 class ScreenParts {
+  /// The parts of one screen, for [ShellForWidth] to arrange.
   const ScreenParts({
     required this.actions,
     required this.status,

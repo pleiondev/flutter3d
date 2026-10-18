@@ -8,12 +8,21 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `static-cascades` page: a field of blocks and a rolling ball under the
+/// sun, the blocks kept in a static atlas. Its check counts what the first
+/// frame and a frame after the ball moves draw into the sun's map.
 final class StaticCascadesDemo extends ShowcaseDemo {
+  /// Whether the blocks are marked `shadowIsStatic`.
   bool blocksAreStatic = true;
+
+  /// Whether the camera walks across the field.
   bool walk = true;
+
+  /// Whether the ball rolls.
   bool roll = true;
+
+  /// Whether the sun's atlas is shown on screen.
   bool showAtlas = false;
 
   static const int _cascades = 3;
@@ -43,9 +52,9 @@ final class StaticCascadesDemo extends ShowcaseDemo {
             context.device,
             const PlaneShape(width: 18, depth: 12).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'ground',
-            baseColor: Vector4(0.55, 0.55, 0.53, 1.0),
+            baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.53, 1.0),
             roughness: 0.9,
             doubleSided: true,
           ),
@@ -58,9 +67,9 @@ final class StaticCascadesDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.4, 0.8, 0.4)).build(),
     );
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.5, 0.48, 0.45, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.48, 0.45, 1.0),
       roughness: 0.85,
     );
     _blocks = <MeshNode>[
@@ -79,9 +88,9 @@ final class StaticCascadesDemo extends ShowcaseDemo {
         context.device,
         const SphereShape(radius: 0.25, segments: 24, rings: 12).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'clay',
-        baseColor: Vector4(0.6, 0.32, 0.22, 1.0),
+        baseColor: LinearColor.fromSrgb(0.6, 0.32, 0.22, 1.0),
         roughness: 0.7,
       ),
       name: 'ball',
@@ -91,7 +100,7 @@ final class StaticCascadesDemo extends ShowcaseDemo {
 
     // #region sun
     scene.add(
-      LightNode(name: 'sun', intensity: 1.8)
+      LightNode(name: 'sun', intensity: 1.8 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-4.0, -5.0, -0.01).normalized()),
     );
     // #endregion sun

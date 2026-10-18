@@ -14,17 +14,27 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `positional-audio` page: a bell placed around a listener on a silent
+/// backend that records its voices. Its check is that a bell straight to the
+/// right pans hard right.
 final class PositionalAudioDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// How far the bell is from the listener, in metres, 0.5 to 12.
   double distance = 4.0;
+
+  /// Where the bell stands around the listener, in degrees, -180 to 180;
+  /// advanced 25 degrees a second while [orbiting].
   double angle = 0.0;
+
+  /// Whether the bell walks round the listener; dragging the angle stops it.
   bool orbiting = true;
+
+  /// Whether the listener faces a quarter turn away from the bell.
   bool turnedAway = false;
 
-  late final SoundEmitter _emitter;
+  late final AudioEmitter _emitter;
   late final AudioScene _audio;
   late final AudioListener _listener;
   late final MeshNode _source;

@@ -1,0 +1,578 @@
+/// A cutscene as a document: a camera on a path, words on the screen, a
+/// fade, and signals to the game at given moments.
+///
+/// ## In steps, not in seconds
+///
+/// A document says when things happen in seconds, because that is how a
+/// person writing one thinks. [Sequence.read] turns every moment into the
+/// whole step it falls on, once, for the step rate it is read for; after
+/// that a cutscene is compared in integers, so a signal is fired on the same
+/// step on every machine a run is replayed on, and a cutscene restored from
+/// a snapshot at step 300 fires what is after 300 and nothing before.
+///
+/// ## What a cutscene does not do
+///
+/// It names no sound, no clip, no animation parameter. Those are the game's,
+/// and a cutscene reaches them the way a simulation reaches anything of the
+/// game's: by a signal — a `SequenceSignal` event with a name and whatever
+/// data the document gave it — that the game answers. What a cutscene owns
+/// is what is about the picture and nothing else: where the camera is, what
+/// the subtitles say, how dark the screen is.
+///
+/// ## Keys here, the picture in `flutter3d_camera`
+///
+/// This library holds the keys as the document wrote them, in steps, which
+/// is what a replay or a server reads. Turning them into the camera's pose,
+/// the fade and the subtitle of a frame is `SequenceView`'s, in
+/// `flutter3d_camera`: nothing the step computes depends on it.
+library;
+
+import 'dart:math' as math;
+
+import 'package:vector_math/vector_math.dart';
+
+/// One camera key: where the eye is, what it looks at, how wide it sees —
+/// the vertical field of view in degrees, forty-five unless the document
+/// says, which is the engine's own lens, so a cutscene that names none cuts
+/// to it without the picture changing size.
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class CameraKey {
+  /// A key reached on [step]; [fovY] is in radians.
+  const CameraKey({
+    required this.step,
+    required this.at,
+    required this.look,
+    required this.fovY,
+  });
+
+  /// The step it is reached on.
+  final int step;
+
+  /// Where the eye is, in metres.
+  final Vector3 at;
+
+  /// The point it looks at, in metres.
+  final Vector3 look;
+
+  /// The vertical field of view, in radians, read from the document's
+  /// degrees.
+  final double fovY;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is CameraKey &&
+      other.step == step &&
+      other.at == at &&
+      other.look == look &&
+      other.fovY == fovY;
+
+  @override
+  int get hashCode => Object.hash(step, at, look, fovY);
+
+  @override
+  String toString() =>
+      'CameraKey(step: $step, at: $at, look: $look, fovY: $fovY)';
+}
+
+/// One subtitle: shown from step [from] up to, not including, step [to].
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class SubtitleCue {
+  /// A subtitle of [text] shown from step [from] up to step [to].
+  const SubtitleCue({required this.from, required this.to, required this.text});
+
+  /// The first step it is shown on.
+  final int from;
+
+  /// The step it is gone by.
+  final int to;
+
+  /// What it says.
+  final String text;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is SubtitleCue &&
+      other.from == from &&
+      other.to == to &&
+      other.text == text;
+
+  @override
+  int get hashCode => Object.hash(from, to, text);
+
+  @override
+  String toString() => 'SubtitleCue(from: $from, to: $to, text: $text)';
+}
+
+/// One fade key: how dark the screen is at a step, nought clear and one
+/// black.
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class FadeKey {
+  /// A fade to [value], a fraction from nought to one, reached on [step].
+  const FadeKey({required this.step, required this.value});
+
+  /// The step it is reached on.
+  final int step;
+
+  /// How dark, a fraction: 0 clear, 1 black.
+  final double value;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is FadeKey && other.step == step && other.value == value;
+
+  @override
+  int get hashCode => Object.hash(step, value);
+
+  @override
+  String toString() => 'FadeKey(step: $step, value: $value)';
+}
+
+/// One signal: [name] fired, with [data], on [step].
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class SignalCue {
+  /// A signal [name] with [data], fired on [step].
+  const SignalCue({required this.step, required this.name, required this.data});
+
+  /// The step it fires on.
+  final int step;
+
+  /// What the game answers to.
+  final String name;
+
+  /// What the document gave it.
+  final Map<String, Object?> data;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is SignalCue &&
+      other.step == step &&
+      other.name == name &&
+      // ignore: avoid-collection-equality-checks, the same map, as the record compared it
+      other.data == data;
+
+  @override
+  int get hashCode => Object.hash(step, name, data);
+
+  @override
+  String toString() => 'SignalCue(step: $step, name: $name, data: $data)';
+}
+
+/// What a cutscene tells an actor to do.
+///
+/// **A class with constant instances, not an enum**, because the verbs a
+/// cutscene has will grow — play this, pick that up — and a value added to
+/// an enum breaks every exhaustive `switch` written against it. Compared by
+/// identity: [values] are the only instances there are.
+final class ActorCueKind {
+  const ActorCueKind._(this.name);
+
+  /// What a document calls it.
+  final String name;
+
+  /// Walk to [ActorCue.at], over the navigation mesh where there is one, and
+  /// stand there.
+  static const ActorCueKind goTo = ActorCueKind._('goTo');
+
+  /// Turn to look at [ActorCue.at], standing.
+  static const ActorCueKind face = ActorCueKind._('face');
+
+  /// Stand where it is.
+  static const ActorCueKind stand = ActorCueKind._('stand');
+
+  /// Back to its own brain.
+  static const ActorCueKind release = ActorCueKind._('release');
+
+  /// Stand, and make the gesture [ActorCue.clip] once, on the cue's step —
+  /// a clip the game's animation knows by that name.
+  static const ActorCueKind play = ActorCueKind._('play');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ActorCueKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every kind, in the order a refusal lists them.
+  static const List<ActorCueKind> values = <ActorCueKind>[
+    goTo,
+    face,
+    stand,
+    release,
+    play,
+  ];
+
+  @override
+  String toString() => name;
+}
+
+/// One actor's direction from [step] until its next: who, what, and where.
+///
+/// A class rather than a record, so a key can take another field in a
+/// minor (an easing of its own, a roll) without breaking a reader.
+final class ActorCue {
+  /// A cue telling [actor] to [kind] from [step]; [at] and [clip] are null
+  /// for a kind that needs neither.
+  const ActorCue({
+    required this.step,
+    required this.actor,
+    required this.kind,
+    this.at,
+    this.clip,
+  });
+
+  /// The step it is given on.
+  final int step;
+
+  /// The actor it directs, by name.
+  final String actor;
+
+  /// What it tells the actor to do.
+  final ActorCueKind kind;
+
+  /// Where, in metres, for a kind that goes or faces somewhere.
+  final Vector3? at;
+
+  /// The gesture [ActorCueKind.play] makes.
+  final String? clip;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is ActorCue &&
+      other.step == step &&
+      other.actor == actor &&
+      other.kind == kind &&
+      other.at == at &&
+      other.clip == clip;
+
+  @override
+  int get hashCode => Object.hash(step, actor, kind, at, clip);
+
+  @override
+  String toString() =>
+      'ActorCue(step: $step, actor: $actor, kind: $kind, at: $at, clip: $clip)';
+}
+
+/// What [Sequence.read] made of a document: the sequence, or every problem
+/// with it and where.
+///
+/// A class rather than a record, so a later field is not a break.
+final class SequenceRead {
+  /// A result holding [sequence], or null with the [problems] found.
+  const SequenceRead({required this.sequence, required this.problems});
+
+  /// The sequence, or null when the document has problems.
+  final Sequence? sequence;
+
+  /// Every problem with the document, each saying where; empty when it read.
+  final List<String> problems;
+}
+
+/// A cutscene, its moments in steps.
+final class Sequence {
+  Sequence._({
+    required this.steps,
+    required this.stepsPerSecond,
+    required this.cameraKeys,
+    required this.ease,
+    required this.subtitles,
+    required this.fades,
+    required this.signals,
+    required this.actorCues,
+  });
+
+  /// How long it runs, in steps.
+  final int steps;
+
+  /// The step rate its moments were read for.
+  final int stepsPerSecond;
+
+  /// The camera's keys, in step order; empty when the cutscene leaves the
+  /// camera to the game.
+  final List<CameraKey> cameraKeys;
+
+  /// Whether the camera eases in and out of each key rather than keeping one
+  /// speed between them.
+  final bool ease;
+
+  /// The subtitles in document order, each ending after it starts.
+  final List<SubtitleCue> subtitles;
+
+  /// The fade's keys in step order, each after the one before; empty when
+  /// the screen is never faded.
+  final List<FadeKey> fades;
+
+  /// In step order, and in document order where two share a step.
+  final List<SignalCue> signals;
+
+  /// In step order, and in document order where two share a step: an
+  /// actor's direction at a step is the last of its cues at or before it.
+  final List<ActorCue> actorCues;
+
+  /// Reads [json] for a game stepping [stepsPerSecond] times a second, or
+  /// refuses it with every problem and where it is.
+  ///
+  /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fov"}],
+  /// "ease": true}, "subtitles": [{"from", "to", "text"}], "fade": [{"t",
+  /// "value"}], "signals": [{"t", "name", "data"}], "actors": [{"t",
+  /// "actor", "do", "at", "clip"}]}` — every part but
+  /// `seconds` may be left out. A moment past the end is a problem: a
+  /// cutscene that is skipped would never reach it.
+  static SequenceRead read(Object? json, {required int stepsPerSecond}) {
+    final problems = <String>[];
+    if (json is! Map) {
+      return const SequenceRead(
+        sequence: null,
+        problems: <String>['a sequence is an object'],
+      );
+    }
+    int stepOf(double seconds) => (seconds * stepsPerSecond).round();
+
+    double? number(Map<Object?, Object?> row, String key, String where) {
+      final value = row[key];
+      if (value is num) return value.toDouble();
+      problems.add('$where.$key: a number, not ${value ?? 'nothing'}');
+      return null;
+    }
+
+    Vector3? vector(Map<Object?, Object?> row, String key, String where) {
+      final value = row[key];
+      if (value is List && value.length == 3 && value.every((e) => e is num)) {
+        return Vector3(
+          (value[0] as num).toDouble(),
+          (value[1] as num).toDouble(),
+          (value[2] as num).toDouble(),
+        );
+      }
+      problems.add('$where.$key: three numbers');
+      return null;
+    }
+
+    // Each object of the list at [value] with its index in it, so that a
+    // problem further down still says which row it is in.
+    List<(int, Map<Object?, Object?>)> rows(Object? value, String where) {
+      if (value == null) return const <(int, Map<Object?, Object?>)>[];
+      if (value is! List) {
+        problems.add('$where: a list');
+        return const <(int, Map<Object?, Object?>)>[];
+      }
+      final out = <(int, Map<Object?, Object?>)>[];
+      for (final (i, row) in value.indexed) {
+        if (row is Map) {
+          out.add((i, row));
+        } else {
+          problems.add('$where[$i]: an object');
+        }
+      }
+      return out;
+    }
+
+    final seconds = number(json, 'seconds', 'sequence');
+    final steps = seconds == null ? 0 : stepOf(seconds);
+    if (seconds != null && steps <= 0) {
+      problems.add('sequence.seconds: longer than nothing');
+    }
+
+    int? moment(Map<Object?, Object?> row, String key, String where) {
+      final t = number(row, key, where);
+      if (t == null) return null;
+      final step = stepOf(t);
+      if (t < 0.0 || step > steps) {
+        problems.add('$where.$key: $t is not within the sequence');
+        return null;
+      }
+      return step;
+    }
+
+    // The camera.
+    final camera = json['camera'];
+    final cameraKeys = <CameraKey>[];
+    var ease = false;
+    if (camera != null) {
+      if (camera is! Map) {
+        problems.add('sequence.camera: an object');
+      } else {
+        ease = camera['ease'] == true;
+        for (final (i, row) in rows(camera['keys'], 'camera.keys')) {
+          final where = 'camera.keys[$i]';
+          final step = moment(row, 't', where);
+          final at = vector(row, 'at', where);
+          final look = vector(row, 'look', where);
+          // The file writes degrees under `fov`; the engine takes radians,
+          // converted here, at the reader.
+          final degrees = row.containsKey('fov')
+              ? number(row, 'fov', where)
+              : 45.0;
+          if (step == null || at == null || look == null || degrees == null) {
+            continue;
+          }
+          final fovY = degrees * math.pi / 180.0;
+          if (cameraKeys.isNotEmpty && step <= cameraKeys.last.step) {
+            problems.add('$where.t: after the key before it');
+            continue;
+          }
+          cameraKeys.add(CameraKey(step: step, at: at, look: look, fovY: fovY));
+        }
+      }
+    }
+
+    final subtitles = <SubtitleCue>[];
+    for (final (i, row) in rows(json['subtitles'], 'subtitles')) {
+      final where = 'subtitles[$i]';
+      final from = moment(row, 'from', where);
+      final to = moment(row, 'to', where);
+      final text = row['text'];
+      if (text is! String) problems.add('$where.text: words');
+      if (from == null || to == null || text is! String) continue;
+      if (to <= from) {
+        problems.add('$where.to: after from');
+        continue;
+      }
+      subtitles.add(SubtitleCue(from: from, to: to, text: text));
+    }
+
+    final fades = <FadeKey>[];
+    for (final (i, row) in rows(json['fade'], 'fade')) {
+      final where = 'fade[$i]';
+      final step = moment(row, 't', where);
+      final value = number(row, 'value', where);
+      if (step == null || value == null) continue;
+      if (value < 0.0 || value > 1.0) {
+        problems.add('$where.value: from nought to one');
+        continue;
+      }
+      if (fades.isNotEmpty && step <= fades.last.step) {
+        problems.add('$where.t: after the key before it');
+        continue;
+      }
+      fades.add(FadeKey(step: step, value: value));
+    }
+
+    final signals = <SignalCue>[];
+    for (final (i, row) in rows(json['signals'], 'signals')) {
+      final where = 'signals[$i]';
+      final step = moment(row, 't', where);
+      final name = row['name'];
+      final data = row['data'] ?? const <String, Object?>{};
+      if (name is! String || name.isEmpty) problems.add('$where.name: a name');
+      if (data is! Map) problems.add('$where.data: an object');
+      if (step == null || name is! String || name.isEmpty || data is! Map) {
+        continue;
+      }
+      signals.add(
+        SignalCue(
+          step: step,
+          name: name,
+          data: Map<String, Object?>.unmodifiable(data.cast<String, Object?>()),
+        ),
+      );
+    }
+    // Stable, so two signals on one step fire in the order they were written.
+    final ordered = <SignalCue>[
+      for (final (_, signal)
+          in (signals.indexed.toList()..sort(
+            (a, b) =>
+                a.$2.step != b.$2.step ? a.$2.step - b.$2.step : a.$1 - b.$1,
+          )))
+        signal,
+    ];
+
+    final cues = <ActorCue>[];
+    for (final (i, row) in rows(json['actors'], 'actors')) {
+      final where = 'actors[$i]';
+      final step = moment(row, 't', where);
+      final actor = row['actor'];
+      if (actor is! String || actor.isEmpty) {
+        problems.add('$where.actor: the name of an actor');
+      }
+      final kind = ActorCueKind.values
+          .where((k) => k.name == row['do'])
+          .firstOrNull;
+      if (kind == null) {
+        problems.add(
+          '$where.do: one of '
+          '${ActorCueKind.values.map((k) => k.name).join(', ')}',
+        );
+      }
+      final needsPlace = kind == ActorCueKind.goTo || kind == ActorCueKind.face;
+      final at = needsPlace ? vector(row, 'at', where) : null;
+      final clip = row['clip'];
+      final needsClip = kind == ActorCueKind.play;
+      if (needsClip && (clip is! String || clip.isEmpty)) {
+        problems.add('$where.clip: the name of a clip');
+      }
+      if (step == null ||
+          actor is! String ||
+          actor.isEmpty ||
+          kind == null ||
+          (needsPlace && at == null) ||
+          (needsClip && (clip is! String || clip.isEmpty))) {
+        continue;
+      }
+      cues.add(
+        ActorCue(
+          step: step,
+          actor: actor,
+          kind: kind,
+          at: at,
+          clip: needsClip && clip is String ? clip : null,
+        ),
+      );
+    }
+    // Stable, as the signals are.
+    final orderedCues = <ActorCue>[
+      for (final (_, cue)
+          in (cues.indexed.toList()..sort(
+            (a, b) =>
+                a.$2.step != b.$2.step ? a.$2.step - b.$2.step : a.$1 - b.$1,
+          )))
+        cue,
+    ];
+
+    if (problems.isNotEmpty) {
+      return SequenceRead(sequence: null, problems: problems);
+    }
+    return SequenceRead(
+      sequence: Sequence._(
+        steps: steps,
+        stepsPerSecond: stepsPerSecond,
+        cameraKeys: List<CameraKey>.unmodifiable(cameraKeys),
+        ease: ease,
+        subtitles: List<SubtitleCue>.unmodifiable(subtitles),
+        fades: List<FadeKey>.unmodifiable(fades),
+        signals: List<SignalCue>.unmodifiable(ordered),
+        actorCues: List<ActorCue>.unmodifiable(orderedCues),
+      ),
+      problems: const <String>[],
+    );
+  }
+
+  /// The direction [actor] is under at [step], or null when the cutscene
+  /// has not told it anything yet.
+  ActorCue? cueFor(String actor, int step) {
+    ActorCue? current;
+    for (final cue in actorCues) {
+      if (cue.step > step) break;
+      if (cue.actor == actor) current = cue;
+    }
+    return current;
+  }
+
+  /// Whether the cutscene says where the camera is.
+  bool get hasCamera => cameraKeys.isNotEmpty;
+}

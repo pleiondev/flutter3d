@@ -8,8 +8,8 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart' hide Material, Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart' hide Matrix4;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
@@ -18,7 +18,6 @@ import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/autorig_dialog.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4;
 
 import '../support/fake_graphics_backend.dart';
 
@@ -123,7 +122,7 @@ void main() {
         expect(find.text('Humanoid'), findsOneWidget);
         expect(find.text('Bones'), findsOneWidget);
         expect(find.text('Deforming'), findsOneWidget);
-        // The default `RigBuildOptions` humanoid is 17 joints, all of them
+        // The default `RigBuildSettings` humanoid is 17 joints, all of them
         // deforming — both rows of the summary card read the same number.
         expect(find.text('17'), findsNWidgets(2));
       });

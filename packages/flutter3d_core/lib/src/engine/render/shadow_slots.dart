@@ -14,6 +14,7 @@ export 'shadow_face_scheduler.dart';
 
 /// A light asking for a row this frame.
 final class ShadowCandidate {
+  /// The request of [light] at [priority], baked under [bakeKey].
   const ShadowCandidate({
     required this.light,
     required this.priority,
@@ -31,9 +32,10 @@ final class ShadowCandidate {
   /// How much this light deserves a row. Higher wins; zero or less never gets
   /// one.
   ///
-  /// The renderer supplies screen-space size, which is PlayCanvas's rule and a
-  /// good one: a torch filling the view matters more than a brighter one two
-  /// rooms away.
+  /// The renderer supplies screen-space size: a torch filling the view matters
+  /// more than a brighter one two rooms away.
+  /// Unitless: the renderer gives a light's range over its distance from the
+  /// eye.
   final double priority;
 
   /// What a static bake of this light would capture — its position and range,
@@ -46,6 +48,7 @@ final class ShadowCandidate {
 
 /// Who owns which row, and whether the static atlas is stale.
 final class ShadowAssignment {
+  /// The rows as [owners] hold them, with the lights [denied] one.
   const ShadowAssignment({
     required this.owners,
     required this.staticDirty,
@@ -73,6 +76,7 @@ final class ShadowAssignment {
   /// others. That is the bug this whole subsystem was built out of.
   final bool staticDirty;
 
+  /// How many rows a light holds, a count.
   int get occupied {
     var n = 0;
     for (final owner in owners) {
@@ -94,6 +98,10 @@ final class ShadowAssignment {
 ///   player turning on the spot makes two lights trade a row every frame and
 ///   the bake runs for ever, which is worse than having no bake at all.
 final class ShadowSlotAllocator {
+  /// An allocator of [slotCount] rows, letting a challenger evict an
+  /// incumbent only when it beats it by [hysteresis] times.
+  ///
+  /// Asserts a slot count of nought or more and a hysteresis of one or more.
   ShadowSlotAllocator({required this.slotCount, this.hysteresis = 1.25})
     : assert(slotCount >= 0),
       assert(

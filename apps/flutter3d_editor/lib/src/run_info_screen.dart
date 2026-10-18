@@ -13,8 +13,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// knows no genre, so it says what the file claims — level, hash, build,
 /// how long, how many checkpoints — rather than pretending to play it.
 final class RunInfoScreen extends StatelessWidget {
+  /// A screen describing [run], under [sourceDescription] when one is given.
   const RunInfoScreen({super.key, required this.run, this.sourceDescription});
 
+  /// The recorded run: its level, its hash, its build, its length and its
+  /// checkpoints.
   final Demo run;
 
   /// Where this file came from — a path, "dropped file", whatever the
@@ -43,6 +46,18 @@ final class RunInfoScreen extends StatelessWidget {
           _row('Recorded by', run.recordedBy ?? '(not recorded)'),
           _row('Steps', '${run.tape.frames.length}'),
           _row('Checkpoints', '${run.checkpoints.steps.length}'),
+          // What replaying it needs, and what shows it when that is not
+          // this build: the pose record plays on any simulation.
+          _row(
+            'Simulation',
+            run.simulation?.describe() ?? '(not recorded; read as 1)',
+          ),
+          _row('Poses', switch (run.poses) {
+            null => '(none)',
+            final PoseRecord poses =>
+              '${poses.frames.length} frames of ${poses.bodies.length} '
+                  'bodies, every ${poses.every} steps',
+          }),
         ],
       ),
     ),

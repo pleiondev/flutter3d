@@ -1,5 +1,5 @@
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const SoundDef _low = SoundDef(
@@ -27,8 +27,8 @@ const SoundDef _high = SoundDef(
       bands:
           bands ??
           const <LoopBand>[
-            LoopBand(sound: _low, centre: 0.3, width: 0.45),
-            LoopBand(sound: _high, centre: 0.8, width: 0.45),
+            LoopBand(sound: _low, center: 0.3, width: 0.45),
+            LoopBand(sound: _high, center: 0.8, width: 0.45),
           ],
     ),
     scene: scene,
@@ -103,7 +103,7 @@ void main() {
 
     test('a band asked for its own value plays at its own speed', () {
       final it = engine(
-        bands: const <LoopBand>[LoopBand(sound: _low, centre: 0.5)],
+        bands: const <LoopBand>[LoopBand(sound: _low, center: 0.5)],
       );
 
       it.loop.update(0.5);
@@ -115,7 +115,7 @@ void main() {
       // The reason `AudioBackend.update` grew a rate at all: a loop already
       // playing has to change speed, and before this it could only be set once.
       final it = engine(
-        bands: const <LoopBand>[LoopBand(sound: _low, centre: 0.5)],
+        bands: const <LoopBand>[LoopBand(sound: _low, center: 0.5)],
       );
 
       it.loop.update(0.5);

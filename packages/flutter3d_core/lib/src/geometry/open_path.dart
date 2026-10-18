@@ -23,6 +23,11 @@ import 'vertex_layout.dart';
 /// Right is the tangent crossed with [up], so a path over flat ground has
 /// its right on the ground. Beyond either end the path goes straight on.
 final class OpenPath {
+  /// A path through copies of [points], right taken against [up]
+  /// (normalised; null is +Y).
+  ///
+  /// Throws an [ArgumentError] for fewer than two points or for points all
+  /// in one place.
   OpenPath(List<Vector3> points, {Vector3? up})
     : points = List<Vector3>.unmodifiable(
         points.map((p) => p.clone()).toList(),
@@ -40,6 +45,8 @@ final class OpenPath {
     }
   }
 
+  /// The corners of the path in order, in metres; unmodifiable copies of
+  /// the ones given.
   final List<Vector3> points;
 
   /// What right is taken against.
@@ -133,6 +140,8 @@ MeshData ribbon(
   required double from,
   required double to,
   required double width,
+
+  /// In metres along the path.
   double step = 2.0,
 }) {
   if (!(to > from)) throw ArgumentError('A ribbon from $from to $to.');

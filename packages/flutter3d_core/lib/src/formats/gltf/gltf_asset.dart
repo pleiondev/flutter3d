@@ -7,6 +7,7 @@ import '../model_document.dart';
 /// abstraction rather than glTF-specific types: the uploader and the OBJ decoder
 /// then speak the same language, and glTF-shaped concepts stay inside the decoder.
 final class GltfAsset extends ModelDocument {
+  /// A decoded file; every list not given is empty and [asset] null.
   const GltfAsset({
     required this.surfaces,
     required this.materials,

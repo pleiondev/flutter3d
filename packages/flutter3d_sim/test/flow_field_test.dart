@@ -3,7 +3,7 @@
 ///     flutter test test/flow_field_test.dart
 ///
 /// **Found by mutating `descend` and watching the suite pass.** The field
-/// itself is exercised by `flutter3d_game_shooter/test/navigation_test.dart`,
+/// itself is exercised by `flutter3d_demo_content/test/shooter/navigation_test.dart`,
 /// which walks a monster round a corner — a good test of the sweep, and one
 /// that never asks the four questions below, all of which are about a caller
 /// that gets `false` and has to do something else.
@@ -22,7 +22,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// Twenty metres square, its top face at y = 0.
 Brush _floor() =>
-    Brush(centre: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0));
+    Brush(center: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0));
 
 void main() {
   test('before a sweep there is no direction anywhere', () {
@@ -78,7 +78,7 @@ void main() {
       final walled = FlowField(
         NavGrid.bake(<Brush>[
           _floor(),
-          Brush(centre: Vector3(0.0, 1.5, 0.0), size: Vector3(1.0, 3.0, 20.0)),
+          Brush(center: Vector3(0.0, 1.5, 0.0), size: Vector3(1.0, 3.0, 20.0)),
         ]),
       )..rebuild(Vector3(8.0, 0.0, 0.0));
       final out = Vector3(9.0, 9.0, 9.0);

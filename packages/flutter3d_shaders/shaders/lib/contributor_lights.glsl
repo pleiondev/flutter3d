@@ -107,15 +107,22 @@ void ContributorLight(int index, vec3 world, out vec3 toLight,
   float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
   float falloff = window * window / max(distance * distance, 1e-4);
 
-  // A spot's ramp between its two cone cosines. Only a spot's direction is an
-  // aim; a rectangle's is the edge of its panel.
+  // A spot's ramp between its two cone cosines, squared as `surface.glsl`'s
+  // is. Only a spot's direction is an aim; a rectangle's is the edge of its
+  // panel.
   bool spot = type > 1.5 && type < 2.5;
-  float ramp = spot ? clamp((dot(aim, -toLight) - cone.y) /
-                                max(cone.x - cone.y, 1e-4),
-                            0.0, 1.0)
-                    : 1.0;
+  float linearRamp = spot ? clamp((dot(aim, -toLight) - cone.y) /
+                                      max(cone.x - cone.y, 1e-4),
+                                  0.0, 1.0)
+                          : 1.0;
+  float ramp = linearRamp * linearRamp;
 
-  float attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
+  // A plugin's light type (codes from 16 up) is its own model's to read, and
+  // gives nothing here, as it gives nothing in `surface.glsl`'s loop.
+  float attenuation = type > 15.5
+                          ? 0.0
+                          : (directional ? 1.0
+                                         : (degenerate ? 0.0 : falloff * ramp));
   radiance = color.rgb * color.w * attenuation;
 }
 

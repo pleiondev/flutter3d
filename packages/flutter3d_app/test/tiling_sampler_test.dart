@@ -15,7 +15,6 @@ library;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -50,7 +49,7 @@ void main() {
       // software golden set recorded.
       expect(
         LevelLoader.tilingSamplerFor(FakeBackend(maxAnisotropy: 1)),
-        SamplerOptions.trilinearRepeat,
+        SamplerDescriptor.trilinearRepeat,
       );
     });
   });
@@ -84,6 +83,6 @@ void main() {
       LevelMaterial(albedo: 'wall.png'),
       const <String, TextureHandle?>{},
     );
-    expect(material.albedoSampler, SamplerOptions.trilinearRepeat);
+    expect(material.albedoSampler, SamplerDescriptor.trilinearRepeat);
   });
 }

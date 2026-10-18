@@ -13,9 +13,13 @@ import 'brush.dart';
 /// application interleaves these into whatever vertex layout it draws with,
 /// which is about twenty lines and the only place the two packages meet.
 final class BrushSurface {
+  /// A surface of [material]'s triangles; draw order and depth layer
+  /// nought, no lightmap and many brushes unless told otherwise.
   BrushSurface({
     required this.material,
     required this.shadowCasting,
+    this.drawOrder = 0,
+    this.depthLayer = 0,
     required this.positions,
     required this.normals,
     required this.texcoords,
@@ -25,7 +29,16 @@ final class BrushSurface {
     this.brush,
   });
 
+  /// The name of the level material every triangle here is drawn with.
   final String material;
+
+  /// [Brush.drawOrder] of the brushes this surface was built from — `P7`.
+  final int drawOrder;
+
+  /// The depth layer of the brushes this surface was built from: each
+  /// brush's own, else its material's — see [Brush.depthLayer]. What the
+  /// renderer's `RenderMaterial.depthLayer` is set to.
+  final int depthLayer;
 
   /// Which of the level's brushes this surface is, when the level was built
   /// one surface per brush (`BrushGeometry.build`'s `perBrush`), and null
@@ -82,6 +95,8 @@ final class BrushSurface {
   /// UVs — which is exactly the bug this project already spent a day on once.
   final Float32List tangents;
 
+  /// Three vertex indices per triangle, wound counter-clockwise seen from
+  /// outside.
   final Uint32List indices;
 
   /// The box around every vertex, for deciding whether a batch can be seen.
@@ -108,6 +123,9 @@ final class BrushSurface {
     return Aabb3.minMax(Vector3(minX, minY, minZ), Vector3(maxX, maxY, maxZ));
   }
 
+  /// Count of vertices: a third of the length of [positions].
   int get vertexCount => positions.length ~/ 3;
+
+  /// Count of triangles: a third of the length of [indices].
   int get triangleCount => indices.length ~/ 3;
 }

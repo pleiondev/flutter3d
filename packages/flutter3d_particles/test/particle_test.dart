@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -18,7 +20,7 @@ ParticleEffect _effect({
   emitter: emitter ?? const SphereEmitter(speed: Range.exact(1.0)),
   lifetime: lifetime,
   size: size,
-  color: Vector4(1.0, 0.5, 0.2, 1.0),
+  color: LinearColor(1.0, 0.5, 0.2, 1.0),
   affectors: affectors,
 );
 
@@ -38,13 +40,15 @@ void main() {
       final torch = _Torch();
 
       // Fill every slot from the torch, then let them all die.
-      system.emitFor(
-        torch,
-        _effect(count: 1, lifetime: const Range.exact(0.1)),
-        Vector3.zero(),
-        1.0,
-        perSecond: 40.0,
-      );
+      system
+        ..emit(
+          torch,
+          _effect(count: 1, lifetime: const Range.exact(0.1)),
+          Vector3.zero(),
+          perSecond: 4000.0,
+        )
+        ..advance(1 / 60)
+        ..stopEmitting(torch);
       expect(system.aliveCount, 4, reason: 'the pool should be full');
       system.step(0.2);
       expect(system.aliveCount, 0);
@@ -150,7 +154,9 @@ void main() {
         count: 1,
         lifetime: const Range.exact(10.0),
         emitter: const SphereEmitter(speed: Range.exact(1.0)),
-        affectors: const <ParticleAffector>[ParticleGravity(-10.0)],
+        affectors: const <ParticleAffector>[
+          ParticleGravity(acceleration: -10.0),
+        ],
       );
       system.emit(key, effect, Vector3.zero(), perSecond: perSecond);
       final dt = 1.0 / hz;
@@ -355,7 +361,9 @@ void main() {
         _effect(
           count: 1,
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
-          affectors: const <ParticleAffector>[ParticleGravity(-10.0)],
+          affectors: const <ParticleAffector>[
+            ParticleGravity(acceleration: -10.0),
+          ],
           lifetime: const Range.exact(10.0),
         ),
         Vector3.zero(),
@@ -503,11 +511,11 @@ void main() {
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
           lifetime: const Range.exact(1.0),
           size: const Range.exact(1.0),
-          color: Vector4(1.0, 1.0, 1.0, 1.0),
+          color: LinearColor(1.0, 1.0, 1.0, 1.0),
           affectors: <ParticleAffector>[
             ParticleColorOverLife(
-              Vector4(1.0, 1.0, 1.0, 1.0),
-              Vector4(1.0, 0.0, 0.0, 1.0),
+              LinearColor(1.0, 1.0, 1.0, 1.0),
+              LinearColor(1.0, 0.0, 0.0, 1.0),
             ),
             const ParticleFade(),
           ],
@@ -586,7 +594,7 @@ void main() {
           count: 100,
           emitter: const ConeEmitter(
             speed: Range.exact(5.0),
-            halfAngleDegrees: 20.0,
+            halfAngle: 20.0 * math.pi / 180.0,
           ),
           lifetime: const Range.exact(10.0),
         ),
@@ -700,7 +708,7 @@ void main() {
 /// A stand-in for something whose particles are its light, like a torch.
 /// Where a glow says its fire is, and when it is entitled to say so.
 ///
-/// Split out because `centre` was computed every step for months and read by
+/// Split out because `center` was computed every step for months and read by
 /// nobody, so nothing would have noticed if it had been wrong — and the value
 /// it holds before the first particle exists is the world origin, which is the
 /// one value that must never reach a light.
@@ -709,13 +717,13 @@ void _glowCentreTests() {
     test('does not claim a position before it has seen a particle', () {
       final system = ParticleSystem(capacity: 64, seed: 3);
       final torch = _Torch();
-      expect(torch.glow.located, isFalse);
+      expect(torch.glow.isLocated, isFalse);
 
       // A step with nothing emitted must not promote the origin into an
       // answer. This is the whole guard: a light following an unlocated glow
       // sits at (0, 0, 0), which in a level is inside something.
       system.advance(1.0 / 60.0);
-      expect(torch.glow.located, isFalse);
+      expect(torch.glow.isLocated, isFalse);
     });
 
     test(
@@ -727,13 +735,13 @@ void _glowCentreTests() {
         system.emit(torch, _effect(count: 1), origin, perSecond: 240.0);
         system.advance(1.0 / 60.0);
 
-        expect(torch.glow.located, isTrue);
+        expect(torch.glow.isLocated, isTrue);
         // Within the burst's own spread of the emitter, not a tenth of the way
         // there from the origin — which is what an exponential ease from zero
         // would give on the first step, and would drag the light across the
         // level over the following tenth of a second.
         expect(
-          (torch.glow.centre - origin).length,
+          (torch.glow.center - origin).length,
           lessThan(1.0),
           reason: 'the first measurement is taken, not blended with (0, 0, 0)',
         );
@@ -789,7 +797,7 @@ void _glowCentreTests() {
       system.advance(1.0 / 60.0);
       expect(muzzle.glow.count, greaterThan(0));
       expect(muzzle.glow.power, greaterThan(0.0));
-      expect((muzzle.glow.centre - where).length, lessThan(1.0));
+      expect((muzzle.glow.center - where).length, lessThan(1.0));
 
       for (var i = 0; i < 60; i++) {
         system.advance(1.0 / 60.0);
@@ -840,22 +848,22 @@ void _glowCentreTests() {
         perSecond: 240.0,
       );
       system.advance(1.0 / 60.0);
-      final settled = torch.glow.centre.clone();
+      final settled = torch.glow.center.clone();
 
       system.stopEmitting(torch);
       for (var i = 0; i < 30; i++) {
         system.advance(1.0 / 60.0);
       }
       expect(torch.glow.count, 0, reason: 'everything should have died');
-      expect(torch.glow.located, isTrue);
+      expect(torch.glow.isLocated, isTrue);
       // Near where it was, and nowhere near the origin. Not exactly where it
       // was: the last particles kept moving under their own velocity for the
       // few steps it took them to die, and the centre followed them, which is
       // correct. The failure being guarded against is a snap back to (0, 0, 0),
       // which from here would be a jump of fourteen metres.
-      expect((torch.glow.centre - settled).length, lessThan(0.5));
+      expect((torch.glow.center - settled).length, lessThan(0.5));
       expect(
-        torch.glow.centre.length,
+        torch.glow.center.length,
         greaterThan(10.0),
         reason: 'the centre fell back to the world origin',
       );
@@ -863,7 +871,7 @@ void _glowCentreTests() {
   });
 }
 
-class _Torch with LightEmitter {}
+final class _Torch with LightEmitter {}
 
 /// A source that is not a light, for keying a standing emission.
 final class _Torchless {
@@ -878,12 +886,10 @@ final class _GreedyEmitter extends ParticleEmitter {
   const _GreedyEmitter();
 
   @override
-  void emit(
-    Particle particle,
-    Vector3 origin,
-    Vector3 direction,
-    math.Random random,
-  ) {
+  void emit(ParticleBirth birth) {
+    final particle = birth.particle;
+    final origin = birth.origin;
+    final random = birth.random;
     random.nextDouble(); // the extra draw
     randomDirection(particle.velocity, random);
     particle.velocity.scale(1.0);

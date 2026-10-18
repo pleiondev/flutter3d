@@ -29,6 +29,20 @@ analyzer:
     # about 1,500 errors that no developer machine could reproduce, because
     # every developer machine has the `.dart_tool` a runner does not.
     - cloud/**
+    # The built site: the showcase's pages copied in as text for the site to
+    # show, outside any package, so every import in them reads as missing.
+    # Ignored by git, so only a machine that has built the site sees them.
+    - site/dist/**
+    # The migration test's fixture: a project written against 0.8, which is
+    # supposed not to compile against this tree, and its migrated copy, which
+    # names packages flutter3d_build does not depend on. The test copies both
+    # out and analyses them as the project they are.
+    - packages/flutter3d_build/test/fixtures/migrate_0_8/**
+    # The same for each automatic migration kind: a `before/` written against
+    # the old shape and an `after/` the kind's test compares byte for byte.
+    - packages/flutter3d_build/test/fixtures/migrate_kinds/**
+  errors:
+    public_member_api_docs: error
 include: package:flutter_lints/flutter.yaml
 
 linter:
@@ -62,6 +76,7 @@ linter:
     - no_adjacent_strings_in_list
     - only_throw_errors
     - prefer_final_locals
+    - public_member_api_docs
     - throw_in_finally
     - unawaited_futures
     - unnecessary_await_in_return
@@ -72,3 +87,194 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+# **DCM: every rule dartr implements, the style ones off with their reason.**
+# Listed whole because a section runs only the rules it names. The defects
+# the rest find are fixed, or ignored on the line with the reason it is not
+# one. `member-ordering` holds the order this tree writes: constructors,
+# then fields; the members after them are not ordered.
+dart_code_metrics:
+  rules:
+    - always-remove-listener
+    # vectors, matrices and packed records are read by index
+    - avoid-accessing-collections-by-constant-index: false
+    - avoid-assignments-as-conditions
+    - avoid-async-callback-in-fake-async
+    - avoid-bottom-type-in-patterns
+    - avoid-bottom-type-in-records
+    - avoid-calling-notifier-members-inside-build
+    - avoid-cascade-after-if-null
+    # JS interop hands back the object to wrap
+    - avoid-casting-to-extension-type: false
+    - avoid-collection-equality-checks
+    # dartr: false positives here, on again once fixed there
+    - avoid-collection-methods-with-unrelated-types: false
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-complex-loop-conditions: false
+    - avoid-conditions-with-boolean-literals
+    - avoid-contradictory-expressions
+    - avoid-double-slash-imports
+    # writers and builders take the same call twice on purpose
+    - avoid-duplicate-cascades: false
+    - avoid-duplicate-exports
+    - avoid-duplicate-map-keys
+    - avoid-duplicate-mixins
+    - avoid-duplicate-patterns
+    - avoid-duplicate-switch-case-conditions
+    # the state changes between two equal checks
+    - avoid-duplicate-test-assertions: false
+    # a rebuild after state that lives outside the widget
+    - avoid-empty-setstate: false
+    - avoid-empty-spread
+    # shared suites register their tests from a helper
+    - avoid-empty-test-groups: false
+    # dartr: false positives here, on again once fixed there
+    - avoid-equal-expressions: false
+    - avoid-excessive-expressions
+    - avoid-explicit-pattern-field-name
+    - avoid-future-tostring
+    - avoid-generics-shadowing
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-implicitly-nullable-extension-types: false
+    - avoid-incomplete-copy-with
+    - avoid-incorrect-image-opacity
+    - avoid-incorrect-uri
+    - avoid-inherited-widget-in-initstate
+    - avoid-keywords-in-wildcard-pattern
+    - avoid-late-context
+    - avoid-late-final-reassignment
+    - avoid-map-keys-contains
+    - avoid-missed-calls
+    - avoid-missing-completer-stack-trace
+    - avoid-missing-controller
+    - avoid-misused-set-literals
+    # matchers over Object fields
+    - avoid-misused-test-matchers: false
+    - avoid-misused-wildcard-pattern
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-multi-assignment: false
+    - avoid-negations-in-equality-checks
+    - avoid-nested-futures
+    - avoid-nested-records
+    - avoid-not-encodable-in-to-json
+    - avoid-notifier-constructors
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-nullable-parameters-with-default-values: false
+    - avoid-one-field-records
+    - avoid-only-rethrow
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-passing-self-as-argument: false
+    - avoid-recursive-widget-calls
+    # dartr: false positives here, on again once fixed there
+    - avoid-redundant-else: false
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-redundant-positional-field-name: false
+    - avoid-redundant-pragma-inline
+    - avoid-ref-read-inside-build
+    - avoid-ref-watch-outside-build
+    - avoid-referencing-discarded-variables
+    - avoid-self-assignment
+    - avoid-self-compare
+    - avoid-shadowed-extension-methods
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-shadowing: false
+    - avoid-suspicious-super-overrides
+    - avoid-throw-in-catch-block
+    # dartr: false positives here, on again once fixed there
+    - avoid-unassigned-late-fields: false
+    - avoid-uncaught-future-errors
+    - avoid-unconditional-break
+    - avoid-unknown-pragma
+    - avoid-unnecessary-call
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-unnecessary-collections: false
+    - avoid-unnecessary-conditionals
+    - avoid-unnecessary-consumer-widgets
+    - avoid-unnecessary-enum-arguments
+    - avoid-unnecessary-extends
+    - avoid-unnecessary-gesture-detector
+    - avoid-unnecessary-if
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-unnecessary-local-late: false
+    - avoid-unnecessary-negations
+    - avoid-unnecessary-overrides
+    - avoid-unnecessary-overrides-in-state
+    # dartr: false positives here, on again once fixed there
+    - avoid-unnecessary-reassignment: false
+    # dartr: false positives here, on again once fixed there
+    - avoid-unnecessary-return: false
+    - avoid-unnecessary-setstate
+    - avoid-unnecessary-stateful-widgets
+    - avoid-unnecessary-super
+    # style, not a defect; off rather than ten thousand edits
+    - avoid-unnecessary-type-assertions: false
+    - avoid-unnecessary-type-casts
+    # dartr: false positives here, on again once fixed there
+    - avoid-unrelated-type-assertions: false
+    # dartr: false positives here, on again once fixed there
+    - avoid-unrelated-type-casts: false
+    # a throwing first/single/[i] where an invariant holds is the right failure
+    - avoid-unsafe-collection-methods: false
+    # as avoid-unsafe-collection-methods
+    - avoid-unsafe-reduce: false
+    # dartr: false positives here, on again once fixed there
+    - avoid-unused-assignment: false
+    - avoid-unused-generics
+    # some constructors are called for what they start
+    - avoid-unused-instances: false
+    - avoid-wildcard-cases-with-enums
+    - avoid-wrapping-in-padding
+    - check-for-equals-in-render-object-setters
+    - consistent-update-render-object
+    - list-all-equatable-fields
+    - match-positional-field-names-on-assignment
+    - member-ordering:
+        order:
+          - constructors
+          - fields
+        widgets-order:
+          - constructors
+          - fields
+    # style, not a defect; off rather than ten thousand edits
+    - move-variable-closer-to-its-usage: false
+    - no-equal-conditions
+    - no-equal-nested-conditions
+    - no-equal-switch-case
+    # equal bodies over operands of different types
+    - no-equal-switch-expression-cases: false
+    - no-equal-then-else
+    - prefer-any-or-every
+    # style, not a defect; off rather than ten thousand edits
+    - prefer-bytes-builder: false
+    # style, not a defect; off rather than ten thousand edits
+    - prefer-const-border-radius: false
+    - prefer-contains
+    # dartr: false positives here, on again once fixed there
+    - prefer-correct-for-loop-increment: false
+    - prefer-correct-future-return-type
+    # the maps are built in Dart, not decoded
+    - prefer-correct-json-casts: false
+    - prefer-correct-test-file-name
+    # style, not a defect; off rather than ten thousand edits
+    - prefer-declaring-const-constructor: false
+    - prefer-dedicated-media-query-methods
+    - prefer-explicit-function-type
+    - prefer-iterable-of
+    - prefer-null-aware-spread
+    - prefer-overriding-parent-equality
+    # style, not a defect; off rather than ten thousand edits
+    - prefer-parentheses-with-if-null: false
+    # style, not a defect; off rather than ten thousand edits
+    - prefer-private-extension-type-field: false
+    - prefer-public-exception-classes
+    - prefer-return-await
+    - prefer-simpler-patterns-null-check
+    - prefer-specific-cases-first
+    # set membership is not an equality chain
+    - prefer-switch-with-enums: false
+    # dart format places the commas
+    - prefer-trailing-comma: false
+    - prefer-unique-test-names
+    - prefer-wildcard-pattern
+    - proper-super-calls
+    - use-ref-read-synchronously

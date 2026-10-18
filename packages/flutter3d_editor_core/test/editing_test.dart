@@ -53,11 +53,11 @@ void main() {
       final editing = _open(generatedBy: 'tool/make_crypt.py');
 
       expect(editing.generatedBy, 'tool/make_crypt.py');
-      expect(editing.mayOverwrite, isFalse);
+      expect(editing.canOverwrite, isFalse);
     });
 
     test('and one nobody generated is', () {
-      expect(_open().mayOverwrite, isTrue);
+      expect(_open().canOverwrite, isTrue);
       expect(_open().generatedBy, isNull);
     });
 
@@ -112,16 +112,16 @@ void main() {
 
       editing.nudge(Vector3(0.0, 1.0, 0.0));
 
-      expect(editing.brush!.centre.y, 1.0);
+      expect(editing.brush!.center.y, 1.0);
     });
 
     test('and nothing happens with nothing selected', () {
       final editing = _open();
-      final where = editing.level.brushes[0].centre.clone();
+      final where = editing.level.brushes[0].center.clone();
 
       editing.nudge(Vector3(0.0, 1.0, 0.0));
 
-      expect(editing.level.brushes[0].centre, where);
+      expect(editing.level.brushes[0].center, where);
       expect(
         editing.isDirty,
         isFalse,
@@ -135,11 +135,11 @@ void main() {
       // sitting a millionth of a metre off is a diff nobody can read and a seam
       // a player can see light through.
       final editing = _open()..select(Piece.brush, 0);
-      editing.brush!.centre.setValues(0.31, 0.0, 0.0);
+      editing.brush!.center.setValues(0.31, 0.0, 0.0);
 
       editing.nudge(Vector3(0.0, 0.0, 0.0));
 
-      expect(editing.brush!.centre.x, 0.25);
+      expect(editing.brush!.center.x, 0.25);
     });
 
     test('and the grid can be turned off for something that needs it', () {
@@ -152,19 +152,19 @@ void main() {
       // grid: a `Vector3` holds floats, so 0.31 comes back as 0.3100000023 —
       // a document full of numbers off the grid is a document full of that.
       // Quarters survive exactly, because a quarter is exact in binary.
-      expect(editing.brush!.centre.x, closeTo(0.31, 1e-6));
+      expect(editing.brush!.center.x, closeTo(0.31, 1e-6));
     });
   });
 
   group('resizing one', () {
     test('grows and shrinks it about its own centre', () {
       final editing = _open()..select(Piece.brush, 0);
-      final where = editing.brush!.centre.clone();
+      final where = editing.brush!.center.clone();
 
       editing.grow(Vector3(2.0, 0.0, 0.0));
 
       expect(editing.brush!.size.x, 4.0);
-      expect(editing.brush!.centre, where);
+      expect(editing.brush!.center, where);
     });
 
     test('and never past nothing', () {
@@ -211,20 +211,61 @@ void main() {
       editing.duplicate();
 
       expect(editing.level.brushes.length, 3);
-      expect(editing.brush!.centre.x, from.centre.x + from.size.x);
+      expect(editing.brush!.center.x, from.center.x + from.size.x);
       expect(editing.brush!.material, from.material);
+    });
+
+    test('and a duplicate keeps every field the brush carried', () {
+      // Every key a brush writes, set off its default, and one this build
+      // does not know (as a later version's field arrives). Mutation:
+      // rebuild the copy field by field and the next field added is lost.
+      final brush = <String, Object?>{
+        'id': 'wall',
+        'at': <double>[1.0, 2.0, 3.0],
+        'size': <double>[2.0, 1.0, 0.5],
+        'material': 'stone',
+        'surface': 'moss',
+        'solid': true,
+        'shadowCasting': 'doubleSided',
+        'layer': 3,
+        'ramp': '+z',
+        'drawOrder': 2,
+        'depthLayer': 1,
+        'physicalMaterial': 'f3d.granite',
+      };
+      final editing = Editing.parse(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'brushes': <Object?>[brush],
+        }),
+        path: '/levels/copy.json',
+      )..select(Piece.brush, 0);
+
+      editing.duplicate();
+
+      final copy = editing.brush!.toJson();
+      expect(copy['id'], isNot('wall'));
+      expect(copy['at'], <double>[3.0, 2.0, 3.0]);
+      expect(
+        <String, Object?>{...copy}
+          ..remove('id')
+          ..remove('at'),
+        <String, Object?>{...brush}
+          ..remove('id')
+          ..remove('at'),
+      );
     });
   });
 
   group('undo', () {
     test('puts a move back', () {
       final editing = _open()..select(Piece.brush, 0);
-      final where = editing.brush!.centre.clone();
+      final where = editing.brush!.center.clone();
 
       editing.nudge(Vector3(4.0, 0.0, 0.0));
       editing.undo();
 
-      expect(editing.brush!.centre, where);
+      expect(editing.brush!.center, where);
     });
 
     test('and brings back a deleted brush', () {
@@ -238,7 +279,7 @@ void main() {
       editing.undo();
 
       expect(editing.level.brushes.length, 2);
-      expect(editing.level.brushes[1].centre.x, 4.0);
+      expect(editing.level.brushes[1].center.x, 4.0);
     });
 
     test('and goes back more than one step', () {
@@ -249,7 +290,7 @@ void main() {
       editing.undo();
       editing.undo();
 
-      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.brush!.center.x, 0.0);
       expect(editing.canUndo, isFalse);
     });
 
@@ -286,12 +327,12 @@ void main() {
 
       editing.nudge(Vector3(4.0, 0.0, 0.0));
       editing.undo();
-      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.brush!.center.x, 0.0);
       expect(editing.canRedo, isTrue);
 
       editing.redo();
 
-      expect(editing.brush!.centre.x, 4.0);
+      expect(editing.brush!.center.x, 4.0);
       expect(editing.canRedo, isFalse);
     });
 
@@ -394,7 +435,7 @@ void main() {
     );
 
     expect(reopened.brushes.length, 3);
-    expect(reopened.brushes[0].centre.x, 1.0);
+    expect(reopened.brushes[0].center.x, 1.0);
     expect(reopened.materials.keys, contains('stone'));
   });
 
@@ -454,7 +495,7 @@ void main() {
       // makes this true without a case per field: everything the row carried is
       // still there, including anything this build does not understand.
       final editing = _open()..select(Piece.brush, 1);
-      final before = Map<String, Object?>.from(editing.fields);
+      final before = Map<String, Object?>.of(editing.fields);
 
       editing.setField('layer', 3);
 
@@ -475,7 +516,7 @@ void main() {
 
       expect(editing.setField('at', 'not a vector'), isFalse);
 
-      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.brush!.center.x, 0.0);
       expect(editing.fields['at'], isA<List<Object?>>());
     });
 

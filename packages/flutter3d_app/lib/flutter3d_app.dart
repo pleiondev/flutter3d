@@ -34,22 +34,142 @@
 ///   and [BinaryStorage] keep a document where each platform keeps such
 ///   things, and an [Issue] is handed back rather than thrown.
 ///
+/// * **XR and AR.** [XrSession] is the one boundary to a headset's or a
+///   phone's runtime, and `Flutter3dView(xr:)` drives one: the runtime's
+///   display time as the loop's clock, its poses on the tape, its views as
+///   the frame's, and what was drawn back to it as layers ([XrDriver]).
+///
 /// `package:flutter3d_app/native.dart` holds the one piece that needs a
 /// filesystem, off this barrel so a `dart:io` import never stops a web build
-/// compiling.
+/// compiling, `package:flutter3d_app/xr_testing.dart` the session a test
+/// drives with no headset, and `package:flutter3d_app/software.dart` the
+/// software device's stages for a material written as source.
 library;
+
+export 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
+    show LevelBatching;
+export 'package:flutter3d_particles/flutter3d_particles.dart'
+    show
+        BoxEmitter,
+        ConeEmitter,
+        CurveKey,
+        DriftEmitter,
+        Flipbook,
+        FlipbookCell,
+        GradientKey,
+        KeyEase,
+        Particle,
+        ParticleAffector,
+        ParticleBirth,
+        ParticleColorGradient,
+        ParticleColorOverLife,
+        ParticleCurve,
+        ParticleDrag,
+        ParticleEffect,
+        ParticleEmitter,
+        ParticleFade,
+        ParticleGradient,
+        ParticleGravity,
+        ParticlePlaneCollision,
+        ParticleSizeCurve,
+        ParticleSizeOverLife,
+        ParticleSpin,
+        ParticleStep,
+        ParticleSystem,
+        ParticleTurbulence,
+        ParticleWind,
+        Range,
+        SphereEmitter;
+export 'package:flutter3d_physics/flutter3d_physics.dart'
+    show
+        ClothObstacle,
+        CollisionWorld,
+        ContactPhase,
+        JetObstacle,
+        Layers,
+        ObstacleTouch,
+        PhysicsBackend,
+        StepContact,
+        SweptContact,
+        WorldMirror;
+export 'package:flutter3d_sim/flutter3d_sim.dart'
+    show
+        ActorHurt,
+        AvoidanceNeighbor,
+        AvoidanceVelocity,
+        Brush,
+        CollisionLayers,
+        ContactEvent,
+        DisplayTime,
+        DualAxisValue,
+        EngineLoop,
+        EntityDef,
+        EntityKind,
+        EntityRegistry,
+        FocusPoint,
+        FrameCadence,
+        GameEvent,
+        HeightfieldTiles,
+        InputAction,
+        InputFrame,
+        InputState,
+        InputTapeRecorder,
+        IsolateSimulation,
+        JsonLinearColorWriter,
+        Level,
+        LevelCheck,
+        LevelCollision,
+        LevelIssue,
+        LevelLight,
+        LevelMaterial,
+        LevelRecipe,
+        LevelRule,
+        LevelVisibility,
+        Lightmap,
+        LightmapLayout,
+        LightmapTexel,
+        LightmapUv,
+        LocalSimulation,
+        LogTime,
+        ManualTime,
+        NavMeshLink,
+        PlayerStart,
+        Prefab,
+        SeatInput,
+        ShadowCasting,
+        SimulationFactory,
+        SimulationHandle,
+        SimulationQuestion,
+        SimulationSetup,
+        TileLevelChooser,
+        TimeSource,
+        UnorderedAccess,
+        UnorderedAccessException,
+        WorldTiming,
+        XrControl,
+        XrControlReading,
+        XrHand,
+        XrPlane,
+        XrPlaneOrientation,
+        XrPoseInput,
+        XrSceneMesh;
 
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
-    show kFixedResolution, openDevice, presentFrame;
+    show fixedResolution, openDevice, platformDevices, presentFrame;
+export 'src/declarative/scene_widgets.dart';
 export 'src/diagnostics/issues.dart';
+export 'src/diagnostics/render_extensions.dart';
+export 'src/diagnostics/render_inspection.dart';
+export 'src/hot_swap/hot_swap.dart';
+export 'src/l10n/app_localizations.dart';
 export 'src/level/level_loader.dart';
 export 'src/level/model_visuals.dart';
 export 'src/level/prop_visuals.dart';
 export 'src/level/shared_meshes.dart';
-export 'src/level/surface_mesh.dart';
 export 'src/level/terrain_tiles.dart';
 export 'src/level/visibility_culler.dart';
+export 'src/photo/photo_shelf.dart';
 export 'src/storage/storage.dart';
 export 'src/surface/did_not_start.dart';
 export 'src/surface/frame_clock.dart';
@@ -58,7 +178,23 @@ export 'src/surface/memory_pressure.dart';
 export 'src/surface/scene_semantics.dart';
 export 'src/surface/scene_surface.dart';
 export 'src/surface/status_screens.dart';
+export 'src/view/flutter3d_view.dart';
+export 'src/view/frame_info.dart';
+export 'src/view/probe_builder.dart';
+export 'src/view/view_settings.dart'
+    show
+        DeviceLostEvent,
+        DeviceSettings,
+        LoopSettings,
+        PluginSettings,
+        SimulationPlacement,
+        ViewSettings;
 export 'src/widget_surface/widget_surface.dart';
 export 'src/widget_surface/widget_surface_pipeline.dart';
 export 'src/widget_surface/widget_surface_visuals.dart';
 export 'src/widget_surface/widget_texture.dart';
+export 'src/xr/xr_anchor.dart';
+export 'src/xr/xr_driver.dart';
+export 'src/xr/xr_layers.dart';
+export 'src/xr/xr_session.dart';
+export 'src/xr/xr_swapchain.dart';

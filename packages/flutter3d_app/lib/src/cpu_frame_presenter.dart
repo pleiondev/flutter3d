@@ -17,7 +17,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart' show CpuTexture;
 
+/// A CPU backend's frame on screen: [texture] decoded into an image on
+/// every build, the newest decode winning.
 final class CpuFrame extends StatefulWidget {
+  /// A frame showing [texture], fitted by [fit] and filtered at [quality].
   const CpuFrame({
     super.key,
     required this.texture,
@@ -25,8 +28,14 @@ final class CpuFrame extends StatefulWidget {
     required this.quality,
   });
 
+  /// The rendered pixels, read back each build; nothing is drawn until the
+  /// first decode lands.
   final CpuTexture texture;
+
+  /// How the decoded image fills the widget's box.
   final BoxFit fit;
+
+  /// How the image is filtered when it is scaled to the box.
   final FilterQuality quality;
 
   @override

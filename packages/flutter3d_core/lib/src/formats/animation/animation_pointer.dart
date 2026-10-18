@@ -15,52 +15,215 @@
 /// as a track that plays and changes nothing.
 library;
 
+import '../format_exceptions.dart';
+
 /// The kind of object a pointer lands on.
-enum AnimationPointerTarget { material, light }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AnimationPointerTarget {
+  const AnimationPointerTarget._(this.name);
+
+  /// An entry of the document's `materials`.
+  static const AnimationPointerTarget material = AnimationPointerTarget._(
+    'material',
+  );
+
+  /// An entry of `KHR_lights_punctual`'s `lights`.
+  static const AnimationPointerTarget light = AnimationPointerTarget._('light');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AnimationPointerTarget> values = <AnimationPointerTarget>[
+    material,
+    light,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AnimationPointerTarget? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'AnimationPointerTarget.$name';
+}
 
 /// The property a pointer drives, with the number of floats in one value.
-enum AnimationPointerProperty {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AnimationPointerProperty {
+  const AnimationPointerProperty._(this.name, this.target, this.componentCount);
+
   /// glTF's `baseColorFactor`: linear RGBA, as the file keeps it. The sink
-  /// converts to the authored tint `Material.baseColor` holds.
-  baseColor(AnimationPointerTarget.material, 4),
+  /// converts to the authored tint `RenderMaterial.baseColor` holds.
+  static const AnimationPointerProperty baseColor = AnimationPointerProperty._(
+    'baseColor',
+    AnimationPointerTarget.material,
+    4,
+  );
 
   /// `KHR_materials_emissive_strength`'s multiplier.
-  emissiveStrength(AnimationPointerTarget.material, 1),
-  roughness(AnimationPointerTarget.material, 1),
-  metallic(AnimationPointerTarget.material, 1),
+  static const AnimationPointerProperty emissiveStrength =
+      AnimationPointerProperty._(
+        'emissiveStrength',
+        AnimationPointerTarget.material,
+        1,
+      );
+
+  /// glTF's `roughnessFactor`, one float from nought to one.
+  static const AnimationPointerProperty roughness = AnimationPointerProperty._(
+    'roughness',
+    AnimationPointerTarget.material,
+    1,
+  );
+
+  /// glTF's `metallicFactor`, one float from nought to one.
+  static const AnimationPointerProperty metallic = AnimationPointerProperty._(
+    'metallic',
+    AnimationPointerTarget.material,
+    1,
+  );
 
   /// `KHR_texture_transform`'s `offset` on any of a material's textures.
   ///
   /// One property for all of them: the pointer string says which texture the
   /// file named, a writer puts it back there, and the sink moves that map's
   /// offset alone — `C8`, `PointerTargets.textureMapOf`.
-  textureOffset(AnimationPointerTarget.material, 2),
+  static const AnimationPointerProperty textureOffset =
+      AnimationPointerProperty._(
+        'textureOffset',
+        AnimationPointerTarget.material,
+        2,
+      );
 
   /// `KHR_lights_punctual`'s `color`, linear RGB.
-  lightColor(AnimationPointerTarget.light, 3),
-  lightIntensity(AnimationPointerTarget.light, 1);
+  static const AnimationPointerProperty lightColor = AnimationPointerProperty._(
+    'lightColor',
+    AnimationPointerTarget.light,
+    3,
+  );
 
-  const AnimationPointerProperty(this.target, this.componentCount);
+  /// `KHR_lights_punctual`'s `intensity`, one float: candela for a point or
+  /// spot light, lux for a directional one.
+  static const AnimationPointerProperty lightIntensity =
+      AnimationPointerProperty._(
+        'lightIntensity',
+        AnimationPointerTarget.light,
+        1,
+      );
 
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AnimationPointerProperty> values =
+      <AnimationPointerProperty>[
+        baseColor,
+        emissiveStrength,
+        roughness,
+        metallic,
+        textureOffset,
+        lightColor,
+        lightIntensity,
+      ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AnimationPointerProperty? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
+
+  /// The kind of object the property belongs to.
   final AnimationPointerTarget target;
+
+  /// Count of floats in one sampled value: four for a colour with alpha,
+  /// three for a light colour, two for an offset, one otherwise.
   final int componentCount;
+
+  @override
+  String toString() => 'AnimationPointerProperty.$name';
 }
 
 /// One resolved pointer: [property] of the [index]th object of its kind.
 final class AnimationPointer {
+  /// A pointer to [property] of object [index], written as [pointer]; the
+  /// three are not checked against each other.
   const AnimationPointer({
     required this.property,
     required this.index,
     required this.pointer,
   });
 
+  /// The pointer a writer emits for [property] of object [index] when there
+  /// is no source string to keep — a track built by hand.
+  factory AnimationPointer.of(AnimationPointerProperty property, int index) =>
+      AnimationPointer(
+        property: property,
+        index: index,
+        pointer: switch (property) {
+          AnimationPointerProperty.baseColor =>
+            '/materials/$index/pbrMetallicRoughness/baseColorFactor',
+          AnimationPointerProperty.emissiveStrength =>
+            '/materials/$index/extensions/KHR_materials_emissive_strength/'
+                'emissiveStrength',
+          AnimationPointerProperty.roughness =>
+            '/materials/$index/pbrMetallicRoughness/roughnessFactor',
+          AnimationPointerProperty.metallic =>
+            '/materials/$index/pbrMetallicRoughness/metallicFactor',
+          AnimationPointerProperty.textureOffset =>
+            '/materials/$index/pbrMetallicRoughness/baseColorTexture/'
+                'extensions/KHR_texture_transform/offset',
+          AnimationPointerProperty.lightColor =>
+            '/extensions/KHR_lights_punctual/lights/$index/color',
+          AnimationPointerProperty.lightIntensity =>
+            '/extensions/KHR_lights_punctual/lights/$index/intensity',
+          _ => throw UnsupportedError('no glTF pointer for $property'),
+        },
+      );
+
   /// Resolves [pointer] — a JSON pointer as `KHR_animation_pointer` writes
-  /// it — or returns null when it names nothing this engine animates.
+  /// it. Throws an [AnimationPointerFormatException] naming the pointer when
+  /// it names nothing this engine animates.
+  ///
+  /// For a caller that has a pointer it expects to resolve: code that builds
+  /// a track by hand, a tool reading a path a person typed. A loader, which
+  /// meets pointers a later build or another tool wrote, asks [tryParse].
+  static AnimationPointer parse(String pointer) =>
+      tryParse(pointer) ??
+      (throw AnimationPointerFormatException(
+        '"$pointer" names no property this engine animates',
+      ));
+
+  /// Resolves [pointer], or returns null when it names nothing this engine
+  /// animates.
+  ///
+  /// **Null is "not here", and the caller says so**: a file may animate a
+  /// property this build has no target for, and both loaders skip such a
+  /// track with a warning in the document rather than refusing the model.
   ///
   /// Matches the whole path, not a suffix: `/materials/0/extensions/
   /// KHR_materials_emissive_strength/emissiveStrength` is a strength, and a
   /// path that merely ends in `emissiveStrength` somewhere else is not.
-  static AnimationPointer? parse(String pointer) {
+  static AnimationPointer? tryParse(String pointer) {
     final parts = pointer.split('/');
     // A JSON pointer starts with `/`, so the first part is always empty.
     if (parts.length < 4 || parts.first.isNotEmpty) return null;
@@ -125,32 +288,7 @@ final class AnimationPointer {
     r'/extensions/KHR_texture_transform/offset$',
   );
 
-  /// The pointer a writer emits for [property] of object [index] when there
-  /// is no source string to keep — a track built by hand.
-  factory AnimationPointer.of(AnimationPointerProperty property, int index) =>
-      AnimationPointer(
-        property: property,
-        index: index,
-        pointer: switch (property) {
-          AnimationPointerProperty.baseColor =>
-            '/materials/$index/pbrMetallicRoughness/baseColorFactor',
-          AnimationPointerProperty.emissiveStrength =>
-            '/materials/$index/extensions/KHR_materials_emissive_strength/'
-                'emissiveStrength',
-          AnimationPointerProperty.roughness =>
-            '/materials/$index/pbrMetallicRoughness/roughnessFactor',
-          AnimationPointerProperty.metallic =>
-            '/materials/$index/pbrMetallicRoughness/metallicFactor',
-          AnimationPointerProperty.textureOffset =>
-            '/materials/$index/pbrMetallicRoughness/baseColorTexture/'
-                'extensions/KHR_texture_transform/offset',
-          AnimationPointerProperty.lightColor =>
-            '/extensions/KHR_lights_punctual/lights/$index/color',
-          AnimationPointerProperty.lightIntensity =>
-            '/extensions/KHR_lights_punctual/lights/$index/intensity',
-        },
-      );
-
+  /// What is driven, and how many floats a value of it has.
   final AnimationPointerProperty property;
 
   /// Index into the document's materials or lights, by [property]'s target.
@@ -160,6 +298,7 @@ final class AnimationPointer {
   /// back on the texture it came from rather than on a canonical one.
   final String pointer;
 
+  /// The kind of object [index] counts in: [property]'s target.
   AnimationPointerTarget get target => property.target;
 
   @override
@@ -182,7 +321,11 @@ final class AnimationPointer {
 /// reason `MorphSink` gives: `AnimationTarget` is a published interface of
 /// three transform setters, and a material's roughness is not a transform.
 /// A model instance implements it over the materials and lights it owns.
-abstract interface class AnimationPointerSink {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class AnimationPointerSink {
   /// Writes [values] — [AnimationPointerProperty.componentCount] floats — to
   /// [pointer]'s property. A pointer to an object the sink does not have is
   /// ignored: a clip may outlive the material it was authored against.

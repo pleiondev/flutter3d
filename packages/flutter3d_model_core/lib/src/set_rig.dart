@@ -5,7 +5,7 @@
 /// in any [ModelProject].** Writing those in by hand — a loop of
 /// [ModelProject.added], a `copyWith` for the skeleton list, a second
 /// `copyWith` for [ModelObject.skeletonIndex] — used to happen inline in
-/// `flutter3d_model_mcp`'s own `autoRig` recipe, through [ReplaceDocument];
+/// `flutter3d_mcp/model.dart`'s own `autoRig` recipe, through [ReplaceDocument];
 /// [ReplaceDocument] is deliberately outside [modelCommandNames] (see its own
 /// class comment in `command.dart`), so that whole result never reached the
 /// undo journal as itself — undoing an auto-rig undid the *entire* recipe's
@@ -52,6 +52,7 @@ part of 'command.dart';
 /// instead of duplicated as a second field on [SetRig] itself.** See this
 /// file's own library comment for what [SetRig.apply] does with it.
 final class SkinWeightsBlob {
+  /// A blob of weights in [data], built against object version [baseVersion].
   const SkinWeightsBlob({required this.baseVersion, required this.data});
 
   /// The skinned object's own [ModelObject.version] when the job that built
@@ -64,6 +65,7 @@ final class SkinWeightsBlob {
   /// leaving the tail of a longer mesh untouched.
   final Float32List data;
 
+  /// The blob as JSON, [data] base64-encoded; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'baseVersion': baseVersion,
     'data': base64Encode(
@@ -71,24 +73,25 @@ final class SkinWeightsBlob {
     ),
   };
 
-  /// A [SkinWeightsBlob] from its own [toJson], or null when a field is
-  /// missing or the wrong shape.
-  static SkinWeightsBlob? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
-    return switch (json) {
-      {'baseVersion': final int baseVersion, 'data': final String encoded} =>
-        SkinWeightsBlob(
-          baseVersion: baseVersion,
-          data: Float32List.sublistView(base64Decode(encoded)),
-        ),
-      _ => null,
-    };
-  }
+  /// A [SkinWeightsBlob] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape.
+  static SkinWeightsBlob fromJson(Object? json) => switch (json) {
+    {'baseVersion': final int baseVersion, 'data': final String encoded} =>
+      SkinWeightsBlob(
+        baseVersion: baseVersion,
+        data: Float32List.sublistView(base64Decode(encoded)),
+      ),
+    _ => throw const ProjectFormatException(
+      'skin weights name their whole "baseVersion" and their base64 "data"',
+    ),
+  };
 }
 
 /// One history step for a whole auto-rig result. See this file's own library
 /// comment for the shape and what each field is for.
 final class SetRig extends ModelCommand {
+  /// A step adding [skeleton] and its [jointObjects], binding [skinObjectId]
+  /// with [weights] when given, offered for undo as [label].
   const SetRig({
     required this.jointObjects,
     required this.skeleton,
@@ -97,7 +100,7 @@ final class SetRig extends ModelCommand {
     required this.label,
   });
 
-  /// Every joint (and, when [RigBuildOptions.controllers] asked for one, the
+  /// Every joint (and, when [RigBuildSettings.controllers] asked for one, the
   /// rig controller ahead of them) [buildSkeleton] built, ids already
   /// chosen — see this file's own library comment.
   final List<ModelObject> jointObjects;
@@ -210,6 +213,10 @@ final class SetRig extends ModelCommand {
         skeletons: next.skeletons,
         clips: next.clips,
         lighting: next.lighting,
+        animationGraphs: next.animationGraphs,
+        unknown: next.unknown,
+        unknownSections: next.unknownSections,
+        rights: next.rights,
       );
     }
 
@@ -358,7 +365,7 @@ List<Matrix4>? _matrixListFrom(Object? json) {
 }
 
 /// Absent reads as no constraints at all — a skeleton [SetRig] built before
-/// [RigBuildOptions.ikChains] ever asked for any.
+/// [RigBuildSettings.ikChains] ever asked for any.
 List<IkConstraint>? _rigIkConstraintsFrom(Object? json) {
   if (json == null) return const <IkConstraint>[];
   if (json is! List) return null;

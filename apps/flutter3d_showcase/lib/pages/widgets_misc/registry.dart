@@ -4,6 +4,12 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/widgets_misc/hot_swap.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/parties.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/render_inspection.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/saves.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/scene_widgets.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/time_travel.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 import 'accommodations.dart';
@@ -17,6 +23,8 @@ import 'scene_surface.dart';
 import 'storage.dart';
 import 'widget_surface.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> widgetsMiscDemos = <String, DemoBuilder>{
   'widget-surface': WidgetSurfaceDemo.new,
   'scene-semantics': SceneSemanticsDemo.new,
@@ -28,4 +36,10 @@ final Map<String, DemoBuilder> widgetsMiscDemos = <String, DemoBuilder>{
   'game-settings': GameSettingsDemo.new,
   'run-timeline': RunTimelineDemo.new,
   'rollback-netcode': RollbackNetcodeDemo.new,
+  'time-travel': TimeTravelDemo.new,
+  'saves': SavesDemo.new,
+  'parties': PartiesDemo.new,
+  'scene-widgets': SceneWidgetsDemo.new,
+  'render-inspection': RenderInspectionDemo.new,
+  'hot-swap': HotSwapDemo.new,
 };

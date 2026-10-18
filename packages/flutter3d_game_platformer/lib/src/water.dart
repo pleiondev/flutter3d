@@ -12,36 +12,62 @@
 /// format needed nothing new.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// How a body behaves in water.
 ///
-/// **Separate from [RunnerTuning] on purpose.** A level with two pools — a
+/// **Separate from [RunnerSettings] on purpose.** A level with two pools — a
 /// shallow one to cross and a tar pit that nearly holds you — says so by
 /// giving them different tuning, and a game with one kind of water passes the
 /// same object twice. Putting these on the runner would have made every pool
 /// in a level identical.
-final class SwimTuning {
-  const SwimTuning({
-    this.buoyancy = 6.0,
+final class SwimSettings {
+  /// Settings with each field at the default its own doc gives.
+  const SwimSettings({
+    this.buoyancyRatio = 0.25,
     this.sinkSpeed = 2.0,
     this.riseSpeed = 3.0,
     this.drag = 3.0,
     this.speed = 3.4,
   });
 
-  /// Upward acceleration while submerged, in metres per second squared.
+  /// A copy with the given fields replaced.
+  SwimSettings copyWith({
+    double? buoyancyRatio,
+    double? sinkSpeed,
+    double? riseSpeed,
+    double? drag,
+    double? speed,
+  }) => SwimSettings(
+    buoyancyRatio: buoyancyRatio ?? this.buoyancyRatio,
+    sinkSpeed: sinkSpeed ?? this.sinkSpeed,
+    riseSpeed: riseSpeed ?? this.riseSpeed,
+    drag: drag ?? this.drag,
+    speed: speed ?? this.speed,
+  );
+
+  /// The water's push up on a submerged runner, as a fraction of the gravity
+  /// the runner falls by: a ratio, no unit. The default quarter is the 6 m/s²
+  /// it always was under the run's 24.
   ///
-  /// **Below gravity on purpose**, so a runner who does nothing sinks slowly
+  /// **Below one on purpose**, so a runner who does nothing sinks slowly
   /// rather than bobbing to the top: floating up by itself reads as a bug the
   /// first time a player wants to reach something underneath.
-  final double buoyancy;
+  ///
+  /// **A share of gravity, not an acceleration**, because Archimedes' push is
+  /// the displaced water's weight — ρ_water·V·g — and so goes with g as the
+  /// fall does. Before 1.0 it was `buoyancy`, a fixed 6 m/s², and in a level
+  /// set on the Moon (1.62 m/s²) that pushed a runner up nearly four times
+  /// harder than the Moon pulled him down: he flew out of every pool.
+  final double buoyancyRatio;
 
   /// The fastest a runner sinks, in metres a second.
   final double sinkSpeed;
 
   /// How fast holding jump carries a runner upwards.
+  /// In metres per second.
   final double riseSpeed;
 
   /// How hard the water slows horizontal movement, per second.
@@ -49,6 +75,20 @@ final class SwimTuning {
 
   /// Top speed while swimming, in metres a second.
   final double speed;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SwimSettings &&
+          other.buoyancyRatio == buoyancyRatio &&
+          other.sinkSpeed == sinkSpeed &&
+          other.riseSpeed == riseSpeed &&
+          other.drag == drag &&
+          other.speed == speed;
+
+  @override
+  int get hashCode =>
+      Object.hash(buoyancyRatio, sinkSpeed, riseSpeed, drag, speed);
 }
 
 /// A body of water, as a trigger a runner can be inside.
@@ -57,21 +97,28 @@ final class SwimTuning {
 /// where the runner is, asked once a step, and a mechanism that remembered the
 /// answer would be a mechanism that disagreed with the world after a teleport.
 final class Water extends Mechanism {
+  /// Water filling [collider], made a trigger and pointed back here, that a
+  /// runner swims in as [tuning] says.
   Water({
     super.name,
     required this.collider,
-    this.tuning = const SwimTuning(),
+    this.tuning = const SwimSettings(),
   }) {
     collider
       ..kind = ColliderKind.trigger
       ..userData = this;
   }
 
+  /// The trigger volume the water fills; only a box holds anything, so
+  /// [holds] is false for every point in water of any other shape.
   final Collider collider;
-  final SwimTuning tuning;
+
+  /// How a runner moves while in this water: buoyancy, sinking, rising,
+  /// drag and top speed.
+  final SwimSettings tuning;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Whether [point] is under the surface.
   ///

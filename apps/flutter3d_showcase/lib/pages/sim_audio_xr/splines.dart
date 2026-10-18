@@ -7,9 +7,12 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `splines` page: a car driving a closed spline measured in metres. Its
+/// check is that the spline returns to its start after one full length.
 final class SplinesDemo extends ShowcaseDemo {
+  /// How far along the loop the car is, in metres, from 0 to its length;
+  /// advanced 2 m a second and wrapped.
   double distance = 0.0;
 
   // #region track
@@ -26,9 +29,9 @@ final class SplinesDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final material = Material(
+    final material = RenderMaterial(
       name: 'car',
-      baseColor: Vector4(0.9, 0.3, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.9, 0.3, 0.3, 1.0),
     );
     _car = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -37,7 +40,7 @@ final class SplinesDemo extends ShowcaseDemo {
     return Scene()
       ..add(_car)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

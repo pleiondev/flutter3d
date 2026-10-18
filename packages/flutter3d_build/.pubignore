@@ -1,0 +1,13 @@
+# What stays out of the published archive.
+#
+# The migration test's fixture: a project written against 0.8 and its
+# migrated copy, which import packages this one does not depend on. pub's
+# dependency check reads every Dart file that would be published, whatever
+# `analysis_options.yaml` excludes, so it is left out of the archive
+# instead. The test that copies it out runs in this repository.
+test/fixtures/migrate_0_8/
+# The same for each migration kind's before-and-after pair, which import
+# `flutter3d_kinds`, a package that exists only inside those fixtures.
+test/fixtures/migrate_kinds/
+build/
+.dart_tool/

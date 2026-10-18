@@ -42,6 +42,8 @@ final class AttributeSequence {
   final Int32List _valueToCorner;
   int _valueCount = 0;
 
+  /// Count of stored values the walk has assigned so far: one per vertex
+  /// reached, in the order reached.
   int get valueCount => _valueCount;
 
   /// A corner at the vertex the [value]-th stored value belongs to — the

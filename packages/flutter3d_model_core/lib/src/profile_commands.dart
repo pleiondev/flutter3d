@@ -3,8 +3,8 @@
 /// explaining why rather than silently clamped.
 ///
 /// A `part` of `command.dart` for the reason every other command file gives:
-/// [ModelCommand] is sealed, and a journal writer's exhaustive `switch` is
-/// only exhaustive if the compiler can see every case inside one library.
+/// [ModelCommand] is `abstract final`, so every command lives in one library,
+/// beside the journal reader that names them all.
 part of 'command.dart';
 
 /// Changes [ModelProject.profile]'s own `maxJoints`/`maxInfluences`,
@@ -18,6 +18,8 @@ part of 'command.dart';
 /// value cannot merely disappoint, the way an over-triangle-budget model
 /// still loads. Widen this the day a second field earns the same refusal.
 final class SetProfileLimits extends ModelCommand {
+  /// A change to [maxJoints] and [maxInfluences]; null leaves that limit at the
+  /// profile's current value.
   const SetProfileLimits({this.maxJoints, this.maxInfluences});
 
   /// The shader's own hard ceiling — see [ProjectProfile.maxJoints]'s own
@@ -29,7 +31,14 @@ final class SetProfileLimits extends ModelCommand {
   /// to go, whatever a profile promises.
   static const int hardMaxInfluences = 4;
 
+  /// New joint ceiling per skeleton, a count from one to [hardMaxJoints], or
+  /// null to keep the profile's own. [apply] refuses a value outside that
+  /// range.
   final int? maxJoints;
+
+  /// New ceiling of joint influences per vertex, a count from one to
+  /// [hardMaxInfluences], or null to keep the profile's own. [apply] refuses a
+  /// value outside that range.
   final int? maxInfluences;
 
   @override

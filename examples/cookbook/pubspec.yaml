@@ -1,0 +1,57 @@
+name: flutter3d_cookbook
+description: "Twenty tasks, one file each and under forty lines: what an application on flutter3d writes for a model, a scene, a twin or a laboratory."
+publish_to: 'none'
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# **Every engine package by path, as a project outside the repository would
+# name them from pub.dev.** No `src/` import anywhere here: the structure
+# rule `an outside example reaches only the published API` reads every file,
+# so a recipe is what anybody can write.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The two a project starts with: the engine, and the widgets and the view
+  # that run it.
+  flutter3d:
+    path: ../../packages/flutter3d
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  # The fixed step, its time sources and the probes a twin or a laboratory
+  # reads, and the units a probe reads in.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+
+  # Bodies that fall and collide, for the level with physics.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
+  # Particles, for the campfire.
+  flutter3d_particles:
+    path: ../../packages/flutter3d_particles
+
+  # The twin's one source, polled over REST.
+  http: ^1.4.0
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+# The models the recipes load are under `assets_src/`. In a project of your
+# own, `dart run flutter3d_build:init` wires the build hook that converts
+# them into `flutter3d_generated/` on every build. Here a debug build and a
+# test read the sources from disk, which is the fallback `Model3D` takes
+# when nothing has converted them yet.
+flutter:
+  uses-material-design: true

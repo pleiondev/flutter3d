@@ -5,7 +5,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 enum _Part { jet, ship }
 
@@ -23,7 +22,7 @@ SceneNode _wearer(Scene scene, String name) {
           cpuTestDevice(width: 4, height: 4).device,
           CuboidShape(size: Vector3.all(0.5)).build(),
         ),
-        Material(),
+        RenderMaterial(),
       ),
     );
   scene.add(visual);
@@ -40,7 +39,7 @@ void main() {
   });
 
   ModelWardrobe<_Part> wardrobe({
-    void Function(ModelInstance, _Part)? onDressed,
+    void Function(ModelDressed<_Part> dressed)? onDressed,
   }) => ModelWardrobe<_Part>(
     device: device,
     scene: scene,
@@ -81,7 +80,7 @@ void main() {
 
   test('onDressed sees every instance with its part', () {
     final seen = <_Part>[];
-    final closet = wardrobe(onDressed: (_, part) => seen.add(part));
+    final closet = wardrobe(onDressed: (dressed) => seen.add(dressed.key));
     closet
       ..dress(_wearer(scene, 'a'), _Part.jet)
       ..dress(_wearer(scene, 'b'), _Part.jet)

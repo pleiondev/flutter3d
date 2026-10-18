@@ -26,26 +26,21 @@ Widget _ending({bool touch = false}) => MaterialApp(
 
 void main() {
   group('the title card', () {
-    testWidgets('names the game, the controls and the author of the car', (
+    testWidgets('names the game, the controls and whoever it owes', (
       WidgetTester tester,
     ) async {
-      // **The acceptance the licence writes for us.** The car is CC BY 4.0,
-      // whose text makes naming the author a condition, and until now the only
-      // screen that did was one most players never open. `Credits.owed` is the
-      // subset the clause applies to, and this asks for the author and the
-      // licence URL by name.
-      //
-      // Mutation: delete the `CreditsSection` from `TitleCard` — this fails,
-      // and the game goes back into breach.
+      // Every author a licence asks to be named is named here, with the
+      // licence's address: none since the car became CC0, and whoever comes
+      // in under CC BY next (`credits_test.dart` says when).
       await tester.pumpWidget(
         const MaterialApp(home: TitleCard(prompt: 'Press any key.')),
       );
 
       expect(find.text('Ring'), findsOneWidget);
       expect(find.textContaining('throttle'), findsWidgets);
-      for (final credit in Credits.owed) {
+      for (final credit in credits.owed) {
         expect(find.textContaining(credit.author!), findsWidgets);
-        expect(find.text(credit.licenceUrl!), findsWidgets);
+        expect(find.text(credit.licenseUrl!), findsWidgets);
       }
       expect(find.text('Press any key.'), findsOneWidget);
     });
@@ -81,7 +76,7 @@ void main() {
       // tree as the thing that must stay unreached, which is the half of the
       // claim a listener on the card alone would not make.
       //
-      // Mutation: drop the `Listener` from `TitleCard.build` — `begins` stays
+      // Mutation: drop the `Listener` from `TitleSheet.build` — `begins` stays
       // at nought and this fails, which is the handset build as it shipped.
       var begins = 0;
       var below = 0;
@@ -193,13 +188,12 @@ void main() {
     testWidgets('and names the author the licence asks for', (
       WidgetTester tester,
     ) async {
-      // The other screen the CC BY clause reaches. A player who never opens the
-      // settings and never sits through the title card still finishes the game.
-      //
-      // Mutation: delete the `CreditsSection` from `SeasonEnding` — this fails.
+      // The other screen an attribution clause reaches. A player who never
+      // opens the settings and never sits through the title card still
+      // finishes the game.
       await tester.pumpWidget(_ending());
 
-      for (final credit in Credits.owed) {
+      for (final credit in credits.owed) {
         expect(find.textContaining(credit.author!), findsWidgets);
       }
     });

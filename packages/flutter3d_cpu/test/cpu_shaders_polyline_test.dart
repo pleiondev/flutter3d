@@ -17,7 +17,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/src/cpu_shader_bindings.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_layout.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/cpu_shaders_polyline.dart';
 import 'package:flutter3d_cpu/src/cpu_texture.dart';
 import 'package:test/test.dart';

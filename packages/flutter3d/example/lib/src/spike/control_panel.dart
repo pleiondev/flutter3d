@@ -5,6 +5,8 @@ import 'scene_source.dart';
 
 /// The bottom control panel: every slider, chip and readout the demo exposes.
 class ControlPanel extends StatelessWidget {
+  /// A panel showing the demo's current settings; every control reports its
+  /// change through the matching callback and the screen rebuilds the panel.
   const ControlPanel({
     super.key,
     required this.sources,
@@ -52,44 +54,106 @@ class ControlPanel extends StatelessWidget {
     required this.loadMillis,
   });
 
+  /// The models the Model chips offer, in order.
   final List<SceneSource> sources;
+
+  /// Which of [sources] is loaded, by index.
   final int sourceIndex;
+
+  /// A Model chip was picked, by its index in [sources].
   final ValueChanged<int> onSource;
+
+  /// The lighting model the scene's materials use.
   final LightingModel lighting;
+
+  /// A lighting model chip was picked.
   final ValueChanged<LightingModel> onLighting;
+
+  /// The materials' roughness, from 0 to 1.
   final double roughness;
+
+  /// The roughness slider moved, from 0 to 1.
   final ValueChanged<double> onRoughness;
+
+  /// The materials' metallic factor, from 0 to 1; the slider is disabled for a
+  /// lighting model that has none.
   final double metallic;
+
+  /// The metallic slider moved, from 0 to 1.
   final ValueChanged<double> onMetallic;
+
+  /// The materials' specular strength, from 0 to 1; the slider is disabled
+  /// under Lambert.
   final double specular;
+
+  /// The specular slider moved, from 0 to 1.
   final ValueChanged<double> onSpecular;
+
+  /// The camera's exposure multiplier, from 0 to 4.
   final double exposure;
+
+  /// The exposure slider moved, from 0 to 4.
   final ValueChanged<double> onExposure;
+
+  /// The scene's ambient level, from 0 to 0.4.
   final double ambient;
+
+  /// The ambient slider moved, from 0 to 0.4.
   final ValueChanged<double> onAmbient;
+
+  /// Whether the scene is drawn as wireframe.
   final bool wireframe;
+
+  /// The Wireframe chip was toggled.
   final ValueChanged<bool> onWireframe;
+
+  /// Whether the model turns on its own.
   final bool spinning;
+
+  /// The Spin chip was toggled.
   final ValueChanged<bool> onSpinning;
+
+  /// Whether back faces are culled.
   final bool culling;
+
+  /// The Backface cull chip was toggled.
   final ValueChanged<bool> onCulling;
-  final DebugDrawOptions debug;
-  final ValueChanged<DebugDrawOptions> onDebug;
+
+  /// Which debug overlays are drawn: bounds, normals, light gizmos, axes and
+  /// camera frusta.
+  final DebugDrawSettings debug;
+
+  /// A debug chip was toggled: the settings with that overlay changed.
+  final ValueChanged<DebugDrawSettings> onDebug;
 
   /// The scene's lights, so each can be switched on and off.
   final List<LightNode> lights;
 
+  /// A light chip was toggled; the light's own `isVisible` is already set.
   final VoidCallback onLightsChanged;
 
+  /// The bloom pass's settings, which the Bloom row edits.
   final BloomSettings bloom;
+
+  /// A bloom control changed: the settings with that field replaced.
   final ValueChanged<BloomSettings> onBloom;
 
+  /// The shadow pass's settings, which the Shadows row edits.
   final ShadowSettings shadows;
+
+  /// A shadow control changed: the settings with that field replaced.
   final ValueChanged<ShadowSettings> onShadows;
 
+  /// Whether the ground plane is in the scene.
   final bool ground;
+
+  /// The Ground chip was toggled.
   final ValueChanged<bool> onGround;
+
+  /// The last frame's build time on the UI thread, in microseconds.
   final int uiMicros;
+
+  /// The last frame's raster time, in microseconds.
   final int rasterMicros;
 
   /// What the last tap selected, or null when nothing is selected.
@@ -101,14 +165,26 @@ class ControlPanel extends StatelessWidget {
   /// Called after a transport control mutates the player, so the panel redraws.
   final VoidCallback onPlayerChanged;
 
+  /// The Frame all chip was pressed: put the camera on the whole model.
   final VoidCallback onFrameAll;
 
   /// The loaded model's mesh nodes that carry morph state, or empty for the
   /// models that morph nothing — which is most of them.
   final List<MeshNode> morphNodes;
+
+  /// The renderer the scene is drawn through; the readout says whether its
+  /// MSAA is on.
   final Renderer renderer;
+
+  /// The scene, for the node count in the readout.
   final Scene scene;
+
+  /// The loaded model, for its vertex and triangle counts and its warnings;
+  /// null before the first load.
   final ModelAsset? asset;
+
+  /// What the last frame reported: timings, draws, culled meshes and lights.
+  /// Null before the first frame.
   final FrameResult? frame;
 
   /// Wall-clock time of the last load, including the isolate round trip.
@@ -126,7 +202,7 @@ class ControlPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          PanelLabel('Lighting model', textTheme),
+          _PanelLabel('Lighting model', textTheme),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -140,7 +216,7 @@ class ControlPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          PanelLabel('Model', textTheme),
+          _PanelLabel('Model', textTheme),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -157,7 +233,7 @@ class ControlPanel extends StatelessWidget {
           Row(
             children: <Widget>[
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Roughness',
                   value: roughness,
                   enabled: sliders,
@@ -165,7 +241,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Metallic',
                   value: metallic,
                   enabled: sliders && lighting.usesMetallic,
@@ -173,7 +249,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Specular',
                   value: specular,
                   enabled: sliders && lighting != LightingModel.lambert,
@@ -181,7 +257,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Ambient',
                   value: ambient,
                   max: 0.4,
@@ -190,7 +266,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Exposure',
                   value: exposure,
                   max: 4.0,
@@ -225,12 +301,12 @@ class ControlPanel extends StatelessWidget {
           ),
           if (player != null && player!.hasClips) ...<Widget>[
             const SizedBox(height: 6),
-            PanelLabel('Animation', textTheme),
+            _PanelLabel('Animation', textTheme),
             AnimationControls(player: player!, onChanged: onPlayerChanged),
           ],
           if (morphNodes.isNotEmpty) ...<Widget>[
             const SizedBox(height: 6),
-            PanelLabel('Morph', textTheme),
+            _PanelLabel('Morph', textTheme),
             MorphControls(
               nodes: morphNodes,
               player: player,
@@ -238,7 +314,7 @@ class ControlPanel extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 6),
-          PanelLabel('Lights', textTheme),
+          _PanelLabel('Lights', textTheme),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -249,19 +325,19 @@ class ControlPanel extends StatelessWidget {
                     '${light.name ?? light.type.name} '
                     '(${light.type.name})',
                   ),
-                  selected: light.visible,
+                  selected: light.isVisible,
                   // Switching a light off only shortens the shader's loop; the
                   // pipeline is untouched, which the "pipeline sw" counter below
                   // keeps honest.
                   onSelected: (v) {
-                    light.visible = v;
+                    light.isVisible = v;
                     onLightsChanged();
                   },
                 ),
             ],
           ),
           const SizedBox(height: 6),
-          PanelLabel('Shadows', textTheme),
+          _PanelLabel('Shadows', textTheme),
           Row(
             children: <Widget>[
               FilterChip(
@@ -277,7 +353,7 @@ class ControlPanel extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Strength',
                   value: shadows.strength,
                   enabled: shadows.enabled,
@@ -285,7 +361,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Bias',
                   value: shadows.bias,
                   max: 0.01,
@@ -294,7 +370,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Normal offset',
                   value: shadows.normalOffset,
                   max: 0.2,
@@ -306,7 +382,7 @@ class ControlPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          PanelLabel('Bloom', textTheme),
+          _PanelLabel('Bloom', textTheme),
           Row(
             children: <Widget>[
               FilterChip(
@@ -316,7 +392,7 @@ class ControlPanel extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Threshold',
                   value: bloom.threshold,
                   max: 4.0,
@@ -325,7 +401,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Intensity',
                   value: bloom.intensity,
                   max: 0.5,
@@ -334,7 +410,7 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: PanelSlider(
+                child: _PanelSlider(
                   label: 'Radius',
                   value: bloom.filterRadius,
                   max: 4.0,
@@ -345,7 +421,7 @@ class ControlPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          PanelLabel('Debug draw', textTheme),
+          _PanelLabel('Debug draw', textTheme),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -439,13 +515,17 @@ class ControlPanel extends StatelessWidget {
 /// Scrubbing pauses first: dragging a slider while the clip is running fights
 /// the ticker, and every frame would snap the playhead back.
 class AnimationControls extends StatelessWidget {
+  /// Transport controls over [player].
   const AnimationControls({
     super.key,
     required this.player,
     required this.onChanged,
   });
 
+  /// The model's animation player, which the controls mutate directly.
   final AnimationPlayer player;
+
+  /// Called after a control mutates [player], so the panel redraws.
   final VoidCallback onChanged;
 
   @override
@@ -491,7 +571,7 @@ class AnimationControls extends StatelessWidget {
                   label: Text(names[i]),
                   selected: player.clipIndex == i,
                   onSelected: (_) {
-                    player.play(i);
+                    player.play(index: i);
                     onChanged();
                   },
                 ),
@@ -501,24 +581,24 @@ class AnimationControls extends StatelessWidget {
           children: <Widget>[
             Expanded(
               flex: 3,
-              child: PanelSlider(
+              child: _PanelSlider(
                 label:
                     'Time '
-                    '${player.time.toStringAsFixed(2)}/'
-                    '${player.duration.toStringAsFixed(2)}s',
-                value: player.duration <= 0.0
+                    '${player.timeSeconds.toStringAsFixed(2)}/'
+                    '${player.durationSeconds.toStringAsFixed(2)}s',
+                value: player.durationSeconds <= 0.0
                     ? 0.0
-                    : player.time / player.duration,
-                enabled: player.duration > 0.0,
+                    : player.timeSeconds / player.durationSeconds,
+                enabled: player.durationSeconds > 0.0,
                 onChanged: (v) {
                   player.pause();
-                  player.seek(v * player.duration);
+                  player.seek(v * player.durationSeconds);
                   onChanged();
                 },
               ),
             ),
             Expanded(
-              child: PanelSlider(
+              child: _PanelSlider(
                 label: 'Speed ${player.speed.toStringAsFixed(2)}x',
                 value: player.speed,
                 max: 3.0,
@@ -554,6 +634,7 @@ class AnimationControls extends StatelessWidget {
 /// back on the next tick and reads as a broken control rather than as a clip
 /// winning an argument.
 class MorphControls extends StatelessWidget {
+  /// A slider per morph target of every node in [nodes].
   const MorphControls({
     super.key,
     required this.nodes,
@@ -567,6 +648,7 @@ class MorphControls extends StatelessWidget {
   /// Paused on the first drag, or null when the model has no clips.
   final AnimationPlayer? player;
 
+  /// Called after a slider moves a weight, so the panel redraws.
   final VoidCallback onChanged;
 
   /// What the file called target [index] of [node], or its number.
@@ -597,7 +679,7 @@ class MorphControls extends StatelessWidget {
               style: textTheme.bodySmall?.copyWith(color: Colors.white60),
             ),
           for (var i = 0; i < node.morphWeights.length; i++)
-            PanelSlider(
+            _PanelSlider(
               label: _label(node, i),
               value: node.morphWeights[i],
               enabled: true,
@@ -625,8 +707,9 @@ class MorphControls extends StatelessWidget {
 /// still readable instead of collapsing to "0 ms".
 String _ms(int micros) => '${(micros / 1000.0).toStringAsFixed(2)} ms';
 
-class PanelLabel extends StatelessWidget {
-  const PanelLabel(this.text, this.theme, {super.key});
+/// A section heading in capitals.
+class _PanelLabel extends StatelessWidget {
+  const _PanelLabel(this.text, this.theme);
 
   final String text;
   final TextTheme theme;
@@ -641,9 +724,9 @@ class PanelLabel extends StatelessWidget {
   );
 }
 
-class PanelSlider extends StatelessWidget {
-  const PanelSlider({
-    super.key,
+/// A labelled slider from nought to [max], showing its value to two places.
+class _PanelSlider extends StatelessWidget {
+  const _PanelSlider({
     required this.label,
     required this.value,
     required this.onChanged,

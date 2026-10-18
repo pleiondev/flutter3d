@@ -25,7 +25,16 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 /// What a transform in progress is doing.
-enum TransformKind { move, rotate, scale }
+enum TransformKind {
+  /// A move: the pointer's travel becomes metres.
+  move,
+
+  /// A turn about the pivot: the pointer's sweep becomes radians.
+  rotate,
+
+  /// A scale about the pivot: the pointer's travel becomes a factor.
+  scale,
+}
 
 /// What it is confined to.
 ///
@@ -34,12 +43,25 @@ enum TransformKind { move, rotate, scale }
 /// right angles to it, which is what `Shift+X` means elsewhere and is the more
 /// useful of the two often enough to be worth the second press.
 enum TransformAxis {
+  /// Every axis at once: wherever the pointer goes.
   free,
+
+  /// Along X only.
   x,
+
+  /// Along Y only.
   y,
+
+  /// Along Z only.
   z,
+
+  /// In the plane across X: Y and Z move, X stays.
   yz,
+
+  /// In the plane across Y: X and Z move, Y stays.
   xz,
+
+  /// In the plane across Z: X and Y move, Z stays.
   xy;
 
   /// Which of the three world axes this lets through.
@@ -74,7 +96,10 @@ enum TransformAxis {
     TransformAxis.x => TransformAxis.yz,
     TransformAxis.y => TransformAxis.xz,
     TransformAxis.z => TransformAxis.xy,
-    _ => TransformAxis.free,
+    TransformAxis.free ||
+    TransformAxis.yz ||
+    TransformAxis.xz ||
+    TransformAxis.xy => TransformAxis.free,
   };
 
   /// What the status line says.
@@ -91,6 +116,8 @@ enum TransformAxis {
 
 /// How far a transform has got, and what it is confined to.
 final class TransformModal {
+  /// A transform of [kind], free of any axis, its snap step the default for
+  /// the kind.
   TransformModal(this.kind) {
     step = switch (kind) {
       TransformKind.move => moveStep,
@@ -99,8 +126,11 @@ final class TransformModal {
     };
   }
 
+  /// Whether this moves, turns or scales; fixed for the transform's life.
   final TransformKind kind;
 
+  /// What the transform is confined to now. An axis key changes it through
+  /// [TransformAxis.pressed], mid-drag.
   TransformAxis axis = TransformAxis.free;
 
   /// What the pointer has added up to: metres for a move, radians for a turn,
@@ -144,7 +174,11 @@ final class TransformModal {
   /// caller with Settings behind it writes the person's own steps there —
   /// `ux-11`.
   static const double moveStep = 0.1;
+
+  /// Fifteen degrees, in radians.
   static const double turnStep = math.pi / 12;
+
+  /// A tenth of a factor.
   static const double scaleStep = 0.1;
 
   /// What this transform rounds to while the snap modifier is held, in the
@@ -219,7 +253,11 @@ final class TransformModal {
         : switch (axis) {
             TransformAxis.y => Vector3(0, said, 0),
             TransformAxis.z => Vector3(0, 0, said),
-            _ => Vector3(said, 0, 0),
+            TransformAxis.x ||
+            TransformAxis.free ||
+            TransformAxis.yz ||
+            TransformAxis.xz ||
+            TransformAxis.xy => Vector3(said, 0, 0),
           };
     final allows = axis.allows;
     if (!allows.x) raw.x = 0;

@@ -20,6 +20,8 @@ abstract final class Sounds {
     maximum: 40.0,
   );
 
+  /// The pistol's shot, and the shot of any ammunition this game has no row
+  /// for.
   static const SoundDef pistol = SoundDef(
     name: 'pistol',
     asset: 'assets/sounds/pistol.wav',
@@ -28,6 +30,7 @@ abstract final class Sounds {
     maxInstances: 3,
   );
 
+  /// A shot of shells.
   static const SoundDef shotgun = SoundDef(
     name: 'shotgun',
     asset: 'assets/sounds/shotgun.wav',
@@ -48,6 +51,7 @@ abstract final class Sounds {
     maxInstances: 3,
   );
 
+  /// A door or a lift arriving: played once as [stoneMove] stops.
   static const SoundDef stoneStop = SoundDef(
     name: 'stone_stop',
     asset: 'assets/sounds/stone_stop.wav',
@@ -55,6 +59,7 @@ abstract final class Sounds {
     priority: 5,
   );
 
+  /// A monster flinching from a hit.
   static const SoundDef monsterPain = SoundDef(
     name: 'monster_pain',
     asset: 'assets/sounds/monster_pain.wav',
@@ -63,6 +68,7 @@ abstract final class Sounds {
     maxInstances: 3,
   );
 
+  /// A monster dying.
   static const SoundDef monsterDie = SoundDef(
     name: 'monster_die',
     asset: 'assets/sounds/monster_die.wav',
@@ -81,6 +87,8 @@ abstract final class Sounds {
     maxInstances: 2,
   );
 
+  /// A door that will not open without a key; heard at the same loudness
+  /// wherever it is.
   static const SoundDef locked = SoundDef(
     name: 'locked',
     asset: 'assets/sounds/locked.wav',
@@ -111,6 +119,7 @@ abstract final class Sounds {
     maxInstances: 3,
   );
 
+  /// A blow of the fists, the weapon with no ammunition.
   static const SoundDef punch = SoundDef(
     name: 'punch',
     asset: 'assets/sounds/punch.wav',

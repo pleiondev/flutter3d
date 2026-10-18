@@ -8,17 +8,27 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `draw-state` page: a panel, a box and a flag that show draw order,
+/// depth writes, the depth test and back-face culling. Its check is that the
+/// panel is ordered first, writes no depth, and every mesh is drawn.
 final class DrawStateDemo extends ShowcaseDemo {
+  /// The panel's draw bucket, -1 to 1: a lower bucket is drawn earlier.
   int bucket = -1;
+
+  /// Whether the panel writes depth; off leaves the material's `depthWrite`
+  /// false.
   bool panelWritesDepth = false;
+
+  /// The panel's depth test: 0 the default less, 1 always.
   int testChoice = 0;
+
+  /// Whether back faces are culled; the flag shows its back when this is off.
   bool cullBackFaces = true;
 
   static const List<String> _tests = <String>['less', 'always'];
 
-  late final Material _panel;
+  late final RenderMaterial _panel;
   late final MeshNode _box;
 
   @override
@@ -42,15 +52,18 @@ final class DrawStateDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(1.6, 1.6, 1.6)).build(),
       ),
-      Material(name: 'box', baseColor: Vector4(0.25, 0.45, 0.85, 1.0)),
+      RenderMaterial(
+        name: 'box',
+        baseColor: LinearColor.fromSrgb(0.25, 0.45, 0.85, 1.0),
+      ),
       name: 'box',
     );
     // #endregion box
 
     // #region panel
-    _panel = Material(
+    _panel = RenderMaterial(
       name: 'panel',
-      baseColor: Vector4(0.95, 0.55, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.95, 0.55, 0.2, 1.0),
       drawBucket: bucket,
       depthWrite: panelWritesDepth ? null : false,
       depthCompare: testChoice == 0 ? null : CompareFunction.always,
@@ -75,7 +88,10 @@ final class DrawStateDemo extends ShowcaseDemo {
               context.device,
               const PlaneShape(width: 1.4, depth: 1.4).build(),
             ),
-            Material(name: 'flag', baseColor: Vector4(0.8, 0.15, 0.2, 1.0)),
+            RenderMaterial(
+              name: 'flag',
+              baseColor: LinearColor.fromSrgb(0.8, 0.15, 0.2, 1.0),
+            ),
             name: 'flag',
           )
           ..setRotation(
@@ -89,7 +105,7 @@ final class DrawStateDemo extends ShowcaseDemo {
       ..add(panel)
       ..add(flag)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.5, -1.0)),
       );
   }

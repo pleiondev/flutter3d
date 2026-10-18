@@ -1,0 +1,45 @@
+{
+  "format": "f3d.plugin",
+  "version": 4,
+  "requires": [],
+  "generator": "flutter3d",
+  "manifest": {
+    "id": "acme_sample.editor_data",
+    "apiVersion": "1.0",
+    "touches": "tooling",
+    "description": "The editor hints of acme_sample, as data."
+  },
+  "editor": {
+    "components": [
+      {
+        "id": "acme_sample.heat",
+        "title": "Heat",
+        "fields": [
+          {"key": "heat", "kind": "number", "label": "Temperature", "min": 273, "max": 1500, "step": 1, "unit": "K", "default": 900.0}
+        ]
+      }
+    ],
+    "entityKinds": [
+      {
+        "type": "ember",
+        "label": "Ember",
+        "tint": [1.0, 0.35, 0.08],
+        "fields": [
+          {"key": "reach", "kind": "number", "label": "Reach", "min": 0, "max": 8, "unit": "m", "default": 2.0}
+        ],
+        "components": ["acme_sample.heat"]
+      }
+    ],
+    "materials": [
+      {
+        "model": "acme_sample__Hair",
+        "fields": [
+          {"key": "gloss", "kind": "number", "min": 0, "max": 1, "step": 0.05},
+          {"key": "tint", "kind": "color"},
+          {"key": "shift", "kind": "number", "min": -0.5, "max": 0.5, "step": 0.01},
+          {"key": "fur", "kind": "asset", "suffixes": [".png", ".ktx2"]}
+        ]
+      }
+    ]
+  }
+}

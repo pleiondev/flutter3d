@@ -1,5 +1,4 @@
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One uploaded mesh per distinct shape, shared by everything that asks for it.
 ///
@@ -11,6 +10,7 @@ import 'package:vector_math/vector_math.dart';
 /// reason the texture cache does: a GPU resource that outlives the level owning
 /// it is a leak nobody notices.
 final class SharedMeshes {
+  /// An empty cache uploading through the device given.
   SharedMeshes(this._device);
 
   /// Held rather than passed per call: a cache that could be asked to upload

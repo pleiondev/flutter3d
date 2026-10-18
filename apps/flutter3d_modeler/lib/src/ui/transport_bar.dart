@@ -19,7 +19,13 @@ import '../timeline_playback.dart';
 
 /// Which of [TimelinePanel]/[CurveEditor] the timeline slot shows —
 /// screen 07's own `Keys`/`Curves` switch.
-enum TimelineEditMode { keys, curves }
+enum TimelineEditMode {
+  /// The dope sheet: a row per track, a diamond per key.
+  keys,
+
+  /// The curve editor: each channel's value drawn against time.
+  curves,
+}
 
 /// The captured region of [TransportBar]'s own golden — the play/pause
 /// button alone, drawn in vectors.
@@ -40,7 +46,10 @@ const double kTransportPlayButtonSize = 36.0;
 /// compete with the metrics card and the budget bars for room.
 const double kTransportCompactPlayButtonSize = 28.0;
 
+/// Screen 07's transport bar, or with [TransportBar.compact] the preview's
+/// play button and frame number alone.
 class TransportBar extends StatelessWidget {
+  /// The full bar, with the authoring controls.
   const TransportBar({
     super.key,
     required this.playback,
@@ -87,9 +96,13 @@ class TransportBar extends StatelessWidget {
   /// this widget only draws whatever frame it was given.
   final int frame;
 
+  /// Which of the two the timeline slot shows, selected in the toggle.
   final TimelineEditMode editMode;
+
+  /// The `Keys`/`Curves` toggle was pressed.
   final ValueChanged<TimelineEditMode> onEditMode;
 
+  /// Play or pause the clip.
   final VoidCallback onPlayPause;
 
   /// The loop toggle — on for [AnimationWrap.loop], off for
@@ -97,6 +110,7 @@ class TransportBar extends StatelessWidget {
   /// caller wants [AnimationWrap.pingPong] silently dropped.
   final ValueChanged<bool>? onLoopChanged;
 
+  /// A speed was picked from [speeds]. Null disables the speed control.
   final ValueChanged<double>? onSpeedChanged;
 
   /// The speed control's own menu. [Playback.speed] must be one of these —

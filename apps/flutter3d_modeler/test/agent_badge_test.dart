@@ -10,8 +10,8 @@
 /// says nothing at all about whether anybody is on the other end of it.
 library;
 
-import 'package:flutter/material.dart' hide Material, Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart' hide Matrix4;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
@@ -21,7 +21,6 @@ import 'package:flutter3d_modeler/src/ui/agent_session_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'support/fake_graphics_backend.dart';
 

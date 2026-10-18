@@ -10,12 +10,14 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `pose-sampling` page: a two-joint pendulum whose swing clip is sampled
+/// into an `AnimationPose` with no player or scene node involved. Its check
+/// fails if the tip never leaves its rest position.
 final class PoseSamplingDemo extends ShowcaseDemo {
   double _time = 0.3;
 
-  late final Pose _pose;
+  late final AnimationPose _pose;
   late final AnimationClip _swing;
   late final MeshNode _rootMarker;
   late final MeshNode _tipMarker;
@@ -30,7 +32,7 @@ final class PoseSamplingDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region pose
-    _pose = Pose(
+    _pose = AnimationPose(
       parents: <int>[-1, 0],
       restTranslations: Float32List.fromList(<double>[
         0.0,
@@ -89,12 +91,18 @@ final class PoseSamplingDemo extends ShowcaseDemo {
     );
     _rootMarker = MeshNode(
       bead,
-      Material(name: 'root', baseColor: Vector4(0.6, 0.6, 0.65, 1.0)),
+      RenderMaterial(
+        name: 'root',
+        baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.65, 1.0),
+      ),
       name: 'root marker',
     );
     _tipMarker = MeshNode(
       bead,
-      Material(name: 'tip', baseColor: Vector4(0.9, 0.5, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'tip',
+        baseColor: LinearColor.fromSrgb(0.9, 0.5, 0.2, 1.0),
+      ),
       name: 'tip marker',
     );
 
@@ -102,7 +110,7 @@ final class PoseSamplingDemo extends ShowcaseDemo {
       ..add(_rootMarker)
       ..add(_tipMarker)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       );
   }
@@ -110,7 +118,7 @@ final class PoseSamplingDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region sample
-    _time = (_time + dt) % _swing.duration;
+    _time = (_time + dt) % _swing.durationSeconds;
     _pose.sampleClip(_swing, _time);
     final List<Matrix4> world = _pose.worldMatrices();
     _rootMarker.setPositionFrom(world[0].getTranslation());

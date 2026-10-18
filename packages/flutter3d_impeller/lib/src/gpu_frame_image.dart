@@ -23,6 +23,7 @@ import 'gpu_texture.dart';
 /// `presentFrame` in `flutter3d_app` returns one of these for a
 /// `GpuRenderBackend`; nothing else should need to.
 final class GpuFrameImage extends StatefulWidget {
+  /// Shows [frame], fitted by [fit] and filtered by [quality].
   const GpuFrameImage({
     super.key,
     required this.frame,
@@ -34,7 +35,10 @@ final class GpuFrameImage extends StatefulWidget {
   /// throws the way any fake crossing the seam does.
   final TextureHandle frame;
 
+  /// How the image fits the box, handed to [RawImage.fit].
   final BoxFit fit;
+
+  /// How the image is filtered when scaled, handed to [RawImage.filterQuality].
   final FilterQuality quality;
 
   @override

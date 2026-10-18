@@ -1,73 +1,256 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "edu-02 tour",
-  "fogColor": [0.05, 0.04, 0.06],
+  "fogColor": [
+    0.05,
+    0.04,
+    0.06
+  ],
   "fogDensity": 0.0,
   "materials": {
-    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
-    "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
-    "pedestal": { "baseColor": [0.6, 0.56, 0.4, 1.0], "roughness": 0.5 }
+    "floor": {
+      "baseColor": [
+        0.42,
+        0.4,
+        0.38,
+        1.0
+      ],
+      "roughness": 0.9
+    },
+    "wall": {
+      "baseColor": [
+        0.5,
+        0.47,
+        0.44,
+        1.0
+      ],
+      "roughness": 0.85
+    },
+    "pedestal": {
+      "baseColor": [
+        0.6,
+        0.56,
+        0.4,
+        1.0
+      ],
+      "roughness": 0.5
+    }
   },
   "brushes": [
-    { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
-    { "at": [0.0, 4.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "wall" },
-    { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
-    { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
-    { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [0.0, 0.5, 0.0], "size": [1.5, 1.0, 1.5], "material": "pedestal" }
+    {
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        12.0,
+        1.0,
+        12.0
+      ],
+      "material": "floor",
+      "id": "8a4aa796"
+    },
+    {
+      "at": [
+        0.0,
+        4.5,
+        0.0
+      ],
+      "size": [
+        12.0,
+        1.0,
+        12.0
+      ],
+      "material": "wall",
+      "id": "e7f36b78"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        -6.5
+      ],
+      "size": [
+        12.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall",
+      "id": "f57848d2"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        6.5
+      ],
+      "size": [
+        12.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall",
+      "id": "2ecc3152"
+    },
+    {
+      "at": [
+        -6.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        14.0
+      ],
+      "material": "wall",
+      "id": "996f6266"
+    },
+    {
+      "at": [
+        6.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        14.0
+      ],
+      "material": "wall",
+      "id": "53adb7e6"
+    },
+    {
+      "at": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "size": [
+        1.5,
+        1.0,
+        1.5
+      ],
+      "material": "pedestal",
+      "id": "e4801e49"
+    }
   ],
   "lights": [
-    { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
+    {
+      "type": "point",
+      "at": [
+        0.0,
+        3.2,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.95,
+        0.85
+      ],
+      "intensity": 52115.252201999996,
+      "range": 14.0,
+      "id": "88ce8d88"
+    }
   ],
   "entities": [
     {
       "type": "edu_sequence",
       "name": "tour",
-      "title": "Обойти изделие",
-      "steps": ["view-front", "view-side", "view-top", "quiz-steps"]
+      "props": {
+        "title": "Обойти изделие",
+        "steps": [
+          "view-front",
+          "view-side",
+          "view-top",
+          "quiz-steps"
+        ]
+      },
+      "id": "7950fd84"
     },
     {
       "type": "edu_step",
       "name": "view-front",
-      "at": [0.0, 1.5, 3.0],
+      "at": [
+        0.0,
+        1.5,
+        3.0
+      ],
       "yaw": 0.0,
-      "caption": "Вид спереди"
+      "props": {
+        "caption": "Вид спереди"
+      },
+      "id": "8bcd39fd"
     },
     {
       "type": "edu_step",
       "name": "view-side",
-      "at": [3.0, 1.5, 0.0],
+      "at": [
+        3.0,
+        1.5,
+        0.0
+      ],
       "yaw": 1.5708,
-      "caption": "Вид сбоку"
+      "props": {
+        "caption": "Вид сбоку"
+      },
+      "id": "ca7c54d7"
     },
     {
       "type": "edu_step",
       "name": "view-top",
-      "at": [0.0, 3.0, 5.0],
+      "at": [
+        0.0,
+        3.0,
+        5.0
+      ],
       "yaw": 0.0,
-      "caption": "Вид сверху"
+      "props": {
+        "caption": "Вид сверху"
+      },
+      "id": "980a1aa0"
     },
     {
       "type": "edu_step",
       "name": "quiz-steps",
-      "at": [0.0, 1.5, 3.0],
+      "at": [
+        0.0,
+        1.5,
+        3.0
+      ],
       "yaw": 0.0,
-      "caption": "Проверка",
-      "check": {
-        "question": "Сколько видов показывает этот тур?",
-        "answers": ["3", "три"],
-        "attempts": 3
-      }
+      "props": {
+        "caption": "Проверка",
+        "check": {
+          "question": "Сколько видов показывает этот тур?",
+          "answers": [
+            "3",
+            "три"
+          ],
+          "attempts": 3
+        }
+      },
+      "id": "da742965"
     },
     {
       "type": "widget_surface",
       "name": "view-caption",
-      "at": [0.0, 2.2, -6.4],
+      "at": [
+        0.0,
+        2.2,
+        -6.4
+      ],
       "yaw": 3.1416,
-      "widget": "viewer-caption",
-      "width": 2.4,
-      "height": 1.0
+      "props": {
+        "widget": "viewer-caption",
+        "width": 2.4,
+        "height": 1.0
+      },
+      "id": "0ae39850"
     }
   ]
 }

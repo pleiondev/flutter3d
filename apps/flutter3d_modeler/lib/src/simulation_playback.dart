@@ -40,8 +40,10 @@ abstract interface class SimulationFrameSource {
 /// [SimulationCache.frame] answers the same floats [frameAt] promises, under
 /// a different name.
 final class SimulationCacheFrameSource implements SimulationFrameSource {
+  /// A source reading [cache].
   const SimulationCacheFrameSource(this.cache);
 
+  /// The baked run whose frames this hands out.
   final SimulationCache cache;
 
   @override

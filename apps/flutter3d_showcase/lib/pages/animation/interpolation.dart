@@ -8,8 +8,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `interpolation` page: three cubes on the same bounce keys, through step,
+/// linear and cubic spline. Its check reads all three just after the first key,
+/// where they must already disagree.
 final class InterpolationDemo extends ShowcaseDemo {
   late final AnimationPlayer _player;
   late final MeshNode _stepCube;
@@ -31,17 +33,26 @@ final class InterpolationDemo extends ShowcaseDemo {
     );
     _stepCube = MeshNode(
       box,
-      Material(name: 'step', baseColor: Vector4(0.85, 0.25, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'step',
+        baseColor: LinearColor.fromSrgb(0.85, 0.25, 0.2, 1.0),
+      ),
       name: 'step',
     );
     _linearCube = MeshNode(
       box,
-      Material(name: 'linear', baseColor: Vector4(0.25, 0.75, 0.3, 1.0)),
+      RenderMaterial(
+        name: 'linear',
+        baseColor: LinearColor.fromSrgb(0.25, 0.75, 0.3, 1.0),
+      ),
       name: 'linear',
     );
     _cubicCube = MeshNode(
       box,
-      Material(name: 'cubic', baseColor: Vector4(0.25, 0.4, 0.9, 1.0)),
+      RenderMaterial(
+        name: 'cubic',
+        baseColor: LinearColor.fromSrgb(0.25, 0.4, 0.9, 1.0),
+      ),
       name: 'cubic',
     );
 
@@ -78,7 +89,7 @@ final class InterpolationDemo extends ShowcaseDemo {
     _player = AnimationPlayer(
       clips: <AnimationClip>[bounce],
       targets: <AnimationTarget?>[_stepCube, _linearCube, _cubicCube],
-    )..play(0);
+    )..play(index: 0);
     // #endregion player
 
     return Scene()
@@ -86,7 +97,7 @@ final class InterpolationDemo extends ShowcaseDemo {
       ..add(_linearCube)
       ..add(_cubicCube)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.8, -0.4)),
       );
   }

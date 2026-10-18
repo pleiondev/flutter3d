@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -7,6 +8,8 @@ import 'package:vector_math/vector_math.dart';
 /// are a place you must not be rather than a line you must not cross — and a
 /// player who lands in them and stays should keep taking it.
 final class Hazard extends Mechanism with CollisionListener {
+  /// A hazard over [collider], made a trigger that reports here, hurting by
+  /// [damagePerSecond] or killing outright when [instant].
   Hazard({
     super.name,
     required this.collider,
@@ -20,8 +23,10 @@ final class Hazard extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger volume that hurts whoever overlaps it.
   final Collider collider;
 
+  /// In hit points per second.
   final double damagePerSecond;
 
   /// Whether touching it is simply fatal, whatever the health.
@@ -50,7 +55,7 @@ final class Hazard extends Mechanism with CollisionListener {
   final Vector3 _at = Vector3.zero();
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Seconds accumulated this step, so damage does not depend on how many
   /// overlap callbacks the broadphase happened to dispatch.
@@ -101,18 +106,20 @@ final class Hazard extends Mechanism with CollisionListener {
     final who = by.by?.userData;
     if (who is! Damageable) return const NothingToDo();
     final killed = who.applyDamage(
-      instant ? double.infinity : damagePerSecond * _dt,
+      Damage(amount: instant ? double.infinity : damagePerSecond * _dt),
     );
     return killed ? const Activated() : const NothingToDo();
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 }

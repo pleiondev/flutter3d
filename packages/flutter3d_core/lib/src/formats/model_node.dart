@@ -3,10 +3,12 @@ import 'package:vector_math/vector_math.dart';
 
 import 'splat/splat_cloud.dart';
 
-export 'splat/splat_cloud.dart' show SplatColourSpace;
+export 'splat/splat_cloud.dart' show SplatColorSpace;
 
 /// One drawable piece of a decoded model.
 final class ModelSurface {
+  /// A surface drawing [mesh]; a null [transform] is the identity, and
+  /// [authoredAttributes] defaults to every attribute of the mesh's layout.
   ModelSurface({
     required this.mesh,
     Matrix4? transform,
@@ -25,11 +27,14 @@ final class ModelSurface {
            authoredAttributes ??
            <String>{for (final a in mesh.layout.attributes) a.name};
 
+  /// The geometry drawn, in the surface's own space.
   final MeshData mesh;
 
   /// Placement relative to the model's own origin.
   final Matrix4 transform;
 
+  /// Index into `ModelDocument.materials`; null when the file gave the
+  /// surface no material.
   final int? materialIndex;
 
   /// The material this surface wears in each variant it takes part in, from
@@ -55,6 +60,8 @@ final class ModelSurface {
   /// to be visible.
   final bool flipWinding;
 
+  /// The surface's name, from the node that places it; null when it has
+  /// none.
   final String? name;
 
   /// The name of the mesh asset [mesh] was built from, distinct from [name].
@@ -109,6 +116,8 @@ final class ModelSurface {
 /// surface-level LODs become `MSFT_lod`'s sibling-node ones, and that
 /// mapping is not built.
 final class ModelLod {
+  /// A level drawing [surfaceIndices] up to [maxScreenFraction] of the
+  /// screen; [error] null where nobody measured it.
   const ModelLod({
     required this.surfaceIndices,
     required this.maxScreenFraction,
@@ -167,7 +176,7 @@ final class ModelLod {
 /// [grid] × [grid] views of the node from every direction on the sphere,
 /// laid out by the octahedral map (see `impostorEncode` in
 /// `flutter3d_core`'s engine), each view an orthographic picture of a sphere
-/// of [radius] around [centre], in the node's own space.
+/// of [radius] around [center], in the node's own space.
 ///
 /// **Two images, not one**, because they are read differently: the albedo is
 /// colour and sRGB like any base colour texture, the normal-depth one is data
@@ -175,13 +184,15 @@ final class ModelLod {
 /// along the view each texel's surface is, from 0 at the near side of the
 /// sphere to 1 at the far side. The albedo's alpha is the coverage.
 final class ModelImpostor {
+  /// An impostor of [grid] × [grid] views in two images, framing a sphere
+  /// of [radius] around a copy of [center].
   ModelImpostor({
     required this.albedoImage,
     required this.normalDepthImage,
     required this.grid,
-    required Vector3 centre,
+    required Vector3 center,
     required this.radius,
-  }) : centre = centre.clone();
+  }) : center = center.clone();
 
   /// Index into `ModelDocument.images`.
   final int albedoImage;
@@ -193,7 +204,7 @@ final class ModelImpostor {
   final int grid;
 
   /// The middle of the sphere every view frames, in the node's own space.
-  final Vector3 centre;
+  final Vector3 center;
 
   /// The sphere's radius — half the side of the card that shows a view.
   final double radius;
@@ -213,10 +224,11 @@ final class ModelImpostor {
 /// instantiates it rather than bent into a [ModelSurface] every surface
 /// consumer would then have to know to skip.
 final class ModelSplat {
+  /// [cloud], instantiated by [node]; a null [transform] is the identity.
   ModelSplat({
     required this.node,
     required this.cloud,
-    required this.colourSpace,
+    required this.colorSpace,
     Matrix4? transform,
     this.meshIndex,
   }) : transform = transform ?? Matrix4.identity();
@@ -225,12 +237,12 @@ final class ModelSplat {
   final int node;
 
   /// The splats, in the node's own space, with linear colours whatever
-  /// [colourSpace] the file declared — see `gltf_loader_splats.dart`.
+  /// [colorSpace] the file declared — see `gltf_loader_splats.dart`.
   final SplatCloud cloud;
 
   /// What the file declared, kept for a writer and for anyone who wants to
   /// know why the colours were decoded.
-  final SplatColourSpace colourSpace;
+  final SplatColorSpace colorSpace;
 
   /// The node's placement relative to the model's origin, the same thing
   /// [ModelSurface.transform] is for a surface.
@@ -242,7 +254,7 @@ final class ModelSplat {
 
   @override
   String toString() =>
-      'ModelSplat(node $node, ${cloud.count} splats, ${colourSpace.name})';
+      'ModelSplat(node $node, ${cloud.count} splats, ${colorSpace.name})';
 }
 
 /// A node in a decoded model's hierarchy.
@@ -255,6 +267,8 @@ final class ModelSplat {
 /// TRS rather than a matrix, because that is what animation interpolates and
 /// what `SceneNode` stores.
 final class ModelNode {
+  /// A node at rest: no translation, no rotation, unit scale and no
+  /// children, surfaces or levels unless given.
   ModelNode({
     this.name,
     Vector3? translation,
@@ -277,10 +291,16 @@ final class ModelNode {
        // `surfaces` as it discovers primitives.
        lods = lods ?? <ModelLod>[];
 
+  /// The node's name in the file; null when it has none.
   final String? name;
 
+  /// Position relative to the parent node, in metres.
   final Vector3 translation;
+
+  /// Rotation relative to the parent node, a unit quaternion.
   final Quaternion rotation;
+
+  /// Scale per axis relative to the parent node, a factor each.
   final Vector3 scale;
 
   /// Indices into `ModelDocument.nodes`.
@@ -313,6 +333,8 @@ final class ModelNode {
   /// that file.
   final List<ModelLod> lods;
 
+  /// Returns a new matrix composing [translation], [rotation] and [scale],
+  /// scale applied first.
   Matrix4 toMatrix() => Matrix4.compose(translation, rotation, scale);
 
   @override
@@ -328,6 +350,8 @@ final class ModelNode {
 /// features knowing about each other. The player writes node transforms; the
 /// skin reads them.
 final class ModelSkin {
+  /// A skin over [joints]. Throws an [ArgumentError] unless there is one
+  /// inverse bind matrix per joint.
   ModelSkin({
     required List<int> joints,
     required this.inverseBindMatrices,
@@ -343,6 +367,7 @@ final class ModelSkin {
     }
   }
 
+  /// The skin's name in the file; null when it has none.
   final String? name;
 
   /// Node indices, in the order the vertex attribute addresses them.
@@ -363,6 +388,7 @@ final class ModelSkin {
   /// [ModelNode.extras] for what that means and why.
   final Map<String, Object?>? extras;
 
+  /// Count of joints, and of inverse bind matrices.
   int get jointCount => joints.length;
 
   @override

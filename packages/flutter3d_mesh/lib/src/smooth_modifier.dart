@@ -11,14 +11,23 @@ part of 'modifier.dart';
 /// reason: a stack evaluated twice from the same base must never find its own
 /// first evaluation already sitting there.
 final class SmoothModifier extends Modifier {
+  /// A smoothing of [iterations] steps of [lambda] each, with the volume
+  /// correction when [preserveVolume] is set.
   const SmoothModifier({
     required this.iterations,
     this.lambda = 0.5,
     this.preserveVolume = false,
   });
 
+  /// Smoothing steps, a count; below one, `smoothVertices` refuses and the
+  /// result is an unchanged copy of the base.
   final int iterations;
+
+  /// The 0..1 fraction of the way each step moves toward the average.
   final double lambda;
+
+  /// Whether the HC correction is applied, holding the shape's volume
+  /// rather than letting it shrink toward its centre.
   final bool preserveVolume;
 
   @override
@@ -48,12 +57,13 @@ final class SmoothModifier extends Modifier {
     'preserveVolume': preserveVolume,
   };
 
-  /// [SmoothModifier] from its own [toJson], or null when [iterations] is
-  /// missing or of the wrong type. [lambda] and [preserveVolume] default the
-  /// same way the constructor does when absent, matching how this class's
-  /// own [toJson] always writes every field but a hand-built call — an MCP
-  /// tool call, say — need not.
-  static SmoothModifier? fromJson(Map<String, Object?> json) => switch (json) {
+  /// [SmoothModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when [iterations] is missing or of the wrong
+  /// type. [lambda] and [preserveVolume] default the same way the
+  /// constructor does when absent, matching how this class's own [toJson]
+  /// always writes every field but a hand-built call — an MCP tool call,
+  /// say — need not.
+  static SmoothModifier fromJson(Map<String, Object?> json) => switch (json) {
     {'iterations': final int iterations} => SmoothModifier(
       iterations: iterations,
       lambda: switch (json['lambda']) {
@@ -65,6 +75,8 @@ final class SmoothModifier extends Modifier {
         _ => false,
       },
     ),
-    _ => null,
+    _ => throw const ModifierFormatException(
+      'a smooth modifier names its whole "iterations"',
+    ),
   };
 }

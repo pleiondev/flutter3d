@@ -16,7 +16,9 @@ import 'webgl_device.dart';
 /// Blits [frame] onto [device]'s canvas and shows it, styled by [fit] and
 /// [quality] through CSS on the element rather than through Flutter, since
 /// Flutter does not composite these pixels.
-class WebGlFramePresenter extends StatelessWidget {
+final class WebGlFramePresenter extends StatelessWidget {
+  /// Shows [frame] from [device], stretched to fill by default and with no
+  /// smoothing.
   const WebGlFramePresenter({
     super.key,
     required this.device,
@@ -25,9 +27,18 @@ class WebGlFramePresenter extends StatelessWidget {
     this.quality = FilterQuality.none,
   });
 
+  /// The device whose canvas is shown; it has to be the one that drew [frame].
   final WebGlDevice device;
+
+  /// The finished frame, blitted to the canvas on every build.
   final TextureHandle frame;
+
+  /// How the canvas fits its box, as CSS `object-fit`: `fitWidth`, `fitHeight`,
+  /// `none` and `scaleDown` all fall back to `contain`.
   final BoxFit fit;
+
+  /// [FilterQuality.none] shows the canvas `pixelated`; anything else lets the
+  /// browser smooth it.
   final FilterQuality quality;
 
   @override

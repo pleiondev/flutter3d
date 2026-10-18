@@ -25,7 +25,6 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'stereo_rig.dart';
 
@@ -45,6 +44,7 @@ const double _smallestTangent = 0.01;
 /// because the arithmetic is a ratio between two lengths: turning one of them
 /// into pixels would only mean turning it back.
 final class StereoScreen {
+  /// A screen [width] by [height] metres, as measured.
   const StereoScreen({required this.width, required this.height});
 
   /// The screen's size estimated from Flutter's logical pixels.
@@ -67,10 +67,10 @@ final class StereoScreen {
     );
   }
 
-  /// The long side, the one the two eyes divide between them.
+  /// The long side, the one the two eyes divide between them, in metres.
   final double width;
 
-  /// The short side, the one the tray height is measured along.
+  /// The short side, the one the tray height is measured along, in metres.
   final double height;
 
   @override
@@ -85,6 +85,8 @@ final class StereoScreen {
 /// be written out rather than approximated by a preset: the whole point of
 /// these four numbers is that they are the ones that differ.
 final class StereoViewer {
+  /// A holder profile; every argument left out takes the Cardboard v2
+  /// figure. Distances are in metres, fields of view in radians.
   const StereoViewer({
     this.interLensDistance = 0.064,
     this.screenToLensDistance = 0.039,
@@ -113,9 +115,10 @@ final class StereoViewer {
   /// How far apart the lenses are. This is what separates the eyes, in place
   /// of an interpupillary distance: a viewer's own eyes look through wherever
   /// the lenses are, and being 2 mm wider than the holder does not move them.
+  /// In metres.
   final double interLensDistance;
 
-  /// From the screen to the lens, along the lens axis.
+  /// From the screen to the lens, along the lens axis, in metres.
   final double screenToLensDistance;
 
   /// From the edge the phone rests on to the lens axis, across the screen's
@@ -132,8 +135,14 @@ final class StereoViewer {
   /// face, towards the nose, and up and down. Radians from the lens axis, the
   /// way the rest of this repository states an angle.
   final double outerFieldOfView;
+
+  /// As [outerFieldOfView], towards the nose: radians from the lens axis.
   final double innerFieldOfView;
+
+  /// As [outerFieldOfView], upwards: radians from the lens axis.
   final double topFieldOfView;
+
+  /// As [outerFieldOfView], downwards: radians from the lens axis.
   final double bottomFieldOfView;
 
   /// The frustum [eye] sees through this holder at [screen].
@@ -187,6 +196,7 @@ final class StereoViewer {
     return smaller < _smallestTangent ? _smallestTangent : smaller;
   }
 
+  /// Returns a copy with the given fields replaced; null keeps this one's.
   StereoViewer copyWith({
     double? interLensDistance,
     double? screenToLensDistance,

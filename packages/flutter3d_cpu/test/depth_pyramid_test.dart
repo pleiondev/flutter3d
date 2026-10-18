@@ -12,6 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -32,7 +33,7 @@ int _alpha(double Function(int x) depthAt) {
       },
     },
     <String, BoundTexture>{
-      'surface_texture': BoundTexture(texture, SamplerOptions.nearestClamp),
+      'surface_texture': BoundTexture(texture, SamplerDescriptor.nearestClamp),
     },
   );
   final out = const DepthPyramidShader().run(

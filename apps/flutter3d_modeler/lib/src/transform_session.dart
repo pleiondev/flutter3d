@@ -40,13 +40,19 @@ typedef OverlayView = ({
   bool perspective,
 });
 
+/// The transform in progress, from the key or the gizmo arm that opened it
+/// to the command it lands as, with the geometry snap and the value drags
+/// beside it.
 class TransformSession {
+  /// A session over [cubit], asking [history] and [editMesh] for the current
+  /// document and mesh each time rather than holding them.
   TransformSession({
     required this.cubit,
     required this.history,
     required this.editMesh,
   });
 
+  /// The editor the transform's commands run through.
   final ModelerCubit cubit;
 
   /// The current document — a callback, not a held reference, because the
@@ -113,6 +119,8 @@ class TransformSession {
   /// answers to what a move of the mouse means.
   ValueDrag? _value;
 
+  /// The extrusion, bevel, inset or slide whose one number is following the
+  /// pointer, or null.
   ValueDrag? get valueDrag => _value;
 
   /// Opens one: runs [tool]'s own command at whatever `commandFor` guessed,
@@ -281,12 +289,12 @@ class TransformSession {
     // metre further away.
     if (modal.kind == TransformKind.move) {
       final vm.Vector3 middle = middleOfSelection();
-      final double metres =
+      final double meters =
           look.pixel *
           (look.perspective ? (middle - look.eye).length : 1.0) *
           fine;
       modal.dragged +=
-          look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
+          look.right * (delta.dx * meters) + look.up * (-delta.dy * meters);
     } else {
       // One number, carried on whichever component the constraint lets
       // through, so `amount` can zero the rest the same way it does for a move.
@@ -304,7 +312,11 @@ class TransformSession {
       modal.dragged += switch (modal.axis) {
         TransformAxis.y => vm.Vector3(0, by, 0),
         TransformAxis.z => vm.Vector3(0, 0, by),
-        _ => vm.Vector3(by, 0, 0),
+        TransformAxis.x ||
+        TransformAxis.free ||
+        TransformAxis.yz ||
+        TransformAxis.xz ||
+        TransformAxis.xy => vm.Vector3(by, 0, 0),
       };
     }
     updateGeometrySnap(modal, view);
@@ -576,6 +588,9 @@ class TransformSession {
   /// nothing to jump, because the amount dragged so far is re-applied from
   /// scratch on every frame anyway.
   TransformPivot Function()? pivot;
+
+  /// Whose axes the transform goes along, read the same way as [pivot]; null
+  /// means global.
   TransformSpace Function()? space;
 
   TransformPivot get _pivot => pivot?.call() ?? TransformPivot.median;
@@ -741,7 +756,10 @@ class TransformSession {
         // Unconstrained, a turn goes about the axis the camera is looking down,
         // so a horizontal drag turns the model the way the hand went whatever
         // angle it is being seen from.
-        _ => (look.eye - middleOfSelection()).normalized(),
+        TransformAxis.free ||
+        TransformAxis.yz ||
+        TransformAxis.xz ||
+        TransformAxis.xy => (look.eye - middleOfSelection()).normalized(),
       };
 
   /// The middle of what is selected, in world units.

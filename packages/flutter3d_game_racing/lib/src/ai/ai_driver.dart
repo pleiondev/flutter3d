@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -39,10 +40,15 @@ import 'ai_tuning.dart';
 /// eight drivers is one of these and eight calls, and a replay of a race
 /// reproduces exactly.
 final class AiDriver {
-  AiDriver({required this.track, this.tuning = const AiTuning()});
+  /// A driver round [track], driving as [tuning] says.
+  AiDriver({required this.track, this.tuning = const AiSettings()});
 
+  /// The road it follows: what it looks ahead along and brakes for.
   final TrackSpline track;
-  final AiTuning tuning;
+
+  /// How it drives: how far it looks ahead, how hard it corners and brakes,
+  /// how much it rubber-bands and how it avoids other cars.
+  final AiSettings tuning;
 
   /// Fills [out] with what this driver wants to do.
   ///
@@ -95,7 +101,7 @@ final class AiDriver {
     // brakes for the corner it is in has already arrived too fast.
     var sharpest = 0.0;
     for (var ahead = 0.0; ahead <= tuning.brakeHorizon; ahead += 5.0) {
-      final bend = track.centre.curvatureAt(at + ahead).abs();
+      final bend = track.center.curvatureAt(at + ahead).abs();
       if (bend > sharpest) sharpest = bend;
     }
 

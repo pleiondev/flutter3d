@@ -6,7 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tiled/tiled.dart';
@@ -65,10 +65,10 @@ void main() {
       device: device,
       scene: game.scene,
       plane: BridgePlane.ground(),
-      material: (_) => engine.Material(),
-      spawn: (object, at) {
-        spawned[object.name] = at.clone();
-        return player = PositionComponent(position: at);
+      material: (_) => engine.RenderMaterial(),
+      spawn: (spawn) {
+        spawned[spawn.object.name] = spawn.at.clone();
+        return player = PositionComponent(position: spawn.at);
       },
     );
     await game.add(level);
@@ -82,7 +82,7 @@ void main() {
     expect(walls.hitboxes, isTrue, reason: 'solid in Tiled');
     expect(walls.children.whereType<RectangleHitbox>(), hasLength(17));
     expect(walls.depth, 0.5);
-    expect(walls.colour!.z, closeTo(1.0, 1e-9), reason: 'its tint');
+    expect(walls.color!.b, closeTo(1.0, 1e-9), reason: 'its tint');
     expect(dots.hitboxes, isFalse);
     expect(dots.grid.count, 6);
     expect(spawned['player'], Vector2(1.5, 1.5));
@@ -91,12 +91,12 @@ void main() {
     final mover = GridMover(
       grid: walls,
       speed: 4.0,
-      onArrive: (c, r) => dots.setCell(c, r, alive: false),
+      onArrive: (cell) => dots.setCell(cell.column, cell.row, alive: false),
     )..wanted = GridHeading.right;
     await player!.add(mover);
     await game.ready();
     game.update(0.5);
-    expect(mover.cell, (3, 1));
+    expect(mover.cell, const GridCell(column: 3, row: 1));
     expect(dots.grid.isAlive(2, 1), isFalse, reason: 'eaten');
     expect(dots.grid.count, 4);
   });

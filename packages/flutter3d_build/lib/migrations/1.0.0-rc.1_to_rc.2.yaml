@@ -1,0 +1,4519 @@
+# How code written against flutter3d 1.0.0-rc.1, as published, moves to the
+# next publication: the open table, whose `to:` moves with the release it
+# ends at. While that release's number is not chosen, `to:` is `unchosen`
+# (the structure rule holds it to `nextPublication` in
+# tool/structure/repository.dart), and the tools call it the release after
+# `from:`.
+#
+# The one source of every migration: `tool/generate_migrations.dart` in
+# flutter3d_build turns it into each package's `lib/fix_data.yaml` (for
+# `dart fix`), into the `flutter3d_lints` migration diagnostics and their
+# quick fixes, and into the table on the site's migration guide; the
+# `migrate` command reads `packages:` and the `import` entries itself.
+#
+# Layout, which `tool/structure/migration.dart` reads without a YAML parser
+# (the generator refuses a file the two readers see differently):
+#
+#   - every entry starts `  - id: <unique-id>` and its keys sit at four
+#     spaces; a long text is a `>-` block under its key;
+#   - `package` is the package that declared `symbol` at the `from` release;
+#   - `symbol` is `Name`, which covers every member of it, or `Name.member`;
+#     a whole library gone is its URI.
+#
+# Kinds, and what each becomes:
+#
+#   rename            `to: NewName` (or `to: Type.newMember`)      dart fix
+#                     (and flutter3d_lints, for a class named in a
+#                     `const` creation, which `dart fix` misses)
+#   moved             `to: <library uri>`, optional `name:`        dart fix
+#                     (and `migrate` adds the dependency it needs)
+#   parameters        `changes:` — a list of `rename:`/`to:`,       dart fix
+#                     `remove:`, `add:` with `named`, `required`,
+#                     `value:` (the argument old callers get), and
+#                     `toNamed: <name>` with `index: <n>` for the
+#                     positional argument n that became named (also
+#                     flutter3d_lints, which writes `name: ` before it)
+#   rewrite          `template:` with `{target}` for the receiver, flutter3d_lints
+#                     `{0}`, `{1}`… for a call's arguments,
+#                     `{arguments}` for all of them as written and
+#                     `{typeArguments}` for its type arguments;
+#                     `imports:` the libraries it names. A symbol
+#                     with no member is a top-level function; `on:`
+#                     the type a gone extension's member was on;
+#                     `static: true` for a static that is an
+#                     instance's member now, rewritten only where
+#                     it is named through the class
+#   implementsToWith  a type that became a `base mixin class`:      flutter3d_lints
+#                     `implements X` becomes `with X` on a base class
+#   subclassModifier  a class that became `base` or `final`: `to:`   flutter3d_lints
+#                     the modifier. Under `base`, a project's class
+#                     below it (directly or through its own classes)
+#                     gains `base`, and `implements X` becomes
+#                     `extends X` where nothing else is the
+#                     superclass; under `final`, each clause that
+#                     extends or implements it gets a TODO
+#   regroup         named arguments that moved into an options    flutter3d_lints
+#                     object: `into:` the parameter that takes it,
+#                     `options:` its class, `arguments:` the names
+#                     that move, optional `imports:`
+#   enumToClass       a type that stopped being an enum or sealed:  flutter3d_lints
+#                     a `switch` over it with no wildcard gains
+#                     one that throws, with a TODO
+#   recordToClass     a record that became a class: `fields:` maps  flutter3d_lints
+#                     each old field (`$1`, `name`) to its getter;
+#                     destructuring patterns are left to a person
+#   nullToThrow       a call that answered null and now throws:     flutter3d_lints
+#                     `exception:` the type; a null check right
+#                     beside a call becomes `try … on` with a TODO
+#   argument          a parameter or a field that changed name,     flutter3d_lints
+#                     type or unit: `arguments:` the names, `to:`
+#                     a new name, `template:` the value written,
+#                     with `{value}` for the old one and
+#                     `{components}` for a vector's; `types:` the
+#                     old types it rewrites, `on:` the class's 1.0
+#                     name where it was renamed, `reads:` a map from
+#                     a member of the old type read off the field to
+#                     the new one's (`{x: r}`). A value it cannot
+#                     write once, and a read used as the old type,
+#                     keep the TODO
+#   internal          a name public at `from` that is the owning    flutter3d_lints
+#                     package's own now, with nothing to replace it;
+#                     optional `instead:`. One diagnostic per import
+#                     of the package naming every such name the file
+#                     uses, a TODO at each use, one line per package
+#                     in the guide. It names a top-level name or a
+#                     library (with the names it took, `members:`).
+#   manual            `guidance:` — the diagnostic and the TODO     flutter3d_lints
+#                     `migrate` leaves at each use (for a library
+#                     gone whole, at its import and at each use of
+#                     the names `members:` lists). Their count is
+#                     held to a ceiling (`manualCeiling` in
+#                     `tool/structure/migration.dart`): prefer a kind
+#                     above, or allowlist the entry with a reason
+#   none              `reason:` — a break no caller has to act on   the guide only
+#   import            `from:`/`to:` library URIs, for a library     migrate
+#                     that moved; no `symbol`
+#
+# Every entry may add `guidance:` (shown in the guide and the report) and
+# `wave:` (which piece of the 1.0 work added it). What a person reads —
+# `guidance:`, `reason:`, `instead:` — names no wave, plan or review: it
+# lands in their TODOs. A break the structure rule
+# `every break since the last release has its migration` finds with no entry
+# is drafted by `dart run api_snapshot:migration_seed --append` in tool/api.
+# Later work appends entries at the end; nothing here is renumbered.
+#
+# The tables are a chain, each starting where the one before ends. Once the
+# release in `to:` is tagged, this table is closed: the structure rule `a
+# migration table is closed once its release is tagged` holds it to the
+# text at the tag. The next one is started then, by hand, as
+# `1.0.0-rc.1_to_rc.2.yaml`: this header with `from: 1.0.0-rc.1`, `to:
+# 1.0.0-rc.2`, its `packages:` constraint moved on, and `entries:` empty.
+# `migration_seed` writes into whichever table is open, `migrate` applies
+# every table after the release a project's `pubspec.lock` resolves, and
+# the generator folds them all into each package's one `fix_data.yaml`.
+
+
+format: 1
+from: 1.0.0-rc.1
+to: unchosen
+# The date `dart fix` shows on every fix generated from this table.
+date: 2026-10-14
+guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
+
+# `migrate` moves every dependency on a package of this repository to
+# `constraint`, or to its own line under `versions:` for a package that is
+# not on the engine's number. `renamed:` is old name to new; `removed:` is a
+# name and what to use instead. The structure rule holds `versions:` to the
+# pubspecs.
+packages:
+  constraint: ^1.0.0-rc.1
+  versions:
+  renamed:
+  removed:
+
+entries:
+
+  # Where compute runs is the hardware layer's alone: nothing above it
+  # demands, is handed or reports a placement.
+
+  - id: hardware-ComputePlacementException-new
+    package: flutter3d_hardware
+    symbol: ComputePlacementException.ComputePlacementException
+    kind: parameters
+    changes:
+      - remove: demand
+    guidance: >-
+      A step no longer demands a placement, so a refusal has no demand to
+      carry.
+
+  - id: hardware-ComputePlacementException-demand
+    package: flutter3d_hardware
+    symbol: ComputePlacementException.demand
+    kind: rewrite
+    template: 'null'
+    guidance: >-
+      Nothing demands a placement any more, so there is none to read: the
+      refusal says why nothing ran (`reason`, `tried`), never where it was
+      asked to.
+
+  - id: hardware-ComputeExecutors-place
+    package: flutter3d_hardware
+    symbol: ComputeExecutors.place
+    kind: parameters
+    changes:
+      - remove: demand
+    guidance: >-
+      The rule places a step on the first device of the frame's that runs
+      it, and nothing asks it for another. A test that wanted a particular
+      device configures the devices or the registry it builds.
+
+  - id: hardware-ComputeExecutors
+    package: flutter3d_hardware
+    symbol: ComputeExecutors
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    guidance: >-
+      The facades no longer re-export it: it is the hardware layer's and
+      the backends' own. A backend imports it from `flutter3d_hardware`;
+      anything else asks `FrameCompute` and is told a `ComputeSite`.
+
+  - id: hardware-ComputeExecutor
+    package: flutter3d_hardware
+    symbol: ComputeExecutor
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    guidance: >-
+      The facades no longer re-export it: a step is told a `ComputeSite`
+      now, whose `device` is what an executor's was.
+
+  - id: hardware-ComputePlacement
+    package: flutter3d_hardware
+    symbol: ComputePlacement
+    kind: moved
+    to: package:flutter3d_hardware/flutter3d_hardware.dart
+    guidance: >-
+      The facades no longer re-export it: a placement is named only by the
+      hardware layer and the backends that add compute devices.
+
+  - id: core-ComputeStep-demand
+    package: flutter3d_core
+    symbol: ComputeStep.demand
+    kind: manual
+    guidance: >-
+      Delete the override: a step no longer asks where it runs, the
+      hardware layer decides. A test that wanted the step on a particular
+      device configures the devices or the registry it builds
+      (`DeviceRegistry.adopt`, `cpuComputeDeviceStandingInForGpu()` from
+      `package:flutter3d_cpu/testing.dart`).
+
+  - id: core-ComputeStep-executor
+    package: flutter3d_core
+    symbol: ComputeStep.executor
+    kind: rename
+    to: ComputeStep.site
+    guidance: >-
+      The step learns a `ComputeSite`: its `device` is the executor's, and
+      no placement comes with it.
+
+  - id: core-ComputeStep-prepare
+    package: flutter3d_core
+    symbol: ComputeStep.prepare
+    kind: rewrite
+    template: '{target}.prepare({0}.device)'
+    guidance: >-
+      A step is placed for frames drawn on a device, from the compute the
+      registry that opened it has; it is no longer handed executors.
+
+  - id: core-ComputeContext-executor
+    package: flutter3d_core
+    symbol: ComputeContext.executor
+    kind: rename
+    to: ComputeContext.site
+    guidance: >-
+      The context carries a `ComputeSite`, whose `device` is the
+      executor's; `device` and `isOnFrameDevice` read as before.
+
+  - id: core-ComputeContext-placement
+    package: flutter3d_core
+    symbol: ComputeContext.placement
+    kind: manual
+    guidance: >-
+      A step is no longer told which placement it runs at, only the device
+      it encodes on (`device`) and whether that is the frame's
+      (`isOnFrameDevice`). Branch on those.
+
+  - id: core-BufferField-new
+    package: flutter3d_core
+    symbol: BufferField.BufferField
+    kind: manual
+    guidance: >-
+      A buffer field is made by `FieldUpload` where the hardware layer put
+      it, and takes that `ComputeSite` as its third argument where it took
+      an executor.
+
+  - id: core-BufferField-executor
+    package: flutter3d_core
+    symbol: BufferField.executor
+    kind: rename
+    to: BufferField.site
+    guidance: >-
+      Where the field lives is a `ComputeSite`, whose `device` is the
+      executor's.
+
+  - id: core-FieldUpload-executor
+    package: flutter3d_core
+    symbol: FieldUpload.executor
+    kind: rename
+    to: FieldUpload.site
+
+  - id: core-FieldUpload-place
+    package: flutter3d_core
+    symbol: FieldUpload.place
+    kind: rewrite
+    template: '{target}.place({0}.device)'
+    guidance: >-
+      It takes the device the frame is drawn on and answers a `Future`, as
+      a compute step's placement does: `await` it where its refusal is
+      read.
+
+  - id: core-RendererSteps-addComputeStep
+    package: flutter3d_core
+    symbol: RendererSteps.addComputeStep
+    kind: parameters
+    changes:
+      - remove: executors
+    guidance: >-
+      The renderer's own device and the registry that opened it say where
+      the step may run; nothing is handed in.
+
+  - id: core-RendererSteps-addFieldUpload
+    package: flutter3d_core
+    symbol: RendererSteps.addFieldUpload
+    kind: parameters
+    changes:
+      - remove: executors
+    guidance: >-
+      Nothing is handed in, and the result is a `Future<Registration>`, as
+      `addComputeStep`'s is: `await` it where the registration is kept.
+
+  - id: core-RendererSteps-placeSkinningHook
+    package: flutter3d_core
+    symbol: RendererSteps.placeSkinningHook
+    kind: parameters
+    changes:
+      - remove: executors
+
+  - id: core-RendererSteps-skinningPlacement
+    package: flutter3d_core
+    symbol: RendererSteps.skinningPlacement
+    kind: manual
+    guidance: >-
+      Nothing above the hardware layer reports where a hook runs. A hook
+      that writes its output was placed; one nothing could place is
+      reported by the frame as `PassSkip.unsupported`, as any compute step
+      is.
+
+  - id: core-RendererSteps-skinningRefusal
+    package: flutter3d_core
+    symbol: RendererSteps.skinningRefusal
+    kind: manual
+    guidance: >-
+      A hook no longer demands a placement, so there is no refused demand to
+      read. One nothing could place is reported by the frame as
+      `PassSkip.unsupported`, with the refusal in the frame's report.
+
+  - id: core-SkinningHook-demand
+    package: flutter3d_core
+    symbol: SkinningHook.demand
+    kind: manual
+    guidance: >-
+      Delete the override: a hook no longer asks where it runs. The hardware
+      layer places it on the drawing device or the CPU.
+
+  - id: game-flutter3d-export
+    package: flutter3d_game
+    symbol: package:flutter3d/flutter3d.dart
+    kind: none
+    reason: >-
+      The facade still re-exports the engine through this one line; only
+      the names in it changed, `ComputeExecutor`, `ComputeExecutors` and
+      `ComputePlacement` out and `ComputeSite` in, which their own entries
+      cover.
+
+  - id: shaders-kernelLanguageVersion
+    package: flutter3d_shaders
+    symbol: kernelLanguageVersion
+    kind: none
+    reason: >-
+      The kernel language reads version 2 now, which adds atomic buffers;
+      every version 1 source reads as it did. Code that compared a source's
+      version with this constant reads the newer number.
+
+  - id: conformance-render-checkNames
+    package: flutter3d_conformance_render
+    symbol: pluginRenderCheckNames
+    kind: none
+    reason: >-
+      Three render checks are named like tools: `render.lit model` is
+      `render.litModel`, `render.lit model defaults` is
+      `render.litModelDefaults` and `render.light type` is
+      `render.lightType`. Code that names a check by its string, or reads a
+      report's `check` field, uses the new names.
+
+  - id: conformance-pluginCheckNames
+    package: flutter3d_conformance
+    symbol: pluginCheckNames
+    kind: none
+    reason: >-
+      The plugin checks carry their area like every other check name:
+      `manifest` is `plugin.manifest`, and so on for `switch`, `names`,
+      `determinism`, `backends`, `budget` and `materials`; a backend's test
+      is `plugin.backends on cpu`. Code that names a check by its string,
+      or reads a report's `check` field, uses the new names.
+
+  - id: build-pluginConformanceChecks
+    package: flutter3d_build
+    symbol: pluginConformanceChecks
+    kind: manual
+    guidance: >-
+      Gone: the plugin server keeps no list of the suite's checks. The
+      checks a run made are the `outcomes` of the report the suite writes,
+      `ConformanceReportFile.readIn(directory, package)`, and the list of
+      the suite itself is `pluginCheckNames` in
+      `package:flutter3d_conformance/plugins.dart`.
+
+  - id: build-pluginAuthorMcpVersion
+    package: flutter3d_build
+    symbol: pluginAuthorMcpVersion
+    kind: none
+    reason: >-
+      The version the plugin MCP server announces follows the package's.
+
+  - id: build-flutter3dBuildVersionConstraint
+    package: flutter3d_build
+    symbol: flutter3dBuildVersionConstraint
+    kind: none
+    reason: >-
+      The constraint `init` writes follows the package's version.
+
+  - id: mcp-editorMcpVersion
+    package: flutter3d_mcp
+    symbol: editorMcpVersion
+    kind: none
+    reason: >-
+      The version the editor server announces follows the package's.
+
+  - id: simMcp-simMcpVersion
+    package: flutter3d_sim_mcp
+    symbol: simMcpVersion
+    kind: none
+    reason: >-
+      The version the playing server announces follows the package's.
+
+  - id: simMcp-renderMcpVersion
+    package: flutter3d_sim_mcp
+    symbol: renderMcpVersion
+    kind: none
+    reason: >-
+      The version the diagnostic server announces follows the package's.
+
+  - id: mcp-modelMcpVersion
+    package: flutter3d_mcp
+    symbol: modelMcpVersion
+    kind: none
+    reason: >-
+      The version the modelling server announces follows the package's.
+
+  - id: mcp-projectMcpVersion
+    package: flutter3d_mcp
+    symbol: projectMcpVersion
+    kind: none
+    reason: >-
+      The version the project server announces follows the package's.
+
+  - id: model_core-projectVersion
+    package: flutter3d_model_core
+    symbol: projectVersion
+    kind: none
+    reason: >-
+      The project format reads version 3 now, the directory with flags and
+      an entry size; a project with no flagged section is still written as
+      version 2, which every earlier reader opens. Code that compared a
+      file's version with this constant reads the newer number.
+
+  - id: net-WireHello-currentProtocolMinor
+    package: flutter3d_net
+    symbol: WireHello.currentProtocolMinor
+    kind: none
+    reason: >-
+      The protocol is 3.1 now: the relay's, the route's and the party's
+      messages carry the reserved key, and a party says the hello. A build
+      on 3.1 meets every other build of major 3, so code that compared a
+      hello's minor with this constant reads the newer number.
+
+  # A result a caller reads is a final class with `==`, never a record:
+  # a record can never gain a field.
+
+  - id: core-AbsolutePixels-resolve-record
+    package: flutter3d_core
+    symbol: AbsolutePixels.resolve
+    kind: recordToClass
+    fields:
+      $1: width
+      $2: height
+    guidance: >-
+      `resolve` answers a `PixelExtent` with `width` and `height`, where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: core-FrameFraction-resolve-record
+    package: flutter3d_core
+    symbol: FrameFraction.resolve
+    kind: recordToClass
+    fields:
+      $1: width
+      $2: height
+    guidance: >-
+      `resolve` answers a `PixelExtent` with `width` and `height`, where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: core-ResourceSize-resolve-record
+    package: flutter3d_core
+    symbol: ResourceSize.resolve
+    kind: recordToClass
+    fields:
+      $1: width
+      $2: height
+    guidance: >-
+      `resolve` answers a `PixelExtent` with `width` and `height`, where it
+      answered a pair; a size of your own overrides it to return
+      `PixelExtent(width: ..., height: ...)`.
+
+  - id: core-hdrSizeOf-record
+    package: flutter3d_core
+    symbol: hdrSizeOf
+    kind: recordToClass
+    fields:
+      width: width
+      height: height
+    guidance: >-
+      `hdrSizeOf` answers a `PixelExtent?`, where it answered a
+      `({int width, int height})?`; `width` and `height` read as before.
+
+  - id: core-AnimationGraph-passed-record
+    package: flutter3d_core
+    symbol: AnimationGraph.passed
+    kind: recordToClass
+    fields:
+      state: state
+      name: name
+    guidance: >-
+      `passed` is a list of `PassedMarker` with `state` and `name`, where it
+      was a list of records; field reads are unchanged.
+
+  - id: core-AtmosphereCycle-keys-record
+    package: flutter3d_core
+    symbol: AtmosphereCycle.keys
+    kind: recordToClass
+    fields:
+      $1: time
+      $2: atmosphere
+    guidance: >-
+      `keys`, and the list the constructor takes, are `AtmosphereKey`s with
+      `time` and `atmosphere`, where they were `(double, Atmosphere)` pairs:
+      write `AtmosphereKey(time: 0.0, atmosphere: noon)`.
+
+  - id: core-ColorVision-applyEncoded-record
+    package: flutter3d_core
+    symbol: ColorVision.applyEncoded
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+    guidance: >-
+      `applyEncoded` answers an `RgbTriple` with `r`, `g` and `b`, where it
+      answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
+
+  - id: core-ColorVision-applyLinear-record
+    package: flutter3d_core
+    symbol: ColorVision.applyLinear
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+    guidance: >-
+      `applyLinear` answers an `RgbTriple` with `r`, `g` and `b`, where it
+      answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
+
+  - id: core-ColorVision-confusions-record
+    package: flutter3d_core
+    symbol: ColorVision.confusions
+    kind: recordToClass
+    fields:
+      a: a
+      b: b
+      by: by
+      distance: distance
+    guidance: >-
+      `confusions` takes a `Map<String, RgbTriple>` and answers a list of
+      `ColorConfusion` with `a`, `b`, `by` and `distance`; field reads are
+      unchanged, the palette's values are written `RgbTriple(r:, g:, b:)`.
+      `ColorVision.difference` takes two `RgbTriple`s too.
+
+  - id: core-CubeLut-domainMax-record
+    package: flutter3d_core
+    symbol: CubeLut.domainMax
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+    guidance: >-
+      `domainMax` is an `RgbTriple` with `r`, `g` and `b`, where it was a
+      triple read with `$1`, `$2`, `$3`.
+
+  - id: core-CubeLut-domainMin-record
+    package: flutter3d_core
+    symbol: CubeLut.domainMin
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+    guidance: >-
+      `domainMin` is an `RgbTriple` with `r`, `g` and `b`, where it was a
+      triple read with `$1`, `$2`, `$3`.
+
+  - id: core-CubeLut-lookup-record
+    package: flutter3d_core
+    symbol: CubeLut.lookup
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+    guidance: >-
+      `lookup` answers an `RgbTriple` with `r`, `g` and `b`, where it
+      answered a triple; destructure with `final RgbTriple(:r, :g, :b) = ...`.
+
+  - id: core-FrameContext-jitter-record
+    package: flutter3d_core
+    symbol: FrameContext.jitter
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+    guidance: >-
+      `jitter` is a `PixelJitter` with `x` and `y`, in pixels, where it was
+      a record; field reads are unchanged.
+
+  - id: core-jitterOffset-record
+    package: flutter3d_core
+    symbol: jitterOffset
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `jitterOffset` answers a `PixelJitter` with `x` and `y`, where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: core-IrradianceField-readDepth-record
+    package: flutter3d_core
+    symbol: IrradianceField.readDepth
+    kind: recordToClass
+    fields:
+      mean: mean
+      meanSquare: meanSquare
+    guidance: >-
+      `readDepth` answers `DepthMoments` with `mean` and `meanSquare`, where
+      it answered a record; field reads are unchanged.
+
+  - id: core-MaterialExtensions-coatMapSources-record
+    package: flutter3d_core
+    symbol: MaterialExtensions.coatMapSources
+    kind: recordToClass
+    fields:
+      binding: binding
+      channel: channel
+    guidance: >-
+      `coatMapSources` is a list of `PackedMapSource?` with `binding` and
+      `channel`, where it was a list of records; field reads are unchanged.
+
+  - id: core-MaterialExtensions-sheenMapSources-record
+    package: flutter3d_core
+    symbol: MaterialExtensions.sheenMapSources
+    kind: recordToClass
+    fields:
+      binding: binding
+      channel: channel
+    guidance: >-
+      `sheenMapSources` is a list of `PackedMapSource?` with `binding` and
+      `channel`, where it was a list of records; field reads are unchanged.
+
+  - id: core-OrbitController-suggestedDepthRange-record
+    package: flutter3d_core
+    symbol: OrbitController.suggestedDepthRange
+    kind: recordToClass
+    fields:
+      near: near
+      far: far
+    guidance: >-
+      `suggestedDepthRange` answers `ClipDistances` with `near` and `far`,
+      in metres, where it answered a record; field reads are unchanged.
+
+  - id: core-projectPoint-record
+    package: flutter3d_core
+    symbol: projectPoint
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+    guidance: >-
+      `projectPoint` answers a `ScreenPoint?` with `x` and `y`, in logical
+      pixels, where it answered a record; field reads are unchanged.
+
+  - id: core-SolidColorTexture-texel-record
+    package: flutter3d_core
+    symbol: SolidColorTexture.texel
+    kind: recordToClass
+    fields:
+      r: r
+      g: g
+      b: b
+      a: a
+    guidance: >-
+      `texel` is a `TexelValue` with `r`, `g`, `b` and `a`, where it was a
+      record; field reads are unchanged, and the `SolidColorTexture.texel`
+      constructor is as it was.
+
+  - id: core-TemporalClip-axes-record
+    package: flutter3d_core
+    symbol: TemporalClip.axes
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+      $3: z
+    guidance: >-
+      `axes` is a list of `ClipAxis` with `x`, `y` and `z`, where it was a
+      list of triples; destructure with `ClipAxis(:x, :y, :z)`.
+
+  - id: core-decodeUniversalBlock-record
+    package: flutter3d_core
+    symbol: decodeUniversalBlock
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+      $4: a
+    guidance: >-
+      `decodeUniversalBlock` answers sixteen `Rgba8Texel`s with `r`, `g`,
+      `b` and `a`, where it answered four-int tuples; `encodeUniversalBlock`,
+      `encodeEtc2Rgb8Block` and `encodeAstc4x4Block` take the same list.
+
+  - id: core-symmetricEigen3-record
+    package: flutter3d_core
+    symbol: symmetricEigen3
+    kind: recordToClass
+    fields:
+      $1: values
+      $2: vectors
+    guidance: >-
+      `symmetricEigen3` answers a `SymmetricEigen` with `values` and
+      `vectors`, where it answered a pair; destructure with
+      `final SymmetricEigen(:values, :vectors) = ...`.
+
+  - id: core-toGltfFilters-record
+    package: flutter3d_core
+    symbol: toGltfFilters
+    kind: recordToClass
+    fields:
+      $1: magFilter
+      $2: minFilter
+    guidance: >-
+      `toGltfFilters` answers `GltfFilters` with `magFilter` and
+      `minFilter`, where it answered a pair; destructure with
+      `final GltfFilters(:magFilter, :minFilter) = ...`.
+
+  - id: plugin_api-OriginShifted-offset-record
+    package: flutter3d_plugin_api
+    symbol: OriginShifted.offset
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+      z: z
+    guidance: >-
+      `offset` is a `WorldOffset` with `x`, `y` and `z`, in metres, where it
+      was a record; field reads are unchanged.
+
+  - id: foundation-Portable-sinCos-record
+    package: flutter3d_foundation
+    symbol: Portable.sinCos
+    kind: recordToClass
+    fields:
+      sin: sin
+      cos: cos
+    guidance: >-
+      `sinCos` answers a `SinCos` with `sin` and `cos`, where it answered a
+      record; field reads are unchanged, a destructuring pattern becomes
+      `final SinCos(:sin, :cos) = ...`.
+
+  - id: foundation-WorldPosition-relativeTo-record
+    package: flutter3d_foundation
+    symbol: WorldPosition.relativeTo
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+      z: z
+    guidance: >-
+      `relativeTo` answers a `WorldOffset` with `x`, `y` and `z`, in metres,
+      where it answered a record; field reads are unchanged, a destructuring
+      pattern becomes `final WorldOffset(:x, :y, :z) = ...`.
+
+  - id: flame_flutter3d-BridgeProjector-rayThrough-record
+    package: flame_flutter3d
+    symbol: BridgeProjector.rayThrough
+    kind: recordToClass
+    fields:
+      $1: near
+      $2: far
+    guidance: >-
+      `rayThrough` answers a `BridgeRay` with `near` and `far`, where it
+      answered a pair; read `ray.near` for `ray.$1` and `ray.far` for
+      `ray.$2`, and a destructuring pattern names the class.
+
+  - id: flame_flutter3d-CellGridComponent-cellAt-record
+    package: flame_flutter3d
+    symbol: CellGridComponent.cellAt
+    kind: recordToClass
+    fields:
+      $1: column
+      $2: row
+    guidance: >-
+      `cellAt` answers a `GridCell` with `column` and `row`, where it
+      answered a pair; `final (c, r) = grid.cellAt(p)` becomes
+      `final GridCell(column: c, row: r) = grid.cellAt(p)`.
+
+  - id: flame_flutter3d-ColliderRegistry-raycast-record
+    package: flame_flutter3d
+    symbol: ColliderRegistry.raycast
+    kind: recordToClass
+    fields:
+      component: component
+      point: point
+      collider: collider
+    guidance: >-
+      `raycast` answers a `ColliderRayHit` with the same three fields, where
+      it answered a record; field reads keep compiling, and only a
+      destructuring pattern names the class.
+
+  - id: cpu-CpuComputeShader-workgroupSize-record
+    package: flutter3d_cpu
+    symbol: CpuComputeShader.workgroupSize
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+      $3: z
+    guidance: >-
+      `workgroupSize` is a `WorkgroupSize` (the shader package's own type,
+      re-exported from `flutter3d_cpu`), where it was a triple; a stage
+      writes `WorkgroupSize get workgroupSize => const WorkgroupSize(64, 1,
+      1);`.
+
+  - id: hardware-FakeBackend-createdCubeRenderTargets-record
+    package: flutter3d_hardware
+    symbol: FakeBackend.createdCubeRenderTargets
+    kind: recordToClass
+    fields:
+      size: size
+      format: format
+      mipLevels: mipLevels
+    guidance: >-
+      `createdCubeRenderTargets` lists `FakeCubeTarget`s with the same three
+      fields, where it listed records; field reads keep compiling.
+
+  - id: hardware-FakeBackend-overwrites-record
+    package: flutter3d_hardware
+    symbol: FakeBackend.overwrites
+    kind: recordToClass
+    fields:
+      backend: backend
+      offsetInBytes: offsetInBytes
+      lengthInBytes: lengthInBytes
+    guidance: >-
+      `overwrites` lists `FakeGeometryOverwrite`s with the same three
+      fields, where it listed records; field reads keep compiling.
+
+  - id: hardware-FakeBackend-overwrittenTextures-record
+    package: flutter3d_hardware
+    symbol: FakeBackend.overwrittenTextures
+    kind: recordToClass
+    fields:
+      format: format
+      region: region
+      mipLevel: mipLevel
+    guidance: >-
+      `overwrittenTextures` lists `FakeTextureOverwrite`s with the same three
+      fields, where it listed records; field reads keep compiling.
+
+  - id: hardware-FakeBackend-readbacks-record
+    package: flutter3d_hardware
+    symbol: FakeBackend.readbacks
+    kind: recordToClass
+    fields:
+      texture: texture
+      region: region
+    guidance: >-
+      `readbacks` lists `FakeReadback`s with `texture` and `region`, where it
+      listed records; field reads keep compiling.
+
+  - id: flame_flutter3d-Flutter3dFlameWidget-existing-record
+    package: flame_flutter3d
+    symbol: Flutter3dFlameWidget.existing
+    kind: recordToClass
+    fields:
+      device: device
+      renderer: renderer
+    guidance: >-
+      `existing` takes a `BorrowedRenderer`, where it took a record: write
+      `existing: BorrowedRenderer(device: d, renderer: r)` for `existing:
+      (device: d, renderer: r)`.
+
+  - id: flame_flutter3d-GridMover-cell-record
+    package: flame_flutter3d
+    symbol: GridMover.cell
+    kind: recordToClass
+    fields:
+      $1: column
+      $2: row
+    guidance: >-
+      `cell` is a `GridCell` with `column` and `row`, where it was a pair; a
+      comparison against `(3, 1)` becomes one against `const GridCell(column:
+      3, row: 1)`.
+
+  - id: cpu-bloomSource-record
+    package: flutter3d_cpu
+    symbol: bloomSource
+    kind: recordToClass
+    fields:
+      source: source
+      tx: tx
+      ty: ty
+      params: params
+    guidance: >-
+      `bloomSource` answers a `BloomSource` with the same four fields, where
+      it answered a record; field reads keep compiling.
+
+  - id: hardware-cappedImageSize-record
+    package: flutter3d_hardware
+    symbol: cappedImageSize
+    kind: recordToClass
+    fields:
+      width: width
+      height: height
+    guidance: >-
+      `cappedImageSize` answers an `ImageExtent` with `width` and `height`,
+      where it answered a record; field reads keep compiling, and a
+      comparison against `(width: w, height: h)` becomes one against
+      `ImageExtent(width: w, height: h)`.
+
+  - id: cpu-clusterAt-record
+    package: flutter3d_cpu
+    symbol: clusterAt
+    kind: recordToClass
+    fields:
+      offset: offset
+      count: count
+    guidance: >-
+      `clusterAt` answers a `ClusterSpan` with `offset` and `count`, where it
+      answered a record; field reads keep compiling.
+
+  - id: cpu-contributorLight-record
+    package: flutter3d_cpu
+    symbol: contributorLight
+    kind: recordToClass
+    fields:
+      toLight: toLight
+      radiance: radiance
+    guidance: >-
+      `contributorLight` answers a `ContributorLightSample` with `toLight`
+      and `radiance`, where it answered a record; field reads keep
+      compiling.
+
+  - id: cpu-cpuTestDevice-record
+    package: flutter3d_cpu
+    symbol: cpuTestDevice
+    kind: recordToClass
+    fields:
+      device: device
+      albedo: albedo
+      normal: normal
+    guidance: >-
+      `cpuTestDevice` answers a `CpuTestKit` with `device`, `albedo` and
+      `normal`, where it answered a record; `it.device` and the rest keep
+      compiling.
+
+  - id: hardware-encodedImageSize-record
+    package: flutter3d_hardware
+    symbol: encodedImageSize
+    kind: recordToClass
+    fields:
+      width: width
+      height: height
+    guidance: >-
+      `encodedImageSize` answers an `ImageExtent` (or null) with `width` and
+      `height`, where it answered a record; field reads keep compiling.
+
+  - id: hardware-indexWindow-record
+    package: flutter3d_hardware
+    symbol: indexWindow
+    kind: recordToClass
+    fields:
+      first: first
+      count: count
+    guidance: >-
+      `indexWindow` answers an `IndexWindow` with `first` and `count`, where
+      it answered a record; field reads keep compiling, and a list typed
+      `List<({int first, int count})>` becomes `List<IndexWindow>`.
+
+  - id: cpu-mapUv-record
+    package: flutter3d_cpu
+    symbol: mapUv
+    kind: recordToClass
+    fields:
+      u: u
+      v: v
+      footprint: footprint
+    guidance: >-
+      `mapUv` answers a `MappedUv` with `u`, `v` and `footprint`, where it
+      answered a record; `final (u: a, v: b, footprint: f) = mapUv(...)`
+      becomes `final MappedUv(u: a, v: b, footprint: f) = mapUv(...)`.
+
+  - id: cpu-pixelRay-record
+    package: flutter3d_cpu
+    symbol: pixelRay
+    kind: recordToClass
+    fields:
+      origin: origin
+      along: along
+    guidance: >-
+      `pixelRay` answers a `PixelRay` with `origin` and `along`, where it
+      answered a record; `final (:origin, :along) = pixelRay(...)` becomes
+      `final PixelRay(:origin, :along) = pixelRay(...)`.
+
+  - id: cpu-splatNoiseOffset-record
+    package: flutter3d_cpu
+    symbol: splatNoiseOffset
+    kind: recordToClass
+    fields:
+      $1: column
+      $2: row
+    guidance: >-
+      `splatNoiseOffset` answers a `NoiseTileCell` with `column` and `row`,
+      where it answered a pair; `final (x, y) = splatNoiseOffset(id)` becomes
+      `final NoiseTileCell(column: x, row: y) = splatNoiseOffset(id)`.
+
+  - id: cpu-vogelDisc-record
+    package: flutter3d_cpu
+    symbol: vogelDisc
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `vogelDisc` answers a `VogelTap` with `x` and `y`, where it answered a
+      pair; `final (dx, dy) = vogelDisc(...)` becomes `final VogelTap(x: dx,
+      y: dy) = vogelDisc(...)`.
+
+  - id: game-ActionInput-shapeDelta-record
+    package: flutter3d_game
+    symbol: ActionInput.shapeDelta
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `shapeDelta` answers a `ShapedPair` with `x` and `y`, where it answered
+      a pair; only a destructuring pattern names the class.
+
+  - id: game-AxisSettings-shapeDelta-record
+    package: flutter3d_game
+    symbol: AxisSettings.shapeDelta
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `shapeDelta` answers a `ShapedPair` with `x` and `y`, where it answered
+      a pair; only a destructuring pattern names the class.
+
+  - id: game-AxisSettings-shapePair-record
+    package: flutter3d_game
+    symbol: AxisSettings.shapePair
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `shapePair` answers a `ShapedPair` with `x` and `y`, where it answered
+      a pair; only a destructuring pattern names the class.
+
+  - id: game-ActorVisuals-markersPassed-record
+    package: flutter3d_game
+    symbol: ActorVisuals.markersPassed
+    kind: recordToClass
+    fields:
+      actor: actor
+      state: state
+      name: name
+    guidance: >-
+      `markersPassed` is a list of `ActorMarkerPassed` with the same `actor`,
+      `state` and `name`; a list typed by the record shape names the class.
+
+  - id: game-ColorRoles-confusions-record
+    package: flutter3d_game
+    symbol: ColorRoles.confusions
+    kind: recordToClass
+    fields:
+      a: a
+      b: b
+      by: by
+      distance: distance
+    guidance: >-
+      `confusions` answers a list of `ColorConfusion`, the class
+      `ColorVision.confusions` answers, with the same `a`, `b`, `by` and
+      `distance`; a list typed by the record shape names the class.
+
+  - id: sim-Avoidance-velocity-record
+    package: flutter3d_sim
+    symbol: Avoidance.velocity
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: z
+    guidance: >-
+      `velocity` answers an `AvoidanceVelocity` with `x` and `z`, where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: sim-BrushGeometry-faceAxes-record
+    package: flutter3d_sim
+    symbol: BrushGeometry.faceAxes
+    kind: recordToClass
+    fields:
+      $1: normal
+      $2: u
+      $3: v
+    guidance: >-
+      `faceAxes` is a list of `BrushFaceAxes` with `normal`, `u` and `v`,
+      where each was a triple; `$1` is `normal`, and a destructuring
+      pattern names the class.
+
+  - id: sim-HeatmapTrail-positions-record
+    package: flutter3d_sim
+    symbol: HeatmapTrail.positions
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: z
+    guidance: >-
+      `positions` is a list of `TrailPoint` with `x` and `z`, where each was
+      a pair; build them with `TrailPoint(x: …, z: …)`.
+
+  - id: sim-InputFrame-dualAxes-record
+    package: flutter3d_sim
+    symbol: InputFrame.dualAxes
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+    guidance: >-
+      `dualAxes` maps each name to a `DualAxisValue` with the same `x` and
+      `y`; a map typed by the record shape, or a record literal put in it,
+      names the class.
+
+  - id: sim-LevelRules-perRoom-record
+    package: flutter3d_sim
+    symbol: LevelRules.perRoom
+    kind: recordToClass
+    fields:
+      entity: entity
+      count: count
+    guidance: >-
+      `perRoom` is a list of `RoomScatter` with the same `entity` and
+      `count`; write `RoomScatter(entity: …, count: …)` where a record
+      literal stood.
+
+  - id: sim-LightmapLayout-neutralUv-record
+    package: flutter3d_sim
+    symbol: LightmapLayout.neutralUv
+    kind: recordToClass
+    fields:
+      $1: u
+      $2: v
+    guidance: >-
+      `neutralUv` answers a `LightmapUv` with `u` and `v`, where it answered
+      a pair; only a destructuring pattern names the class.
+
+  - id: sim-LightmapLayout-texelOf-record
+    package: flutter3d_sim
+    symbol: LightmapLayout.texelOf
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `texelOf` answers a `LightmapTexel` with `x` and `y`, where it answered
+      a pair; only a destructuring pattern names the class.
+
+  - id: sim-LightmapLayout-uvAt-record
+    package: flutter3d_sim
+    symbol: LightmapLayout.uvAt
+    kind: recordToClass
+    fields:
+      $1: u
+      $2: v
+    guidance: >-
+      `uvAt` answers a `LightmapUv` with `u` and `v`, where it answered a
+      pair; only a destructuring pattern names the class.
+
+  - id: sim-LightmapLayout-uvOfPoint-record
+    package: flutter3d_sim
+    symbol: LightmapLayout.uvOfPoint
+    kind: recordToClass
+    fields:
+      $1: u
+      $2: v
+    guidance: >-
+      `uvOfPoint` answers a `LightmapUv` with `u` and `v`, where it answered
+      a pair; only a destructuring pattern names the class.
+
+  - id: sim-ResimulationRetraced-trail-record
+    package: flutter3d_sim
+    symbol: ResimulationRetraced.trail
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: z
+    guidance: >-
+      `trail` is a list of `TrailPoint` with `x` and `z`, where each was a
+      pair, the same points `HeatmapTrail.positions` takes.
+
+  - id: sim-bracketFromTraces-record
+    package: flutter3d_sim
+    symbol: bracketFromTraces
+    kind: recordToClass
+    fields:
+      agreedAt: agreedAt
+      differsAt: differsAt
+    guidance: >-
+      `bracketFromTraces` answers a `TraceBracket` with the same `agreedAt`
+      and `differsAt`; only a destructuring pattern names the class.
+
+  - id: sim-firstDifferingPath-record
+    package: flutter3d_sim
+    symbol: firstDifferingPath
+    kind: recordToClass
+    fields:
+      path: path
+      a: a
+      b: b
+    guidance: >-
+      `firstDifferingPath` answers a `DifferingPath` with the same `path`,
+      `a` and `b`; only a destructuring pattern names the class.
+
+  - id: sim_mcp-DiagnosticFrame-firstNonFinite-record
+    package: flutter3d_sim_mcp
+    symbol: DiagnosticFrame.firstNonFinite
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+      channel: channel
+    guidance: >-
+      `firstNonFinite` answers a `NonFinitePixel` with the same `x`, `y` and
+      `channel`; only a destructuring pattern names the class.
+
+  - id: sim_mcp-PlaytestRun-positions-record
+    package: flutter3d_sim_mcp
+    symbol: PlaytestRun.positions
+    kind: recordToClass
+    fields:
+      x: x
+      z: z
+    guidance: >-
+      `positions` is a list of `flutter3d_sim`'s `TrailPoint` with the same
+      `x` and `z`, the points `HeatmapTrail.positions` takes.
+
+  - id: audio_core-EqualPowerPanner-gains-record
+    package: flutter3d_audio_core
+    symbol: EqualPowerPanner.gains
+    kind: recordToClass
+    fields:
+      left: left
+      right: right
+    guidance: >-
+      `gains` answers a `PanGains` with the same `left` and `right`; only a
+      destructuring pattern names the class.
+
+  - id: game_physics-RagdollPart-tailLength-record
+    package: flutter3d_game_physics
+    symbol: RagdollPart.tailLength
+    kind: recordToClass
+    fields:
+      of: of
+      times: times
+    guidance: >-
+      `tailLength` is a `RagdollTailLength` with the same `of` and `times`;
+      write `RagdollTailLength(of: …, times: …)` where a record literal
+      stood.
+
+  - id: net-RollbackSession-agreedEnd-record
+    package: flutter3d_net
+    symbol: RollbackSession.agreedEnd
+    kind: recordToClass
+    fields:
+      step: step
+      after: after
+    guidance: >-
+      `agreedEnd` answers an `AgreedEnding<S>` with the same `step` and
+      `after`; only a destructuring pattern or a type written out names the
+      class.
+
+  - id: game_ui-TouchButton-pedal-record
+    package: flutter3d_game_ui
+    symbol: TouchButton.pedal
+    kind: recordToClass
+    fields:
+      width: width
+      height: height
+    guidance: >-
+      `pedal` is a `PedalSize` with the same `width` and `height`, and a
+      getter where it was a field; the `TouchButton.pedal` constructor takes
+      the same parameters.
+
+  - id: voxel-VoxelHit-before-record
+    package: flutter3d_voxel
+    symbol: VoxelHit.before
+    kind: recordToClass
+    fields:
+      x: x
+      y: y
+      z: z
+    guidance: >-
+      `before` answers a `VoxelCell` with the same `x`, `y` and `z`; only a
+      destructuring pattern names the class.
+
+  - id: particles-EffectRender-sheet-record
+    package: flutter3d_particles
+    symbol: EffectRender.sheet
+    kind: recordToClass
+    fields:
+      positive: positive
+      negative: negative
+    guidance: >-
+      `sheet` is a `SixWaySheetNames` with `positive` and `negative`, where it
+      was a record of the two paths; a constructor call passes
+      `SixWaySheetNames(positive: ..., negative: ...)`.
+
+  - id: effects-Elements-waterAt-record
+    package: flutter3d_effects
+    symbol: Elements.waterAt
+    kind: recordToClass
+    fields:
+      water: water
+      sample: sample
+    guidance: >-
+      `waterAt` answers a `WaterAtPoint` with `water` and `sample`, where it
+      answered a record of them; only a destructuring pattern names the class.
+
+  - id: elements-ElementsSimulation-waterAt-record
+    package: flutter3d_elements
+    symbol: ElementsSimulation.waterAt
+    kind: recordToClass
+    fields:
+      water: water
+      sample: sample
+    guidance: >-
+      `waterAt` answers a `WaterAtPoint` with `water` and `sample`, where it
+      answered a record of them; only a destructuring pattern names the class.
+
+  - id: effects-FireView-wanted-record
+    package: flutter3d_effects
+    symbol: FireView.wanted
+    kind: recordToClass
+    fields:
+      $1: step
+      $2: wanted
+      $3: holds
+    guidance: >-
+      `wanted` lists `StepBudget`s with `step`, `wanted` and `holds`, where it
+      listed `(String, int, int)` triples; `$1`/`$2`/`$3` become those names.
+
+  - id: effects-LiquidView-wanted-record
+    package: flutter3d_effects
+    symbol: LiquidView.wanted
+    kind: recordToClass
+    fields:
+      $1: step
+      $2: wanted
+      $3: holds
+    guidance: >-
+      `wanted` lists `StepBudget`s with `step`, `wanted` and `holds`, where it
+      listed `(String, int, int)` triples; `$1`/`$2`/`$3` become those names.
+
+  - id: physics-MeshVessel-span-record
+    package: flutter3d_physics
+    symbol: MeshVessel.span
+    kind: recordToClass
+    fields:
+      low: low
+      high: high
+    guidance: >-
+      `span` answers a `VesselSpan` with `low` and `high`, where it answered a
+      record of them; only a destructuring pattern names the class.
+
+  - id: physics_native-NativeWorld-charOf-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.charOf
+    kind: recordToClass
+    fields:
+      share: share
+      depth: depth
+      temperature: temperature
+    guidance: >-
+      `charOf` answers a `NativeChar` with `share`, `depth` and
+      `temperature`, where it answered a record of them; only a destructuring
+      pattern names the class.
+
+  - id: physics_native-NativeWorld-linkJoint-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.linkJoint
+    kind: recordToClass
+    fields:
+      position: position
+      speed: speed
+    guidance: >-
+      `linkJoint` answers a `NativeLinkJoint` with `position` and `speed`,
+      where it answered a record of them; only a destructuring pattern names
+      the class.
+
+  - id: physics_native-NativeWorld-linkTurn-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.linkTurn
+    kind: recordToClass
+    fields:
+      turn: turn
+      spin: spin
+    guidance: >-
+      `linkTurn` answers a `NativeLinkTurn` with `turn` and `spin`, where it
+      answered a record of them; only a destructuring pattern names the class.
+
+  - id: physics_native-NativeWorld-readFires-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.readFires
+    kind: recordToClass
+    fields:
+      fires: fires
+      bodies: bodies
+    guidance: >-
+      `readFires` answers a `NativeFireBlock` with `fires` and `bodies`, where
+      it answered a record of them; only a destructuring pattern names the
+      class.
+
+  - id: physics_native-NativeWorld-readShallowSurface-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.readShallowSurface
+    kind: recordToClass
+    fields:
+      surface: surface
+      depth: depth
+    guidance: >-
+      `readShallowSurface` answers a `NativeShallowSurface` with `surface` and
+      `depth`, where it answered a record of them; a variable typed with the
+      record shape takes the class name instead.
+
+  - id: physics_native-NativeWorld-readTransforms-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.readTransforms
+    kind: recordToClass
+    fields:
+      transforms: transforms
+      bodies: bodies
+    guidance: >-
+      `readTransforms` answers a `NativeTransformBlock` with `transforms` and
+      `bodies`, where it answered a record of them; only a destructuring
+      pattern names the class.
+
+  - id: physics_native-NativeWorld-shallowVolume-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.shallowVolume
+    kind: recordToClass
+    fields:
+      held: held
+      lost: lost
+    guidance: >-
+      `shallowVolume` answers a `NativeShallowVolume` with `held` and `lost`,
+      where it answered a record of them; a getter or variable typed with the
+      record shape takes the class name instead.
+
+  - id: physics_native-NativeWorld-submergedOf-record
+    package: flutter3d_physics_native
+    symbol: NativeWorld.submergedOf
+    kind: recordToClass
+    fields:
+      volume: volume
+      water: water
+    guidance: >-
+      `submergedOf` answers a `NativeSubmersion` with `volume` and `water`,
+      where it answered a record of them; only a destructuring pattern names
+      the class.
+
+  - id: particles-ParticleEffects-looks-record
+    package: flutter3d_particles
+    symbol: ParticleEffects.looks
+    kind: recordToClass
+    fields:
+      render: render
+      system: system
+    guidance: >-
+      `looks` lists `ParticleLook`s with `render` and `system`, where it
+      listed records of them; only a destructuring pattern names the class.
+
+  - id: particles-ParticleEffects-triggerCounts-record
+    package: flutter3d_particles
+    symbol: ParticleEffects.triggerCounts
+    kind: recordToClass
+    fields:
+      fired: fired
+      unplaced: unplaced
+    guidance: >-
+      `triggerCounts` answers a `TriggerCounts` with `fired` and `unplaced`;
+      a comparison with a record literal compares with
+      `TriggerCounts(fired: ..., unplaced: ...)` instead.
+
+  - id: physics-RevolvedVessel-span-record
+    package: flutter3d_physics
+    symbol: RevolvedVessel.span
+    kind: recordToClass
+    fields:
+      low: low
+      high: high
+    guidance: >-
+      `span` answers a `VesselSpan` with `low` and `high`, where it answered a
+      record of them; only a destructuring pattern names the class.
+
+  - id: physics-RevolvedVessel-wallDistance-record
+    package: flutter3d_physics
+    symbol: RevolvedVessel.wallDistance
+    kind: recordToClass
+    fields:
+      distance: distance
+      normal: normal
+    guidance: >-
+      `wallDistance` answers a `VesselWallDistance` with `distance` and
+      `normal`, or null, where it answered a record of them; only a
+      destructuring pattern names the class.
+
+  - id: physics-VesselShape-span-record
+    package: flutter3d_physics
+    symbol: VesselShape.span
+    kind: recordToClass
+    fields:
+      low: low
+      high: high
+    guidance: >-
+      `span` answers a `VesselSpan` with `low` and `high`; a shape of your own
+      returns `VesselSpan(low: ..., high: ...)` where it returned
+      `(low: ..., high: ...)`.
+
+  - id: physics-VesselVolumes-lip-record
+    package: flutter3d_physics
+    symbol: VesselVolumes.lip
+    kind: recordToClass
+    fields:
+      point: point
+      height: height
+    guidance: >-
+      `lip` answers a `VesselLip` with `point` and `height`, or null, where it
+      answered a record of them; only a destructuring pattern names the class.
+
+  - id: physics-circularWeir-record
+    package: flutter3d_physics
+    symbol: circularWeir
+    kind: recordToClass
+    fields:
+      flow: flow
+      area: area
+    guidance: >-
+      `circularWeir` answers a `WeirFlow` with `flow` and `area`, where it
+      answered a record of them; only a destructuring pattern names the class.
+
+  - id: physics_native-customShapeDirections-record
+    package: flutter3d_physics_native
+    symbol: customShapeDirections
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+      $3: z
+    guidance: >-
+      `customShapeDirections` lists `ShapeSampleDirection`s with `x`, `y` and
+      `z`, where it listed `(double, double, double)` triples; a loop writes
+      `for (final ShapeSampleDirection(:x, :y, :z) in ...)`.
+
+  - id: particles-importSixWay-record
+    package: flutter3d_particles
+    symbol: importSixWay
+    kind: recordToClass
+    fields:
+      positive: positive
+      negative: negative
+    guidance: >-
+      `importSixWay` answers a `SixWayTextures` with `positive` and
+      `negative`, where it answered a record of the two byte lists; only a
+      variable typed with the record shape needs the class name.
+
+  - id: physics-orificeFlow-record
+    package: flutter3d_physics
+    symbol: orificeFlow
+    kind: recordToClass
+    fields:
+      flow: flow
+      speed: speed
+    guidance: >-
+      `orificeFlow` answers an `OrificeStream` with `flow` and `speed`, where
+      it answered a record of them; only a destructuring pattern names the
+      class.
+
+  - id: physics-overCircularLip-record
+    package: flutter3d_physics
+    symbol: overCircularLip
+    kind: recordToClass
+    fields:
+      head: head
+      speed: speed
+      width: width
+    guidance: >-
+      `overCircularLip` answers a `LipOverflow` with `head`, `speed` and
+      `width`, where it answered a record of them; only a destructuring
+      pattern names the class.
+
+  - id: model_core-AddNode-position-record
+    package: flutter3d_model_core
+    symbol: AddNode.position
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `AddNode.position` is a `NodePosition` with `x` and `y` where it was a
+      pair; build it as `NodePosition(x: 12, y: 34)` (default
+      `NodePosition.origin`).
+
+  - id: editor_widgets-ColorField-hsvToRgb-record
+    package: flutter3d_editor_widgets
+    symbol: ColorField.hsvToRgb
+    kind: recordToClass
+    fields:
+      $1: r
+      $2: g
+      $3: b
+    guidance: >-
+      `hsvToRgb` answers a `DisplayRgb` with `r`, `g` and `b` where it
+      answered a triple; only a destructuring pattern names the class.
+
+  - id: editor_widgets-ColorField-rgbToHsv-record
+    package: flutter3d_editor_widgets
+    symbol: ColorField.rgbToHsv
+    kind: recordToClass
+    fields:
+      hue: hue
+      saturation: saturation
+      value: value
+    guidance: >-
+      `rgbToHsv` answers a `HueSaturationValue` with the same `hue`,
+      `saturation` and `value`; field reads keep compiling, a type annotation
+      or pattern names the class.
+
+  - id: mesh-ConvexHull-faces-record
+    package: flutter3d_mesh
+    symbol: ConvexHull.faces
+    kind: recordToClass
+    fields:
+      $1: a
+      $2: b
+      $3: c
+    guidance: >-
+      `ConvexHull.faces` is a list of `TriangleIndices` with `a`, `b` and `c`
+      where it held index triples; `$1`/`$2`/`$3` become `a`/`b`/`c`.
+
+  - id: mesh-EditMesh-compact-record
+    package: flutter3d_mesh
+    symbol: EditMesh.compact
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: remap
+    guidance: >-
+      `compact` answers a `RemappedMesh` with `mesh` and `remap` where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: editor_core-GizmoMark-bounds-record
+    package: flutter3d_editor_core
+    symbol: GizmoMark.bounds
+    kind: recordToClass
+    fields:
+      $1: min
+      $2: max
+    guidance: >-
+      `bounds` answers a `GizmoBounds` with `min` and `max` corners where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: model_core-ImpostorAtlas-pick-record
+    package: flutter3d_model_core
+    symbol: ImpostorAtlas.pick
+    kind: recordToClass
+    fields:
+      view: view
+      next: next
+      blend: blend
+    guidance: >-
+      `pick` answers an `ImpostorPick` with the same `view`, `next` and
+      `blend`; field reads keep compiling, a pattern names the class.
+
+  - id: editor_core-LightPlan-pngs-record
+    package: flutter3d_editor_core
+    symbol: LightPlan.pngs
+    kind: recordToClass
+    fields:
+      before: before
+      after: after
+    guidance: >-
+      `pngs` answers a `LightPlanPngs` with the same `before` and `after`;
+      field reads keep compiling, a pattern names the class.
+
+  - id: model_core-ModelHistory-authorship-record
+    package: flutter3d_model_core
+    symbol: ModelHistory.authorship
+    kind: recordToClass
+    fields:
+      says: says
+      author: author
+      client: client
+    guidance: >-
+      `authorship` is a list of `StepAuthorship` with the same `says`,
+      `author` and `client`; field reads keep compiling, a type annotation
+      names the class.
+
+  - id: mesh-StaticMeshShape-triangles-record
+    package: flutter3d_mesh
+    symbol: StaticMeshShape.triangles
+    kind: recordToClass
+    fields:
+      $1: a
+      $2: b
+      $3: c
+    guidance: >-
+      `StaticMeshShape.triangles` is a list of `TriangleIndices` with `a`,
+      `b` and `c` where it held index triples; `$1`/`$2`/`$3` become
+      `a`/`b`/`c`.
+
+  - id: model_core-TextureGraph-positions-record
+    package: flutter3d_model_core
+    symbol: TextureGraph.positions
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `TextureGraph.positions` maps a node id to a `NodePosition` with `x`
+      and `y` where it mapped to a pair; `$1`/`$2` become `x`/`y`.
+
+  - id: model_core-blockLayoutFor-record
+    package: flutter3d_model_core
+    symbol: blockLayoutFor
+    kind: recordToClass
+    fields:
+      blockWidth: blockWidth
+      blockHeight: blockHeight
+      bytesPerBlock: bytesPerBlock
+    guidance: >-
+      `blockLayoutFor` answers a `CompressedBlock` (or null) with the same
+      `blockWidth`, `blockHeight` and `bytesPerBlock`; field reads keep
+      compiling.
+
+  - id: mesh-closestPointOn-record
+    package: flutter3d_mesh
+    symbol: closestPointOn
+    kind: recordToClass
+    fields:
+      triangle: triangle
+      distance: distance
+      point: point
+    guidance: >-
+      `closestPointOn` answers a `SurfacePoint` (or null) with the same
+      `triangle`, `distance` and `point`; field reads keep compiling.
+
+  - id: model_core-curveSamples-record
+    package: flutter3d_model_core
+    symbol: curveSamples
+    kind: recordToClass
+    fields:
+      $1: time
+      $2: value
+    guidance: >-
+      `curveSamples` answers a list of `CurveSample` with `time` and `value`
+      where it held pairs; `for (final CurveSample(:time, :value) in ...)`
+      replaces the record pattern.
+
+  - id: model_core-dirtyRectOf-record
+    package: flutter3d_model_core
+    symbol: dirtyRectOf
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+      $3: width
+      $4: height
+    guidance: >-
+      `dirtyRectOf` takes a `List<TileCoord>` and answers a `TexelRect` (or
+      null) with `x`, `y`, `width` and `height` where it answered a
+      four-tuple; only a destructuring pattern names the class.
+
+  - id: model_core-dirtyTilesBetween-record
+    package: flutter3d_model_core
+    symbol: dirtyTilesBetween
+    kind: recordToClass
+    fields:
+      $1: x
+      $2: y
+    guidance: >-
+      `dirtyTilesBetween` answers a list of `TileCoord` with `x` (column)
+      and `y` (row) where it held `(tx, ty)` pairs; `$1`/`$2` become `x`/`y`.
+
+  - id: mesh-importMeshData-record
+    package: flutter3d_mesh
+    symbol: importMeshData
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: report
+      $3: shapeKeys
+    guidance: >-
+      `importMeshData` answers an `ImportedMesh` with `mesh`, `report` and
+      `shapeKeys` where it answered a triple; read `importMeshData(d).mesh`
+      or destructure with `ImportedMesh(:mesh)`.
+
+  - id: editor_core-inspectorSections-record
+    package: flutter3d_editor_core
+    symbol: inspectorSections
+    kind: recordToClass
+    fields:
+      $1: title
+      $2: keys
+    guidance: >-
+      `inspectorSections` answers a list of `InspectorSection` with `title`
+      and `keys` where it held pairs; `$1`/`$2` become `title`/`keys`, and
+      two sections compare equal key by key.
+
+  - id: mesh-isotropicRemesh-record
+    package: flutter3d_mesh
+    symbol: isotropicRemesh
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: report
+    guidance: >-
+      `isotropicRemesh` answers a `RemeshedMesh` with `mesh` and `report`
+      where it answered a pair; only a destructuring pattern names the class.
+
+  - id: mesh-mergeAt-record
+    package: flutter3d_mesh
+    symbol: mergeAt
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: report
+    guidance: >-
+      `mergeAt` answers a `MergedMesh` with `mesh` and `report` where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: mesh-mergeByDistance-record
+    package: flutter3d_mesh
+    symbol: mergeByDistance
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: report
+    guidance: >-
+      `mergeByDistance` answers a `MergedMesh` with `mesh` and `report` where
+      it answered a pair; only a destructuring pattern names the class.
+
+  - id: model_core-polygonEdgesOf-record
+    package: flutter3d_model_core
+    symbol: polygonEdgesOf
+    kind: recordToClass
+    fields:
+      $1: low
+      $2: high
+    guidance: >-
+      `polygonEdgesOf` answers a list of `EdgeVertices` with `low` and `high`
+      where it held pairs; `$1`/`$2` become `low`/`high`.
+
+  - id: editor_core-projectAt-record
+    package: flutter3d_editor_core
+    symbol: projectAt
+    kind: recordToClass
+    fields:
+      root: root
+      level: level
+    guidance: >-
+      `projectAt` answers a `ProjectLocation` with the same `root` and
+      `level`; field reads keep compiling, a pattern names the class.
+
+  - id: model_core-renderPost-record
+    package: flutter3d_model_core
+    symbol: renderPost
+    kind: recordToClass
+    fields:
+      settings: settings
+      graph: graph
+    guidance: >-
+      `renderPost` answers a `PostEdit` with the same `settings` and `graph`;
+      field reads keep compiling, `final PostEdit(:settings, :graph) = ...`
+      replaces the record pattern.
+
+  - id: model_core-resolveIkConstraint-record
+    package: flutter3d_model_core
+    symbol: resolveIkConstraint
+    kind: recordToClass
+    fields:
+      root: root
+      mid: mid
+      reachError: reachError
+    guidance: >-
+      `resolveIkConstraint` answers an `IkSolution` with the same `root`,
+      `mid` and `reachError`; field reads keep compiling.
+
+  - id: model_core-resolveLookAtConstraint-record
+    package: flutter3d_model_core
+    symbol: resolveLookAtConstraint
+    kind: recordToClass
+    fields:
+      rotation: rotation
+      aimError: aimError
+    guidance: >-
+      `resolveLookAtConstraint` answers a `LookAtSolution` with the same
+      `rotation` and `aimError`; field reads keep compiling.
+
+  - id: mesh-separateComponents-record
+    package: flutter3d_mesh
+    symbol: separateComponents
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: remap
+    guidance: >-
+      `separateComponents` answers a list of `RemappedMesh` with `mesh` and
+      `remap` where it held pairs; `$1`/`$2` become `mesh`/`remap`.
+
+  - id: mesh-subMesh-record
+    package: flutter3d_mesh
+    symbol: subMesh
+    kind: recordToClass
+    fields:
+      $1: mesh
+      $2: remap
+    guidance: >-
+      `subMesh` answers a `RemappedMesh` with `mesh` and `remap` where it
+      answered a pair; only a destructuring pattern names the class.
+
+  - id: model_core-tangentHandles-record
+    package: flutter3d_model_core
+    symbol: tangentHandles
+    kind: recordToClass
+    fields:
+      inHandle: inHandle
+      outHandle: outHandle
+    guidance: >-
+      `tangentHandles` answers a `TangentHandles` with the same `inHandle`
+      and `outHandle`; field reads keep compiling.
+
+  - id: model_core-valueRange-record
+    package: flutter3d_model_core
+    symbol: valueRange
+    kind: recordToClass
+    fields:
+      min: min
+      max: max
+    guidance: >-
+      `valueRange` answers a `CurveValueRange` with the same `min` and `max`;
+      field reads keep compiling, a type annotation names the class.
+
+  - id: mcp-PieceReport-covering-record
+    package: flutter3d_mcp
+    symbol: PieceReport.covering
+    kind: recordToClass
+    fields:
+      who: who
+      share: share
+    guidance: >-
+      `covering` is a list of `PieceCover`, each with `who` and `share`, where
+      it was a list of `(who:, share:)` records; only a destructuring pattern
+      names the class.
+
+  - id: mcp-PieceReport-depth-record
+    package: flutter3d_mcp
+    symbol: PieceReport.depth
+    kind: recordToClass
+    fields:
+      near: near
+      far: far
+    guidance: >-
+      `depth` is a `DepthSpan?` with `near` and `far` in metres, where it was a
+      `(near:, far:)` record; only a destructuring pattern names the class.
+
+  - id: mcp-PieceReport-screenBox-record
+    package: flutter3d_mcp
+    symbol: PieceReport.screenBox
+    kind: recordToClass
+    fields:
+      left: left
+      top: top
+      right: right
+      bottom: bottom
+    guidance: >-
+      `screenBox` is a `PixelBox?` with `left`, `top`, `right` and `bottom`,
+      where it was a record of the same four names; only a destructuring
+      pattern names the class.
+
+  - id: mcp-ProjectRoot-tryResolve-record
+    package: flutter3d_mcp
+    symbol: ProjectRoot.tryResolve
+    kind: recordToClass
+    fields:
+      path: path
+      refused: refused
+    guidance: >-
+      `tryResolve` answers a `ResolvedPath` with `path` and `refused`, where it
+      answered a `(path:, refused:)` record; a destructuring pattern or a
+      switch case becomes `ResolvedPath(:path, :refused)`.
+
+  - id: editor_play-callGameExtension-record
+    package: flutter3d_editor_play
+    symbol: callGameExtension
+    kind: recordToClass
+    fields:
+      json: json
+      refused: refused
+    guidance: >-
+      `callGameExtension` answers a `GameExtensionReply` with `json` and
+      `refused`, where it answered a `(json:, refused:)` record; a fake `ask`
+      returns `GameExtensionReply(json: ...)` or
+      `GameExtensionReply(refused: ...)`, and a switch case names the class.
+
+  - id: build-createProject-record
+    package: flutter3d_build
+    symbol: createProject
+    kind: recordToClass
+    fields:
+      did: did
+      says: says
+    guidance: >-
+      `createProject` answers an `Answer` (from `package:flutter3d_mcp/kit.dart`,
+      the type `PluginWorkshop.create` answers) with `did` and `says`, where it
+      answered a `(did:, says:)` record; only a destructuring pattern names the
+      class.
+
+  - id: editor_play-eventsSince-record
+    package: flutter3d_editor_play
+    symbol: eventsSince
+    kind: recordToClass
+    fields:
+      events: events
+      next: next
+      missed: missed
+      restarted: restarted
+    guidance: >-
+      `eventsSince` answers a `PostedEventPage` with `events`, `next`, `missed`
+      and `restarted`, where it answered a record of the same four names; only
+      a destructuring pattern names the class.
+
+  - id: editor_play-fakeFlutterRun-record
+    package: flutter3d_editor_play
+    symbol: fakeFlutterRun
+    kind: recordToClass
+    fields:
+      run: run
+      tool: tool
+      started: started
+    guidance: >-
+      `fakeFlutterRun` answers a `FakeFlutterRun` with `run`, `tool` and
+      `started`, where it answered a record of the same three names; only a
+      destructuring pattern names the class.
+
+  - id: education_lti-generateRsaKeyPair-record
+    package: flutter3d_education_lti
+    symbol: generateRsaKeyPair
+    kind: recordToClass
+    fields:
+      publicKey: publicKey
+      privateKey: privateKey
+    guidance: >-
+      `generateRsaKeyPair` answers an `RsaKeyPair` with `publicKey` and
+      `privateKey`, where it answered a record of the same two names; only a
+      destructuring pattern names the class.
+
+  - id: build-markerOf-record
+    package: flutter3d_build
+    symbol: markerOf
+    kind: recordToClass
+    fields:
+      $1: value
+      legacy: legacy
+    guidance: >-
+      `markerOf` answers a `PluginMarker?` with `value` and `legacy`, where it
+      answered `(value, legacy:)`; a pattern `(final Object v, legacy: false)`
+      becomes `PluginMarker(value: final Object v, legacy: false)`.
+
+  - id: build-selectPlugins-record
+    package: flutter3d_build
+    symbol: selectPlugins
+    kind: recordToClass
+    fields:
+      kept: kept
+      excluded: excluded
+      warnings: warnings
+    guidance: >-
+      `selectPlugins` answers a `PluginSelection` with `kept`, `excluded` and
+      `warnings`, where it answered a record of the same three names; only a
+      destructuring pattern names the class.
+
+  - id: build-splitLargeMeshes-record
+    package: flutter3d_build
+    symbol: splitLargeMeshes
+    kind: recordToClass
+    fields:
+      $1: document
+      $2: meshesSplit
+    guidance: >-
+      `splitLargeMeshes` answers a `MeshSplit` with `document` and
+      `meshesSplit`, where it answered `(document, count)`; `final (doc, n) =`
+      becomes `final MeshSplit(document: doc, meshesSplit: n) =`.
+
+  # What an outside author mixes in is a base mixin class: a member it gains
+  # in a minor arrives with a body and breaks nobody.
+
+  - id: flame-Drawn3d-mixin
+    package: flame_flutter3d
+    symbol: Drawn3d
+    kind: implementsToWith
+    guidance: >-
+      `Drawn3d` is a base mixin class: write `with Drawn3d` where a component
+      wrote `implements Drawn3d`, and keep its `tint`; `drawnBounds3d` has a
+      body now (nothing drawn) and may be left out.
+
+  - id: flame-Bridged3d-mixin
+    package: flame_flutter3d
+    symbol: Bridged3d
+    kind: implementsToWith
+    guidance: >-
+      `Bridged3d` is a base mixin class: write `with Bridged3d` where a
+      component wrote `implements Bridged3d`. `elevation`, `space` and
+      `drawnBounds3d` have bodies now; `plane` and `tint` are still the
+      component's to say.
+
+  - id: flame-StepFollower-mixin
+    package: flame_flutter3d
+    symbol: StepFollower
+    kind: implementsToWith
+    guidance: >-
+      `StepFollower` is a base mixin class: write `with StepFollower` where a
+      component wrote `implements StepFollower`.
+
+  - id: flame-Tap3dCallbacks-base
+    package: flame_flutter3d
+    symbol: Tap3dCallbacks
+    kind: subclassModifier
+    to: base
+    guidance: >-
+      `Tap3dCallbacks` is a base mixin, because the `Drawn3d` it sits on is
+      base: a component that mixes it in is `base` or `final`.
+
+  - id: particles-LightEmitter-base
+    package: flutter3d_particles
+    symbol: LightEmitter
+    kind: subclassModifier
+    to: base
+    guidance: >-
+      `LightEmitter` is a base mixin class: an emitter mixes it in and is
+      `base` or `final`; nothing implements it.
+
+  - id: sim-KeyHolder-base
+    package: flutter3d_sim
+    symbol: KeyHolder
+    kind: subclassModifier
+    to: base
+    guidance: >-
+      `KeyHolder` is a base mixin class: a holder mixes it in and is `base`
+      or `final`; nothing implements it.
+
+  - id: physics-CollisionListener-base
+    package: flutter3d_physics
+    symbol: CollisionListener
+    kind: subclassModifier
+    to: base
+    guidance: >-
+      `CollisionListener` is a base mixin class: a listener mixes it in and
+      is `base` or `final`; nothing implements it.
+
+  # The engine's own render names carry `f3d.`, as every plugin's carries
+  # its namespace.
+
+  - id: core-FrameResourceIds-f3d
+    package: flutter3d_core
+    symbol: FrameResourceIds
+    kind: none
+    reason: >-
+      Each frame resource is named `f3d.<name>` (`f3d.scene_color`,
+      `f3d.hdr_color`); code that reads it through the constant is
+      unchanged. Code that compared the name with a string uses the new
+      word.
+
+  - id: core-EnvironmentDepthNode-id-f3d
+    package: flutter3d_core
+    symbol: EnvironmentDepthNode.id
+    kind: none
+    reason: >-
+      The environment depth is the resource `f3d.environment_depth`; code
+      that reads it through the constant is unchanged.
+
+  - id: core-RenderStep-f3d
+    package: flutter3d_core
+    symbol: RenderStep
+    kind: none
+    reason: >-
+      Each built-in step is named `f3d.<name>` (`f3d.bloom`,
+      `f3d.color_grade`). `RendererSteps.named` still finds one by its old
+      word, and a pass keeps its name; code that compared a step's name
+      with a string uses the new word.
+
+  - id: core-pipelineVersion-2
+    package: flutter3d_core
+    symbol: pipelineVersion
+    kind: none
+    reason: >-
+      `f3d.pipeline` is version 2, which writes the engine's anchors,
+      resources and steps as `f3d.<name>`; a version 1 file reads, its
+      words renamed. Code that compared a document's version with this
+      constant reads the newer number.
+
+  - id: plugin_api-RenderAnchor-f3d
+    package: flutter3d_plugin_api
+    symbol: RenderAnchor
+    kind: none
+    reason: >-
+      Each engine anchor is named `f3d.<name>` (`f3d.after_bloom` where it
+      was `after bloom`); `RenderAnchor.named` still finds one by its old
+      word. Code that compared an anchor's name with a string uses the new
+      word.
+
+  - id: post-skyStep-namespace
+    package: flutter3d_post
+    symbol: skyStep
+    kind: none
+    reason: >-
+      The sky step is named `flutter3d_post.sky`, in the package's
+      namespace; code that holds the constant is unchanged.
+
+  - id: post-outlinesStep-namespace
+    package: flutter3d_post
+    symbol: outlinesStep
+    kind: none
+    reason: >-
+      The outlines step is named `flutter3d_post.outlines`, in the
+      package's namespace; code that holds the constant is unchanged.
+
+  - id: core-LightingModels-named-name
+    package: flutter3d_core
+    symbol: LightingModels.named
+    kind: none
+    reason: >-
+      It takes the model's name, `<namespace>.<Name>` for a plugin's, as
+      well as the stage's `<namespace>__<Name>` and the `<namespace>_<Name>`
+      a file wrote before; a call passing a built-in's name is unchanged.
+
+  # Names a Flutter library exports too are the engine's own words now.
+
+  - id: core-RenderView-CameraView
+    package: flutter3d_core
+    symbol: RenderView
+    kind: rename
+    to: CameraView
+    guidance: >-
+      `package:flutter/rendering.dart` exports a `RenderView` too; the
+      engine's camera onto a viewport or a texture is `CameraView`.
+
+  - id: core-RenderViewSettings-CameraViewSettings
+    package: flutter3d_core
+    symbol: RenderViewSettings
+    kind: rename
+    to: CameraViewSettings
+
+  - id: core-FrameView-ofRenderView
+    package: flutter3d_core
+    symbol: FrameView.ofRenderView
+    kind: rename
+    to: FrameView.ofCameraView
+
+  - id: game_ui-LicenseEntry-LicenseSection
+    package: flutter3d_game_ui
+    symbol: LicenseEntry
+    kind: rename
+    to: LicenseSection
+    guidance: >-
+      `package:flutter/foundation.dart` exports a `LicenseEntry` too, the
+      license registry's; a section of a `LICENSES.md` is `LicenseSection`.
+
+  - id: build-AssetManifest-AssetBuildManifest
+    package: flutter3d_build
+    symbol: AssetManifest
+    kind: rename
+    to: AssetBuildManifest
+    guidance: >-
+      `package:flutter/services.dart` exports an `AssetManifest` too, the
+      runtime one; the parsed `flutter3d_assets.yaml` is
+      `AssetBuildManifest`.
+
+  - id: app-Scene3D-onSceneCreated
+    package: flutter3d_app
+    symbol: Scene3D.Scene3D
+    kind: parameters
+    changes:
+      - rename: onSceneCreated
+        to: onCreated
+    guidance: >-
+      Every widget of the engine's names its creation callback `onCreated`,
+      as `Flutter3dView` does; it is still handed the scene's controller.
+
+  - id: app-Scene3D-onSceneCreated-field
+    package: flutter3d_app
+    symbol: Scene3D.onSceneCreated
+    kind: rename
+    to: Scene3D.onCreated
+
+  # 1 break(s), seen in flame_flutter3d:
+  #   HasFlutter3d.moreViews3d changed: final List<RenderView> moreViews3d -> final List<CameraView> moreViews3d
+  - id: flame_flutter3d-HasFlutter3d
+    package: flame_flutter3d
+    symbol: HasFlutter3d
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flame_flutter3d:
+  #   Model3dComponent.view changed: late final RenderView view -> late final CameraView view
+  - id: flame_flutter3d-Model3dComponent
+    package: flame_flutter3d
+    symbol: Model3dComponent
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_app:
+  #   Flutter3dEngine.view changed: final RenderView view -> final CameraView view
+  - id: app-Flutter3dEngine
+    package: flutter3d_app
+    symbol: Flutter3dEngine
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 2 break(s), seen in flutter3d_app:
+  #   LoadedLevel.LoadedLevel changed: LoadedLevel({required this.level, required this.scene, required this.collision, required List<LevelIssue> issues, required this…
+  #   LoadedLevel.screens changed: final List<RenderView> screens -> final List<CameraView> screens
+  - id: app-LoadedLevel
+    package: flutter3d_app
+    symbol: LoadedLevel
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 3 break(s), seen in flutter3d_app:
+  #   SceneSurface.SceneSurface changed: const SceneSurface({super.key, required this.renderer, required this.scene, required this.view, required this.settings, requi…
+  #   SceneSurface.moreViews changed: final List<RenderView> moreViews -> final List<CameraView> moreViews
+  #   SceneSurface.view changed: final RenderView view -> final CameraView view
+  - id: app-SceneSurface
+    package: flutter3d_app
+    symbol: SceneSurface
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 4 break(s), seen in flutter3d_app:
+  #   ViewSettings.ViewSettings changed: const ViewSettings({this.settings = const RenderSettings(), this.render = const RenderViewSettings(), this.resolution = ViewR…
+  #   ViewSettings.copyWith changed: ViewSettings copyWith({RenderSettings? settings, RenderViewSettings? render, ViewResolution? resolution, List<RenderView>? views,…
+  #   ViewSettings.render changed: final RenderViewSettings render -> final CameraViewSettings render
+  #   ViewSettings.views changed: final List<RenderView>? views -> final List<CameraView>? views
+  - id: app-ViewSettings
+    package: flutter3d_app
+    symbol: ViewSettings
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_app:
+  #   XrDriver.views changed: List<RenderView> get views -> List<CameraView> get views
+  - id: app-XrDriver
+    package: flutter3d_app
+    symbol: XrDriver
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_build:
+  #   AssetLayout.manifest changed: final AssetManifest manifest -> final AssetBuildManifest manifest
+  - id: build-AssetLayout
+    package: flutter3d_build
+    symbol: AssetLayout
+    kind: none
+    reason: >-
+      Its manifest is typed `AssetBuildManifest`, which `AssetManifest`
+      is now; `dart fix` renames the type where code names it.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   Atmosphere.applyTo changed: void applyTo(Scene scene, {LightNode? sun, RenderView? view}) -> void applyTo(Scene scene, {LightNode? sun, CameraView? view})
+  - id: core-Atmosphere
+    package: flutter3d_core
+    symbol: Atmosphere
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 2 break(s), seen in flutter3d_core:
+  #   ColorVision.difference changed: static double difference((double, double, double) a, (double, double, double) b) -> static double difference(RgbTriple a, RgbTri…
+  - id: core-ColorVision
+    package: flutter3d_core
+    symbol: ColorVision
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   DrawListContext.view changed: RenderView get view -> CameraView get view
+  - id: core-DrawListContext
+    package: flutter3d_core
+    symbol: DrawListContext
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   FrameContext.view changed: final RenderView? view -> final CameraView? view
+  - id: core-FrameContext
+    package: flutter3d_core
+    symbol: FrameContext
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 4 break(s), seen in flutter3d_core:
+  #   FrameHistory.endFrame changed: void endFrame({required int frame, required Iterable<MeshNode> meshes, required Iterable<(RenderView, vm.Matrix4)> views}) -> voi…
+  #   FrameHistory.moved changed: bool moved(MeshNode node, RenderView view) -> bool moved(MeshNode node, CameraView view)
+  #   FrameHistory.of changed: NodeHistory? of(MeshNode node, RenderView view) -> NodeHistory? of(MeshNode node, CameraView view)
+  #   FrameHistory.viewProjection changed: vm.Matrix4? viewProjection(RenderView view) -> vm.Matrix4? viewProjection(CameraView view)
+  - id: core-FrameHistory
+    package: flutter3d_core
+    symbol: FrameHistory
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   FrameView.FrameView.ofRenderView is gone
+  - id: core-FrameView
+    package: flutter3d_core
+    symbol: FrameView
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   MeshOverlay.boundsFor changed: Aabb3 boundsFor(RenderView view) -> Aabb3 boundsFor(CameraView view)
+  - id: core-MeshOverlay
+    package: flutter3d_core
+    symbol: MeshOverlay
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   PassContributor.boundsFor changed: Aabb3? boundsFor(RenderView view) -> Aabb3? boundsFor(CameraView view)
+  - id: core-PassContributor
+    package: flutter3d_core
+    symbol: PassContributor
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   ReactiveFrame.view changed: final RenderView view -> final CameraView view
+  - id: core-ReactiveFrame
+    package: flutter3d_core
+    symbol: ReactiveFrame
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 6 break(s), seen in flutter3d_core:
+  #   Renderer.depthNearFor changed: double depthNearFor({required Scene scene, required RenderView view, required int width, required int height, RenderSettings sett…
+  #   Renderer.describePipeline changed: PipelineDocument describePipeline({required Scene scene, required List<RenderView> views, RenderSettings settings = const Ren…
+  #   Renderer.planFrame changed: CompiledFrameGraph planFrame({required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings(…
+  #   Renderer.render changed: FrameResult render({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings sett…
+  #   Renderer.warmUp changed: void warmUp({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = …
+  #   Renderer.warmUpInSlices changed: Future<void> warmUpInSlices({required int width, required int height, required Scene scene, required List<RenderView> views, Re…
+  - id: core-Renderer
+    package: flutter3d_core
+    symbol: Renderer
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 3 break(s), seen in flutter3d_core:
+  #   Scene.addTextureView changed: void addTextureView(RenderView texture) -> void addTextureView(CameraView texture)
+  #   Scene.removeTextureView changed: void removeTextureView(RenderView texture) -> void removeTextureView(CameraView texture)
+  #   Scene.textureViews changed: List<RenderView> get textureViews -> List<CameraView> get textureViews
+  - id: core-Scene
+    package: flutter3d_core
+    symbol: Scene
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   SolidColorTexture.SolidColorTexture.texel changed: const SolidColorTexture.texel(double r, double g, double b, {double a = 1, this.size = 1}) -> const SolidColo…
+  - id: core-SolidColorTexture
+    package: flutter3d_core
+    symbol: SolidColorTexture
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   SplatContributor.boundsFor changed: Aabb3? boundsFor(RenderView view) -> Aabb3? boundsFor(CameraView view)
+  - id: core-SplatContributor
+    package: flutter3d_core
+    symbol: SplatContributor
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_core:
+  #   describeEmptyFrame changed: String? describeEmptyFrame(Scene scene, List<RenderView> views) -> String? describeEmptyFrame(Scene scene, List<CameraView> views)
+  - id: core-describeEmptyFrame
+    package: flutter3d_core
+    symbol: describeEmptyFrame
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 2 break(s), seen in flutter3d_core:
+  #   encodeAstc4x4Block changed: Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) -> Uint8List encodeAstc4x4Block(List<Rgba8Texel> pixels)
+  - id: core-encodeAstc4x4Block
+    package: flutter3d_core
+    symbol: encodeAstc4x4Block
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 2 break(s), seen in flutter3d_core:
+  #   encodeEtc2Rgb8Block changed: Uint8List encodeEtc2Rgb8Block(List<(int, int, int, int)> pixels) -> Uint8List encodeEtc2Rgb8Block(List<Rgba8Texel> pixels)
+  - id: core-encodeEtc2Rgb8Block
+    package: flutter3d_core
+    symbol: encodeEtc2Rgb8Block
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 2 break(s), seen in flutter3d_core:
+  #   encodeUniversalBlock changed: Uint8List encodeUniversalBlock(List<(int, int, int, int)> pixels) -> Uint8List encodeUniversalBlock(List<Rgba8Texel> pixels)
+  - id: core-encodeUniversalBlock
+    package: flutter3d_core
+    symbol: encodeUniversalBlock
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 4 break(s), seen in flutter3d_game_ui:
+  #   LicenseRecord.entries changed: final List<LicenseEntry> entries -> final List<LicenseSection> entries
+  #   LicenseRecord.entryFor changed: LicenseEntry? entryFor(String fileName) -> LicenseSection? entryFor(String fileName)
+  - id: game_ui-LicenseRecord
+    package: flutter3d_game_ui
+    symbol: LicenseRecord
+    kind: none
+    reason: >-
+      Its sections are typed `LicenseSection`, which `LicenseEntry` is
+      now; `dart fix` renames the type where code names it.
+
+  # 1 break(s), seen in flutter3d_level_scene:
+  #   LevelScene.screenOf changed: static RenderView screenOf(EntityDef entity, List<LevelBatch> batches, {required GraphicsDevice device}) -> static CameraView scree…
+  - id: level_scene-LevelScene
+    package: flutter3d_level_scene
+    symbol: LevelScene
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 2 break(s), seen in flutter3d_level_scene:
+  #   LevelSceneParts.LevelSceneParts changed: const LevelSceneParts({required this.scene, required this.batches, required this.lights, required this.probes, this.dec…
+  #   LevelSceneParts.screens changed: final List<RenderView> screens -> final List<CameraView> screens
+  - id: level_scene-LevelSceneParts
+    package: flutter3d_level_scene
+    symbol: LevelSceneParts
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 2 break(s), seen in flutter3d_mcp:
+  #   the declaration changed: typedef GameAsk = Future<({Map<String, Object?>? json, String? refused})> Function(String vmService, String method, {Map<String, String…
+  - id: mcp-GameAsk
+    package: flutter3d_mcp
+    symbol: GameAsk
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_model_core:
+  #   AddNode.AddNode changed: const AddNode({required this.materialIndex, required this.kind, this.fields = const <String, Object?>{}, this.position = (0.0, 0.0)}) -…
+  - id: model_core-AddNode
+    package: flutter3d_model_core
+    symbol: AddNode
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_model_core:
+  #   TextureGraph.TextureGraph changed: const TextureGraph({this.nodes = const <TextureNode>[], this.positions = const <int, (double, double)>{}}) -> const TextureGr…
+  - id: model_core-TextureGraph
+    package: flutter3d_model_core
+    symbol: TextureGraph
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_particles:
+  #   MeshParticleContributor.boundsFor changed: vm.Aabb3 boundsFor(RenderView view) -> vm.Aabb3 boundsFor(CameraView view)
+  - id: particles-MeshParticleContributor
+    package: flutter3d_particles
+    symbol: MeshParticleContributor
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_particles:
+  #   ParticleContributor.boundsFor changed: vm.Aabb3 boundsFor(RenderView view) -> vm.Aabb3 boundsFor(CameraView view)
+  - id: particles-ParticleContributor
+    package: flutter3d_particles
+    symbol: ParticleContributor
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_sim:
+  #   InputFrame.InputFrame changed: const InputFrame({this.pressed = const <String>[], this.released = const <String>[], this.stickX = 0.0, this.stickY = 0.0, this.l…
+  - id: sim-InputFrame
+    package: flutter3d_sim
+    symbol: InputFrame
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_sim:
+  #   LevelRules.LevelRules changed: const LevelRules({this.columns = 4, this.rows = 3, this.cell = 16.0, this.room = 10.0, this.height = 4.0, this.corridor = 3.0, th…
+  - id: sim-LevelRules
+    package: flutter3d_sim
+    symbol: LevelRules
+    kind: none
+    reason: >-
+      It takes or answers the final class that replaced a record (its
+      own entry names the fields): a record literal passed to it is
+      written as that class, with the same field names.
+
+  # 1 break(s), seen in flutter3d_stereo:
+  #   StereoRig.views changed: late final List<RenderView> views -> late final List<CameraView> views
+  - id: stereo-StereoRig
+    package: flutter3d_stereo
+    symbol: StereoRig
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  # 1 break(s), seen in flutter3d_testing:
+  #   the declaration changed: typedef QualityScene = ({Scene scene, RenderView view, RenderSettings settings}) Function(GraphicsDevice device); -> typedef QualitySce…
+  - id: testing-QualityScene
+    package: flutter3d_testing
+    symbol: QualityScene
+    kind: none
+    reason: >-
+      Its views are typed `CameraView`, which `RenderView` is now; `dart
+      fix` renames the type where code names it, and code that only
+      passes the views on is unchanged.
+
+  - id: core-EnvironmentDepthNode-release
+    package: flutter3d_core
+    symbol: EnvironmentDepthNode.release
+    kind: rename
+    to: EnvironmentDepthNode.dispose
+    guidance: >-
+      A node that holds GPU memory ends its life with `dispose`, which the
+      registration that added it calls when it goes; call it yourself only
+      for a node you never added.
+
+  - id: core-FieldUpload-release
+    package: flutter3d_core
+    symbol: FieldUpload.release
+    kind: rename
+    to: FieldUpload.dispose
+    guidance: >-
+      The storage goes with `dispose`, which cancelling the registration
+      of `RendererSteps.addFieldUpload` calls; a later `place` makes it
+      again.
+
+  - id: core-SplatGpuSort-release
+    package: flutter3d_core
+    symbol: SplatGpuSort.release
+    kind: rename
+    to: SplatGpuSort.dispose
+    guidance: >-
+      The sorter gives its buffers back with `dispose`, the one teardown
+      verb; the next `sort` makes new ones, as before.
+
+  - id: core-PassSkip-values
+    package: flutter3d_core
+    symbol: PassSkip.values
+    kind: none
+    reason: >-
+      Two reasons join the end of the list, `pending` and `failed`, and the
+      seven before them keep their order. A `switch` over `PassSkip` already
+      has a default, since it is an open set; one that lists every reason
+      by hand adds the two.
+
+  # The conformance badge has one judge: the plugin server reads the
+  # report the suite writes and decides nothing itself.
+
+  - id: build-ConformanceRun-earnsBadge
+    package: flutter3d_build
+    symbol: ConformanceRun.earnsBadge
+    kind: rewrite
+    template: '({target}.badge != null)'
+    guidance: >-
+      Whether a run earns the badge is what the suite's report says:
+      `badge` is the one `earnsBadge` in `flutter3d_conformance` gave, read
+      from `<package>.conformance.json`.
+
+  - id: build-ConformanceRun-missing
+    package: flutter3d_build
+    symbol: ConformanceRun.missing
+    kind: manual
+    guidance: >-
+      Gone with the server's own check list. The checks a run made are its
+      `report`'s `outcomes`; a check of the suite that is not among them did
+      not run, and the report's `badge` is then null.
+
+  - id: build-ConformanceTest-new
+    package: flutter3d_build
+    symbol: ConformanceTest.ConformanceTest
+    kind: parameters
+    changes:
+      - remove: check
+    guidance: >-
+      A test is no longer matched to a check by a word in its name; the
+      suite's report says which check each outcome is.
+
+  - id: build-ConformanceTest-check
+    package: flutter3d_build
+    symbol: ConformanceTest.check
+    kind: manual
+    guidance: >-
+      Gone: which check a test belongs to is in the suite's report, the
+      `check` of each of `ConformanceRun.report`'s `outcomes`.
+
+  - id: build-cliCommands
+    package: flutter3d_build
+    symbol: cliCommands
+    kind: none
+    reason: >-
+      The list gains `visibility` and `decode-worker`, the two commands
+      that joined `flutter3d`. Nothing to change in code that reads it.
+
+  # A recorded run's playback checks the run itself; the raw tape is named.
+  - id: sim-InputTapePlayback
+    package: flutter3d_sim
+    symbol: InputTapePlayback
+    kind: manual
+    guidance: >-
+      A recorded run plays through `InputTapePlayback(demo, simulation:
+      loop.simulationVersion)`, which refuses a run recorded on another
+      simulation with `ReplayException` before a step is played; a tape the
+      run made itself, such as a rewind point's, or a test's, plays through
+      `InputTapePlayback.tape(tape)`, the old call with `.tape` added.
+
+  - id: game_strategy-OrderTapePlayback
+    package: flutter3d_game_strategy
+    symbol: OrderTapePlayback
+    kind: manual
+    guidance: >-
+      A recorded match plays through `OrderTapePlayback(match, simulation:
+      strategySimulationVersion)`, which refuses a match recorded on another
+      simulation with `ReplayException`; a tape played as it is goes
+      through `OrderTapePlayback.tape(tape)`, the old call with `.tape`
+      added.
+
+  - id: game-DemoRecording
+    package: flutter3d_game
+    symbol: DemoRecording
+    kind: none
+    reason: >-
+      Its `simulation` parameter is optional with no default, and the
+      field a getter of the same type: every call compiles as it was, and
+      a recording given no simulation names the attached loop's whole
+      `simulationVersion` instead of the engine's alone.
+
+  - id: audio-AudioListener-right-field
+    package: flutter3d_audio_core
+    symbol: AudioListener.right
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: core-OcclusionBuffer-viewProjection-field
+    package: flutter3d_core
+    symbol: OcclusionBuffer.viewProjection
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: core-PosedMesh-bounds-field
+    package: flutter3d_core
+    symbol: PosedMesh.bounds
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: platformer-Runner-shove-field
+    package: flutter3d_game_platformer
+    symbol: Runner.shove
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: physics-CollisionBox-boundsHalfExtents-field
+    package: flutter3d_physics
+    symbol: CollisionBox.boundsHalfExtents
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  - id: physics-CollisionWedge-boundsHalfExtents-field
+    package: flutter3d_physics
+    symbol: CollisionWedge.boundsHalfExtents
+    kind: none
+    reason: >-
+      A getter that answered a vector the object holds and keeps current is
+      a public `final` field, live, as every such vector is. A read
+      compiles and answers as before; code that wrote into the answer was
+      already writing into the object's own vector.
+
+  # The shapes a backend could not take later, settled before the freeze:
+  # one DeviceRequest for an opener, an immutable ClearColor, a viewport in
+  # doubles with a depth range.
+  - id: hardware-BackendOpener
+    package: flutter3d_hardware
+    symbol: BackendOpener
+    kind: manual
+    guidance: >-
+      An opener takes one `DeviceRequest`. A closure written
+      `({required int width, required int height}) => MyDevice.open(width:
+      width, height: height)` is `(DeviceRequest request) =>
+      MyDevice.open(width: request.width, height: request.height)`, and a
+      call `open(width: w, height: h)` of an opener is
+      `open(DeviceRequest(width: w, height: h))`. A device's own static
+      `open` keeps its named size.
+
+  - id: hardware-ComputeOpener
+    package: flutter3d_hardware
+    symbol: ComputeOpener
+    kind: manual
+    guidance: >-
+      A compute opener takes one `DeviceRequest` too: `() async => device`
+      is `(DeviceRequest _) async => device`, and a call `open()` is
+      `open(const DeviceRequest.compute())`.
+
+  - id: hardware-ColorTarget-clearValue
+    package: flutter3d_hardware
+    symbol: ColorTarget.clearValue
+    kind: argument
+    arguments: [clearValue]
+    types: [Vector4]
+    template: 'ClearColor({components})'
+    reads: {x: red, y: green, z: blue, w: alpha}
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      The clear colour is an immutable `ClearColor`, and it holds every
+      integer exactly: `clearValue: Vector4(r, g, b, a)` is
+      `clearValue: ClearColor(r, g, b, a)`, `Vector4.zero()` is
+      `ClearColor.transparentBlack`, and an integer target takes
+      `ClearColor.uint` or `ClearColor.sint`. `channels` reads the four
+      back as doubles.
+
+  - id: hardware-TraceColorTarget-clearValue
+    package: flutter3d_hardware
+    symbol: TraceColorTarget.clearValue
+    kind: argument
+    arguments: [clearValue]
+    types: [Vector4]
+    template: 'ClearColor({components})'
+    reads: {x: red, y: green, z: blue, w: alpha}
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      A traced attachment's clear is a `ClearColor`, as `ColorTarget`'s is.
+
+  - id: hardware-PassEncoder-setViewport
+    package: flutter3d_hardware
+    symbol: PassEncoder.setViewport
+    kind: rewrite
+    template: '{target}.setViewport(PassViewport.ofRect({0}))'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      The viewport is a `PassViewport`, a rectangle in doubles with a
+      depth range: `setViewport(rect)` is
+      `setViewport(PassViewport.ofRect(rect))`. A backend's override takes
+      a `PassViewport` and calls `viewport.checkFeatures` on the way in; a
+      rectangle off whole pixels needs `DeviceFeature.fractionalViewport`.
+
+  - id: hardware-FakePass-setViewport
+    package: flutter3d_hardware
+    symbol: FakePass.setViewport
+    kind: rewrite
+    template: '{target}.setViewport(PassViewport.ofRect({0}))'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      The fake pass takes a `PassViewport`, as every pass does.
+
+  - id: hardware-PassState-viewport
+    package: flutter3d_hardware
+    symbol: PassState.viewport
+    kind: argument
+    arguments: [viewport]
+    types: [ScreenRect]
+    template: 'PassViewport.ofRect({value})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      `PassState(viewport: rect)` is
+      `PassState(viewport: PassViewport.ofRect(rect))`; a read of
+      `state.viewport` is a `PassViewport`, whose `rect` is the whole
+      pixels.
+
+  - id: hardware-PassState-copyWith
+    package: flutter3d_hardware
+    symbol: PassState.copyWith
+    kind: argument
+    arguments: [viewport]
+    types: [ScreenRect]
+    template: 'PassViewport.ofRect({value})'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      `copyWith(viewport: rect)` is
+      `copyWith(viewport: PassViewport.ofRect(rect))`; the four setters
+      `PassState` carries now (`colorWriteMask`, `depthBias`, `depthClamp`,
+      `alphaToCoverage`) are new named parameters, left out as before.
+
+  - id: hardware-RecordedViewport-new
+    package: flutter3d_hardware
+    symbol: RecordedViewport.RecordedViewport
+    kind: none
+    reason: >-
+      A fake pass records it; a test reads it. `rect` still answers the
+      rectangle in whole pixels, and `viewport` the `PassViewport` set.
+
+  - id: hardware-RecordedViewport-rect
+    package: flutter3d_hardware
+    symbol: RecordedViewport.rect
+    kind: none
+    reason: >-
+      A getter where it was a field, answering the same `ScreenRect`.
+
+  - id: hardware-TraceSetViewport-new
+    package: flutter3d_hardware
+    symbol: TraceSetViewport.TraceSetViewport
+    kind: rewrite
+    template: 'TraceSetViewport({0}, PassViewport.ofRect({1}))'
+    imports: [package:flutter3d_hardware/flutter3d_hardware.dart]
+    guidance: >-
+      A traced viewport is a `PassViewport`; a trace written before it
+      reads as one over the same pixels.
+
+  - id: hardware-TraceSetViewport-rect
+    package: flutter3d_hardware
+    symbol: TraceSetViewport.rect
+    kind: rewrite
+    template: '{target}.viewport.rect'
+    guidance: >-
+      The event carries the `PassViewport` as `viewport`; its `rect` is the
+      whole pixels the field held.
+
+  - id: core-SplatGpuSort-new
+    package: flutter3d_core
+    symbol: SplatGpuSort.SplatGpuSort
+    kind: rewrite
+    template: 'SplatGpuSort.place({arguments})!'
+    guidance: >-
+      The sort is placed by the hardware layer on the drawing device, and
+      `SplatGpuSort.place` answers null where that device cannot run it;
+      check for null where the device may be one without compute or without
+      the `SplatSort` stages, instead of the `!`.
+
+  - id: cpu-CpuDevice-standInForGpu
+    package: flutter3d_cpu
+    symbol: CpuDevice.standInForGpu
+    kind: rewrite
+    template: '!{target}.isSoftware'
+    guidance: >-
+      Standing in for a GPU is a test's knob in `testing.dart`; the device
+      says it as `isSoftware`, false while it stands in.
+
+  - id: cpu-CpuDevice-new-standInForGpu
+    package: flutter3d_cpu
+    symbol: CpuDevice.CpuDevice
+    kind: manual
+    guidance: >-
+      `standInForGpu:` is gone from the constructor. A test that made a
+      device stand in for a GPU calls `cpuComputeDeviceStandingInForGpu()`
+      from `package:flutter3d_cpu/testing.dart`; one that passed false
+      drops the argument.
+
+  - id: cpu-cpuComputeDevice-standInForGpu
+    package: flutter3d_cpu
+    symbol: cpuComputeDevice
+    kind: manual
+    guidance: >-
+      `cpuComputeDevice(standInForGpu: true)` is
+      `cpuComputeDeviceStandingInForGpu()` from
+      `package:flutter3d_cpu/testing.dart`; with false, drop the argument.
+
+  - id: build-PluginKind-values
+    package: flutter3d_build
+    symbol: PluginKind.values
+    kind: none
+    reason: >-
+      Five plugin kinds join the list, `material`, `compute`, `codec`,
+      `editor` and `data`, before `backend`; every kind before keeps its
+      name. A `switch` over `PluginKind` that named each one needs the new
+      five or a wildcard.
+
+  - id: core-renderDataSections
+    package: flutter3d_core
+    symbol: renderDataSections
+    kind: none
+    reason: >-
+      The renderer's sections gain `lightTypes`, `vertexLayouts` and
+      `lodTables`; a loader handed the list reads them too, and a document
+      without them reads as before.
+
+  - id: plugin_runtime-DataSections-runtimeKeys
+    package: flutter3d_plugin_runtime
+    symbol: DataSections.runtimeKeys
+    kind: none
+    reason: >-
+      The runtime reads `wasmRender` itself, so a section registered under
+      that name is refused as one under `wasm` is.
+
+  - id: plugin_runtime-wasmPluginAbiMax
+    package: flutter3d_plugin_runtime
+    symbol: wasmPluginAbiMax
+    kind: none
+    reason: >-
+      The newest Wasm plugin ABI is 3, the one render modules arrive in; a
+      step module of ABI 1 or 2 runs as it did.
+
+  - id: plugin_runtime-wasmRenderAbi
+    package: flutter3d_plugin_runtime
+    symbol: wasmRenderAbi
+    kind: none
+    reason: >-
+      Render modules arrived in ABI 3, and the constant names it rather
+      than the ABI after the newest; it was 3 already.
+
+  - id: cpu-sampleLight-record
+    package: flutter3d_cpu
+    symbol: sampleLight
+    kind: recordToClass
+    fields:
+      direction: direction
+      radiance: radiance
+      nDotL: nDotL
+      nDotH: nDotH
+      vDotH: vDotH
+      ltc: ltc
+      corners: corners
+    guidance: >-
+      `sampleLight` answers a `LightSample?`, a class with the fields the
+      record had and `==`, where `LightSample` was a record; field reads
+      keep compiling, and a record literal of one becomes
+      `LightSample(...)`, whose `ltc` and `corners` may be left out.
+  - id: plugin_api-LoopRegistry-addSystem-access
+    package: flutter3d_plugin_api
+    symbol: LoopRegistry.addSystem
+    kind: none
+    reason: >-
+      `addSystem` takes optional `reads:` and `writes:`, empty by default,
+      so every call compiles as it did. A class of your own that extends
+      `LoopRegistry` adds the two named parameters to its `addSystem`.
+
+  - id: flame_flutter3d-FlameChaseCamera-virtualCamera
+    package: flame_flutter3d
+    symbol: FlameChaseCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: flame_flutter3d-ViewCamera-virtualCamera
+    package: flame_flutter3d
+    symbol: ViewCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: app-FrameClock-elapsed
+    package: flutter3d_app
+    symbol: FrameClock.elapsed
+    kind: rename
+    to: FrameClock.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-FrameClock-tick
+    package: flutter3d_app
+    symbol: FrameClock.tick
+    kind: rename
+    to: FrameClock.nextFrameSeconds
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: app-WidgetSurface-tick
+    package: flutter3d_app
+    symbol: WidgetSurface.tick
+    kind: rename
+    to: WidgetSurface.update
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: app-XrFrame-XrFrame
+    package: flutter3d_app
+    symbol: XrFrame.XrFrame
+    kind: parameters
+    changes:
+      - rename: predictedDisplayPeriod
+        to: predictedDisplayPeriodSeconds
+      - rename: predictedDisplayTime
+        to: predictedDisplaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: app-XrFrame-predictedDisplayPeriod
+    package: flutter3d_app
+    symbol: XrFrame.predictedDisplayPeriod
+    kind: rename
+    to: XrFrame.predictedDisplayPeriodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-XrFrame-predictedDisplayTime
+    package: flutter3d_app
+    symbol: XrFrame.predictedDisplayTime
+    kind: rename
+    to: XrFrame.predictedDisplaySeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-FakeXrSession-FakeXrSession
+    package: flutter3d_app
+    symbol: FakeXrSession.FakeXrSession
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+      - rename: startTime
+        to: startSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: app-FakeXrSession-period
+    package: flutter3d_app
+    symbol: FakeXrSession.period
+    kind: rename
+    to: FakeXrSession.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-FakeXrSession-startTime
+    package: flutter3d_app
+    symbol: FakeXrSession.startTime
+    kind: rename
+    to: FakeXrSession.startSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: camera-ImpulseShake-time
+    package: flutter3d_camera
+    symbol: ImpulseShake.time
+    kind: rename
+    to: ImpulseShake.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationClip-AnimationClip
+    package: flutter3d_core
+    symbol: AnimationClip.AnimationClip
+    kind: parameters
+    changes:
+      - rename: referenceTime
+        to: referenceSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationClip-duration
+    package: flutter3d_core
+    symbol: AnimationClip.duration
+    kind: rename
+    to: AnimationClip.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationClip-referenceTime
+    package: flutter3d_core
+    symbol: AnimationClip.referenceTime
+    kind: rename
+    to: AnimationClip.referenceSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationGraph-stateTime
+    package: flutter3d_core
+    symbol: AnimationGraph.stateTime
+    kind: rename
+    to: AnimationGraph.stateSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationLayer-time
+    package: flutter3d_core
+    symbol: AnimationLayer.time
+    kind: rename
+    to: AnimationLayer.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationPlayer-crossFadeTo
+    package: flutter3d_core
+    symbol: AnimationPlayer.crossFadeTo
+    kind: parameters
+    changes:
+      - rename: duration
+        to: durationSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationPlayer-crossFadeToNamed
+    package: flutter3d_core
+    symbol: AnimationPlayer.crossFadeToNamed
+    kind: parameters
+    changes:
+      - rename: duration
+        to: durationSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationPlayer-duration
+    package: flutter3d_core
+    symbol: AnimationPlayer.duration
+    kind: rename
+    to: AnimationPlayer.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationPlayer-rootMotionDelta
+    package: flutter3d_core
+    symbol: AnimationPlayer.rootMotionDelta
+    kind: parameters
+    changes:
+      - rename: fromTime
+        to: fromSeconds
+      - rename: toTime
+        to: toSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationPlayer-time
+    package: flutter3d_core
+    symbol: AnimationPlayer.time
+    kind: rename
+    to: AnimationPlayer.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationTrack-endTime
+    package: flutter3d_core
+    symbol: AnimationTrack.endTime
+    kind: rename
+    to: AnimationTrack.endSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationTrack-startTime
+    package: flutter3d_core
+    symbol: AnimationTrack.startTime
+    kind: rename
+    to: AnimationTrack.startSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationTransition-AnimationTransition
+    package: flutter3d_core
+    symbol: AnimationTransition.AnimationTransition
+    kind: parameters
+    changes:
+      - rename: duration
+        to: durationSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationTransition-duration
+    package: flutter3d_core
+    symbol: AnimationTransition.duration
+    kind: rename
+    to: AnimationTransition.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-ContributorFrame-ContributorFrame
+    package: flutter3d_core
+    symbol: ContributorFrame.ContributorFrame
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-IrradianceField-active
+    package: flutter3d_core
+    symbol: IrradianceField.active
+    kind: none
+    reason: >-
+      `active` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: core-IrradianceField-depth
+    package: flutter3d_core
+    symbol: IrradianceField.depth
+    kind: none
+    reason: >-
+      `depth` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: core-IrradianceField-irradiance
+    package: flutter3d_core
+    symbol: IrradianceField.irradiance
+    kind: none
+    reason: >-
+      `irradiance` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: core-MorphState-weights
+    package: flutter3d_core
+    symbol: MorphState.weights
+    kind: none
+    reason: >-
+      `weights` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: core-PlayheadStep-PlayheadStep
+    package: flutter3d_core
+    symbol: PlayheadStep.PlayheadStep
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-PlayheadStep-time
+    package: flutter3d_core
+    symbol: PlayheadStep.time
+    kind: rename
+    to: PlayheadStep.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-RenderFrame-RenderFrame
+    package: flutter3d_core
+    symbol: RenderFrame.RenderFrame
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-advanceTime
+    package: flutter3d_core
+    symbol: advanceTime
+    kind: parameters
+    changes:
+      - rename: time
+        to: seconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: cpu-CpuDevice-backendId
+    package: flutter3d_cpu
+    symbol: CpuDevice.backendId
+    kind: none
+    reason: >-
+      `CpuDevice.backendId` answers a `BackendId`, an extension type that
+      implements `String` and holds the same text, so every read compiles and
+      compares as it did.
+
+  - id: effects-LiquidView-sheetNode
+    package: flutter3d_effects
+    symbol: LiquidView.sheetNode
+    kind: none
+    reason: >-
+      `sheetNode` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: effects-LiquidView-surfaceNode
+    package: flutter3d_effects
+    symbol: LiquidView.surfaceNode
+    kind: none
+    reason: >-
+      `surfaceNode` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: elements-ElementsSimulation-fires
+    package: flutter3d_elements
+    symbol: ElementsSimulation.fires
+    kind: none
+    reason: >-
+      `fires` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: game-GameSettingsController-rebinding
+    package: flutter3d_game
+    symbol: GameSettingsController.rebinding
+    kind: none
+    reason: >-
+      `rebinding` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: game-PadInput-tick
+    package: flutter3d_game
+    symbol: PadInput.tick
+    kind: rename
+    to: PadInput.update
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: game_physics-SkeletonRagdoll-ragdoll
+    package: flutter3d_game_physics
+    symbol: SkeletonRagdoll.ragdoll
+    kind: none
+    reason: >-
+      `ragdoll` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: game_platformer-Climbable-Climbable
+    package: flutter3d_game_platformer
+    symbol: Climbable.Climbable
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-Climbable-period
+    package: flutter3d_game_platformer
+    symbol: Climbable.period
+    kind: rename
+    to: Climbable.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-Crumbling-Crumbling
+    package: flutter3d_game_platformer
+    symbol: Crumbling.Crumbling
+    kind: parameters
+    changes:
+      - rename: delay
+        to: delaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-Crumbling-delay
+    package: flutter3d_game_platformer
+    symbol: Crumbling.delay
+    kind: rename
+    to: Crumbling.delaySeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-FollowCamera-virtualCamera
+    package: flutter3d_game_platformer
+    symbol: FollowCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_platformer-PlatformerSimulation-PlatformerSimulation
+    package: flutter3d_game_platformer
+    symbol: PlatformerSimulation.PlatformerSimulation
+    kind: parameters
+    changes:
+      - rename: elapsed
+        to: elapsedSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-PlatformerSimulation-elapsed
+    package: flutter3d_game_platformer
+    symbol: PlatformerSimulation.elapsed
+    kind: rename
+    to: PlatformerSimulation.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-Runner-dashCooldown
+    package: flutter3d_game_platformer
+    symbol: Runner.dashCooldown
+    kind: rename
+    to: Runner.dashCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-RunnerSettings
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.RunnerSettings
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: dashCooldown
+        to: dashCooldownSeconds
+      - rename: dropThroughTime
+        to: dropThroughSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+      - rename: slideTime
+        to: slideSeconds
+      - rename: wallCoyoteTime
+        to: wallCoyoteSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-RunnerSettings-copyWith
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.copyWith
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: dashCooldown
+        to: dashCooldownSeconds
+      - rename: dropThroughTime
+        to: dropThroughSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+      - rename: slideTime
+        to: slideSeconds
+      - rename: wallCoyoteTime
+        to: wallCoyoteSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-RunnerSettings-coyoteTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.coyoteTime
+    kind: rename
+    to: RunnerSettings.coyoteSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-dashCooldown
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.dashCooldown
+    kind: rename
+    to: RunnerSettings.dashCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-dropThroughTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.dropThroughTime
+    kind: rename
+    to: RunnerSettings.dropThroughSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-jumpBufferTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.jumpBufferTime
+    kind: rename
+    to: RunnerSettings.jumpBufferSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-slideTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.slideTime
+    kind: rename
+    to: RunnerSettings.slideSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-wallCoyoteTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.wallCoyoteTime
+    kind: rename
+    to: RunnerSettings.wallCoyoteSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-stagePlatformer
+    package: flutter3d_game_platformer
+    symbol: stagePlatformer
+    kind: parameters
+    changes:
+      - rename: elapsed
+        to: elapsedSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_racing-ChaseCamera-virtualCamera
+    package: flutter3d_game_racing
+    symbol: ChaseCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_racing-GhostDocument-lapTime
+    package: flutter3d_game_racing
+    symbol: GhostDocument.lapTime
+    kind: rename
+    to: GhostDocument.lapSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-GhostRecorder-tick
+    package: flutter3d_game_racing
+    symbol: GhostRecorder.tick
+    kind: rename
+    to: GhostRecorder.record
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: game_racing-RaceState-elapsed
+    package: flutter3d_game_racing
+    symbol: RaceState.elapsed
+    kind: rename
+    to: RaceState.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-RacerProgress-lapTime
+    package: flutter3d_game_racing
+    symbol: RacerProgress.lapTime
+    kind: rename
+    to: RacerProgress.lapSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-RacerProgress-totalTime
+    package: flutter3d_game_racing
+    symbol: RacerProgress.totalTime
+    kind: rename
+    to: RacerProgress.totalSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-SectorCompleted-time
+    package: flutter3d_game_racing
+    symbol: SectorCompleted.time
+    kind: rename
+    to: SectorCompleted.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-ChaseBrain-attackCooldown
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.attackCooldown
+    kind: rename
+    to: ChaseBrain.attackCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-ChaseBrain-painCooldown
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.painCooldown
+    kind: rename
+    to: ChaseBrain.painCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-ChaseBrain-stateTime
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.stateTime
+    kind: rename
+    to: ChaseBrain.stateSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-FirstPersonCamera-virtualCamera
+    package: flutter3d_game_shooter
+    symbol: FirstPersonCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_shooter-MonsterDef-MonsterDef
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.MonsterDef
+    kind: parameters
+    changes:
+      - rename: alertDuration
+        to: alertSeconds
+      - rename: hurtDuration
+        to: hurtSeconds
+      - rename: painCooldown
+        to: painCooldownSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_shooter-MonsterDef-alertDuration
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.alertDuration
+    kind: rename
+    to: MonsterDef.alertSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-MonsterDef-hurtDuration
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.hurtDuration
+    kind: rename
+    to: MonsterDef.hurtSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-MonsterDef-painCooldown
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.painCooldown
+    kind: rename
+    to: MonsterDef.painCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-WeaponDef-cooldown
+    package: flutter3d_game_shooter
+    symbol: WeaponDef.cooldown
+    kind: rename
+    to: WeaponDef.cooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_strategy-MapCamera-virtualCamera
+    package: flutter3d_game_strategy
+    symbol: MapCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_strategy-StrategyUnit-cooldown
+    package: flutter3d_game_strategy
+    symbol: StrategyUnit.cooldown
+    kind: rename
+    to: StrategyUnit.cooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: hardware-GraphicsDevice-backendId
+    package: flutter3d_hardware
+    symbol: GraphicsDevice.backendId
+    kind: manual
+    guidance: >-
+      A backend of your own overrides `backendId` with the `BackendId` type:
+      `BackendId get backendId => const BackendId('mybackend');` with the same
+      string as before. Code that reads it keeps compiling: a `BackendId` is a
+      `String`.
+
+  - id: hardware-RecordingDevice-backendId
+    package: flutter3d_hardware
+    symbol: RecordingDevice.backendId
+    kind: none
+    reason: >-
+      `RecordingDevice.backendId` answers a `BackendId`, an extension type
+      that implements `String` and holds the same text, so every read compiles
+      and compares as it did.
+
+  - id: impeller-GpuRenderBackend-backendId
+    package: flutter3d_impeller
+    symbol: GpuRenderBackend.backendId
+    kind: none
+    reason: >-
+      `GpuRenderBackend.backendId` answers a `BackendId`, an extension type
+      that implements `String` and holds the same text, so every read compiles
+      and compares as it did.
+
+  - id: model_core-KeyShape-KeyShape
+    package: flutter3d_model_core
+    symbol: KeyShape.KeyShape
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-KeyShape-time
+    package: flutter3d_model_core
+    symbol: KeyShape.time
+    kind: rename
+    to: KeyShape.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-KeyTable-duration
+    package: flutter3d_model_core
+    symbol: KeyTable.duration
+    kind: rename
+    to: KeyTable.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-Keyframe-Keyframe
+    package: flutter3d_model_core
+    symbol: Keyframe.Keyframe
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-Keyframe-time
+    package: flutter3d_model_core
+    symbol: Keyframe.time
+    kind: rename
+    to: Keyframe.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-MoveKeys-MoveKeys
+    package: flutter3d_model_core
+    symbol: MoveKeys.MoveKeys
+    kind: parameters
+    changes:
+      - rename: deltaTime
+        to: deltaSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-MoveKeys-deltaTime
+    package: flutter3d_model_core
+    symbol: MoveKeys.deltaTime
+    kind: rename
+    to: MoveKeys.deltaSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-SetKey-SetKey
+    package: flutter3d_model_core
+    symbol: SetKey.SetKey
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-SetKey-time
+    package: flutter3d_model_core
+    symbol: SetKey.time
+    kind: rename
+    to: SetKey.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-evaluateShapeDriversLive
+    package: flutter3d_model_core
+    symbol: evaluateShapeDriversLive
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: net-EngineRollback-session
+    package: flutter3d_net
+    symbol: EngineRollback.session
+    kind: none
+    reason: >-
+      `session` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: net-LoopbackParty-tick
+    package: flutter3d_net
+    symbol: LoopbackParty.tick
+    kind: rename
+    to: LoopbackParty.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: net-LoopbackWire-tick
+    package: flutter3d_net
+    symbol: LoopbackWire.tick
+    kind: rename
+    to: LoopbackWire.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: particles-Particle-age
+    package: flutter3d_particles
+    symbol: Particle.age
+    kind: rename
+    to: Particle.ageSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: particles-Particle-lifetime
+    package: flutter3d_particles
+    symbol: Particle.lifetime
+    kind: rename
+    to: Particle.lifetimeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-BodyForceContext-time
+    package: flutter3d_physics
+    symbol: BodyForceContext.time
+    kind: rename
+    to: BodyForceContext.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-CharacterController-collider
+    package: flutter3d_physics
+    symbol: CharacterController.collider
+    kind: none
+    reason: >-
+      `collider` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: physics-FluidWorld-time
+    package: flutter3d_physics
+    symbol: FluidWorld.time
+    kind: rename
+    to: FluidWorld.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-LiquidBody-place
+    package: flutter3d_physics
+    symbol: LiquidBody.place
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: physics-MovementSettings-MovementSettings
+    package: flutter3d_physics
+    symbol: MovementSettings.MovementSettings
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: physics-MovementSettings-copyWith
+    package: flutter3d_physics
+    symbol: MovementSettings.copyWith
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: physics-MovementSettings-coyoteTime
+    package: flutter3d_physics
+    symbol: MovementSettings.coyoteTime
+    kind: rename
+    to: MovementSettings.coyoteSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-MovementSettings-jumpBufferTime
+    package: flutter3d_physics
+    symbol: MovementSettings.jumpBufferTime
+    kind: rename
+    to: MovementSettings.jumpBufferSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-ParticleFluid-capillaryTime
+    package: flutter3d_physics
+    symbol: ParticleFluid.capillaryTime
+    kind: rename
+    to: ParticleFluid.capillarySeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-RigidBody-collider
+    package: flutter3d_physics
+    symbol: RigidBody.collider
+    kind: none
+    reason: >-
+      `collider` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: physics-TubeMeniscus-apexCurvature
+    package: flutter3d_physics
+    symbol: TubeMeniscus.apexCurvature
+    kind: none
+    reason: >-
+      `apexCurvature` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: physics-TubeMeniscus-wallRise
+    package: flutter3d_physics
+    symbol: TubeMeniscus.wallRise
+    kind: none
+    reason: >-
+      `wallRise` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: plugin_api-ExternalStateInput-ExternalStateInput
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.ExternalStateInput
+    kind: parameters
+    changes:
+      - rename: receivedTime
+        to: receivedSeconds
+      - rename: sourceTime
+        to: sourceSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: plugin_api-ExternalStateInput-ExternalStateInput-quantity
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.ExternalStateInput.quantity
+    kind: parameters
+    changes:
+      - rename: receivedTime
+        to: receivedSeconds
+      - rename: sourceTime
+        to: sourceSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: plugin_api-ExternalStateInput-receivedTime
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.receivedTime
+    kind: rename
+    to: ExternalStateInput.receivedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: plugin_api-ExternalStateInput-sourceTime
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.sourceTime
+    kind: rename
+    to: ExternalStateInput.sourceSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-BehaviorChildren-tick
+    package: flutter3d_sim
+    symbol: BehaviorChildren.tick
+    kind: rename
+    to: BehaviorChildren.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-BehaviorComposite-tick
+    package: flutter3d_sim
+    symbol: BehaviorComposite.tick
+    kind: rename
+    to: BehaviorComposite.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-BehaviorLeaf-tick
+    package: flutter3d_sim
+    symbol: BehaviorLeaf.tick
+    kind: rename
+    to: BehaviorLeaf.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-BehaviorTree-tick
+    package: flutter3d_sim
+    symbol: BehaviorTree.tick
+    kind: rename
+    to: BehaviorTree.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-EngineLoop-plugins
+    package: flutter3d_sim
+    symbol: EngineLoop.plugins
+    kind: none
+    reason: >-
+      `plugins` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: sim-EngineLoop-snapshots
+    package: flutter3d_sim
+    symbol: EngineLoop.snapshots
+    kind: none
+    reason: >-
+      `snapshots` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: sim-GhostFrame-GhostFrame
+    package: flutter3d_sim
+    symbol: GhostFrame.GhostFrame
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-GhostFrame-time
+    package: flutter3d_sim
+    symbol: GhostFrame.time
+    kind: rename
+    to: GhostFrame.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-PulseLight-PulseLight
+    package: flutter3d_sim
+    symbol: PulseLight.PulseLight
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-PulseLight-period
+    package: flutter3d_sim
+    symbol: PulseLight.period
+    kind: rename
+    to: PulseLight.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-Recorder-tick
+    package: flutter3d_sim
+    symbol: Recorder.tick
+    kind: rename
+    to: Recorder.record
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-RunStats-elapsed
+    package: flutter3d_sim
+    symbol: RunStats.elapsed
+    kind: rename
+    to: RunStats.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-Tape-duration
+    package: flutter3d_sim
+    symbol: Tape.duration
+    kind: rename
+    to: Tape.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-XrPlane-lost
+    package: flutter3d_sim
+    symbol: XrPlane.lost
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-XrPlane-toInput
+    package: flutter3d_sim
+    symbol: XrPlane.toInput
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-XrPoseInput-toInput
+    package: flutter3d_sim
+    symbol: XrPoseInput.toInput
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-XrSceneMesh-toInput
+    package: flutter3d_sim
+    symbol: XrSceneMesh.toInput
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: stereo-HolderXrSession-HolderXrSession
+    package: flutter3d_stereo
+    symbol: HolderXrSession.HolderXrSession
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: stereo-HolderXrSession-period
+    package: flutter3d_stereo
+    symbol: HolderXrSession.period
+    kind: rename
+    to: HolderXrSession.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: webgl-WebGlDevice-backendId
+    package: flutter3d_webgl
+    symbol: WebGlDevice.backendId
+    kind: none
+    reason: >-
+      `WebGlDevice.backendId` answers a `BackendId`, an extension type that
+      implements `String` and holds the same text, so every read compiles and
+      compares as it did.
+
+  - id: webgpu-WebGpuDevice-backendId
+    package: flutter3d_webgpu
+    symbol: WebGpuDevice.backendId
+    kind: none
+    reason: >-
+      `WebGpuDevice.backendId` answers a `BackendId`, an extension type that
+      implements `String` and holds the same text, so every read compiles and
+      compares as it did.
+
+
+  - id: sim-BehaviorComposite-step-abstract
+    package: flutter3d_sim
+    symbol: BehaviorComposite
+    kind: none
+    reason: >-
+      The abstract `step` a composite of your own writes is the `tick` it
+      wrote before, under its new name, and `dart fix` renames the override
+      with the call sites (`sim-BehaviorComposite-tick`): nothing is left to
+      write.
+
+  - id: sim-BehaviorLeaf-step-abstract
+    package: flutter3d_sim
+    symbol: BehaviorLeaf
+    kind: none
+    reason: >-
+      The abstract `step` a leaf of your own writes is the `tick` it wrote
+      before, under its new name, and `dart fix` renames the override with
+      the call sites (`sim-BehaviorLeaf-tick`): nothing is left to write.
+
+  - id: game_kit-Felt
+    package: flutter3d_game_kit
+    symbol: Felt
+    kind: none
+    reason: >-
+      Only the default of `Felt.shake`'s `seconds` changed, from nought to
+      the 0.35 that `CameraRig.shake` takes. The rig scales a shake by its
+      length, so a call that left it out shook nothing before and shakes
+      now, which is what it asked for; a call that passes `seconds` is
+      unchanged.

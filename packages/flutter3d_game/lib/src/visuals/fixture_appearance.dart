@@ -2,7 +2,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One torch's fire.
 ///
@@ -11,6 +10,7 @@ import 'package:vector_math/vector_math.dart';
 /// is measured are the same thing rather than two that have to be kept in
 /// step.
 final class TorchFire with LightEmitter {
+  /// A fire on [origin], starting [rise] above it (nought by default).
   TorchFire(this.origin, {this.rise = 0.0});
 
   /// The node the flame rises from, read every frame so the fire is wherever
@@ -42,6 +42,7 @@ final class TorchFire with LightEmitter {
 /// off a node that is already positioned, turned and in the scene, and use a
 /// glow material that is already wired to the simulation's brightness.
 final class LightFixtureBuild {
+  /// The parts of [fixture]'s light handed to the game to hang meshes on.
   LightFixtureBuild({
     required this.fixture,
     required this.mechanism,
@@ -50,7 +51,11 @@ final class LightFixtureBuild {
     required this.meshes,
   });
 
+  /// The fixture being built, as the level placed it.
   final Fixture fixture;
+
+  /// The fixture's light mechanism: the simulation's side, whose brightness
+  /// [glow] is wired to.
   final LightFixture mechanism;
 
   /// Already placed, already turned by the entity's yaw, already in the scene.
@@ -60,7 +65,7 @@ final class LightFixtureBuild {
   /// Emissive, tinted by the entity's colour, and driven every frame by
   /// [LightFixture.brightness]. Use it for the parts that are supposed to look
   /// hot; anything else needs a material of the game's own.
-  final Material glow;
+  final RenderMaterial glow;
 
   /// Shared with every other fixture in the level. Ask it for boxes and
   /// cylinders rather than uploading a mesh per torch.
@@ -73,7 +78,11 @@ final class LightFixtureBuild {
 /// the material override, and driving the glow and the light off one brightness
 /// number. What a torch actually looks like is not mechanism: it is the
 /// difference between a torch and a lamp and a window, and it is decided here.
-abstract interface class FixtureAppearance {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class FixtureAppearance {
   /// Builds the visible parts of a light fixture under [LightFixtureBuild.holder].
   ///
   /// Returns the fire it produced, or null for a fixture that glows without
@@ -128,5 +137,25 @@ abstract interface class FixtureAppearance {
   /// changes nothing else. Fixtures drawn from a loaded model are not offered,
   /// because their materials belong to the model and are shared with every
   /// other copy of it.
-  void refresh(Fixture fixture, Material material);
+  void refresh(FixtureRefreshContext context);
+}
+
+/// What [FixtureAppearance.refresh] is handed: the fixture and the material
+/// it is drawn with.
+///
+/// **One object, so a minor can hand an appearance more** — the time, the
+/// node — without breaking one written against 1.0. **Reused**:
+/// `FixtureVisuals` owns one and sets it for each fixture each frame, so a
+/// refresh allocates nothing; an appearance reads it during the call and
+/// does not keep it.
+final class FixtureRefreshContext {
+  /// A context for [fixture]; `FixtureVisuals` sets the fields again for
+  /// each fixture rather than making another.
+  FixtureRefreshContext({required this.fixture, required this.material});
+
+  /// The fixture being drawn.
+  Fixture fixture;
+
+  /// Its own material: changing it changes nothing else.
+  RenderMaterial material;
 }

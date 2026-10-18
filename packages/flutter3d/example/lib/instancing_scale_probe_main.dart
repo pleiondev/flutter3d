@@ -9,7 +9,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import 'instancing_scale_probe.dart';
 

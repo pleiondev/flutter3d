@@ -70,7 +70,32 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  final Directory target = Directory(out);
+  final ShowcaseBundle bundle = writeShowcaseBundle(Directory(out));
+  if (bundle.failures.isNotEmpty) {
+    stderr.writeln('The showcase bundle was not written:');
+    for (final String failure in bundle.failures) {
+      stderr.writeln('  $failure');
+    }
+    exitCode = 1;
+    return;
+  }
+  stdout.writeln(
+    'Wrote ${bundle.pages} pages to $out (version ${bundle.version}).',
+  );
+}
+
+/// What [writeShowcaseBundle] did: the pages it wrote and the app version the
+/// manifest names, or, when [failures] is not empty, why no manifest was
+/// written.
+typedef ShowcaseBundle = ({List<String> failures, int pages, String version});
+
+/// Writes the bundle into [target], emptying it first; run from
+/// `apps/flutter3d_showcase`, since the page and guide paths are relative.
+///
+/// **A function, so a test can call it.** `dart run` of this file first runs
+/// the native build hooks of every package the showcase depends on, which is
+/// minutes on a cold checkout; the bundle itself is a fraction of a second.
+ShowcaseBundle writeShowcaseBundle(Directory target) {
   if (target.existsSync()) target.deleteSync(recursive: true);
   Directory('${target.path}/learn').createSync(recursive: true);
   Directory('${target.path}/src').createSync(recursive: true);
@@ -123,18 +148,14 @@ Future<void> main(List<String> arguments) async {
     }
   }
 
+  final String version = _appVersion();
   if (failures.isNotEmpty) {
-    stderr.writeln('The showcase bundle was not written:');
-    for (final String failure in failures) {
-      stderr.writeln('  $failure');
-    }
-    exitCode = 1;
-    return;
+    return (failures: failures, pages: 0, version: version);
   }
 
   final Map<String, Object?> manifest = <String, Object?>{
     'app': 'flutter3d_showcase',
-    'version': _appVersion(),
+    'version': version,
     'categories': <Map<String, Object?>>[
       for (final Category category in Category.values)
         <String, Object?>{'dir': category.dir, 'title': category.title},
@@ -144,8 +165,5 @@ Future<void> main(List<String> arguments) async {
   File('${target.path}/manifest.json').writeAsStringSync(
     '${const JsonEncoder.withIndent('  ').convert(manifest)}\n',
   );
-  stdout.writeln(
-    'Wrote ${entries.length} pages to ${target.path} '
-    '(version ${manifest['version']}).',
-  );
+  return (failures: const <String>[], pages: entries.length, version: version);
 }

@@ -281,11 +281,14 @@ void main() {
           ),
         ],
       );
-      expect(clip.duration, 4.0);
+      expect(clip.durationSeconds, 4.0);
     });
 
     test('an empty clip has zero duration', () {
-      expect(AnimationClip(tracks: const <AnimationTrack>[]).duration, 0.0);
+      expect(
+        AnimationClip(tracks: const <AnimationTrack>[]).durationSeconds,
+        0.0,
+      );
     });
   });
 
@@ -344,11 +347,11 @@ void main() {
       final (:player, :node) = build();
       player.play();
       player.seek(99.0);
-      expect(player.time, 1.0);
+      expect(player.timeSeconds, 1.0);
       expect(node.readPosition().x, closeTo(10.0, 1e-5));
 
       player.seek(-5.0);
-      expect(player.time, 0.0);
+      expect(player.timeSeconds, 0.0);
     });
 
     test('loop wraps around instead of stopping', () {
@@ -357,7 +360,7 @@ void main() {
       player.play();
       player.update(1.25);
       expect(player.isPlaying, isTrue);
-      expect(player.time, closeTo(0.25, 1e-6));
+      expect(player.timeSeconds, closeTo(0.25, 1e-6));
       expect(node.readPosition().x, closeTo(2.5, 1e-5));
     });
 
@@ -366,7 +369,7 @@ void main() {
       player.wrap = AnimationWrap.loop;
       player.play();
       player.update(100.5);
-      expect(player.time, closeTo(0.5, 1e-4));
+      expect(player.timeSeconds, closeTo(0.5, 1e-4));
     });
 
     test('once stops at the end and holds the last pose', () {
@@ -375,7 +378,7 @@ void main() {
       player.play();
       player.update(5.0);
       expect(player.isPlaying, isFalse);
-      expect(player.time, 1.0);
+      expect(player.timeSeconds, 1.0);
       expect(node.readPosition().x, closeTo(10.0, 1e-5));
     });
 
@@ -385,9 +388,9 @@ void main() {
       player.play();
       player.update(1.5);
       // Half a second past the end means half a second back into the clip.
-      expect(player.time, closeTo(0.5, 1e-5));
+      expect(player.timeSeconds, closeTo(0.5, 1e-5));
       player.update(0.25);
-      expect(player.time, closeTo(0.25, 1e-5));
+      expect(player.timeSeconds, closeTo(0.25, 1e-5));
     });
 
     test('negative speed runs the clip backwards', () {
@@ -397,7 +400,7 @@ void main() {
       player.seek(1.0);
       player.speed = -1.0;
       player.update(0.5);
-      expect(player.time, closeTo(0.5, 1e-5));
+      expect(player.timeSeconds, closeTo(0.5, 1e-5));
       expect(node.readPosition().x, closeTo(5.0, 1e-5));
     });
 
@@ -513,7 +516,7 @@ void main() {
 
     test('an out-of-range clip index is refused', () {
       final (:player, :node) = build();
-      expect(() => player.play(5), throwsRangeError);
+      expect(() => player.play(index: 5), throwsRangeError);
     });
   });
 }

@@ -11,8 +11,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _width = 64;
 const int _height = 48;
@@ -27,7 +27,7 @@ final class _AoProbe extends RenderNode {
   String get name => 'ao probe';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -39,7 +39,7 @@ final class _AoProbe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     last = _device.readHdrPixels(frame.resources.texture(FrameResourceIds.ao));
     frame.resources.provide(
       FrameResourceIds.frame,
@@ -56,7 +56,7 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
 
 /// A box standing in the corner of two walls and a floor: creases for the
 /// occlusion to find.
-({Renderer renderer, Scene scene, RenderView view, _AoProbe probe}) _staged() {
+({Renderer renderer, Scene scene, CameraView view, _AoProbe probe}) _staged() {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -70,7 +70,7 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
     double sx,
     double sy,
     double sz,
-  ) => MeshNode(cube, Material())
+  ) => MeshNode(cube, RenderMaterial())
     ..setPosition(x, y, z)
     ..setScale(sx, sy, sz);
   final camera = CameraNode()..setPosition(0.0, 1.0, 3.0);
@@ -81,22 +81,25 @@ RenderSettings _settings({required bool temporal}) => RenderSettings(
     ..add(camera);
   final probe = _AoProbe(device);
   return (
-    renderer: Renderer.create(device: device)..addNode(probe),
+    renderer: Renderer.create(device: device)..renderSteps.addNode(probe),
     scene: scene,
-    view: RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    view: CameraView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+    ),
     probe: probe,
   );
 }
 
 Float32List _ao(
-  ({Renderer renderer, Scene scene, RenderView view, _AoProbe probe}) it,
+  ({Renderer renderer, Scene scene, CameraView view, _AoProbe probe}) it,
   RenderSettings settings,
 ) {
   it.renderer.render(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: settings,
   );
   return it.probe.last!;
@@ -148,7 +151,7 @@ void main() {
       width: _width,
       height: _height,
       scene: it.scene,
-      views: <RenderView>[it.view],
+      views: <CameraView>[it.view],
       settings: _settings(temporal: false),
     );
     expect(result.passes.map((p) => p.name), isNot(contains('ssao history')));

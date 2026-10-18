@@ -7,14 +7,16 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 /// physics package keeps the rule — two colliders meet when each is in the
 /// other's mask — and [Layers.all], which means the same thing everywhere.
 ///
-/// **These five are a default, and thirteen places in this package read them.**
+/// **These five are a default, and thirteen places in this package and the
+/// camera's read them.**
 /// That sentence used to end "nothing in either package reads these names",
 /// which stopped being true and was the most expensive kind of comment: it
 /// invited a game to "declare its own set and ignore this one", and a game that
-/// did would silently lose camera wall-avoidance ([CameraRig.wallMask]), the
-/// push a mover gives what it carries ([Mover]), the ground an actor stands on
-/// ([ActorSystem]) and the layer every unlabelled brush in every level is built
-/// on (`levelCollision`) — four systems, all failing as "the physics feels
+/// did would silently lose camera wall-avoidance (`flutter3d_camera`'s
+/// `CameraRig.wallMask`), the push a mover gives what it carries
+/// ([Mover]), the ground an actor stands on ([ActorSystem]) and the layer
+/// every unlabelled brush in every level is built on (`levelCollision`) —
+/// four systems, all failing as "the physics feels
 /// wrong" rather than as an error.
 ///
 /// So: a game with vehicles or water **adds** bits, and the bits below stay

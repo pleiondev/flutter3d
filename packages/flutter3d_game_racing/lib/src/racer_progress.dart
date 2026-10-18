@@ -7,6 +7,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// point of [RaceMode.freeRoam] is that it still drives when nothing is
 /// counting.
 final class RacerProgress {
+  /// The progress of car [index], at the start of the line with nothing
+  /// counted.
   RacerProgress({required this.index});
 
   /// Which car this belongs to. Nought is the player.
@@ -32,13 +34,15 @@ final class RacerProgress {
   double lateral = 0.0;
 
   /// How long this lap has taken so far, in simulated seconds.
-  double lapTime = 0.0;
+  double lapSeconds = 0.0;
 
   /// The quickest completed lap, or null before there is one.
+  /// In simulated seconds.
   double? bestLap;
 
   /// How long the car has been racing.
-  double totalTime = 0.0;
+  /// In simulated seconds.
+  double totalSeconds = 0.0;
 
   /// How long each sector of the current lap took, for the sectors finished.
   ///
@@ -66,6 +70,8 @@ final class RacerProgress {
   /// Grows faster the further sideways and the faster the car is going, which
   /// is the shape every game that scores this uses: a slow slide at a small
   /// angle should be worth almost nothing, or a driver scores by wobbling.
+  /// In radian-metres: the slip angle in radians times the metres covered while
+  /// sliding.
   double driftScore = 0.0;
 
   /// The best single slide, and everything scored this session.
@@ -73,7 +79,10 @@ final class RacerProgress {
   /// Two numbers because they answer different questions: the best is what a
   /// driver is chasing and the total is what a session was worth. A game that
   /// wants neither reads neither.
+  /// Both in radian-metres, as [driftScore] is.
   double bestDrift = 0.0;
+
+  /// Everything scored this session, in radian-metres.
   double totalDrift = 0.0;
 
   /// The quickest each sector has been driven in, or null before it has been.
@@ -89,9 +98,12 @@ final class RacerProgress {
   final List<double?> bestSectors = <double?>[];
 
   /// The time this car finished at, or null while it is still going.
+  /// In simulated seconds since the start.
   double? finishedAt;
 
-  bool get finished => finishedAt != null;
+  /// Whether this car has crossed the line for the last time, so that
+  /// [finishedAt] is set.
+  bool get isFinished => finishedAt != null;
 
   /// Laps and metres together: the number cars are ranked by.
   double progressAlong(double lapLength) => lap * lapLength + s;
@@ -99,6 +111,7 @@ final class RacerProgress {
   // --- what happened on this step, for a sound or a caption ------------------
 
   /// How long the lap just completed took.
+  /// In simulated seconds.
   double lastLap = 0.0;
 
   /// What this car has done so far.
@@ -115,13 +128,17 @@ final class RacerProgress {
     'wrongWay': wrongWay,
     'offRoad': offRoad,
     'lateral': lateral,
-    'lapTime': lapTime,
+    'lapTime': lapSeconds,
     if (bestLap != null) 'bestLap': bestLap,
-    'totalTime': totalTime,
+    'totalTime': totalSeconds,
     if (finishedAt != null) 'finishedAt': finishedAt,
     'lastLap': lastLap,
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing number reads as nought and a missing flag as false; a missing
+  /// [bestLap] or [finishedAt] reads as null, never set.
   void restore(Map<String, Object?> from) {
     s = from.number('s');
     lap = from.integer('lap');
@@ -129,16 +146,19 @@ final class RacerProgress {
     wrongWay = from.flag('wrongWay');
     offRoad = from.flag('offRoad');
     lateral = from.number('lateral');
-    lapTime = from.number('lapTime');
+    lapSeconds = from.number('lapTime');
     // Absent means never set, which is not the same as nought: a car with a
     // best lap of zero has driven a perfect lap in no time at all, and every
     // ranking that reads it puts them first for ever.
     bestLap = from['bestLap'] is num ? from.number('bestLap') : null;
-    totalTime = from.number('totalTime');
+    totalSeconds = from.number('totalTime');
     finishedAt = from['finishedAt'] is num ? from.number('finishedAt') : null;
     lastLap = from.number('lastLap');
     clearStepFlags();
   }
 
+  /// Does nothing: what a step did is published as events now, and this car
+  /// keeps no flags for one step to clear. Kept so callers that clear each
+  /// step still compile.
   void clearStepFlags() {}
 }

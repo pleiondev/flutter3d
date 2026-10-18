@@ -18,6 +18,8 @@ import 'timeline_playback.dart';
 /// through, and rebuilds it exactly when the project or the scene it targets
 /// stop being the ones it was last built against.
 class TimelinePreviewWiring {
+  /// A wiring with no player yet; one is built the first time a project and
+  /// a scene are handed over.
   TimelinePreviewWiring({this.onPlaybackChanged, this.onFrameChanged});
 
   /// `S2`'s own coarse half — [ModelerCubit.playback]'s own row, fired once

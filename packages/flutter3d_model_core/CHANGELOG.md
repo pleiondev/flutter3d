@@ -1,3 +1,248 @@
+## 1.0.0-rc.1
+
+- **Breaking: a time in a `double` says seconds in its name.**
+  `CurveSample.time` is `CurveSample.timeSeconds`, `KeyShape.time` is
+  `KeyShape.timeSeconds`, `KeyTable.duration` is `KeyTable.durationSeconds`,
+  `Keyframe.time` is `Keyframe.timeSeconds`, `MoveKeys.deltaTime` is
+  `MoveKeys.deltaSeconds`, `SetKey.time` is `SetKey.timeSeconds`,
+  `evaluateShapeDriversLive(… time:)` takes `timeSeconds:`,
+  `resolveIkConstraint(… time:)` takes `timeSeconds:` and
+  `resolveLookAtConstraint(… time:)` takes `timeSeconds:`; the value and its
+  unit are what they were. `dart fix` carries each rename out.
+- **The project, its history and the material commands read the engine's
+  lighting models.** `readProject`, `CommandJournal.replay` and
+  `modelCommandFromJson` take `lightingModels:` (`Renderer.lightingModels`),
+  and `SetMaterialField` and `LinkMaterialFile` carry it: a material set
+  to, or a `.fmat` linked with, a plugin's lit model reads as that model,
+  where only the built-in ones were looked up and a plugin's opened unset.
+  A `lightingModel` value is read as `LightingModels.named` reads it, so a
+  built-in model's name matches in any case.
+- **A project keeps the sections it does not know.** A section of a kind
+  `ProjectSection.known` does not list is read into
+  `ModelProject.unknownSections` (`ProjectExtraSection`) and written back on
+  save, through every edit, where a project a later editor wrote lost what
+  that editor added the first time this one saved it.
+- **The project format is version 3: `.f3d`'s flagged directory.** The
+  header's fifth word is the size of a directory entry and each entry
+  carries `.f3d`'s flag bits: a section nobody here knows marked
+  must-understand refuses the file, and a known one with an unknown high
+  bit too. `writeProject` writes version 3 only for a project holding a
+  flagged section; every other project is the version 2 file a 1.0 reader
+  opens. `projectVersion` is 3. `v3/workshop.f3dproj` and
+  `v2/history.f3dproj` hold history, its own images and a baked simulation,
+  sections no fixture held before.
+- **Breaking: results that were records are final classes.** `AddNode`,
+  `ImpostorAtlas`, `ModelHistory`, `TextureGraph`, `blockLayoutFor`,
+  `curveSamples`, `dirtyRectOf`, `dirtyTilesBetween`, `polygonEdgesOf`,
+  `renderPost`, `resolveIkConstraint`, `resolveLookAtConstraint`,
+  `tangentHandles` and `valueRange` answered or held a record, which can
+  never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+- **A texture clamped to its border is read back as it was written.** The
+  project file writes `clampToBorder` for `SamplerAddressMode.clampToBorder`
+  and reads the word again; it wrote the name and read nothing before.
+- **Breaking: `BoneMap`, `BuiltRig` and `TwoBoneIkResult` are `final
+  class`es**, values the rig builder hands back, so they can gain fields in
+  a minor.
+- **Breaking: `ModelCredit`, `RigPreview` and `ImpostorBake` are classes.**
+  The same fields as getters (`ModelCredit` and `RigPreview` equal by
+  value); a credit is built with `ModelCredit(…)`, so it can later carry
+  more of what a licence asks for.
+- **Breaking: a project's lights are the scene's `LightType`, its export
+  issues a `Severity`, and its colours `LinearColor`s.**
+  `ProjectLightType` and `ExportSeverity` are gone into the foundation's
+  types; a project holds an area light. `ProjectLight.color`,
+  `ColorTextureNode.value` and `CheckerTextureNode.colorA`/`colorB` are
+  `LinearColor`s, as a light node's colour is.
+- **Breaking: the command arguments' readers throw.** `BrushSample`,
+  `PaintMirror`, `PaintSample`, `ShapeDriver`, `SimulationCache`,
+  `SkinWeightsBlob`, `JobRequest` and `JobResult` `fromJson` throw a
+  `ProjectFormatException` naming the field where they answered null; a
+  journal entry whose arguments do not read is still skipped whole.
+- **Breaking: `TextureInputSocket` is a class.** A node of your own
+  declares `TextureInputSocket(type:, from:)`; the fields read as before.
+- **Breaking: `Key` is `Keyframe`, `BlendMode` is `PaintBlendMode`, and
+  `RenderRefusal` is `RenderRefusalException`.** The first two are names
+  Flutter's material library exports too, which every file importing both
+  had to `hide`; a thrown type says so in its name. Same members; `dart
+  fix` renames each use.
+- **A paint command reads `color` and `center`.** `paintStroke` and
+  `paintVertexColour` read `color` and a sample's `center` where they are
+  given, and `colour` and `centre`, the words a journal holds, otherwise;
+  `setOrigin` reads `boundsCenter` as well as `boundsCentre`.
+- **A project says who made it and on what terms, and what its materials
+  are made of.** `ModelProject.rights` (a `DocumentAsset` holding the
+  copyright, the author and the licence; `copyWith(rights:,
+  clearRights:)`) is taken from the model a project is opened from
+  (`fromModelDocument`), kept through the `.f3dproj` file under `rights`,
+  and written into what it exports (`toModelDocument`). A material's
+  `physicalMaterial` and `materialVersion` are kept through the file as
+  well. Both are optional keys of version 2, written only when said, so a
+  project without them is the bytes it was.
+- **Breaking: fifteen enums are open sets and five sealed types are not
+  sealed.** `AuditCheck`, `ExportFormat`, `ExportSeverity`,
+  `OriginPlacement`, `ProfileTarget`, `ResizeFilter`, `SelectionMode`,
+  `StepAuthor`, `TextureBlendMode`, `TextureEncoding`, `TextureFileFormat`,
+  `TextureValueType`, `TransformPivot`, `TransformSpace` and `UpAxis` are
+  classes with constants; `ExportResult`, `Geometry`, `ModelCommand` and
+  `ParamHint` are `abstract final`. A value or a case a later minor adds
+  breaks no `switch`, which ends with a wildcard; the words `.f3dproj` and
+  the journal write are unchanged. `TextureChannel` and `RecoveryDecision`
+  stay enums, closed for good.
+- **Breaking: `TextureNode` is an `abstract base class` with a visitor.**
+  `accept` hands a node to a `TextureNodeVisitor`, which has a method per
+  kind and answers `visitUnknown` for a kind it predates, so a pass over a
+  texture graph keeps compiling when a later minor adds a node.
+- **Breaking: a project's lights are lux and candela, in `.f3dproj`
+  version 2.** `ProjectLight.intensity` holds what `LightNode.intensity`
+  holds, lux for a directional light and candela for the others, and
+  `LightingSync` hands it over as it is; a new light is
+  `LightNode.defaultIntensity`, about 5 790.6, the light it always drew
+  as. A version 1 file held the engine's pre-1.0 unit and is lifted as it
+  is read, so an old project opens as bright as it was; it is saved back at
+  version 2. `test/fixtures/v2/workshop.f3dproj` is the file this build
+  writes, a lamp of 800 cd in it.
+- **A selected object is tinted as it was in 0.8.** `renderProject` mixed
+  the linear base color with the selection orange as if both were sRGB
+  numbers; it now encodes the color to sRGB, mixes 60% of the way to the
+  orange there and decodes the result.
+
+- **Breaking: `WeightPair` is not re-exported.** What `bindWeights` hands back
+  is `flutter3d_mesh`'s, and a caller that spells it depends on that package.
+
+- **Breaking: `EnumHint` is `ChoiceHint`, and `TextureUsage` is
+  `TextureBudgetUsage`.** `EnumHint` is the material's in `flutter3d_core`
+  and `TextureUsage` the device's in `flutter3d_hardware`; a file that
+  read both had to hide one, and the modeller's own names now say what
+  they are. `measure` returns the renamed type; `dart fix` renames every
+  use.
+- **`rootMotionExtra` is `flutter3d_core`'s.** The key a clip's root
+  motion is kept under was declared here too, with the same value; the
+  root motion commands use the core's, so the document and the player
+  cannot drift apart.
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  `CapabilityException` a render refusal extends.
+
+- **Breaking: `RenderPreset.clearColor` and `bakeImpostor(clearColor:)`
+  are `LinearColor`s**, linear as `RenderView.clearColor` is, where they
+  were sRGB `Vector4`s: `LinearColor.fromSrgb(r, g, b, a)` draws the same
+  picture.
+- **`.f3dproj` keeps the manifest keys it does not read.**
+  `ModelProject.unknown` holds them, every edit carries them, and a save
+  writes them back where they were, so a project a later minor wrote keeps
+  what it added; a key this build writes is never taken from them.
+- **Words in `.f3dproj` come from explicit tables.** Every Dart enum the
+  project file, the command journal and a command's arguments hold — the
+  history step's author, the profile's target and texture format, a
+  material's alpha and wrap modes, a selection, a texture node's blend and
+  channel, a transform's pivot and space, a key's path and interpolation, a
+  boolean's operation — is written and read through `project_wire.dart`,
+  with the words it had, so renaming a Dart value changes no file.
+- **`.f3dproj` is a format in the registry**: `projectFormat`
+  (`f3d.project`), with its fixture. `ProjectRefused.toException` gives a
+  `ProjectFormatException` to a caller that cannot go on.
+- **Breaking: a texture graph that will not read throws
+  `TextureGraphFormatException`**, a `Flutter3dFormatException`, where it
+  threw the SDK's `FormatException`. A project whose graph does not read is
+  refused with a sentence (`ProjectRefused`), and a journal entry whose
+  graph does not read is skipped like every other unreadable one.
+
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `ImportOptions` is `ImportSettings`, `LodSpec` is `LodSettings`,
+  `RigBuildOptions` is `RigBuildSettings`. Every settings class is `final`
+  with a `const` constructor and a `copyWith` over every field; a nullable
+  field is reset with `copyWith(clearX: true)`. `dart fix` carries the
+  renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kHistoryBudgetBytes` is
+  `defaultHistoryBudgetBytes`, `kMaxSkinInfluences` is `maxSkinInfluences`,
+  `kPanoramaCubeLevels` is `panoramaCubeLevels`, `kPanoramaCubeSize` is
+  `panoramaCubeSize`, `kProjectChecksumEntryBytes` is
+  `projectChecksumEntryBytes`, `kProjectChecksumOffset` is
+  `projectChecksumOffset`, `kProjectHeaderBytes` is `projectHeaderBytes`,
+  `kProjectImageEntryBytes` is `projectImageEntryBytes`,
+  `kProjectImportedEntryBytes` is `projectImportedEntryBytes`,
+  `kProjectMagic` is `projectMagic`, `kProjectMeshEntryBytes` is
+  `projectMeshEntryBytes`, `kProjectSectionEntryBytes` is
+  `projectSectionEntryBytes`, `kProjectSimulationEntryBytes` is
+  `projectSimulationEntryBytes`, `kProjectVersion` is `projectVersion`,
+  `kRootMotionExtra` is `rootMotionExtra`. The values are the same;
+  `dart fix` carries the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `AssetAudit.clean` is `isClean`; `BudgetUsage.over` is `isOver`;
+  `JournalReplay.ok` is `isOk`; `Outcome.ok` is `isOk`;
+  `PanoramaSync.rebuiltLast` is `didRebuildLast`;
+  `ProfileBudgetReport.anyOver` is `hasAnyOver`. `dart fix` carries the
+  renames.
+- **Breaking: units in names (docs/CONTRACTS.md).** `BendJoint.degrees` is
+  `angle`, in radians; the journal and the `bendJoint` tool keep their
+  `degrees` argument and convert. `ImpostorCard.framing(fovYRadians:)` is
+  `fovY`.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `baseCentre` is `baseCenter`, `boundsCentre` is `boundsCenter`,
+  `centre` is `center`, `colour` is `color`, `elementCentre` is
+  `elementCenter`, `licence` is `license`, `normalise` is `normalize`,
+  `PaintVertexColour` is `PaintVertexColor`, `texelsPerMetre` is
+  `texelsPerMeter`. Only the Dart names changed: a file keeps the keys it
+  was written with, and `dart fix` carries the renames.
+- **Breaking: `poseOf` returns an `AnimationPose`.** The engine's
+  animation `Pose` is `AnimationPose` in 1.0, so it no longer shares a name
+  with the simulation's; `dart fix` renames it.
+
+- **`BakeClothJobRequest` takes the `physics` its cloth steps on.**
+- **Breaking:** `RenderRefusal` extends `CapabilityException` instead of
+  implementing `Exception` directly. The name and members are unchanged and
+  every `on` clause that caught it still does; every exception the engine
+  throws now hangs from `Flutter3dException` in `flutter3d_plugin_api`, in one
+  of four families: format, capability, plugin and resource. A caller who
+  reports anything the engine refused catches the root; one who acts on a kind
+  catches its family. The migration table marks it as nothing to do.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **A project file names a plugin's lighting model.** Reading a material's
+  `lightingModel` and setting it through a command search
+  `LightingModels.all`, the built-in models and every one a plugin
+  registered, where they searched `LightingModel.builtIn` alone.
+
+- **Breaking: `ModelProjectView` and `SimulationBakeRequest` can no longer be
+  implemented outside their own library: each is an `abstract base mixin
+  class` now, so a game or a test mixes it in (`with`) and its class is
+  `final` or `base`. A member added to one in a 1.x release arrives with a
+  body, which an `implements` could not have taken without breaking somebody.
+
+**The cloth bake runs on the run's physics.** `BakeClothJobRequest` steps
+its mesh through `PhysicsBackend.current.cloth`, which is the core when the
+game started on it and `stepCloth` otherwise. This package still does not
+depend on the core.
+
+**The rigid bake takes its solver.** `BakeRigidBodyJobRequest(dynamicsFor:)`
+steps the box with what a caller hands over: the reference by default, the
+physics core from a caller that has it. The box's corners turn as the body
+turns.
+
+**A project keeps its characters' animation graphs.**
+`ModelProject.animationGraphs` holds them by name, as `AnimationGraphJson`
+writes them. `SetAnimationGraph` sets one, refused with the reason when it
+does not read or has any of `AnimationStateMachine.problems` against the
+project's clips. `RemoveAnimationGraph` takes one away. The project file
+writes them when there are some, and every history step that changed them,
+so an undo after reopening puts them back. An export writes them into the
+model's root `extras`, and an import keeps every one, as the project file
+does: one this build cannot read is refused only when somebody sets it.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 **A project keeps a material's layers beyond metal-rough.** A

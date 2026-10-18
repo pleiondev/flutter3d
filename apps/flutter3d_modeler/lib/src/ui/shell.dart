@@ -43,6 +43,8 @@ String documentLabel(String name, {required bool isDirty}) =>
 
 /// The desktop shell.
 class ModelerShell extends StatelessWidget {
+  /// The desktop shell around the parts it is handed. [bottom] and
+  /// [bottomHeight] come together or not at all.
   const ModelerShell({
     super.key,
     required this.mode,
@@ -74,28 +76,45 @@ class ModelerShell extends StatelessWidget {
          'bottom and bottomHeight are given together or not at all',
        );
 
+  /// The mode on screen, highlighted in the switcher.
   final ModelerMode mode;
+
+  /// A mode was picked in the switcher.
   final ValueChanged<ModelerMode> onMode;
 
   /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
+  /// The element level mesh editing picks at; the switcher shows it in
+  /// [ModelerMode.mesh] and [ModelerMode.uv] and nowhere else.
   final MeshSubmode submode;
+
+  /// An element level was picked.
   final ValueChanged<MeshSubmode> onSubmode;
 
   /// `ui-40d`'s own row: [submode]'s counterpart for [ModelerMode.animation],
   /// read by both the top bar's second switcher and the rail — the two
   /// places [submode] already reaches.
   final AnimationSubmode animationSubmode;
+
+  /// An animation sub-mode was picked, in the switcher or on the rail.
   final ValueChanged<AnimationSubmode> onAnimationSubmode;
 
   /// The id of the armed tool, from [ModelerTool.id]. Null is the pointer.
   final String? activeTool;
+
+  /// A rail tool was pressed, by its [ModelerTool.id].
   final ValueChanged<String> onTool;
 
+  /// The picture, filling the space between the rail and the properties
+  /// panel.
   final Widget viewport;
+
+  /// The properties panel, docked at the right.
   final Widget properties;
+
+  /// The status line along the bottom.
   final Widget status;
 
   /// What sits at the right of the top bar: opening, saving, exporting.
@@ -167,7 +186,7 @@ class ModelerShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
+    final colors = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
       // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
       // not `surface`. The two differ by five points of lightness, which is
@@ -223,12 +242,12 @@ class ModelerShell extends StatelessWidget {
                 // column splits.
                 Expanded(
                   child: bottom == null
-                      ? ColoredBox(color: colours.viewport, child: viewport)
+                      ? ColoredBox(color: colors.viewport, child: viewport)
                       : Column(
                           children: <Widget>[
                             Expanded(
                               child: ColoredBox(
-                                color: colours.viewport,
+                                color: colors.viewport,
                                 child: viewport,
                               ),
                             ),
@@ -449,6 +468,7 @@ class _TopBar extends StatelessWidget {
 /// and `shell_phone.dart`, and a private class in this file could not have
 /// been their caller.
 class ModelerModeSwitcher extends StatelessWidget {
+  /// The switcher for [mode] and, where the mode has one, its sub-mode.
   const ModelerModeSwitcher({
     super.key,
     required this.mode,
@@ -460,14 +480,21 @@ class ModelerModeSwitcher extends StatelessWidget {
     this.onAnimationSubmode,
   });
 
+  /// The mode shown as selected.
   final ModelerMode mode;
+
+  /// A mode segment was pressed.
   final ValueChanged<ModelerMode> onMode;
 
   /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
+  /// The element level shown as selected while [mode] is
+  /// [ModelerMode.mesh] or [ModelerMode.uv].
   final MeshSubmode submode;
+
+  /// An element-level segment was pressed.
   final ValueChanged<MeshSubmode> onSubmode;
 
   /// `ui-40d`'s own second pair, [submode]'s counterpart for
@@ -478,6 +505,9 @@ class ModelerModeSwitcher extends StatelessWidget {
   /// button simply does not show for [ModelerMode.animation] either, the same
   /// "nothing" every mode but mesh already answers with.
   final AnimationSubmode? animationSubmode;
+
+  /// An animation sub-mode segment was pressed. Null, like a null
+  /// [animationSubmode], leaves that second switch out.
   final ValueChanged<AnimationSubmode>? onAnimationSubmode;
 
   @override

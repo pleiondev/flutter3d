@@ -27,7 +27,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
+import 'package:flutter3d_webgpu/src/webgpu_formats.dart';
 import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -1072,7 +1072,7 @@ void main() {
           ),
         ),
       );
-    } on GpuDeviceError catch (error) {
+    } on GpuDeviceException catch (error) {
       caught = error;
       expect(error.what, 'a buffer mapped both ways');
       expect(error.message, isNotEmpty);
@@ -1262,6 +1262,30 @@ void main() {
         'float32-filterable',
       ],
     );
+
+    // Every name the device asks for, against the spellings
+    // `webgpuDeviceFeatures` and `webgpuTextureFormatSupport` read on the VM:
+    // the two lists are written in two files, and this holds them together.
+    // Mutation: misspell one constant. The adapter answers false for it, the
+    // device never requests it, and the feature is never reported.
+    expect(GpuFeature.requested, <String>[
+      'float32-filterable',
+      'depth32float-stencil8',
+      'texture-compression-bc',
+      'texture-compression-etc2',
+      'texture-compression-astc',
+      'timestamp-query',
+      'depth-clip-control',
+      'indirect-first-instance',
+      'dual-source-blending',
+      'float32-blendable',
+      'rg11b10ufloat-renderable',
+      'shader-f16',
+      'subgroups',
+      'clip-distances',
+      'multi-draw-indirect',
+      'chromium-experimental-multi-draw-indirect',
+    ]);
 
     expect(
       <String>[

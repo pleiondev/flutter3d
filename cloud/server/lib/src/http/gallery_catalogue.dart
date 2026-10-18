@@ -24,7 +24,7 @@ final class CatalogueItem {
     required this.category,
     required this.licenceId,
     required this.licenceName,
-    required this.licenceUrl,
+    required this.licenseUrl,
     required this.requiresAttribution,
     this.author,
   });
@@ -41,7 +41,7 @@ final class CatalogueItem {
 
   final String licenceId;
   final String licenceName;
-  final String licenceUrl;
+  final String licenseUrl;
   final bool requiresAttribution;
 
   /// Who to credit. Never null where [requiresAttribution] is true — an
@@ -56,7 +56,7 @@ final class CatalogueItem {
     'licence': <String, Object?>{
       'id': licenceId,
       'name': licenceName,
-      'url': licenceUrl,
+      'url': licenseUrl,
       'requiresAttribution': requiresAttribution,
     },
     if (author != null) 'author': author,

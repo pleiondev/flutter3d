@@ -5,7 +5,7 @@
 ///     flutter test --reporter=silent test/fixtures/render_mcp_server.dart
 ///
 /// Not named `*_test.dart` on purpose, the same reason
-/// `flutter3d_sim_mcp/test/fixtures/sim_mcp_server.dart` gives for itself.
+/// `flutter3d_demo_content/test/sim_mcp/fixtures/sim_mcp_server.dart` gives for itself.
 library;
 
 import 'dart:io';
@@ -15,6 +15,7 @@ import 'package:flutter3d_sim_mcp/src/diagnostic_server.dart';
 import 'package:flutter3d_sim_mcp/src/diagnostic_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// ignore: prefer-correct-test-file-name, kept out of the suite on purpose, as the doc above says
 void main() {
   test('a live diagnostic server, reachable over a socket', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);

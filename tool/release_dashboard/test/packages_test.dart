@@ -21,6 +21,17 @@ void main() {
       expect(caretCovers('^1.2.0', '2.0.0'), isFalse);
     });
 
+    test('a pre-release sorts below its release', () {
+      // Mutation: compare only the three numbers, and `^1.0.0` admits the
+      // `1.0.0-rc.1` pub would refuse it.
+      expect(caretCovers('^1.0.0', '1.0.0-rc.1'), isFalse);
+      expect(caretCovers('^1.0.0-rc.1', '1.0.0-rc.1'), isTrue);
+      expect(caretCovers('^1.0.0-rc.1', '1.0.0'), isTrue);
+      expect(caretCovers('^1.0.0-rc.2', '1.0.0-rc.10'), isTrue);
+      expect(caretCovers('^1.0.0-rc.2', '1.0.0-rc.1'), isFalse);
+      expect(caretCovers('^1.0.0-rc.1', '2.0.0-rc.1'), isFalse);
+    });
+
     test('what is not a caret is not judged', () {
       expect(caretCovers('any', '0.7.0'), isNull);
       expect(caretCovers('>=0.7.0 <0.8.0', '0.7.0'), isNull);

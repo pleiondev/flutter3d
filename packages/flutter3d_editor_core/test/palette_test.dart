@@ -13,6 +13,8 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -124,7 +126,7 @@ void main() {
       expect(counts['monster'], 1);
       expect(counts['stone'], 2);
       expect(counts['iron'], 0);
-      expect(counts[kLight], 1);
+      expect(counts[paletteLight], 1);
     });
 
     test('and an empty level still offers what the engine defines', () {
@@ -168,7 +170,7 @@ void main() {
     test('and a light is made rather than copied', () {
       final editing = _open();
 
-      editing.place(_row(editing, kLight), Vector3(0.0, 4.0, 0.0));
+      editing.place(_row(editing, paletteLight), Vector3(0.0, 4.0, 0.0));
 
       expect(editing.level.lights.length, 2);
       expect(editing.kind, Piece.light);
@@ -214,7 +216,7 @@ void main() {
             kind: Piece.entity,
             what: 'wumpus',
             count: 0,
-            tint: Vector3.zero(),
+            tint: LinearColor.black,
           ),
           Vector3.zero(),
         );

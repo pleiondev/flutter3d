@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 200;
 const int _height = 150;
@@ -70,17 +69,19 @@ _scene({required double weight, required bool told}) {
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
   );
-  expect(texture, isNotNull, reason: 'the deltas would not upload');
 
   final scene = Scene();
   final node =
       MeshNode(
           DeviceMesh.upload(device, source),
-          Material(name: 'cube', baseColor: Vector4(0.8, 0.6, 0.4, 1.0)),
+          RenderMaterial(
+            name: 'cube',
+            baseColor: LinearColor.fromSrgb(0.8, 0.6, 0.4, 1.0),
+          ),
           name: 'cube',
         )
         ..morph = (MorphState(
-          texture: texture!,
+          texture: texture,
           targetCount: 1,
           reaches: told ? packed.reaches : null,
         )..setWeights(<double>[weight]));
@@ -90,11 +91,7 @@ _scene({required double weight, required bool told}) {
   scene.add(sun);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 0.7,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 0.7, near: 0.1, far: 100.0),
   )..setPosition(_slide, 0.0, 6.0);
   camera.lookAt(Vector3(_slide, 0.0, 0.0));
   scene.add(camera);
@@ -122,12 +119,11 @@ Future<int> _litPixels(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  final bytes = pixels.buffer.asUint8List();
 
   var lit = 0;
   for (var p = 0; p < _width * _height; p++) {

@@ -15,10 +15,13 @@ import 'particle_system.dart';
 /// What stays with each game is what it decides to show. This is the shape of
 /// the answer.
 final class Shown {
+  /// A burst of [effect] at [at], leaning along [direction] when given.
   const Shown(this.effect, this.at, {this.direction});
 
+  /// The recipe of the burst.
   final ParticleEffect effect;
 
+  /// Where it goes off, in scene space (relative to `Scene.origin`).
   final Vector3 at;
 
   /// A surface normal, a barrel's line, the up somebody was thrown along —

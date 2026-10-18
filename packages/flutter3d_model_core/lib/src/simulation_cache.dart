@@ -11,6 +11,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'project_format.dart' show ProjectFormatException;
+
 /// One bake that fills a [SimulationCache] for one object — what
 /// `ApplySimulationCache` needs to know about whatever produced the frames.
 ///
@@ -19,7 +21,11 @@ import 'dart:typed_data';
 /// cache strip, a job runner and the apply command need is the same five
 /// answers, and a soft body or a fluid arriving later is one more class that
 /// gives them rather than one more branch wherever a bake is shown or applied.
-abstract interface class SimulationBakeRequest {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class SimulationBakeRequest {
   /// Which object the finished cache answers for.
   int get objectId;
 
@@ -79,6 +85,7 @@ final class SimulationCache {
   /// knows on its own. See [coverage] for that comparison.
   int get frameCount => frames.length;
 
+  /// Whether the cache holds no frame at all, as before the first baked frame.
   bool get isEmpty => frames.isEmpty;
 
   /// Frame [index]'s own vertex positions.
@@ -95,34 +102,42 @@ final class SimulationCache {
     return (frameCount / targetFrameCount).clamp(0.0, 1.0);
   }
 
+  /// The cache as JSON, each frame base64-encoded; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'vertexCount': vertexCount,
     'frames': <String>[for (final Float32List f in frames) _encodeFrame(f)],
   };
 
-  /// A [SimulationCache] from its own [toJson], or null when a field is
-  /// missing, of the wrong type, or a frame's own length does not match
-  /// `vertexCount` — the same "skip rather than fail the whole file"
-  /// contract [JobRequest.fromJson] already keeps.
-  static SimulationCache? fromJson(Map<String, Object?> json) {
+  /// A [SimulationCache] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing, of the wrong type, or
+  /// a frame's own length does not match `vertexCount`; the journal reader
+  /// skips such an entry rather than failing the whole file.
+  static SimulationCache fromJson(Map<String, Object?> json) {
     if (json case {
       'vertexCount': final int vertexCount,
       'frames': final List<Object?> framesJson,
     }) {
-      final frames = <Float32List>[];
-      for (final Object? each in framesJson) {
-        if (each is! String) return null;
-        final Float32List? frame = _decodeFrame(each);
-        if (frame == null) return null;
-        frames.add(frame);
-      }
+      final frames = <Float32List>[
+        for (final Object? each in framesJson)
+          switch (each is String ? _decodeFrame(each) : null) {
+            final Float32List frame => frame,
+            null => throw const ProjectFormatException(
+              'a simulation cache\'s frame is base64 of whole floats',
+            ),
+          },
+      ];
       try {
         return SimulationCache(vertexCount: vertexCount, frames: frames);
-      } on ArgumentError {
-        return null;
+      } on ArgumentError catch (error, stackTrace) {
+        Error.throwWithStackTrace(
+          ProjectFormatException('a simulation cache does not fit: $error'),
+          stackTrace,
+        );
       }
     }
-    return null;
+    throw const ProjectFormatException(
+      'a simulation cache names its whole "vertexCount" and its "frames"',
+    );
   }
 }
 

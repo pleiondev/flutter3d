@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import '../diagnostics/issues.dart';
 
 import 'atomic_write.dart';
@@ -96,11 +97,15 @@ String? applicationFolder(String appName) => applicationDirectory(
 );
 
 /// Documents kept as files, one per name, in a directory this platform owns.
-final class FileStorage implements Storage {
+final class FileStorage extends Storage {
+  /// A store in the directory given, or in [appName]'s application folder
+  /// when none is; issues are printed unless [onIssue] takes them.
   FileStorage({required this.appName, Directory? directory, IssueSink? onIssue})
     : _given = directory,
       onIssue = onIssue ?? printIssue;
 
+  /// The game's name, which its application folder is named after when no
+  /// directory was given.
   final String appName;
   final Directory? _given;
 
@@ -128,7 +133,7 @@ final class FileStorage implements Storage {
   }
 
   @override
-  String? read(String name) {
+  Future<String?> read(String name) async {
     try {
       final file = _file(name);
       if (file == null || !file.existsSync()) return null;
@@ -140,25 +145,36 @@ final class FileStorage implements Storage {
   }
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
+    final File? file;
     try {
-      final where = directory;
-      final file = _file(name);
-      if (where == null || file == null) return false;
+      file = _file(name);
+    } catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        StorageException(name, 'no directory to write $name in', cause: error),
+        stackTrace,
+      );
+    }
+    if (file == null) {
+      throw StorageException(name, 'this platform keeps no documents');
+    }
+    try {
       _makeRoomFor(file);
       // Through a temporary file and a rename — see [writeFileAtomicallySync],
       // which is where this now lives because the level editor needed the same
       // thing and had written the unsafe version instead.
       writeFileAtomicallySync(file.path, contents);
-      return true;
-    } catch (error) {
+    } catch (error, stackTrace) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      return false;
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 
   @override
-  void remove(String name) {
+  Future<void> remove(String name) async {
     try {
       final file = _file(name);
       if (file != null && file.existsSync()) file.deleteSync();
@@ -198,7 +214,9 @@ Directory? resolveApplicationDirectory({
 ///
 /// Same directory, same atomic-write discipline — [writeBytesAtomicallySync]
 /// rather than [writeFileAtomicallySync] — different bytes.
-final class FileBinaryStorage implements BinaryStorage {
+final class FileBinaryStorage extends BinaryStorage {
+  /// A store in the directory given, or in [appName]'s application folder
+  /// when none is; issues are printed unless [onIssue] takes them.
   FileBinaryStorage({
     required this.appName,
     Directory? directory,
@@ -206,10 +224,17 @@ final class FileBinaryStorage implements BinaryStorage {
   }) : _given = directory,
        onIssue = onIssue ?? printIssue;
 
+  /// The game's name, which its application folder is named after when no
+  /// directory was given.
   final String appName;
   final Directory? _given;
+
+  /// Where this says what the platform would not let it do, such as having
+  /// no application folder.
   final IssueSink onIssue;
 
+  /// Where the documents are kept, resolved on first use; null on a
+  /// platform with no folder to keep them in.
   late final Directory? directory =
       _given ?? resolveApplicationDirectory(appName: appName, onIssue: onIssue);
 
@@ -231,17 +256,28 @@ final class FileBinaryStorage implements BinaryStorage {
   }
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
+    final File? file;
     try {
-      final where = directory;
-      final file = _file(name);
-      if (where == null || file == null) return false;
+      file = directory == null ? null : _file(name);
+    } catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        StorageException(name, 'no directory to write $name in', cause: error),
+        stackTrace,
+      );
+    }
+    if (file == null) {
+      throw StorageException(name, 'this platform keeps no documents');
+    }
+    try {
       _makeRoomFor(file);
       writeBytesAtomicallySync(file.path, contents);
-      return true;
-    } catch (error) {
+    } catch (error, stackTrace) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      return false;
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 

@@ -15,12 +15,16 @@ import 'level.dart';
 /// are the same brushes every time, because everything a kit decides by chance
 /// it decides with [GameRandom] seeded from [seed].
 final class LevelRecipe {
+  /// A recipe for kit [kind], seed nought and no params unless given.
   const LevelRecipe({
     required this.kind,
     this.seed = 0,
     this.params = const <String, Object?>{},
   });
 
+  /// Reads a recipe row. Throws a [LevelFormatException] for a missing
+  /// `kind` or `params` that are not an object; the kind is not checked
+  /// against [levelKits] until [expandRecipes].
   factory LevelRecipe.fromJson(Map<String, Object?> json) {
     final kind = json.textOrNull('kind');
     if (kind == null) {
@@ -49,6 +53,7 @@ final class LevelRecipe {
   /// The kit's own settings. See each kit for what it reads.
   final Map<String, Object?> params;
 
+  /// The recipe row as written, `params` left out when empty.
   Map<String, Object?> toJson() => <String, Object?>{
     'kind': kind,
     'seed': seed,
@@ -81,10 +86,19 @@ const Map<String, LevelKit> levelKits = <String, LevelKit>{
 /// returned level has no recipes left — expanding it again changes nothing.
 /// A level with no recipes comes back as itself.
 ///
+/// **Prefab instances are expanded too**, after the recipes so a `scatter`
+/// of instances expands like any instance — see [expandPrefabs]. Everything
+/// that uses a level already calls this, so this is where a template's edit
+/// reaches the game. A level with neither recipes nor instances is still the
+/// very level it was given.
+///
 /// Throws [LevelFormatException] naming the recipe for a kind nobody knows or
-/// params a kit cannot read. The validator turns that into an error; the
-/// loader lets it through, for the same reason it refuses any broken level.
-Level expandRecipes(Level level) {
+/// params a kit cannot read, and for a prefab that is missing or contains
+/// itself. The validator turns that into an error; the loader lets it
+/// through, for the same reason it refuses any broken level.
+Level expandRecipes(Level level) => expandPrefabs(_recipesExpanded(level));
+
+Level _recipesExpanded(Level level) {
   if (level.recipes.isEmpty) return level;
   final sketch = LevelSketch();
   for (final (index, recipe) in level.recipes.indexed) {
@@ -96,15 +110,21 @@ Level expandRecipes(Level level) {
         ));
     try {
       kit(sketch, recipe);
-    } on LevelFormatException catch (e) {
-      throw LevelFormatException(
-        'recipe ${index + 1} (${recipe.kind}): ${e.message}',
+    } on LevelFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'recipe ${index + 1} (${recipe.kind}): ${e.message}',
+        ),
+        stackTrace,
       );
-    } on TypeError catch (e) {
+    } on TypeError catch (e, stackTrace) {
       // A param of the wrong JSON type reaches a cast inside a kit. Named
       // like every other refusal of a document, rather than a stack trace.
-      throw LevelFormatException(
-        'recipe ${index + 1} (${recipe.kind}): a param has the wrong type: $e',
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'recipe ${index + 1} (${recipe.kind}): a param has the wrong type: $e',
+        ),
+        stackTrace,
       );
     }
   }
@@ -123,8 +143,12 @@ Level expandRecipes(Level level) {
     heightfield: level.heightfield,
     fogColor: level.fogColor,
     fogDensity: level.fogDensity,
+    world: level.world,
     music: level.music,
     next: level.next,
+    prefabs: level.prefabs,
+    renderSettings: level.renderSettings,
+    geoOrigin: level.geoOrigin,
     source: <String, Object?>{...level.toJson()}..remove('recipes'),
   );
 }
@@ -145,6 +169,9 @@ Level expandRecipes(Level level) {
 ///    the floor, clear of the walls by `margin` and of every doorway's
 ///    approach, and not on top of each other.
 abstract final class RoomKit {
+  /// Draws [recipe]'s room and its clutter into [sketch]. Throws a
+  /// [LevelFormatException] for a missing `size` or a param it cannot
+  /// read.
   static void build(LevelSketch sketch, LevelRecipe recipe) {
     final p = recipe.params;
     final at = _vector(p, 'at', const <double>[0.0, 0.0, 0.0]);
@@ -183,6 +210,9 @@ abstract final class RoomKit {
 /// [RoomKit] reads them. Clutter keeps to the walls and leaves the middle
 /// third of the width open, since a corridor blocked across is a wall.
 abstract final class CorridorKit {
+  /// Draws [recipe]'s corridor and its clutter into [sketch]. Throws a
+  /// [LevelFormatException] for a missing `from` or `to`, or a param it
+  /// cannot read.
   static void build(LevelSketch sketch, LevelRecipe recipe) {
     final p = recipe.params;
     final from = _vector(p, 'from', null);
@@ -235,6 +265,9 @@ abstract final class CorridorKit {
 ///    gives each a yaw of its own.
 ///  * or `brush` — `{size, material, …}`, placed with its base on the floor.
 abstract final class ScatterKit {
+  /// Draws [recipe]'s copies into [sketch]. Throws a [LevelFormatException]
+  /// unless exactly one of `entity` and `brush` is given, or for a missing
+  /// `at` or `size`.
   static void build(LevelSketch sketch, LevelRecipe recipe) {
     final p = recipe.params;
     final at = _vector(p, 'at', null);
@@ -448,11 +481,12 @@ List<RoomDoor> _doors(Map<String, Object?> params) => <RoomDoor>[
   for (final door in (params['doors'] as List<Object?>?) ?? const <Object?>[])
     switch (door) {
       final Map<String, Object?> d => RoomDoor(
-        d['side'] as String? ??
+        side:
+            d['side'] as String? ??
             (throw const LevelFormatException('a door has no "side"')),
-        _number(d, 'offset', 0.0),
-        _number(d, 'width', 2.0),
-        _number(d, 'height', 3.0),
+        offset: _number(d, 'offset', 0.0),
+        width: _number(d, 'width', 2.0),
+        height: _number(d, 'height', 3.0),
         sill: (d['sill'] as num?)?.toDouble(),
       ),
       _ => throw LevelFormatException('a door is $door, not an object'),

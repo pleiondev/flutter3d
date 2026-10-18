@@ -34,6 +34,8 @@ const int kCrashLogCommandCount = 20;
 /// Everything about a crash worth writing down, gathered once at the moment
 /// it is caught.
 final class CrashReport {
+  /// A report of [error] thrown with [stackTrace]. [buildCrashReport] fills
+  /// in the commands from the editor's journal.
   const CrashReport({
     required this.error,
     required this.stackTrace,
@@ -41,7 +43,10 @@ final class CrashReport {
     this.recentCommands = const <String>[],
   });
 
+  /// What was thrown, shown in the dialog as its `toString`.
   final Object error;
+
+  /// Where it was thrown, for the crash log; the dialog does not show it.
   final StackTrace stackTrace;
 
   /// [ModelCommand.name] of whatever [ModelerCubit.ran] was running when
@@ -175,6 +180,8 @@ void resetCrashDialogMemory() {
 /// dialog in this application already uses (`_askUnsavedChoice`, `_askAnyway`
 /// in `main.dart`) rather than a fourth look for one more of them.
 class CrashDialog extends StatelessWidget {
+  /// A dialog about [report]; [autosaved] picks which of the two sentences it
+  /// opens with.
   const CrashDialog({
     super.key,
     required this.report,
@@ -182,7 +189,11 @@ class CrashDialog extends StatelessWidget {
     this.autosaved = true,
   });
 
+  /// The crash being told about: its error, and the commands that led to it.
   final CrashReport report;
+
+  /// `flutter --version`'s output plus the platform, passed on to the problem
+  /// report the dialog's button opens, so nobody has to paste it by hand.
   final String environment;
 
   /// Whether the emergency write actually landed — [handleCrash] passes what
@@ -195,6 +206,9 @@ class CrashDialog extends StatelessWidget {
   /// says so and names what to do instead.
   final bool autosaved;
 
+  /// Shows the dialog over [context] and completes when it is dismissed. The
+  /// barrier does not dismiss it: a crash is read and answered, not tapped
+  /// away.
   static Future<void> show(
     BuildContext context, {
     required CrashReport report,

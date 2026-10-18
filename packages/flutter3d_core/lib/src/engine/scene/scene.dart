@@ -1,13 +1,21 @@
+import 'dart:async';
 import 'dart:collection';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor, OriginShifted, Registration, WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
+import '../render/render_view.dart';
 import 'camera_node.dart';
+import 'decal_node.dart';
 import 'irradiance_field.dart';
+import 'light_buffer.dart';
 import 'light_node.dart';
 import 'lod_group.dart';
 import 'mesh_node.dart';
+import 'planar_reflector_node.dart';
 import 'reflection_probe_node.dart';
 import 'scene_node.dart';
 
@@ -16,20 +24,22 @@ import 'scene_node.dart';
 /// The hierarchy is what users author against. The registries are what the
 /// renderer iterates.
 ///
-/// Keeping both is deliberate, and it is what Babylon does too (`scene.meshes`
-/// alongside the node tree). Choosing a classic inheritance tree does not oblige
+/// Keeping both is deliberate. Choosing a classic inheritance tree does not oblige
 /// anyone to walk that tree every frame: registries are maintained on attach and
 /// detach, so per-frame culling is a linear pass over a contiguous list. In Dart
 /// that difference matters more than in JS, because a tree walk with a callback
 /// per node is exactly the shape that produces GC pressure inside the frame
 /// budget.
 final class Scene {
+  /// An empty scene whose [root] is called [name], or `root` when it is null.
   Scene({String? name}) : root = SceneNode(name: name ?? 'root') {
     // The root belongs to this scene from the start, so anything added below it
     // registers itself immediately.
     root.bindToScene(this);
   }
 
+  /// The node every other node of the scene hangs under; bound to this scene
+  /// from the start, so a node added below it registers at once.
   final SceneNode root;
 
   /// How many times something asked for the static shadow atlas to be drawn
@@ -68,6 +78,22 @@ final class Scene {
   /// per draw, so both want a list rather than a tree walk.
   final List<ReflectionProbeNode> _probes = <ReflectionProbeNode>[];
 
+  /// Projected decals, in attachment order — `P3`.
+  ///
+  /// A registry for the probes' reason: the decal pass reads every one each
+  /// frame, and the order they were attached in breaks ties between equal
+  /// [DecalNode.order]s.
+  final List<DecalNode> _decals = <DecalNode>[];
+
+  /// Planar reflectors, in attachment order — `P4`. A registry for the
+  /// probes' reason: the renderer draws each of them a picture every frame.
+  final List<PlanarReflectorNode> _reflectors = <PlanarReflectorNode>[];
+
+  /// Cameras drawing into textures — `P4`. Not nodes, so not registered by
+  /// attaching anything: a [CameraView] is added here, and is drawn for as
+  /// long as it stays.
+  final List<CameraView> _textureViews = <CameraView>[];
+
   /// Everything drawable currently in the scene, in attachment order.
   ///
   /// **A view, where these four used to be the lists themselves.** Handing out
@@ -84,33 +110,170 @@ final class Scene {
     _meshes,
   );
 
+  /// Every light attached under [root], as a read-only view of the registry.
   List<LightNode> get lights => _lightsView;
+
+  // ------------------------------------------------------- 1.0: the origin
+
+  /// Where this scene's own space starts in the world — items 17 and 18.
+  ///
+  /// Every node's transform is float32 and relative to this point, and the
+  /// GPU draws in that space. Float32 holds a millimetre to about ten
+  /// kilometres from where it starts, so a world bigger than that keeps the
+  /// origin near the camera with [shiftOrigin] (or [rebaseAround] each
+  /// frame), and asks [SceneNode.worldPosition] for a position in doubles.
+  WorldPosition get origin => _origin;
+  WorldPosition _origin = WorldPosition.origin;
+
+  /// [position] in this scene's space — **scene space**, the float32 offset
+  /// from [origin] that node transforms, contributors and the GPU work in
+  /// (see "Space" in `docs/CONTRACTS.md`): the difference from [origin] taken
+  /// in doubles, then narrowed to float32 once.
+  Vector3 toScene(WorldPosition position, [Vector3? out]) =>
+      (out ?? Vector3.zero())..setValues(
+        position.x - _origin.x,
+        position.y - _origin.y,
+        position.z - _origin.z,
+      );
+
+  /// A point in scene space, back in the world: the inverse of [toScene].
+  WorldPosition toWorld(Vector3 point) => WorldPosition(
+    _origin.x + point.x,
+    _origin.y + point.y,
+    _origin.z + point.z,
+  );
+
+  /// Moves [origin] to [to], keeping every node where it is in the world:
+  /// the root's children move by the difference, in float32, once.
+  ///
+  /// Then each handler [onOriginShift] registered is told, in registration
+  /// order — the hook physics, particles and anything else holding positions
+  /// in this scene's space use to move theirs the same distance. Lights are
+  /// nodes and move with the graph, and [irradianceField]'s origin moves by
+  /// the same difference. A renderer drawing this scene notices the new
+  /// [origin] at its next frame and carries its history across. A shift to where the origin already is
+  /// does nothing and tells nobody. A view driving a simulation calls this
+  /// with each `OriginShifted` the loop publishes, so the picture and the
+  /// simulation share one origin.
+  void shiftOrigin(WorldPosition to) {
+    final from = _origin;
+    final dx = from.x - to.x;
+    final dy = from.y - to.y;
+    final dz = from.z - to.z;
+    if (dx == 0.0 && dy == 0.0 && dz == 0.0) return;
+    for (final child in root.childrenView.toList()) {
+      child.translate(dx, dy, dz);
+    }
+    // The field's probes stand in this scene's space too; what they hold is
+    // light at a place, and the place moves with everything else.
+    irradianceField?.origin.add(Vector3(dx, dy, dz));
+    _origin = to;
+    final shift = OriginShifted(from: from, to: to);
+    for (final handler in List<void Function(OriginShifted)>.of(
+      _shiftHandlers,
+    )) {
+      handler(shift);
+    }
+  }
+
+  /// For a game whose world is bigger than float32 holds: shifts [origin] to
+  /// [node]'s world position when the node has wandered
+  /// more than [beyond] metres from it — what a view calls with its camera
+  /// before a frame, so that what is drawn stays near the origin. Returns
+  /// whether it shifted. The new origin is rounded to whole metres, so a
+  /// shift moves nothing by a fraction float32 would round.
+  bool rebaseAround(SceneNode node, {required double beyond}) {
+    final at = node.worldPosition;
+    if (at.distanceSquaredTo(_origin) <= beyond * beyond) return false;
+    shiftOrigin(
+      WorldPosition(
+        at.x.roundToDouble(),
+        at.y.roundToDouble(),
+        at.z.roundToDouble(),
+      ),
+    );
+    return true;
+  }
+
+  /// Calls [handler] after every [shiftOrigin], until the registration is
+  /// undone.
+  Registration onOriginShift(void Function(OriginShifted shift) handler) {
+    _shiftHandlers.add(handler);
+    return Registration(() => _shiftHandlers.remove(handler));
+  }
+
+  final List<void Function(OriginShifted)> _shiftHandlers =
+      <void Function(OriginShifted)>[];
+
+  /// How many of [lights] do not fit the lights one draw is lit by
+  /// (`LightNode.maxLights`): zero for a scene that fits. What an editor
+  /// warns about before a frame is drawn.
+  int get overflowingLights => (LightBuffer()..gather(lights)).overflow;
   late final List<LightNode> _lightsView = UnmodifiableListView<LightNode>(
     _lights,
   );
 
+  /// Every camera attached under [root], as a read-only view of the registry.
   List<CameraNode> get cameras => _camerasView;
   late final List<CameraNode> _camerasView = UnmodifiableListView<CameraNode>(
     _cameras,
   );
 
+  /// Every LOD group attached under [root], as a read-only view.
   List<LodGroup> get lodGroups => _lodGroupsView;
   late final List<LodGroup> _lodGroupsView = UnmodifiableListView<LodGroup>(
     _lodGroups,
   );
 
+  /// Every reflection probe attached under [root], as a read-only view.
   List<ReflectionProbeNode> get probes => _probesView;
   late final List<ReflectionProbeNode> _probesView =
       UnmodifiableListView<ReflectionProbeNode>(_probes);
 
-  /// Ambient light applied where no direct light reaches.
+  /// Every decal attached under [root], as a read-only view.
+  List<DecalNode> get decals => _decalsView;
+  late final List<DecalNode> _decalsView = UnmodifiableListView<DecalNode>(
+    _decals,
+  );
+
+  /// Every planar reflector attached under [root], as a read-only view.
+  List<PlanarReflectorNode> get reflectors => _reflectorsView;
+  late final List<PlanarReflectorNode> _reflectorsView =
+      UnmodifiableListView<PlanarReflectorNode>(_reflectors);
+
+  /// The views drawn into textures before the scene, in the order
+  /// [addTextureView] added them; read-only.
+  List<CameraView> get textureViews => _textureViewsView;
+  late final List<CameraView> _textureViewsView =
+      UnmodifiableListView<CameraView>(_textureViews);
+
+  /// Has [texture]'s camera draw into it every frame, before the scene — or
+  /// once, if it does not refresh every frame. Adding it twice draws it once.
+  void addTextureView(CameraView texture) {
+    if (!_textureViews.contains(texture)) _textureViews.add(texture);
+  }
+
+  /// Stops drawing [texture]: for a game switching a monitor off, or taking
+  /// a portal down, before it gives the texture back. Nothing here calls it;
+  /// the texture itself is its owner's to give back.
+  void removeTextureView(CameraView texture) => _textureViews.remove(texture);
+
+  /// Ambient light applied where no direct light reaches, in **lux**: the
+  /// illuminance it puts on a surface from every side.
   ///
   /// The flat stand-in for [environment], used when a scene has none. It also
   /// scales the environment when there is one, so the same knob dials indirect
   /// light either way and the two are alternatives rather than a sum.
-  double ambientIntensity = 0.06;
+  ///
+  /// About 347 lux by default — `0.06 × LightNode.defaultIntensity`, the 0.06 it
+  /// was in the engine's own unit before 1.0, so a scene that never set it
+  /// looks as it did. Multiply a pre-1.0 number by
+  /// `LightNode.defaultIntensity`.
+  double ambientIntensity = 347.43501468;
 
-  Vector3 ambientColor = Vector3(1.0, 1.0, 1.0);
+  /// Tint of the ambient light, in linear light, multiplied with
+  /// [ambientIntensity]. White by default.
+  LinearColor ambientColor = LinearColor.white;
 
   /// Whether a scene with nothing lighting it gets a key light anyway.
   ///
@@ -121,7 +284,7 @@ final class Scene {
   ///
   /// **Set it false when unlit is the picture you want.** "No lights" is
   /// counted after hiding and dimming, so a scene whose only lamp is hidden
-  /// ([SceneNode.visibleInHierarchy]) or at zero intensity counts as empty
+  /// ([SceneNode.isVisibleInHierarchy]) or at zero intensity counts as empty
   /// too, and
   /// turning the lamp off used to turn a bright default light on instead —
   /// the opposite of what the author asked for, and awkward to work around
@@ -171,6 +334,8 @@ final class Scene {
     return node;
   }
 
+  /// Detaches [node] from its parent, and with it from this scene's lists.
+  /// Does nothing for a node without a parent.
   void remove(SceneNode node) => node.removeFromParent();
 
   /// Detaches everything under the root and empties the registries.
@@ -198,6 +363,9 @@ final class Scene {
     _cameras.clear();
     _lodGroups.clear();
     _probes.clear();
+    _decals.clear();
+    _reflectors.clear();
+    _textureViews.clear();
 
     // Back to front, because `SceneNode.remove` takes the last child without
     // searching for it or shifting the rest; front to back shifted the whole
@@ -208,25 +376,49 @@ final class Scene {
     }
   }
 
-  void registerMesh(MeshNode node) => _meshes.add(node);
+  /// Reserves the next turn at putting something that is still loading into
+  /// this scene.
+  ///
+  /// **A scene's order is part of its picture**, so what loads in the
+  /// background goes in in the order it was asked for, not the order it
+  /// arrives in. The renderer builds its cull tree over [meshes] in the order
+  /// they were registered, and the order draws are claimed in decides which
+  /// material sorts first and which of two equal depths wins. Every model is
+  /// decoded on an isolate of its own, so two of them finish in either order,
+  /// and a loader that attached each as it arrived made two pictures of one
+  /// scene: a recorded run replayed on the same code drew one of two frames
+  /// depending on which isolate came back first.
+  ///
+  /// Reserved synchronously, when the load starts, so the turns follow the
+  /// calls whatever loads them — fixtures, actors, a level's models and the
+  /// declarative widgets share one line, because they share one scene.
+  /// Load, await [SceneTurn.ready], attach, and [SceneTurn.release] in a
+  /// `finally`: a load that fails must still hand the next one its turn,
+  /// or everything asked for after it waits for ever. The loads themselves
+  /// still run side by side; only the step into the scene waits.
+  ///
+  /// **No future is shared between turns, and none outlives its caller's
+  /// zone.** Each turn's [SceneTurn.ready] is made by the call that reserves
+  /// it and completed synchronously by the [SceneTurn.release] that frees
+  /// it. A line of futures did not survive a widget test: a scene made under
+  /// the test's fake clock kept a completed future of that zone as the head
+  /// of the line, a load awaited it from `tester.runAsync`, and its
+  /// continuation was queued in a zone nobody was pumping — the load never
+  /// went in and the test never ended.
+  SceneTurn reserveTurn() {
+    final previous = _lastTurn;
+    final turn = SceneTurn._();
+    _lastTurn = turn;
+    if (previous == null || previous._passed) {
+      turn._open();
+    } else {
+      previous._next = turn;
+    }
+    return turn;
+  }
 
-  void unregisterMesh(MeshNode node) => _meshes.remove(node);
-
-  void registerLight(LightNode node) => _lights.add(node);
-
-  void unregisterLight(LightNode node) => _lights.remove(node);
-
-  void registerCamera(CameraNode node) => _cameras.add(node);
-
-  void unregisterCamera(CameraNode node) => _cameras.remove(node);
-
-  void registerLodGroup(LodGroup node) => _lodGroups.add(node);
-
-  void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
-
-  void registerProbe(ReflectionProbeNode node) => _probes.add(node);
-
-  void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
+  /// The last turn reserved, or null before the first.
+  SceneTurn? _lastTurn;
 
   /// First light of the given type, or null.
   ///
@@ -259,7 +451,7 @@ final class Scene {
 
     for (var i = 0; i < _meshes.length; i++) {
       final node = _meshes[i];
-      if (visibleOnly && !node.visibleInHierarchy) continue;
+      if (visibleOnly && !node.isVisibleInHierarchy) continue;
       if (castersOnly && !node.castsShadow) continue;
       final bounds = node.worldBounds;
       any = true;
@@ -279,4 +471,113 @@ final class Scene {
   String toString() =>
       'Scene(${_meshes.length} meshes, ${_lights.length} '
       'lights, ${_cameras.length} cameras)';
+}
+
+/// One turn at putting something loaded into a scene — [Scene.reserveTurn].
+final class SceneTurn {
+  SceneTurn._();
+
+  /// Made in the zone of whoever reserved the turn, and completed by a plain
+  /// call when the turn before is released — no timer and no future of
+  /// anybody else's in between. See [Scene.reserveTurn].
+  final Completer<void> _ready = Completer<void>();
+
+  /// The turn reserved after this one, once there is one.
+  SceneTurn? _next;
+
+  bool _released = false;
+
+  /// Whether this turn is open and released, so the next one has been, or
+  /// will be at once, let in.
+  bool get _passed => _ready.isCompleted && _released;
+
+  /// Completes once every turn reserved before this one has been released:
+  /// the moment this one may attach what it loaded.
+  Future<void> get ready => _ready.future;
+
+  /// Whether [ready] has completed — every turn before this one released.
+  bool get isReady => _ready.isCompleted;
+
+  /// Hands the next turn on. Called once whatever happened to the load — in
+  /// a `finally`, and by a loader letting go of loads it no longer wants —
+  /// and a second call does nothing.
+  ///
+  /// A turn released before it is ready still keeps its place: the next one
+  /// is let in when this one's turn comes and passes, so releasing early
+  /// never lets a later load overtake an earlier one still loading.
+  void release() {
+    if (_released) return;
+    _released = true;
+    if (_ready.isCompleted) _passOn();
+  }
+
+  void _open() {
+    if (_ready.isCompleted) return;
+    _ready.complete();
+    if (_released) _passOn();
+  }
+
+  /// Opens the turns after this one, as far as they have already been
+  /// released: a loop rather than each opening the next, so a long run of
+  /// loads that gave up early — a level's worth — costs no stack.
+  void _passOn() {
+    var turn = _next;
+    _next = null;
+    while (turn != null && !turn._ready.isCompleted) {
+      turn._ready.complete();
+      if (!turn._released) return;
+      final next = turn._next;
+      turn._next = null;
+      turn = next;
+    }
+  }
+}
+
+/// How a node joins and leaves its scene's lists, called by the nodes
+/// themselves on attach and detach. Not exported by `flutter3d_core.dart`:
+/// a node is added with `Scene.add`, and the lists follow.
+extension SceneRegistry on Scene {
+  /// Adds [node] to [Scene.meshes]; called by the node on attach.
+  void registerMesh(MeshNode node) => _meshes.add(node);
+
+  /// Removes [node] from [Scene.meshes]; called by the node on detach.
+  void unregisterMesh(MeshNode node) => _meshes.remove(node);
+
+  /// Adds [node] to [Scene.lights]; called by the node on attach.
+  void registerLight(LightNode node) => _lights.add(node);
+
+  /// Removes [node] from [Scene.lights]; called by the node on detach.
+  void unregisterLight(LightNode node) => _lights.remove(node);
+
+  /// Adds [node] to [Scene.cameras]; called by the node on attach.
+  void registerCamera(CameraNode node) => _cameras.add(node);
+
+  /// Removes [node] from [Scene.cameras]; called by the node on detach.
+  void unregisterCamera(CameraNode node) => _cameras.remove(node);
+
+  /// Adds [node] to [Scene.lodGroups]; called by the group on attach.
+  void registerLodGroup(LodGroup node) => _lodGroups.add(node);
+
+  /// Removes [node] from [Scene.lodGroups]; called by the group on detach.
+  void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
+
+  /// Adds [node] to [Scene.probes]; called by the probe on attach.
+  void registerProbe(ReflectionProbeNode node) => _probes.add(node);
+
+  /// Removes [node] from [Scene.probes]; called by the probe on detach.
+  void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
+
+  /// Adds [node] to [Scene.decals]; called by the decal on attach.
+  void registerDecal(DecalNode node) => _decals.add(node);
+
+  /// Removes [node] from [Scene.decals]; called by the decal on detach.
+  void unregisterDecal(DecalNode node) => _decals.remove(node);
+
+  /// Adds [node] to [Scene.reflectors]; called by the reflector on attach.
+  void registerReflector(PlanarReflectorNode node) => _reflectors.add(node);
+
+  /// Removes [node] from [Scene.reflectors]; called by the reflector on
+  /// detach.
+  void unregisterReflector(PlanarReflectorNode node) =>
+      _reflectors.remove(node);
 }

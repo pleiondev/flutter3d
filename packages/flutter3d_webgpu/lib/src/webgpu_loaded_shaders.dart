@@ -26,9 +26,14 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart' show forgetShader, wrapShader;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel, kernelsOf;
+import 'package:flutter3d_shaders/translate.dart'
+    show BundleSectionFormatException;
 
 import 'webgpu_bundle_section.dart';
+import 'webgpu_compute_stage.dart';
 import 'webgpu_shaders.dart';
 
 /// A [LoadedShaderLibrary] over the WGSL a bundle carried.
@@ -37,7 +42,7 @@ import 'webgpu_shaders.dart';
 /// `GPUShaderModule` is compiled once from one text and cannot be edited, so
 /// the code behind each handle already handed out is replaced instead. See
 /// [WebGpuShader.code].
-final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
+final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   WebGpuLoadedShaderLibrary._(this._compiler, this._name, this._stages);
 
   /// The shape of the section document this reader knows.
@@ -62,17 +67,25 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     ByteData bytes,
   ) {
     final bundle = ShaderBundle.decode(bytes);
-    return WebGpuLoadedShaderLibrary._(
-      compiler,
-      bundle.name,
-      _stagesOf(bundle),
-    );
+    return WebGpuLoadedShaderLibrary._(compiler, bundle.name, stagesOf(bundle))
+      .._kernels.addAll(kernelsOf(bundle));
   }
 
-  static WebGpuSectionStages _stagesOf(ShaderBundle bundle) {
+  /// The stages of [bundle]'s `webgpu` section, or a [ShaderBundleException]
+  /// for a bundle with none, or one this reader cannot read. The device reads
+  /// the project's own bundle through this too.
+  static WebGpuSectionStages stagesOf(ShaderBundle bundle) {
     final section = bundle.section(ShaderBundle.webgpuSection);
+    // 1.0: a bundle of kernels alone has nothing in WGSL yet; each kernel is
+    // translated as it is asked for.
+    if (section == null && bundle.section(ShaderBundle.kernelSection) != null) {
+      return (
+        vertex: const <String, WebGpuStage>{},
+        fragment: const <String, WebGpuStage>{},
+      );
+    }
     if (section == null) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'it has no "${ShaderBundle.webgpuSection}" section, so there is '
@@ -84,12 +97,15 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     _refuseUnknownVersion(bundle.name, section);
     try {
       return decodeWebGpuSection(section);
-    } on FormatException catch (error) {
-      throw ShaderBundleRefused(
-        name: bundle.name,
-        reason:
-            'its "${ShaderBundle.webgpuSection}" section is not the JSON '
-            'document this backend reads: ${error.message}',
+    } on BundleSectionFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: bundle.name,
+          reason:
+              'its "${ShaderBundle.webgpuSection}" section is not the JSON '
+              'document this backend reads: ${error.message}',
+        ),
+        stack,
       );
     }
   }
@@ -125,16 +141,22 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
       return;
     }
     if (document is! Map<String, dynamic>) return;
-    final said = document['version'] ?? sectionVersion;
-    if (said != sectionVersion) {
-      throw ShaderBundleRefused(
+    // Every section version up to this build's; only a newer one is refused,
+    // and as stale, since the bundle is a build artifact the next build
+    // remakes. Mutation: compare with `!=` and bump the constant, and every
+    // bundle already built is refused.
+    final said = document['version'] ?? 1;
+    if (said is! int || said < 1 || said > sectionVersion) {
+      throw ShaderBundleException(
         name: bundleName,
         reason:
             'its "${ShaderBundle.webgpuSection}" section says it is version '
-            '$said and this backend reads version $sectionVersion. The '
+            '$said and this backend reads up to version $sectionVersion. The '
             'container is still format version ${ShaderBundle.formatVersion} '
             'because the other backends read their own sections unchanged; '
-            'repack this one with a packer of the same age as this build.',
+            'rebuild the bundle with this flutter3d (flutter3d_build does so '
+            'on the next build).',
+        stale: true,
       );
     }
   }
@@ -144,6 +166,10 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
   WebGpuSectionStages _stages;
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
 
+  /// The kernel language kernels of the bundle's kernel section — 1.0 —
+  /// translated to WGSL by `flutter3d_shaders` when one is asked for.
+  final Map<String, ComputeKernel> _kernels = <String, ComputeKernel>{};
+
   @override
   String get name => _name;
 
@@ -152,16 +178,37 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
       _handles.putIfAbsent(name, () => _compile(name));
 
   ShaderHandle? _compile(String name) {
+    final kernel = _kernels[name];
+    if (kernel != null) {
+      final stage = webgpuKernelStage(kernel);
+      return wrapShader(
+        backend: WebGpuComputeShader(
+          name: name,
+          stage: stage,
+          module: _compiler.compileModule(name, stage.wgsl),
+        ),
+        name: name,
+        release: (ShaderHandle h) => forgetShader(_handles, h),
+      );
+    }
     final isVertex = _stages.vertex.containsKey(name);
     final stage = isVertex ? _stages.vertex[name] : _stages.fragment[name];
     if (stage == null) return null;
-    return compileWebGpuStage(_compiler, name, stage, isVertex: isVertex);
+    return compileWebGpuStage(
+      _compiler,
+      name,
+      stage,
+      isVertex: isVertex,
+      kept: stage.declared,
+      release: (ShaderHandle h) => forgetShader(_handles, h),
+    );
   }
 
   @override
   void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
-    final stages = _stagesOf(bundle);
+    final stages = stagesOf(bundle);
+    final kernels = kernelsOf(bundle);
 
     // Every stage already handed out is compiled from the new text *before*
     // anything is swapped, so a stage that no longer compiles — or that the new
@@ -171,8 +218,31 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     // section's sources, either one: the header is what the bundle claims, and
     // it is what the other backends hold a refresh to.
     final fresh = <ShaderHandle, WebGpuCode>{};
+    final freshKernels =
+        <WebGpuComputeShader, ({WebGpuComputeStage stage, Object module})>{};
     try {
       for (final handle in _handles.values.nonNulls) {
+        // 1.0: a kernel in use is translated and compiled again too, and
+        // a reload that dropped it is refused as a dropped stage is.
+        if (handle.backend case final WebGpuComputeShader compute) {
+          final kernel = bundle.names.contains(handle.name)
+              ? kernels[handle.name]
+              : null;
+          if (kernel == null) {
+            throw ShaderBundleException(
+              name: bundle.name,
+              reason:
+                  'it no longer has the kernel "${handle.name}", which is '
+                  'already in use',
+            );
+          }
+          final stage = webgpuKernelStage(kernel);
+          freshKernels[compute] = (
+            stage: stage,
+            module: _compiler.compileModule(handle.name, stage.wgsl),
+          );
+          continue;
+        }
         final shader = handle.backend as WebGpuShader;
         final stage = bundle.names.contains(handle.name)
             ? shader.isVertex
@@ -180,7 +250,7 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
                   : stages.fragment[handle.name]
             : null;
         if (stage == null) {
-          throw ShaderBundleRefused(
+          throw ShaderBundleException(
             name: bundle.name,
             reason:
                 'it no longer has the '
@@ -188,18 +258,22 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
                 '"${handle.name}", which is already in use',
           );
         }
+        final packed = packMaterialBlocks(stage);
         fresh[handle] = (
-          stage: stage,
-          module: _compiler.compileModule(handle.name, stage.wgsl),
+          stage: packed,
+          module: _compiler.compileModule(handle.name, packed.wgsl),
         );
       }
-    } on StateError catch (error) {
+    } on StateError catch (error, stack) {
       // What a compiler throws for text the browser would not take. Nothing has
       // to be undone: the modules compiled so far are ordinary JavaScript
       // objects nobody else holds, and dropping the map is the whole of letting
       // them go — where the WebGL2 backend has to delete each shader it made by
       // hand before it rethrows.
-      throw ShaderBundleRefused(name: bundle.name, reason: error.message);
+      Error.throwWithStackTrace(
+        ShaderBundleException(name: bundle.name, reason: error.message),
+        stack,
+      );
     }
 
     // The swap. A `PipelineHandle` the renderer already holds keeps its own
@@ -209,6 +283,14 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     for (final entry in fresh.entries) {
       (entry.key.backend as WebGpuShader).code = entry.value;
     }
+    for (final MapEntry(key: shader, value: code) in freshKernels.entries) {
+      shader
+        ..stage = code.stage
+        ..module = code.module;
+    }
+    _kernels
+      ..clear()
+      ..addAll(kernels);
     // Nulls were answers about the old bundle.
     _handles.removeWhere((_, ShaderHandle? handle) => handle == null);
     _stages = stages;

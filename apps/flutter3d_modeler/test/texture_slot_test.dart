@@ -6,6 +6,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/texture_slot.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,8 +155,8 @@ void main() {
     test('clamp and mirrored wrap read as their own words', () {
       final display = textureSamplingDisplay(
         const TextureSampling(
-          wrapS: TextureWrap.clampToEdge,
-          wrapT: TextureWrap.mirroredRepeat,
+          wrapS: SamplerAddressMode.clampToEdge,
+          wrapT: SamplerAddressMode.mirror,
         ),
       );
 

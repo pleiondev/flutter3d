@@ -7,7 +7,7 @@ description: Use when building a strategy game on flutter3d — the crowd step, 
 
 ```dart
 final sim = StrategySimulation(ground: heightfield, random: GameRandom(7));
-final worker = sim.add(Unit(position: Vector3(0, 0, 0)));   // UnitType.worker
+final worker = sim.add(StrategyUnit(position: Vector3(0, 0, 0)));   // UnitType.worker
 
 sim.orders.moveTo(sim.units, Vector3(60, 0, 60));   // queued, obeyed next step
 sim.step(1 / 60);

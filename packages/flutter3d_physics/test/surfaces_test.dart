@@ -509,7 +509,7 @@ void main() {
     test('a low-friction tuning takes longer to stop', () {
       // Mutation: make `tuning` a getter returning the value the constructor
       // was given. Ice becomes stone and the two counts come out equal.
-      int stepsToRest(MovementTuning tuning) {
+      int stepsToRest(MovementSettings tuning) {
         final world = _room();
         final body = _body(world)..tuning = tuning;
         _run(body, 60, wish: Vector3(1.0, 0.0, 0.0));
@@ -522,8 +522,8 @@ void main() {
         return steps;
       }
 
-      final onStone = stepsToRest(const MovementTuning());
-      final onIce = stepsToRest(const MovementTuning(groundFriction: 4.0));
+      final onStone = stepsToRest(const MovementSettings());
+      final onIce = stepsToRest(const MovementSettings(groundFriction: 4.0));
 
       expect(
         onIce,
@@ -540,7 +540,7 @@ void main() {
       _run(body, 1);
       final slow = body.velocity.y;
 
-      body.tuning = const MovementTuning(gravity: 96.0);
+      body.tuning = const MovementSettings(gravity: 96.0);
       _run(body, 1);
       final fast = body.velocity.y - slow;
 

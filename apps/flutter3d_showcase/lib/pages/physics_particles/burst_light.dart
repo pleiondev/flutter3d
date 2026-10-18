@@ -7,10 +7,11 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class _Flash with LightEmitter {}
 
+/// The `burst-light` page: one particle burst that lights its own flash.
+/// Its check is that the burst made the flash and the frame drew it.
 final class BurstLightDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _flashEffect;
@@ -46,12 +47,14 @@ final class BurstLightDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(2.0, 5.0)),
       lifetime: const Range(0.2, 0.4),
       size: const Range(0.05, 0.09),
-      color: Vector4(1.0, 0.85, 0.5, 1.0),
+      color: LinearColor(1.0, 0.85, 0.5, 1.0),
     );
     _particles.burst(_flashEffect, Vector3.zero(), source: _flash);
     // #endregion source
 
-    context.renderer.addContributor(ParticleContributor(_particles));
+    context.renderer.renderSteps.addContributor(
+      ParticleContributor(_particles),
+    );
 
     _glow = LightNode(name: 'flash', type: LightType.point, intensity: 0.0);
     return Scene()..add(_glow);
@@ -63,9 +66,9 @@ final class BurstLightDemo extends ShowcaseDemo {
 
     // #region follow
     final ParticleGlow glow = _flash.glow;
-    if (glow.located) {
-      _glow.setPositionFrom(glow.centre);
-      _glow.intensity = glow.power * 0.6;
+    if (glow.isLocated) {
+      _glow.setPositionFrom(glow.center);
+      _glow.intensity = glow.power * 0.6 * LightNode.defaultIntensity;
     }
     // #endregion follow
 

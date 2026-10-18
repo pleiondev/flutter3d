@@ -6,11 +6,18 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `evsm-shadows` page: a floor and grey shapes under the sun, its
+/// shadow filtered as exponential moments. Its check is that the sun drew a
+/// map and, with EVSM picked, that the map was turned into moments.
 final class EvsmShadowsDemo extends ShowcaseDemo {
+  /// Which filter reads the shadow: 0 PCF, 1 PCSS, 2 EVSM.
   int filterChoice = 2;
+
+  /// The radius of the blur over the moments, in texels, 0 to 8, rounded.
   double blurRadius = 4;
+
+  /// How much light bleeding is cut away, 0 to 0.95.
   double bleedReduction = 0.2;
 
   // #region filters
@@ -31,17 +38,21 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    MeshNode slab(String name, Vector3 size, Vector3 at, Material material) =>
-        MeshNode(
-          DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-          material,
-          name: name,
-        )..setPosition(at.x, at.y, at.z);
+    MeshNode slab(
+      String name,
+      Vector3 size,
+      Vector3 at,
+      RenderMaterial material,
+    ) => MeshNode(
+      DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
+      material,
+      name: name,
+    )..setPosition(at.x, at.y, at.z);
 
     // #region casters
-    final Material grey = Material(
+    final RenderMaterial grey = RenderMaterial(
       name: 'grey',
-      baseColor: Vector4(0.6, 0.6, 0.62, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.62, 1.0),
     );
     final Scene scene = Scene()
       ..add(
@@ -49,7 +60,10 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
           'floor',
           Vector3(14.0, 0.2, 14.0),
           Vector3(0.0, -0.1, 0.0),
-          Material(name: 'floor', baseColor: Vector4(0.5, 0.5, 0.52, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.52, 1.0),
+          ),
         ),
       )
       ..add(slab('box', Vector3(1.6, 0.2, 1.6), Vector3(0.0, 0.6, 0.0), grey))
@@ -59,8 +73,10 @@ final class EvsmShadowsDemo extends ShowcaseDemo {
     // #endregion casters
 
     // #region sun
-    final LightNode sun = LightNode(name: 'sun', intensity: 1.5)
-      ..setLocalForward(Vector3(-0.85, -1.0, -0.2).normalized());
+    final LightNode sun = LightNode(
+      name: 'sun',
+      intensity: 1.5 * LightNode.defaultIntensity,
+    )..setLocalForward(Vector3(-0.85, -1.0, -0.2).normalized());
     // #endregion sun
     return scene..add(sun);
   }

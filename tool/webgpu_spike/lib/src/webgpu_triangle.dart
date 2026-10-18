@@ -18,16 +18,17 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'webgpu_spike_device.dart';
 
 /// What the triangle found.
 final class SpikeTriangleResult {
+  /// A result that [ran] or not, saying [why]; the two pixels are null when it
+  /// did not run.
   const SpikeTriangleResult({
     required this.ran,
     required this.why,
-    this.centre,
+    this.center,
     this.corner,
   });
 
@@ -42,7 +43,7 @@ final class SpikeTriangleResult {
   final String why;
 
   /// The middle pixel, RGBA, where the triangle covers.
-  final List<int>? centre;
+  final List<int>? center;
 
   /// The top-left pixel, RGBA, where only the clear reaches.
   final List<int>? corner;
@@ -79,7 +80,7 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
 
   try {
     final target = device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: size,
         height: size,
         format: device.defaultColorFormat,
@@ -92,7 +93,7 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
       vertex,
       fragment,
       // Stated rather than inferred, because on this API it cannot be inferred.
-      layout: const VertexLayoutSpec(<BufferLayout>[
+      layout: const VertexLayoutDescriptor(<BufferLayout>[
         BufferLayout(
           strideInBytes: 28,
           attributes: <InputAttribute>[
@@ -127,13 +128,13 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
           ColorTarget(
             texture: target,
             loadAction: LoadAction.clear,
-            clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+            clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
           ),
         ],
       ),
     );
     pass
-      ..setViewport(ScreenRect(width: size, height: size))
+      ..setViewport(PassViewport.ofRect(ScreenRect(width: size, height: size)))
       ..setScissor(ScreenRect(width: size, height: size))
       ..setPrimitiveType(PrimitiveType.triangle)
       // The assertion. A front face here is a triangle wound
@@ -155,7 +156,7 @@ Future<SpikeTriangleResult> drawSpikeTriangle({
     return SpikeTriangleResult(
       ran: true,
       why: 'one triangle drawn and read back',
-      centre: at(size ~/ 2, size ~/ 2),
+      center: at(size ~/ 2, size ~/ 2),
       corner: at(0, 0),
     );
   } finally {

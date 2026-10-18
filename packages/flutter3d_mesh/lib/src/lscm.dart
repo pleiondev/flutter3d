@@ -29,7 +29,7 @@
 /// own `Job<T>` (`pro-job-01`) lives at
 /// `apps/flutter3d_modeler/lib/src/job_runner.dart`, an application-layer
 /// type this package sits under and cannot import. [unwrapMesh] instead
-/// takes [onProgress] (called once per island) and [isCancelled] (polled the
+/// takes [onProgress] (called once per island) and [isCanceled] (polled the
 /// same way), a dependency-free surface the app's own `Job` can wrap.
 library;
 
@@ -107,6 +107,8 @@ void lscm(
   int? pinVertex2,
   Vector2? pinUv2,
   int maxIterations = 300,
+
+  /// The solver's relative residual, a unitless ratio.
   double tolerance = 1e-6,
 }) {
   if (island.isEmpty) return;
@@ -216,7 +218,7 @@ void lscm(
 
 /// [splitIslands] then [lscm] on each island in turn, [onProgress] called
 /// once an island finishes (with how many of [splitIslands]'s own islands
-/// are done and how many there are in total) and [isCancelled] polled the
+/// are done and how many there are in total) and [isCanceled] polled the
 /// same way — the row's own "`Job` по островам", without a `Job`.
 ///
 /// A cancelled pass leaves every island unwrapped up to (not including) the
@@ -225,11 +227,11 @@ void lscm(
 void unwrapMesh(
   EditMesh mesh, {
   void Function(int islandsDone, int islandsTotal)? onProgress,
-  bool Function()? isCancelled,
+  bool Function()? isCanceled,
 }) {
   final islands = splitIslands(mesh);
   for (var i = 0; i < islands.length; i++) {
-    if (isCancelled?.call() ?? false) return;
+    if (isCanceled?.call() ?? false) return;
     lscm(mesh, islands[i]);
     onProgress?.call(i + 1, islands.length);
   }
@@ -369,11 +371,6 @@ void _accumulateTriangle(
 class _Csr {
   _Csr(this._rowPtr, this._colIndex, this._values, this.size);
 
-  final Int32List _rowPtr;
-  final Int32List _colIndex;
-  final Float64List _values;
-  final int size;
-
   /// Builds a [_Csr] from unmerged (column, value) pairs per row — the same
   /// column can appear more than once in a row, and its values are summed.
   ///
@@ -432,6 +429,11 @@ class _Csr {
 
     return _Csr(rowPtr, colIndex, finalValues, n);
   }
+  final Int32List _rowPtr;
+  final Int32List _colIndex;
+  final Float64List _values;
+
+  final int size;
 
   Float64List multiply(Float64List x) => multiplyInto(x, Float64List(size));
 

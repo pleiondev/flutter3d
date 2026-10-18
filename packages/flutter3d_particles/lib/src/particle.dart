@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart' show standardGravity;
 import 'package:vector_math/vector_math.dart';
 
 import 'particle_affector.dart';
@@ -12,13 +13,26 @@ import 'particle_affector.dart';
 /// reading fourteen parallel `Float32List`s every time somebody touches this
 /// file is paid on every change. Allocated once and reused, which is the part
 /// that actually matters.
+///
+/// An emitter's test, or an emitter of its own, makes one with `Particle()`.
 final class Particle {
+  /// Where it is, in scene space, in metres; moved by [velocity] each step.
   final Vector3 position = Vector3.zero();
+
+  /// How fast and which way it moves, in metres per second.
   final Vector3 velocity = Vector3.zero();
 
-  /// Linear RGB and an alpha that behaves as brightness, since these are drawn
-  /// additively.
-  final Vector4 color = Vector4.zero();
+  /// The particle's colour as a linear RGBA buffer: linear RGB, and an alpha
+  /// that behaves as brightness, since these are drawn additively.
+  ///
+  /// **A vector written in place, not a `LinearColor`, on purpose.** Every
+  /// affector writes it every step for every particle, and the draw copies
+  /// it straight into the instance buffer; an immutable colour would be an
+  /// allocation per particle per step. The name says what the four numbers
+  /// are: `LinearColor(p.linearRgba.x, …)` reads one, and
+  /// `p.linearRgba.setValues(c.r, c.g, c.b, c.a)` writes one. Named `color`
+  /// before 1.0.
+  final Vector4 linearRgba = Vector4.zero();
 
   /// How far the quad is turned about the view axis, in radians.
   ///
@@ -31,8 +45,13 @@ final class Particle {
   /// about the direction it faces, which is the only rotation a billboard has.
   double rotation = 0.0;
 
-  double age = 0.0;
-  double lifetime = 0.0;
+  /// How long it has lived, in seconds.
+  double ageSeconds = 0.0;
+
+  /// How long it lives, in seconds.
+  double lifetimeSeconds = 0.0;
+
+  /// The billboard's width and height now, in metres.
   double size = 0.0;
 
   /// The size this particle was born with.
@@ -61,12 +80,24 @@ final class Particle {
   /// The list is shared with the effect and never mutated.
   List<ParticleAffector> affectors = const <ParticleAffector>[];
 
-  bool alive = false;
+  /// How hard the world this particle is in pulls it down, m/s²: its
+  /// system's `ParticleSystem.gravity`, handed over each step, and what a
+  /// [ParticleGravity] with no acceleration of its own reads.
+  double gravity = standardGravity;
 
-  /// How far through its life, in `[0, 1]`.
+  /// The wind where this particle is, m/s: its system's world's
+  /// (`ParticleSystem.world`), handed over each step, and what a
+  /// [ParticleDrag] slows it against.
+  final Vector3 wind = Vector3.zero();
+
+  /// Whether the slot holds a live particle: set when it is emitted,
+  /// cleared when its [ageSeconds] reaches its [lifetimeSeconds].
+  bool isAlive = false;
+
+  /// How far through its life, in `[0, 1]`: a fraction of [lifetimeSeconds].
   double get life {
-    if (lifetime <= 0.0) return 1.0;
-    final t = age / lifetime;
+    if (lifetimeSeconds <= 0.0) return 1.0;
+    final t = ageSeconds / lifetimeSeconds;
     return t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
   }
 }
@@ -77,13 +108,20 @@ final class Particle {
 /// texture rather than as an effect — variation in size and lifetime is most of
 /// what makes a burst look like one.
 final class Range {
+  /// Values drawn evenly between [min] and [max]. Checks nothing.
   const Range(this.min, this.max);
 
+  /// Always [value]: no variation.
   const Range.exact(double value) : min = value, max = value;
 
+  /// The least value drawn, in the units of the value it stands for.
   final double min;
+
+  /// The most value drawn, in the units of the value it stands for.
   final double max;
 
+  /// Returns a value drawn evenly from [min] to [max] with [random], or [min]
+  /// without drawing when the two are equal.
   double sample(math.Random random) =>
       min == max ? min : min + random.nextDouble() * (max - min);
 }

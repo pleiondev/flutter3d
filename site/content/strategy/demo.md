@@ -46,8 +46,8 @@ The engine and the simulation did not change. The conditional import that picks 
 const int kRenderWidth = 960;
 const int kRenderHeight = 540;
 
-const int kShadowCascades = kFixedResolution ? 2 : 3;
-const int kShadowResolution = kFixedResolution ? 1024 : 2048;
+const int kShadowCascades = fixedResolution ? 2 : 3;
+const int kShadowResolution = fixedResolution ? 1024 : 2048;
 ```
 
 The shadow numbers are branched for the same reason the racer's are, and the reason weighs more here. A cube shadow atlas is sized from `ShadowSettings.resolution`, the number a game picks for the *sun*, and a desktop's setting becomes a texture measured in hundreds of megabytes on a platform where a whole tab has less. This game reaches the browser with its budget already spent on ground, crowd and fog, so the atlas is the first thing to shrink. [The racing demo](/racing/demo/) tells how that was found.

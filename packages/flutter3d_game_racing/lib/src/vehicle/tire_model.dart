@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'package:vector_math/vector_math.dart';
@@ -36,6 +37,10 @@ import 'package:vector_math/vector_math.dart';
 /// acceleration divides by it again, so carrying a mass through the model would
 /// only be carrying a number that cancels.
 final class TireModel {
+  /// A curve peaking at [peakSlipAngle] radians and [peakSlipRatio].
+  ///
+  /// The tails are the fraction of peak grip kept far past each peak,
+  /// 0.72 sideways and 0.82 along by default, clamped to 0.05 to 0.999.
   TireModel({
     this.peakSlipAngle = 0.16,
     double lateralTail = 0.72,
@@ -127,6 +132,8 @@ final class TireModel {
 /// once the two were put side by side — the map, the fallback, and the rule
 /// that a word nobody has heard of changes nothing.
 final class GripTable extends SurfaceTable<double> {
+  /// Grip multipliers by surface name; a name not in it is worth
+  /// [fallback], 1.0 unless given.
   const GripTable(super.byName, {super.fallback = 1.0});
 
   /// Nothing named, everything the same. What a test fixture gets.

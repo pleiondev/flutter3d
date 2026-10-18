@@ -59,7 +59,9 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/src/engine/render/mesh_overlay.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_hardware/backend.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -187,11 +189,8 @@ MeshOverlay aimed() {
       0.7; // radians, near enough the 40 degrees a viewport uses
   const viewportHeight = 1080.0;
   return MeshOverlay(
-    vertexShader: const ShaderHandle(backend: 'bench', name: 'DebugLineVertex'),
-    fragmentShader: const ShaderHandle(
-      backend: 'bench',
-      name: 'DebugLineFragment',
-    ),
+    vertexShader: wrapShader(backend: 'bench', name: 'DebugLineVertex'),
+    fragmentShader: wrapShader(backend: 'bench', name: 'DebugLineFragment'),
   )..lookFrom(
     eye: Vector3(0, 0, 6),
     right: Vector3(1, 0, 0),
@@ -246,7 +245,7 @@ void benchOverlay() {
   print('--- the modeller overlay, $kElements elements --------------------');
 
   final points = scatter(kElements);
-  final colour = Vector4(1, 0.55, 0.1, 1);
+  final color = LinearColor.fromSrgb(1, 0.55, 0.1);
   final overlay = aimed();
 
   // (b) The quads. `point` is the whole camera-facing path: a distance to the
@@ -260,7 +259,7 @@ void benchOverlay() {
     () {
       overlay.clear();
       for (var i = 0; i < points.length; i++) {
-        overlay.point(points[i], colour);
+        overlay.point(points[i], color);
       }
     },
     items: kElements,
@@ -315,7 +314,7 @@ void benchOverlay() {
     () {
       overlay.clear();
       for (var i = 0; i + 1 < points.length; i += 2) {
-        overlay.edge(points[i], points[i + 1], colour);
+        overlay.edge(points[i], points[i + 1], color);
       }
     },
     items: kElements,
@@ -329,7 +328,7 @@ void benchOverlay() {
     () {
       plain.clear();
       for (var i = 0; i < points.length; i++) {
-        plain.vertex(points[i], colour);
+        plain.vertex(points[i], color);
       }
     },
     items: kElements,

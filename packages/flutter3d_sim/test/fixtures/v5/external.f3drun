@@ -1,0 +1,102 @@
+{
+  "format": "f3d.run",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
+  "level": "assets/levels/plant.json",
+  "levelHash": "feedf00d",
+  "run": {
+    "format": "f3d.save",
+    "version": 1,
+    "requires": [],
+    "generator": "flutter3d"
+  },
+  "tape": {
+    "format": "f3d.inputTape",
+    "version": 1,
+    "requires": [
+      "externalInputs"
+    ],
+    "generator": "flutter3d",
+    "seed": 0,
+    "frames": [
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  "buildStamp": "fixture-external",
+  "checkpoints": {
+    "every": 2,
+    "steps": [],
+    "digests": []
+  },
+  "simulation": {
+    "engine": 1
+  },
+  "externalInputs": [
+    {
+      "step": 0,
+      "source": "tank.level",
+      "value": [
+        1.25
+      ],
+      "unit": "m",
+      "sourceTime": 1.25,
+      "quality": "good",
+      "kind": "measured"
+    },
+    {
+      "step": 2,
+      "source": "tank.level",
+      "value": [
+        9.0
+      ],
+      "unit": "m",
+      "sourceTime": 9.0,
+      "quality": "bad",
+      "kind": "measured"
+    },
+    {
+      "step": 3,
+      "source": "tank.level",
+      "value": [
+        1.5
+      ],
+      "unit": "m",
+      "sourceTime": 1.5,
+      "quality": "good",
+      "kind": "measured"
+    },
+    {
+      "step": 3,
+      "source": "tank.level",
+      "value": [
+        1.75
+      ],
+      "unit": "m",
+      "sourceTime": 1.75,
+      "quality": "good",
+      "kind": "measured"
+    }
+  ],
+  "probes": [
+    {
+      "step": 1,
+      "probe": "tank",
+      "value": [
+        1.25
+      ],
+      "unit": "m"
+    },
+    {
+      "step": 4,
+      "probe": "tank",
+      "value": [
+        1.75
+      ],
+      "unit": "m"
+    }
+  ]
+}

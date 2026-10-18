@@ -8,12 +8,23 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `procedural-sky` page: a ball on the ground under a sky drawn from
+/// numbers. Its check is that the sky costs one draw on top of the meshes.
 final class ProceduralSkyDemo extends ShowcaseDemo {
+  /// The sun's elevation in degrees, 2 to 85; moves the sun light and the
+  /// disc together.
   double sunHeight = 14.0;
+
+  /// How bright the sun disc is drawn in the sky, 0 to 20; the sky's
+  /// `sunIntensity`, not the light's.
   double sunDisc = 6.0;
+
+  /// How strong the glow around the sun is, 0 to 1.
   double glow = 0.4;
+
+  /// Whether a painted dome mesh stands in for the sky; the procedural sky is
+  /// switched off while it shows.
   bool dome = false;
 
   late final LightNode _sun;
@@ -36,19 +47,19 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material ground = Material(
+    final RenderMaterial ground = RenderMaterial(
       name: 'ground',
-      baseColor: Vector4(0.42, 0.4, 0.36, 1.0),
+      baseColor: LinearColor.fromSrgb(0.42, 0.4, 0.36, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
-    final Material ball = Material(
+    final RenderMaterial ball = RenderMaterial(
       name: 'ball',
-      baseColor: Vector4(0.8, 0.8, 0.82, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.82, 1.0),
       roughness: 0.35,
     );
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0);
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity);
     // #endregion sun
 
     // #region dome
@@ -56,16 +67,17 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
     paintSky(
       shell,
       SkyGradient(
-        zenith: Vector3(0.08, 0.2, 0.5),
-        horizon: Vector3(0.5, 0.58, 0.68),
-        nadir: Vector3(0.06, 0.06, 0.07),
-      ).colour,
+        zenith: LinearColor(0.08, 0.2, 0.5),
+        horizon: LinearColor(0.5, 0.58, 0.68),
+        nadir: LinearColor(0.06, 0.06, 0.07),
+      ).color,
     );
-    _dome = skyNode(DeviceMesh.upload(context.device, shell))..visible = false;
+    _dome = skyNode(DeviceMesh.upload(context.device, shell))
+      ..isVisible = false;
     // #endregion dome
 
     return Scene()
-      ..ambientIntensity = 0.4
+      ..ambientIntensity = 0.4 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -93,7 +105,7 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _sun.setLocalForward(-_towardsSun);
-    _dome.visible = dome;
+    _dome.isVisible = dome;
     // The dome is small and has to follow the eye, or it is a ball on the
     // ground.
     followCamera(_dome, context.camera);
@@ -147,7 +159,7 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
     final FramePass draw = frame.passes.firstWhere(
       (FramePass p) => p.name == 'scene',
     );
-    final int meshes = scene.meshes.where((MeshNode m) => m.visible).length;
+    final int meshes = scene.meshes.where((MeshNode m) => m.isVisible).length;
     // The sky is one full-screen triangle inside the scene pass, so it is the
     // draw that comes on top of the meshes.
     if (draw.drawCalls != meshes + 1) {

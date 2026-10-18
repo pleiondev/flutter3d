@@ -43,7 +43,9 @@ extension _ObjMaterials on ObjLoader {
     final diffuse = source.diffuse;
     return SurfaceMaterial(
       name: source.name,
-      baseColor: Vector4(
+      // `Kd` is read as the colour a person picked, sRGB-encoded, as it
+      // always has been.
+      baseColor: LinearColor.fromSrgb(
         diffuse?.x ?? 1.0,
         diffuse?.y ?? 1.0,
         diffuse?.z ?? 1.0,
@@ -109,6 +111,8 @@ Map<String, MtlMaterial> parseMtl(String text, {List<String>? warnings}) {
   String? name;
   Vector3? diffuse;
   Vector3? specular;
+
+  /// The `Ns` specular exponent, unitless.
   double? exponent;
   var opacity = 1.0;
   String? diffuseTexture;

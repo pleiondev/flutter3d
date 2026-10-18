@@ -12,8 +12,10 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart';
+import 'package:flutter3d_shaders/backend.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
 import 'package:flutter_test/flutter_test.dart';
 
 import '../tool/stage_bindings.dart';

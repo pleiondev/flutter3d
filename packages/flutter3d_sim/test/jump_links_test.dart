@@ -14,7 +14,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _slab(double x0, double x1, double top, {double z = 0.0}) => Brush(
-  centre: Vector3((x0 + x1) / 2, top - 0.5, z),
+  center: Vector3((x0 + x1) / 2, top - 0.5, z),
   size: Vector3(x1 - x0, 1.0, 6.0),
 );
 
@@ -65,10 +65,10 @@ void main() {
         expect(link.gap, lessThanOrEqualTo(4.0));
       }
       final fromA = grid.jumpLinks.where(
-        (l) => grid.centreOfCell(l.from).x < 0.0,
+        (l) => grid.centerOfCell(l.from).x < 0.0,
       );
       final fromB = grid.jumpLinks.where(
-        (l) => grid.centreOfCell(l.from).x > 2.0,
+        (l) => grid.centerOfCell(l.from).x > 2.0,
       );
       expect(fromA, isNotEmpty, reason: 'A to B');
       expect(fromB, isNotEmpty, reason: 'B to A');
@@ -90,7 +90,7 @@ void main() {
       final edge = Vector3(-0.25, 0.0, 0.0);
       final link = field.jumpAt(edge);
       expect(link, isNotNull);
-      expect(grid.centreOfCell(link!.to).x, greaterThan(2.0));
+      expect(grid.centerOfCell(link!.to).x, greaterThan(2.0));
       expect(field.descend(edge, out), isTrue);
       expect(out.x, greaterThan(0.9), reason: 'aimed at the landing');
     });

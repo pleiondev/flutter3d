@@ -35,6 +35,8 @@ import 'webgpu_shaders.dart';
 /// the bind group cache, and a fresh view every draw would make that cache
 /// answer no every time.
 final class WebGpuTexture {
+  /// A record of [texture], not transient unless said; views are made on
+  /// first ask.
   WebGpuTexture({
     required this.texture,
     required this.dimension,
@@ -42,6 +44,7 @@ final class WebGpuTexture {
     this.transient = false,
   });
 
+  /// The browser's texture object, destroyed by the device that made it.
   final GPUTexture texture;
 
   /// Whether this was allocated with `TRANSIENT_ATTACHMENT` — `H7`.
@@ -65,18 +68,18 @@ final class WebGpuTexture {
   final bool sampleable;
 
   GPUTextureView? _sampledView;
-  final Map<int, GPUTextureView> _attachmentViews = <int, GPUTextureView>{};
+  final Map<(int, int), GPUTextureView> _attachmentViews =
+      <(int, int), GPUTextureView>{};
+  final Map<int, GPUTextureView> _storageViews = <int, GPUTextureView>{};
+
+  /// Whether this is a volume, whose slices a pass names by `depthSlice` on
+  /// a `"3d"` view rather than by an array layer.
+  bool get isVolume => dimension == WebGpuTextureDimension.threeDimensional;
 
   /// The view a sampler reads: the whole texture, in its own dimension.
   GPUTextureView get sampledView => _sampledView ??= texture.createView(
     GPUTextureViewDescriptor(dimension: dimension.gpuName, aspect: 'all'),
   );
-
-  /// [sampledView] if anything has asked for it, without making one.
-  ///
-  /// What a release asks: the view is what the device's bind group cache
-  /// holds, and a texture never sampled is in no bind group.
-  GPUTextureView? get sampledViewIfMade => _sampledView;
 
   /// The view a pass attaches: one [face] of one [level], always as a flat
   /// image.
@@ -85,20 +88,82 @@ final class WebGpuTexture {
   /// one place this API is simpler than the two the other hardware backends sit
   /// on: `baseArrayLayer` picks the face, `baseMipLevel` picks the level, and
   /// the result is an ordinary 2D attachment either way.
-  GPUTextureView attachmentView({int face = 0, int level = 0}) =>
-      _attachmentViews.putIfAbsent(
-        face * 64 + level,
-        () => texture.createView(
-          GPUTextureViewDescriptor(
-            dimension: '2d',
-            aspect: 'all',
-            baseMipLevel: level,
-            mipLevelCount: 1,
-            baseArrayLayer: face,
-            arrayLayerCount: 1,
-          ),
-        ),
-      );
+  ///
+  /// [layer] — since 1.0 — is the third coordinate of the same mechanism: the
+  /// layer of an array, or the cube of a cube array, whose six faces then sit
+  /// at `layer * 6 + face`. A volume answers its whole level as a `"3d"`
+  /// view, and the pass names the slice; see [isVolume].
+  GPUTextureView attachmentView({int face = 0, int level = 0, int layer = 0}) {
+    final base = switch (dimension) {
+      WebGpuTextureDimension.threeDimensional => -1,
+      WebGpuTextureDimension.cubeArray => layer * 6 + face,
+      WebGpuTextureDimension.twoDimensionalArray => layer,
+      WebGpuTextureDimension.oneDimensional ||
+      WebGpuTextureDimension.twoDimensional ||
+      WebGpuTextureDimension.cube => face,
+    };
+    return _attachmentViews.putIfAbsent(
+      (base, level),
+      () => base < 0
+          ? texture.createView(
+              GPUTextureViewDescriptor(
+                dimension: '3d',
+                aspect: 'all',
+                baseMipLevel: level,
+                mipLevelCount: 1,
+              ),
+            )
+          : texture.createView(
+              GPUTextureViewDescriptor(
+                dimension: '2d',
+                aspect: 'all',
+                baseMipLevel: level,
+                mipLevelCount: 1,
+                baseArrayLayer: base,
+                arrayLayerCount: 1,
+              ),
+            ),
+    );
+  }
+
+  /// The view a storage binding writes: one [level], in this texture's own
+  /// shape — a storage binding names a single level and every layer of it.
+  GPUTextureView storageView(int level) => _storageViews.putIfAbsent(
+    level,
+    () => texture.createView(
+      GPUTextureViewDescriptor(
+        dimension: dimension.gpuName,
+        aspect: 'all',
+        baseMipLevel: level,
+        mipLevelCount: 1,
+      ),
+    ),
+  );
+
+  /// Every view this texture has made, for the device's bind group cache to
+  /// forget when the texture goes.
+  Iterable<GPUTextureView> get madeViews => <GPUTextureView>[
+    ?_sampledView,
+    ..._storageViews.values,
+  ];
+}
+
+/// A query set this device owns, as `QuerySet.backend` carries it.
+final class WebGpuQueries {
+  /// A wrapper of [set].
+  const WebGpuQueries(this.set);
+
+  /// The browser's query set.
+  final GPUQuerySet set;
+}
+
+/// A recorded bundle, as `RenderBundle.backend` carries it.
+final class WebGpuBundle {
+  /// A wrapper of [bundle].
+  const WebGpuBundle(this.bundle);
+
+  /// The browser's bundle, replayed with `executeBundles`.
+  final GPURenderBundle bundle;
 }
 
 /// A buffer this device owns.
@@ -107,7 +172,10 @@ final class WebGpuTexture {
 /// device — or from a test's fake — is a cast that fails here rather than a
 /// draw the browser refuses three calls later.
 final class WebGpuGeometry {
+  /// A wrapper of [buffer].
   const WebGpuGeometry(this.buffer);
+
+  /// The browser's buffer holding the geometry bytes.
   final GPUBuffer buffer;
 }
 
@@ -130,6 +198,32 @@ final class WebGpuGeometry {
 int gpuShaderStageOf(WebGpuVisibility visibility) =>
     (visibility.vertex ? GpuShaderStage.vertex : 0) |
     (visibility.fragment ? GpuShaderStage.fragment : 0);
+
+/// The two layout entries one texture-and-sampler pair becomes, visible to
+/// [visibility]: a float texture and a filtering sampler, or — for a
+/// `WebGpuSampler.comparison` slot — a depth texture and a comparison
+/// sampler. Shared by the render layouts and the compute ones.
+List<GPUBindGroupLayoutEntry> gpuSamplerLayoutEntries(
+  WebGpuSampler sampler,
+  int visibility,
+) => <GPUBindGroupLayoutEntry>[
+  GPUBindGroupLayoutEntry.texture(
+    binding: sampler.textureBinding,
+    visibility: visibility,
+    texture: GPUTextureBindingLayout(
+      sampleType: sampler.comparison ? 'depth' : 'float',
+      viewDimension: sampler.dimension.gpuName,
+      multisampled: false,
+    ),
+  ),
+  GPUBindGroupLayoutEntry.sampler(
+    binding: sampler.samplerBinding,
+    visibility: visibility,
+    sampler: GPUSamplerBindingLayout(
+      type: sampler.comparison ? 'comparison' : 'filtering',
+    ),
+  ),
+];
 
 /// The bind group layouts one stage pair needs, and the pipeline layout over
 /// them.
@@ -188,35 +282,23 @@ final class WebGpuBindingLayouts {
             // group, and a frame of forty materials builds forty copies of the
             // camera.
             hasDynamicOffset: true,
-            minBindingSize: bound.block.sizeInBytes,
+            minBindingSize: bound.block.bindingSizeInBytes,
           ),
         ),
     ];
     for (final bound in shape.samplers) {
-      final sampler = bound.sampler;
-      final visibility = gpuShaderStageOf(bound.visibility);
-      entries.add(
-        GPUBindGroupLayoutEntry.texture(
-          binding: sampler.textureBinding,
-          visibility: visibility,
-          texture: GPUTextureBindingLayout(
-            sampleType: 'float',
-            viewDimension: sampler.dimension.gpuName,
-            multisampled: false,
-          ),
-        ),
-      );
-      entries.add(
-        GPUBindGroupLayoutEntry.sampler(
-          binding: sampler.samplerBinding,
-          visibility: visibility,
-          sampler: GPUSamplerBindingLayout(type: 'filtering'),
+      entries.addAll(
+        gpuSamplerLayoutEntries(
+          bound.sampler,
+          gpuShaderStageOf(bound.visibility),
         ),
       );
     }
     return entries;
   }
 
+  /// The pipeline layout over [groups], which every pipeline of the pair is
+  /// built with.
   final GPUPipelineLayout pipelineLayout;
 
   /// Index *n* is `@group(n)`.

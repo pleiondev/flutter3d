@@ -9,7 +9,54 @@
 /// imports them through.
 library;
 
-export 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
+// Named, so a type added to the audio core is not this package's API until
+// it is listed here too.
+export 'package:flutter3d_audio_core/flutter3d_audio_core.dart'
+    show
+        Attenuation,
+        AudioBackend,
+        AudioBus,
+        AudioEmitter,
+        AudioListener,
+        AudioPlugin,
+        AudioScene,
+        BlendedLoop,
+        BusEffect,
+        BusMix,
+        DirectionalBackend,
+        DuckRule,
+        EqualPowerPanner,
+        ExponentialRolloff,
+        Heard,
+        Held,
+        HeldVoices,
+        InverseRolloff,
+        LinearRolloff,
+        LoopBand,
+        LowPassEffect,
+        MixSnapshot,
+        Mixer,
+        MixingBackend,
+        NoAttenuation,
+        PanGains,
+        PoseSource,
+        ReverbEffect,
+        SilentBackend,
+        SilentVoice,
+        SoundBank,
+        SoundDef,
+        SpatialQuery,
+        SpatialRenderer,
+        SpatialResult,
+        VoiceId,
+        VoicePlacement,
+        VoiceRoute,
+        VoiceStart,
+        VoiceUpdate,
+        decibelsToGain,
+        gainToDecibels,
+        silenceDecibels,
+        speedOfSoundInAir;
 
 export 'src/soloud_backend.dart';
 export 'src/speakers.dart';

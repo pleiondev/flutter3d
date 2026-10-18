@@ -1,50 +1,80 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "Map A",
   "generatedBy": "tool/make_map.py",
   "goal": {"delivered": 1200.0},
   "fogColor": [0.05, 0.04, 0.06],
   "materials": {"rock": {"baseColor": [0.31, 0.29, 0.26, 1.0], "roughness": 0.95}},
   "brushes": [
-    {"at": [80.0, -4.35, 80.0], "size": [160.0, 4.0, 160.0], "material": "rock"}
+    {"at": [80.0, -4.35, 80.0], "size": [160.0, 4.0, 160.0], "material": "rock", "id": "007bb2dd"}
   ],
   "lights": [
     {
       "type": "directional",
       "direction": [0.35, -1.0, 0.5],
       "color": [1.0, 0.96, 0.88],
-      "intensity": 3.2,
-      "name": "sun"
+      "intensity": 18529.8674496,
+      "name": "sun",
+      "id": "7b53389c"
     }
   ],
   "entities": [
-    {"type": "camp", "at": [36.0, 24.08, 36.0], "name": "hall", "side": 0, "width": 12.0, "depth": 10.0},
-    {"type": "resource_node", "at": [36.0, 16.32, 72.0], "name": "seam", "amount": 1600.0},
-    {"type": "producer", "at": [36.0, 24.08, 36.0], "target": "hall", "cost": 25.0, "seconds": 4.0},
-    {"type": "stockpile", "at": [36.0, 24.08, 36.0], "side": 0, "amount": 0.0},
+    {
+      "type": "camp",
+      "at": [36.0, 24.08, 36.0],
+      "name": "hall",
+      "props": {"side": 0, "width": 12.0, "depth": 10.0},
+      "id": "e84a507c"
+    },
+    {
+      "type": "resource_node",
+      "at": [36.0, 16.32, 72.0],
+      "name": "seam",
+      "props": {"amount": 1600.0},
+      "id": "54a830f4"
+    },
+    {
+      "type": "producer",
+      "at": [36.0, 24.08, 36.0],
+      "props": {"target": "hall", "cost": 25.0, "seconds": 4.0},
+      "id": "96335f52"
+    },
+    {"type": "stockpile", "at": [36.0, 24.08, 36.0], "props": {"side": 0, "amount": 0.0}, "id": "7260436d"},
     {
       "type": "worker",
       "at": [24.0, 19.24, 44.0],
-      "side": 0,
-      "count": 60,
-      "across": 10,
-      "spacing": 1.1,
-      "digs": "seam",
-      "home": "hall"
+      "props": {"side": 0, "count": 60, "across": 10, "spacing": 1.1, "digs": "seam", "home": "hall"},
+      "id": "786a6e00"
     },
-    {"type": "camp", "at": [124.0, 9.45, 124.0], "name": "their hall", "side": 1, "width": 12.0, "depth": 10.0},
-    {"type": "resource_node", "at": [124.0, 5.9, 88.0], "name": "their seam", "amount": 1600.0},
-    {"type": "producer", "at": [124.0, 9.45, 124.0], "target": "their hall", "cost": 25.0, "seconds": 4.0},
-    {"type": "stockpile", "at": [124.0, 9.45, 124.0], "side": 1, "amount": 0.0},
+    {
+      "type": "camp",
+      "at": [124.0, 9.45, 124.0],
+      "name": "their hall",
+      "props": {"side": 1, "width": 12.0, "depth": 10.0},
+      "id": "bf8198ca"
+    },
+    {
+      "type": "resource_node",
+      "at": [124.0, 5.9, 88.0],
+      "name": "their seam",
+      "props": {"amount": 1600.0},
+      "id": "1a9b6294"
+    },
+    {
+      "type": "producer",
+      "at": [124.0, 9.45, 124.0],
+      "props": {"target": "their hall", "cost": 25.0, "seconds": 4.0},
+      "id": "16eddfc2"
+    },
+    {"type": "stockpile", "at": [124.0, 9.45, 124.0], "props": {"side": 1, "amount": 0.0}, "id": "876f4721"},
     {
       "type": "worker",
       "at": [112.0, 7.68, 132.0],
-      "side": 1,
-      "count": 60,
-      "across": 10,
-      "spacing": 1.1,
-      "digs": "their seam",
-      "home": "their hall"
+      "props": {"side": 1, "count": 60, "across": 10, "spacing": 1.1, "digs": "their seam", "home": "their hall"},
+      "id": "963551cf"
     }
   ],
   "heightfield": {

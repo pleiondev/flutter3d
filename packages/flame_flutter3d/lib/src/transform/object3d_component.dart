@@ -3,7 +3,7 @@ import 'dart:async' show scheduleMicrotask;
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart'
     show OpacityProvider, ReadOnlyAngleProvider, ReadOnlyPositionProvider;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../host/has_flutter3d.dart';
 import 'bridge_space.dart';
@@ -19,6 +19,11 @@ import 'plane.dart';
 /// transform that no caller ever explicitly wrote into would still look
 /// changed to whichever side polled it first. A direction chosen once, at
 /// construction, is one field instead of a heuristic.
+///
+/// **Closed for good**: which of the two engines writes the other's transform:
+/// a bridge has two ends, and a write comes from one of them. No member can be
+/// added without changing what the type means, so it stays an enum and a
+/// `switch` over it may name every case.
 enum SyncDirection {
   /// This component's flutter3d [SceneNode] is authoritative; its position
   /// and rotation are copied onto the Flame side every frame. What every
@@ -82,9 +87,12 @@ enum SyncDirection {
 /// `OpacityEffect` drives, fades every mesh under [node], and [tint]
 /// colours them, through each mesh's own `MeshNode.tint`: a hit flash or a
 /// wreck fading out, over a material a hundred craft share.
-class Object3dComponent extends PositionComponent
-    with HasVisibility
-    implements OpacityProvider, Bridged3d {
+base class Object3dComponent extends PositionComponent
+    with HasVisibility, Bridged3d
+    implements OpacityProvider {
+  /// A component bridging [node] in [scene] on [plane], at [elevation],
+  /// nought by default, the scene moving Flame unless [direction] says
+  /// otherwise.
   Object3dComponent({
     required this.node,
     required this.scene,
@@ -133,7 +141,10 @@ class Object3dComponent extends PositionComponent
 
   /// The box round [node] and everything under it.
   @override
-  Aabb3? get drawnBounds3d => node.subtreeBounds;
+  Aabb3? get drawnBounds3d => switch (node.subtreeBounds) {
+    final Aabb3 bounds => Aabb3.copy(bounds),
+    null => null,
+  };
 
   /// Meshes this component made for itself and lets go of when it is
   /// removed: a bridge's span, a wreck's hull built for the moment.
@@ -178,7 +189,7 @@ class Object3dComponent extends PositionComponent
   /// A linear colour every mesh under [node] is multiplied by; its alpha
   /// multiplies [opacity]. White leaves them as their materials say.
   @override
-  final Vector4 tint = Vector4.all(1.0);
+  LinearColor tint = LinearColor.white;
 
   bool _tintWritten = false;
 
@@ -248,7 +259,7 @@ class Object3dComponent extends PositionComponent
 
   @override
   void removeFromParent() {
-    node.visible = false;
+    node.isVisible = false;
     _visibleWritten = false;
     super.removeFromParent();
   }
@@ -278,11 +289,11 @@ class Object3dComponent extends PositionComponent
     }
     _writeTint();
     if (isRemoving) {
-      node.visible = false;
+      node.isVisible = false;
     } else {
       final shown = shownInFlame(this);
       if (_visibleWritten != shown) {
-        node.visible = shown;
+        node.isVisible = shown;
         _visibleWritten = shown;
       }
     }
@@ -292,16 +303,16 @@ class Object3dComponent extends PositionComponent
   /// is not plain, so a model dressed onto the node later takes it too, and
   /// once more when they come back to plain.
   void _writeTint() {
-    final alpha = tint.w * opacity;
+    final alpha = tint.a * opacity;
     final plain =
-        tint.x == 1.0 && tint.y == 1.0 && tint.z == 1.0 && alpha == 1.0;
+        tint.r == 1.0 && tint.g == 1.0 && tint.b == 1.0 && alpha == 1.0;
     if (plain && !_tintWritten) return;
     _tintWritten = !plain;
     _paint(node, alpha);
   }
 
   void _paint(SceneNode at, double alpha) {
-    if (at is MeshNode) at.tint.setValues(tint.x, tint.y, tint.z, alpha);
+    if (at is MeshNode) at.tint = tint.withAlpha(alpha);
     for (final child in at.children) {
       _paint(child, alpha);
     }
@@ -357,6 +368,10 @@ class Object3dComponent extends PositionComponent
         node.setScale(sx, across, sy);
       case PlaneAxis.z:
         node.setScale(sx, sy, across);
+      default:
+        throw UnsupportedError(
+          'a bridge plane cannot hold ${plane.axis} constant yet',
+        );
     }
   }
 

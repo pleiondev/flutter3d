@@ -46,7 +46,7 @@ Uint8List buildKtx2({
   List<int>? uncompressedLengths,
 }) {
   final levelCount = levels.length;
-  var cursor = kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+  var cursor = ktx2LevelIndexOffset + levelCount * ktx2LevelIndexEntryBytes;
 
   // Key/value data, if any, sits between the level index and the pixels:
   // per entry, a u32 length, then `key\0value\0`, then padding to four.
@@ -79,11 +79,11 @@ Uint8List buildKtx2({
   }
 
   final bytes = Uint8List(cursor);
-  bytes.setRange(0, kKtx2Identifier.length, kKtx2Identifier);
+  bytes.setRange(0, ktx2Identifier.length, ktx2Identifier);
   final view = ByteData.view(bytes.buffer);
 
   void putHeader(int field, int value) =>
-      view.setUint32(kKtx2HeaderOffset + field, value, Endian.little);
+      view.setUint32(ktx2HeaderOffset + field, value, Endian.little);
   putHeader(Ktx2HeaderField.vkFormat, vkFormat);
   putHeader(Ktx2HeaderField.typeSize, 1);
   putHeader(Ktx2HeaderField.pixelWidth, pixelWidth);
@@ -96,12 +96,12 @@ Uint8List buildKtx2({
 
   if (kvd.isNotEmpty) {
     view.setUint32(
-      kKtx2IndexOffset + Ktx2IndexField.kvdByteOffset,
+      ktx2IndexOffset + Ktx2IndexField.kvdByteOffset,
       kvdByteOffset,
       Endian.little,
     );
     view.setUint32(
-      kKtx2IndexOffset + Ktx2IndexField.kvdByteLength,
+      ktx2IndexOffset + Ktx2IndexField.kvdByteLength,
       kvd.length,
       Endian.little,
     );
@@ -109,7 +109,7 @@ Uint8List buildKtx2({
   }
 
   for (var i = 0; i < levelCount; i++) {
-    final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
+    final entry = ktx2LevelIndexOffset + i * ktx2LevelIndexEntryBytes;
     // Each 64-bit field as two little-endian 32-bit halves; the high half is
     // always zero here, well within what every test file needs.
     view.setUint32(entry, payloadOffsets[i], Endian.little);

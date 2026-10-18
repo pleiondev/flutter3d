@@ -25,6 +25,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -53,6 +55,8 @@ final class _Session {
     cars_.addAll(staged.cars);
     simulation = staged.sim;
     ai = staged.ai;
+    bus.onStep<GameEvent>('test.heard', (d) => _heard.add(d.event));
+    simulation.publishTo(bus);
   }
 
   final CollisionWorld world = CollisionWorld();
@@ -61,6 +65,17 @@ final class _Session {
   late final RaceState race;
   late final RacingSimulation simulation;
   late final AiDriver ai;
+
+  /// The bus the race publishes onto, stepped by hand.
+  final DirectBus bus = DirectBus();
+  final List<GameEvent> _heard = <GameEvent>[];
+
+  /// Everything the race published since the last call, oldest first.
+  List<GameEvent> take() {
+    final taken = List<GameEvent>.of(_heard);
+    _heard.clear();
+    return taken;
+  }
 
   RacerProgress get player => race.progress[0];
 
@@ -77,7 +92,7 @@ final class _Session {
       for (var i = 0; i < cars_.length; i++) {
         final car = cars_[i];
         final lookAhead = math.max(12.0, car.speed * 0.6);
-        track.centreAt(car.trackDistance + lookAhead, aim);
+        track.centerAt(car.trackDistance + lookAhead, aim);
 
         toAim
           ..setFrom(aim)
@@ -93,7 +108,7 @@ final class _Session {
         // Slow down for the corner ahead rather than for the one underneath:
         // the fastest a car holds a bend is the square root of its grip over
         // its curvature.
-        final bend = track.centre.curvatureAt(car.trackDistance + lookAhead);
+        final bend = track.center.curvatureAt(car.trackDistance + lookAhead);
         final ceiling = bend.abs() < 1e-4
             ? 60.0
             : math.min(60.0, math.sqrt(14.0 / bend.abs()));
@@ -143,7 +158,7 @@ void main() {
     it.driveFor(
       120.0,
       watch: () {
-        respawns += it.simulation.events.drain().whereType<Respawned>().length;
+        respawns += it.take().whereType<Respawned>().length;
         if (it.player.offRoad) offRoadSteps += 1;
       },
     );
@@ -215,10 +230,7 @@ void main() {
       it.driveFor(
         120.0,
         watch: () {
-          respawns += it.simulation.events
-              .drain()
-              .whereType<Respawned>()
-              .length;
+          respawns += it.take().whereType<Respawned>().length;
           if (it.player.offRoad) offRoadSteps += 1;
         },
       );
@@ -279,7 +291,7 @@ void main() {
             watch: () {
               // One drain for both counters: draining twice in the same
               // callback would give the second one whatever the first left.
-              final events = it.simulation.events.drain();
+              final events = it.take();
               respawns += events.whereType<Respawned>().length;
               passed += events.whereType<CheckpointPassed>().length;
               if (it.player.offRoad) offRoadSteps += 1;
@@ -331,8 +343,7 @@ void main() {
             }
             it.simulation.step(_dt);
             for (var i = 0; i < kFieldSize; i++) {
-              for (final Respawned e
-                  in it.simulation.events.drain().whereType<Respawned>()) {
+              for (final Respawned e in it.take().whereType<Respawned>()) {
                 respawns[e.racer.index] += 1;
               }
             }
@@ -365,10 +376,7 @@ void main() {
     it.driveFor(
       120.0,
       watch: () {
-        passed += it.simulation.events
-            .drain()
-            .whereType<CheckpointPassed>()
-            .length;
+        passed += it.take().whereType<CheckpointPassed>().length;
       },
     );
 
@@ -414,80 +422,112 @@ void main() {
     // **It drove `FixedStep` directly**, so it had no pause, no
     // `beginStep`/`endStep` around a step — `InputState.pressed` never worked
     // here at all — and no way to notice the simulated time the clock refused
-    // to run.
+    // to run. It is on the engine's loop now, with the genre installed, as
+    // the game builds it.
     test('runs the race while nothing is in the way', () {
-      var steps = 0;
-      final input = InputState();
-      final loop = GameLoop(input: input, onStep: (double _) => steps++);
+      final (loop, steps) = _countingLoop();
 
-      loop.paused = shouldPause(
+      loop.isPaused = shouldPause(
         ready: true,
         menuOpen: false,
         pointerIsTheGate: false,
         pointerHeld: false,
         padConnected: false,
       );
-      loop.advance(0.5);
+      loop.frame(0.5);
 
-      expect(steps, greaterThan(0));
+      expect(steps(), greaterThan(0));
     });
 
     test('and stands still while the player has stopped it', () {
       // Mutation: feed `menuOpen: false` regardless. Escape stops looking like
       // a pause and the race carries on behind the overlay — which is the bug
       // both other games shipped before the gate was written.
-      var steps = 0;
-      final input = InputState();
-      final loop = GameLoop(input: input, onStep: (double _) => steps++);
+      final (loop, steps) = _countingLoop();
 
-      loop.paused = shouldPause(
+      loop.isPaused = shouldPause(
         ready: true,
         menuOpen: true,
         pointerIsTheGate: false,
         pointerHeld: false,
         padConnected: false,
       );
-      loop.advance(0.5);
+      loop.frame(0.5);
 
-      expect(steps, 0);
+      expect(steps(), 0);
     });
 
     test('and does not accumulate time while the circuit is still loading', () {
       // The clause the dungeon's hand-written copy of this gate was missing.
-      var steps = 0;
-      final input = InputState();
-      final loop = GameLoop(input: input, onStep: (double _) => steps++);
+      final (loop, steps) = _countingLoop();
 
-      loop.paused = shouldPause(
+      loop.isPaused = shouldPause(
         ready: false,
         menuOpen: false,
         pointerIsTheGate: false,
         pointerHeld: false,
         padConnected: false,
       );
-      loop.advance(5.0);
+      loop.frame(5.0);
 
-      expect(steps, 0);
+      expect(steps(), 0);
     });
 
     test('and says so when the machine cannot keep up', () {
       // Silent slow motion: the loop refuses to run more than a few steps for
       // one frame and throws the rest away. This game showed nothing at all.
+      // Mutation: note `dropped: 0`. The loop still counts what it lost, and
+      // the warning never lights.
       final pace = Pace();
-      final loop = GameLoop(input: InputState(), onStep: (double _) {});
+      final (loop, _) = _countingLoop();
 
       // A second of real time asked of a loop that will run a handful of steps.
       for (var i = 0; i < 8; i++) {
-        loop.advance(1.0);
+        loop.frame(1.0);
         pace.note(
-          dropped: loop.clock.droppedSteps,
+          dropped: loop.lostSteps,
           dt: 1.0,
-          stepSeconds: loop.clock.stepSeconds,
+          stepSeconds: loop.stepSeconds,
         );
       }
 
-      expect(pace.behind, isTrue);
+      expect(pace.isBehind, isTrue);
       expect(pace.lost, greaterThan(0.0));
     });
+
+    test('steps the race in physics, between the driver and the reading', () {
+      // The order `_driveOneStep` ran in one call, now three phases: the
+      // keys and the AI before the race steps, the drain after. Mutation:
+      // register the game's reading in `input`. It would read the step
+      // before, a step late, and a ghost recorded before would part.
+      final (loop, _) = _countingLoop();
+      final order = <LoopPhase>[
+        for (final phase in loop.phases(PhaseKind.step))
+          if (loop.systemsIn(phase).isNotEmpty) phase,
+      ];
+      expect(order, <LoopPhase>[
+        LoopPhase.input,
+        LoopPhase.physics,
+        LoopPhase.publish,
+      ]);
+      expect(loop.systemsIn(LoopPhase.physics), <String>[
+        RacingPlugin.stepSystem,
+      ]);
+    });
   });
+}
+
+/// The game's loop, as `main.dart` builds it: the genre installed, the
+/// game's own systems either side of its step — here one before that counts.
+(EngineLoop, int Function()) _countingLoop() {
+  var steps = 0;
+  final loop =
+      EngineLoop(
+          input: InputState(),
+          plugins: <Flutter3dPlugin>[RacingPlugin()],
+          registries: <PluginRegistry>[EntityKinds()],
+        )
+        ..addSystem('test.drive', LoopPhase.input, (_) => steps++)
+        ..addSystem('test.read', LoopPhase.publish, (_) {});
+  return (loop, () => steps);
 }

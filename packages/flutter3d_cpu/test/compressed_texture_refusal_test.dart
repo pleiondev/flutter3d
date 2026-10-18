@@ -13,6 +13,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -36,7 +38,7 @@ void main() {
         pixels: bytes,
       ),
       throwsA(
-        isA<UnsupportedError>().having(
+        isA<UnsupportedCapabilityException>().having(
           (e) => e.message,
           'message',
           contains('TextureFormat.bc1RGBAUNormInt'),
@@ -55,7 +57,7 @@ void main() {
         faces: faces,
       ),
       throwsA(
-        isA<UnsupportedError>().having(
+        isA<UnsupportedCapabilityException>().having(
           (e) => e.message,
           'message',
           contains('TextureFormat.etc2RGB8UNormInt'),
@@ -68,13 +70,13 @@ void main() {
     final device = _device();
     final bytes = ByteData(4 * 4 * 4);
     expect(
-      device.createTextureFromPixels(
+      () => device.createTextureFromPixels(
         width: 4,
         height: 4,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: bytes,
       ),
-      isNotNull,
+      returnsNormally,
     );
   });
 }

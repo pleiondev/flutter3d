@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException, defaultStorage;
 
 /// The documents this editor has had open, most recent first.
 ///
@@ -22,6 +23,8 @@ import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
 /// order the paths go in and which of them have been deleted since are all
 /// decided here, which is why they are tested against a map in memory.
 final class RecentProjects {
+  /// A list kept in [storage], the editor's own directory unless a test hands
+  /// in another.
   RecentProjects({Storage? storage})
     : storage = storage ?? defaultStorage(appName);
 
@@ -34,6 +37,34 @@ final class RecentProjects {
   /// — small, this machine's, and no loss if it goes.
   static const String _name = 'recent.json';
 
+  /// The file's version. A document without one is version 1, and a newer
+  /// one offers nothing rather than being misread.
+  static const int formatVersion = 1;
+
+  /// The envelope every flutter3d document starts with.
+  static const Map<String, Object?> envelope = <String, Object?>{
+    'format': 'f3d.editor-recent',
+    'version': formatVersion,
+    'requires': <String>[],
+    'generator': 'flutter3d_editor',
+  };
+
+  /// The top-level keys of [text] this version does not write, so a list
+  /// saved by a later editor keeps what that editor added.
+  static Map<String, Object?> unknownIn(String? text) {
+    if (text == null) return const <String, Object?>{};
+    try {
+      final json = jsonDecode(text);
+      if (json is! Map<String, Object?>) return const <String, Object?>{};
+      return <String, Object?>{
+        for (final MapEntry(:key, :value) in json.entries)
+          if (!envelope.containsKey(key) && key != 'recent') key: value,
+      };
+    } on FormatException {
+      return const <String, Object?>{};
+    }
+  }
+
   /// How many are kept.
   ///
   /// **A list nobody scrolls.** Eight is about as many projects as fit on the
@@ -41,14 +72,15 @@ final class RecentProjects {
   /// searching has stopped being a shortcut and become a second file dialogue.
   static const int keep = 8;
 
+  /// Where the list is kept.
   final Storage storage;
 
   /// The paths worth offering, most recent first.
   ///
   /// [exists] is injected so this can be answered without a disk — the same
   /// seam `Documents.find` uses next door, and for the same reason.
-  List<String> read({required bool Function(String) exists}) =>
-      remaining(storage.read(_name), exists: exists);
+  Future<List<String>> read({required bool Function(String) exists}) async =>
+      remaining(await storage.read(_name), exists: exists);
 
   /// Puts [path] at the front, writes the list back, and answers with it.
   ///
@@ -56,19 +88,33 @@ final class RecentProjects {
   /// not be saved costs somebody one extra trip through the open panel, and an
   /// editor that refused to open a level because it could not write a
   /// convenience file would be trading the work for the shortcut.
-  List<String> remember(String path, {required bool Function(String) exists}) {
-    final paths = after(read(exists: exists), path);
-    storage.write(
-      _name,
-      const JsonEncoder.withIndent(
-        '  ',
-      ).convert(<String, Object?>{'recent': paths}),
+  Future<List<String>> remember(
+    String path, {
+    required bool Function(String) exists,
+  }) async {
+    final text = await storage.read(_name);
+    final paths = after(remaining(text, exists: exists), path);
+    await _keep(
+      const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+        ...envelope,
+        // What a later version of this file added, kept as it was.
+        ...unknownIn(text),
+        'recent': paths,
+      }),
     );
     return paths;
   }
 
   /// Forgets every project, which is what a person clearing the list means.
-  void clear() => storage.remove(_name);
+  Future<void> clear() => storage.remove(_name);
+
+  Future<void> _keep(String text) async {
+    try {
+      await storage.write(_name, text);
+    } on StorageException {
+      // A list that could not be kept is a shortcut lost, see [remember].
+    }
+  }
 
   /// What a stored document still means, which is never quite what it says.
   ///
@@ -88,6 +134,12 @@ final class RecentProjects {
     try {
       final json = jsonDecode(text);
       if (json is! Map<String, Object?>) return const <String>[];
+      final format = json['format'];
+      final version = json['version'];
+      if ((format != null && format != envelope['format']) ||
+          (version is num && version > formatVersion)) {
+        return const <String>[];
+      }
       final stored = json['recent'];
       if (stored is! List<Object?>) return const <String>[];
       // A set, so a document that somehow lists one project twice offers it

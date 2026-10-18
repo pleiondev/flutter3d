@@ -1,4 +1,4 @@
-/// `ap-03`: `dart run flutter3d_build:convert` — the same converter
+/// `ap-03`: [runConvert], the one-model converter — the same converter
 /// `packages/flutter3d/tool/convert_asset.dart` was, moved here so a build
 /// hook (`ap-05`) and a project that only has the published `flutter3d`
 /// package can both reach it, plus what that tool never had: a directory on
@@ -11,10 +11,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
 
+import 'build_exceptions.dart';
 import 'chunk_generate.dart';
+import 'convert/confine.dart' show outsideMessage, resolveInside;
 import 'device_classes.dart';
 import 'impostor_bake.dart';
 import 'lod_generate.dart';
@@ -31,11 +34,21 @@ import 'texture_encode.dart';
 final class TextureFamily {
   const TextureFamily._(this.name);
 
+  /// The word `--textures` and a manifest's `textures:` spell it with.
   final String name;
 
+  /// The family of the platform being built for, which only a build hook
+  /// knows; anywhere else it converts as [none] does.
   static const TextureFamily auto = TextureFamily._('auto');
+
+  /// BC1 for an opaque image and BC3 for one with alpha: desktop GPUs.
   static const TextureFamily bc = TextureFamily._('bc');
+
+  /// ETC2 for an opaque image, mobile GPUs; an image with alpha is left as
+  /// it arrived, since the EAC alpha block is not encoded.
   static const TextureFamily etc2 = TextureFamily._('etc2');
+
+  /// No compression: every image stays as the source encoded it.
   static const TextureFamily none = TextureFamily._('none');
 
   /// One cooked texture for every device family — `gfx-83n`. Not a GPU
@@ -43,6 +56,17 @@ final class TextureFamily {
   /// RGBA8 against what the device reports sampling.
   static const TextureFamily universal = TextureFamily._('universal');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static TextureFamily? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every family, in the order a usage text lists them; what [parse]
+  /// accepts.
   static const List<TextureFamily> values = <TextureFamily>[
     auto,
     bc,
@@ -51,7 +75,19 @@ final class TextureFamily {
     none,
   ];
 
-  static TextureFamily? parse(String text) {
+  /// The family [text] names. Throws a [ConvertUsageException] naming the
+  /// families there are, rather than answering null for a word a person
+  /// typed wrong.
+  static TextureFamily parse(String text) =>
+      tryParse(text) ??
+      (throw ConvertUsageException(
+        'unknown texture family "$text" — expected one of '
+        '${values.join(', ')}',
+      ));
+
+  /// The family [text] names, or null: for a caller with a fallback of its
+  /// own, such as a build hook's target.
+  static TextureFamily? tryParse(String text) {
     for (final family in values) {
       if (family.name == text) return family;
     }
@@ -62,13 +98,22 @@ final class TextureFamily {
   String toString() => name;
 }
 
-const String usage = '''
-Usage: dart run flutter3d_build:convert <model-or-directory> [options]
+/// What [runConvert] prints when its arguments do not read.
+///
+/// **The one-model converter's, not the command line's.** `dart run
+/// flutter3d_build:convert` was this converter until 1.0; it is `flutter3d
+/// convert` under its old name now, whose usage is `convertUsage`. This one
+/// stays for a build script that calls [runConvert] itself, for the single
+/// output file and `--classes` the command does not take.
+const String modelConvertUsage = '''
+Usage: runConvert(<model-or-directory> [options])
 
-Converts a glTF, GLB, OBJ or STL model into the engine's .f3d container. A
-Gaussian splat capture (.ply or .spz) becomes a .f3dsplat instead: a tree of
-merged levels of detail, paged so a viewer loads only what it draws. A
-directory converts every recognised file under it, recursively.
+The one-model converter a build script calls; the command line is
+`flutter3d convert`. Converts a glTF, GLB, OBJ or STL model into the
+engine's .f3d container. A Gaussian splat capture (.ply or .spz) becomes a
+.f3dsplat instead: a tree of merged levels of detail, paged so a viewer
+loads only what it draws. A directory converts every recognised file under
+it, recursively.
 
 Options:
   -o, --output <path>       Where to write the result. For a single input
@@ -119,8 +164,12 @@ Options:
   -h, --help                Show this text.
 ''';
 
-final class ConvertOptions {
-  const ConvertOptions({
+/// What [runConvert]'s arguments asked for: one input, where it goes, and
+/// the model steps it runs through.
+final class ConvertSettings {
+  /// The settings for [input]: `auto` textures with mips, and no levels of
+  /// detail, impostor, chunks or device classes unless given.
+  const ConvertSettings({
     required this.input,
     this.output,
     this.textures = TextureFamily.auto,
@@ -131,9 +180,44 @@ final class ConvertOptions {
     this.classes = const <DeviceClass>[],
   });
 
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  ConvertSettings copyWith({
+    String? input,
+    String? output,
+    TextureFamily? textures,
+    bool? mips,
+    List<double>? lods,
+    bool? impostor,
+    int? chunks,
+    List<DeviceClass>? classes,
+    bool clearOutput = false,
+    bool clearChunks = false,
+  }) => ConvertSettings(
+    input: input ?? this.input,
+    output: clearOutput ? null : (output ?? this.output),
+    textures: textures ?? this.textures,
+    mips: mips ?? this.mips,
+    lods: lods ?? this.lods,
+    impostor: impostor ?? this.impostor,
+    chunks: clearChunks ? null : (chunks ?? this.chunks),
+    classes: classes ?? this.classes,
+  );
+
+  /// The model file, or the directory whose recognised files are all
+  /// converted, recursively.
   final String input;
+
+  /// `--output`: the output file for a single input, or the directory that
+  /// mirrors a directory input. Null writes beside each source, with its
+  /// extension replaced by `.f3d`.
   final String? output;
+
+  /// `--textures`: the compression family converted images target.
   final TextureFamily textures;
+
+  /// Whether each compressed image carries its mip chain; `--no-mips`
+  /// keeps the base level alone.
   final bool mips;
 
   /// The triangle ratios `--lods` asked for, or empty for none — see
@@ -152,9 +236,11 @@ final class ConvertOptions {
   /// single file a conversion always wrote.
   final List<DeviceClass> classes;
 
-  /// Parses [arguments], or returns null for anything [usage] should answer
-  /// — an unknown flag, a missing value, more than one positional argument.
-  static ConvertOptions? parse(List<String> arguments) {
+  /// Parses [arguments]. Throws a [ConvertUsageException] saying what was
+  /// wrong — an unknown flag, a missing value, more than one input — rather
+  /// than answering null and leaving the caller to print the usage without
+  /// the reason.
+  static ConvertSettings parse(List<String> arguments) {
     String? input;
     String? output;
     var textures = TextureFamily.auto;
@@ -164,52 +250,60 @@ final class ConvertOptions {
     int? chunks;
     var classes = const <DeviceClass>[];
 
+    String valueOf(int at, String flag) => at < arguments.length
+        ? arguments[at]
+        : throw ConvertUsageException('$flag needs a value');
+
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
       switch (argument) {
         case '-o' || '--output':
-          if (i + 1 >= arguments.length) return null;
-          output = arguments[++i];
+          output = valueOf(++i, argument);
         case '--textures':
-          if (i + 1 >= arguments.length) return null;
-          final family = TextureFamily.parse(arguments[++i]);
-          if (family == null) return null;
-          textures = family;
+          textures = TextureFamily.parse(valueOf(++i, argument));
         case '--no-mips':
           mips = false;
         case '--impostor':
           impostor = true;
         case '--chunks':
-          chunks = kDefaultChunkThreshold;
+          chunks = defaultChunkThreshold;
         case _ when argument.startsWith('--chunks='):
-          chunks = parseChunkThreshold(argument.substring('--chunks='.length));
-          if (chunks == null) return null;
+          chunks =
+              parseChunkThreshold(argument.substring('--chunks='.length)) ??
+              (throw const ConvertUsageException(
+                '--chunks= takes a triangle count',
+              ));
         case '--classes':
-          if (i + 1 >= arguments.length) return null;
-          classes = parseDeviceClasses(arguments[++i]) ?? const <DeviceClass>[];
-          if (classes.isEmpty) return null;
+          classes =
+              parseDeviceClasses(valueOf(++i, argument)) ??
+              const <DeviceClass>[];
+          if (classes.isEmpty) {
+            throw ConvertUsageException(
+              '--classes names device classes: '
+              '${DeviceClass.values.map((DeviceClass c) => c.name).join(', ')}',
+            );
+          }
         case '--lods':
-          if (i + 1 >= arguments.length) return null;
-          lods = parseLodRatios(arguments[++i]) ?? const <double>[];
-          if (lods.isEmpty) return null;
+          lods = parseLodRatios(valueOf(++i, argument));
         case _ when argument.startsWith('--lods='):
-          lods =
-              parseLodRatios(argument.substring('--lods='.length)) ??
-              const <double>[];
-          if (lods.isEmpty) return null;
+          lods = parseLodRatios(argument.substring('--lods='.length));
         case '-h' || '--help':
-          return null;
+          throw const ConvertUsageException.helpAsked();
         case _ when argument.startsWith('-'):
-          return null;
+          throw ConvertUsageException('unknown option "$argument"');
         case _ when input == null:
           input = argument;
         default:
-          return null;
+          throw ConvertUsageException(
+            'one input at a time: "$input" and "$argument"',
+          );
       }
     }
 
-    if (input == null) return null;
-    return ConvertOptions(
+    if (input == null) {
+      throw const ConvertUsageException('no input named');
+    }
+    return ConvertSettings(
       input: input,
       output: output,
       textures: textures,
@@ -220,6 +314,31 @@ final class ConvertOptions {
       classes: classes,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConvertSettings &&
+          other.input == input &&
+          other.output == output &&
+          other.textures == textures &&
+          other.mips == mips &&
+          _sameList(other.lods, lods) &&
+          other.impostor == impostor &&
+          other.chunks == chunks &&
+          _sameList(other.classes, classes);
+
+  @override
+  int get hashCode => Object.hash(
+    input,
+    output,
+    textures,
+    mips,
+    Object.hashAll(lods),
+    impostor,
+    chunks,
+    Object.hashAll(classes),
+  );
 }
 
 /// The extensions [convertOne] reads without being handed a decoder: every
@@ -228,15 +347,17 @@ final class ConvertOptions {
 ///
 /// **Read off [builtInModelExtensions] rather than listed here again.** It was
 /// a second list once, and a format added to the decoders would have been one
-/// `dart run flutter3d_build:convert` silently walked past.
-final Set<String> recognisedExtensions = <String>{
+/// a directory walk silently passed over.
+final Set<String> recognizedExtensions = <String>{
   for (final String suffix in builtInModelExtensions.keys)
     if (suffix != '.f3d') suffix,
 };
 
-/// `dart run flutter3d_build:convert`'s own `main`, factored out so
-/// `packages/flutter3d/bin/convert.dart` can be the thin wrapper `ap-03`
-/// asks for and a test can drive this without a second process.
+/// The one-model converter, as a function: one model or a directory of them
+/// in, one `.f3d` per model out (or one per device class with `--classes`).
+/// The build hook converts through the same code; the command line is
+/// `flutter3d convert`, which also reads scenes and materials from other
+/// tools. Prints [modelConvertUsage] for arguments that do not read.
 ///
 /// [decoders] are an application's own readers, asked before the built-in
 /// ones exactly as `decodeModel` asks them, and a directory walk picks up any
@@ -250,9 +371,11 @@ Future<int> runConvert(
   final stdoutSink = out ?? stdout;
   final stderrSink = err ?? stderr;
 
-  final options = ConvertOptions.parse(arguments);
-  if (options == null) {
-    stderrSink.writeln(usage);
+  final ConvertSettings options;
+  try {
+    options = ConvertSettings.parse(arguments);
+  } on ConvertUsageException catch (error) {
+    stderrSink.writeln('${error.message}\n\n$modelConvertUsage');
     return 2;
   }
 
@@ -322,10 +445,13 @@ Future<int> runConvert(
 /// Whether [path] is a model this converter reads: a built-in suffix other
 /// than `.f3d`, or a file one of [decoders] claims by name.
 bool _recognised(String path, List<ModelDecoder> decoders) {
-  if (recognisedExtensions.contains(_extensionOf(path))) return true;
+  if (recognizedExtensions.contains(_extensionOf(path))) return true;
   final name = path.substring(path.lastIndexOf('/') + 1).toLowerCase();
   final nothing = Uint8List(0);
-  return decoders.any((ModelDecoder decoder) => decoder.handles(name, nothing));
+  return decoders.any(
+    (ModelDecoder decoder) =>
+        decoder.handles(ModelProbe(fileName: name, bytes: nothing)),
+  );
 }
 
 List<(String, String)> _planDirectory(
@@ -382,7 +508,7 @@ bool _looksLikeSplatCapture(String path) {
 
 /// `.f3dsplat` for a splat capture, `.f3d` for everything else.
 String _outputSuffix(String path) =>
-    _isSplat(path) ? kSplatOctreeExtension : '.f3d';
+    _isSplat(path) ? splatOctreeExtension : '.f3d';
 
 String _extensionOf(String path) {
   final dot = path.lastIndexOf('.');
@@ -492,84 +618,43 @@ Future<bool> convertOne(
   final bytes = input.readAsBytesSync();
   final readClock = Stopwatch()..start();
 
-  ModelDocument document;
+  final ModelDocument decoded;
   try {
-    document = await _decode(bytes, inputPath, decoders);
+    decoded = await _decode(bytes, inputPath, decoders);
   } on Object catch (error) {
     err.writeln('Could not decode $inputPath: $error');
     return false;
   }
   readClock.stop();
 
-  // The mesh levels first: a level is one more surface sharing its base's
-  // material, so it rides on whatever the images become, and the impostor
-  // below goes after the coarsest of them.
-  document = generateLods(
-    document,
-    lods,
-    report: (level) => out.writeln('  $level'),
-  );
-
-  // After the levels, so a level still above the threshold is split too, and
-  // before the impostor, whose bake draws the mesh whichever way it is cut.
-  if (chunks != null) {
-    final (split, count) = splitLargeMeshes(document, threshold: chunks);
-    document = split;
-    out.writeln('  chunks: $count meshes above $chunks triangles split');
-  }
-
-  // A device class's texture budget (`N7`): the source's images are fitted
-  // before anything reads them, so the impostor is baked from what that class
-  // will draw up close, and before they are compressed, so the chain is cut
-  // from the smaller image. The atlases the bake adds are not fitted: their
-  // size is the class's impostor cell, a budget of its own.
-  if (maxTextureSide != null) {
-    document = fitDocumentTextures(
-      document,
-      maxTextureSide,
-      report: (message) => out.writeln('  texture: $message'),
-    );
-  }
-
-  // Before the textures: the bake reads the source's own images, and a
-  // block-compressed one is not something it can decode. The atlases it adds
-  // are then compressed with the rest.
-  if (impostor) {
-    document = await bakeImpostors(
-      document,
-      cell: impostorCell,
-      report: (message) => out.writeln('  impostor: $message'),
-    );
-  }
-
-  document = await encodeDocumentTextures(
-    document,
-    textures,
-    mips: mips,
-    report: (message) => out.writeln('  texture: $message'),
-  );
-
   final writeClock = Stopwatch()..start();
-  final encoded = F3dWriter(document).write();
-  writeClock.stop();
-
-  final output = File(outputPath);
-  output.parent.createSync(recursive: true);
-  output.writeAsBytesSync(encoded);
-
-  // Re-read what was just written and check it against the source — the
-  // same double-check `convert_asset.dart` always made, moved rather than
-  // relaxed: a converter that silently drops a surface produces a file that
-  // looks fine until somebody renders it.
-  final roundTrip = F3dDocument.parse(encoded);
-  final problems = compareModelDocuments(document, roundTrip);
-  if (problems.isNotEmpty) {
+  final F3dConversion converted;
+  try {
+    converted = await convertDocument(
+      decoded,
+      report: (String line) => out.writeln('  $line'),
+      textures: textures,
+      mips: mips,
+      lods: lods,
+      impostor: impostor,
+      chunks: chunks,
+      impostorCell: impostorCell,
+      maxTextureSide: maxTextureSide,
+    );
+  } on F3dRoundTripException catch (error) {
     err.writeln('Round trip disagrees with the source ($inputPath):');
-    for (final problem in problems) {
+    for (final problem in error.problems) {
       err.writeln('  $problem');
     }
     return false;
   }
+  writeClock.stop();
+  final document = converted.document;
+  final encoded = converted.bytes;
+
+  final output = File(outputPath);
+  output.parent.createSync(recursive: true);
+  output.writeAsBytesSync(encoded);
 
   out.writeln('$inputPath -> $outputPath');
   out.writeln(
@@ -592,19 +677,154 @@ Future<bool> convertOne(
   return true;
 }
 
+/// What [convertDocument] made: the document as written, after levels,
+/// chunks, impostors and texture encoding, and the `.f3d` bytes of it.
+///
+/// A class rather than a record, so a conversion can later report more
+/// (what it dropped) without breaking a reader.
+final class F3dConversion {
+  /// The conversion of [document] into [bytes].
+  const F3dConversion({required this.document, required this.bytes});
+
+  /// The document as written.
+  final ModelDocument document;
+
+  /// The `.f3d` bytes of it.
+  final Uint8List bytes;
+}
+
+/// The written `.f3d` did not read back as the document it was written from.
+final class F3dRoundTripException extends Flutter3dFormatException {
+  /// The failed round trip, with every difference found in [problems].
+  const F3dRoundTripException(this.problems);
+
+  /// What differed, one line each.
+  final List<DocumentDifference> problems;
+
+  @override
+  String get message =>
+      'the written file disagrees with its source: ${problems.join('; ')}';
+
+  @override
+  String toString() => 'F3dRoundTripException: $message';
+}
+
+/// Runs a decoded [document] through the model steps — levels of detail,
+/// chunks, a device class's texture budget, impostors, texture encoding —
+/// and encodes it as `.f3d`, read back and compared before it is returned.
+///
+/// [convertOne] is this with a file on either side. `flutter3d convert`
+/// calls it with documents it assembled itself, from a USD stage or a PLY
+/// mesh, which have no file a decoder could be pointed at. [report] hears
+/// one line per step that did something.
+///
+/// Throws [F3dRoundTripException] when the bytes do not read back as the
+/// document.
+Future<F3dConversion> convertDocument(
+  ModelDocument document, {
+  void Function(String line)? report,
+  TextureFamily textures = TextureFamily.auto,
+  bool mips = true,
+  List<double> lods = const <double>[],
+  bool impostor = false,
+  int? chunks,
+  int impostorCell = 64,
+  int? maxTextureSide,
+}) async {
+  final say = report ?? (String _) {};
+
+  // The mesh levels first: a level is one more surface sharing its base's
+  // material, so it rides on whatever the images become, and the impostor
+  // below goes after the coarsest of them.
+  final levelled = generateLods(
+    document,
+    lods,
+    report: (level) => say('$level'),
+  );
+
+  // After the levels, so a level still above the threshold is split too, and
+  // before the impostor, whose bake draws the mesh whichever way it is cut.
+  final chunked = switch (chunks) {
+    null => levelled,
+    final int threshold => () {
+      final MeshSplit(document: split, meshesSplit: count) = splitLargeMeshes(
+        levelled,
+        threshold: threshold,
+      );
+      say('chunks: $count meshes above $threshold triangles split');
+      return split;
+    }(),
+  };
+
+  // A device class's texture budget (`N7`): the source's images are fitted
+  // before anything reads them, so the impostor is baked from what that class
+  // will draw up close, and before they are compressed, so the chain is cut
+  // from the smaller image. The atlases the bake adds are not fitted: their
+  // size is the class's impostor cell, a budget of its own.
+  final fitted = maxTextureSide == null
+      ? chunked
+      : fitDocumentTextures(
+          chunked,
+          maxTextureSide,
+          report: (message) => say('texture: $message'),
+        );
+
+  // Before the textures: the bake reads the source's own images, and a
+  // block-compressed one is not something it can decode. The atlases it adds
+  // are then compressed with the rest.
+  final baked = impostor
+      ? await bakeImpostors(
+          fitted,
+          cell: impostorCell,
+          report: (message) => say('impostor: $message'),
+        )
+      : fitted;
+
+  final encodedDocument = await encodeDocumentTextures(
+    baked,
+    textures,
+    mips: mips,
+    report: (message) => say('texture: $message'),
+  );
+
+  final encoded = F3dWriter(encodedDocument).write();
+
+  // Re-read what was just written and check it against the source — the
+  // same double-check `convert_asset.dart` always made, moved rather than
+  // relaxed: a converter that silently drops a surface produces a file that
+  // looks fine until somebody renders it.
+  final roundTrip = F3dDocument.parse(encoded);
+  final problems = compareModelDocuments(encodedDocument, roundTrip);
+  if (problems.isNotEmpty) throw F3dRoundTripException(problems);
+  return F3dConversion(document: encodedDocument, bytes: encoded);
+}
+
+/// The model file at [path] decoded as [convertOne] decodes it: [decoders]
+/// first, then the built-in reader for its suffix, sibling files read
+/// relative to it and only inside [root] (see [fileUriResolverFor]).
+///
+/// Throws [SourceFormatException] for a file no reader claims or a reference
+/// outside [root], and whatever the reader throws for one it cannot read.
+Future<ModelDocument> decodeModelFile(
+  String path, {
+  List<ModelDecoder> decoders = const <ModelDecoder>[],
+  String? root,
+}) => _decode(File(path).readAsBytesSync(), path, decoders, root: root);
+
 /// [bytes] decoded the way `decodeModel` decodes them — [decoders] first,
 /// then the built-in reader for the suffix — rather than through a `switch`
 /// of this file's own that an application's decoder could never reach.
 Future<ModelDocument> _decode(
   Uint8List bytes,
   String path,
-  List<ModelDecoder> decoders,
-) {
+  List<ModelDecoder> decoders, {
+  String? root,
+}) {
   if (!_recognised(path, decoders)) {
     if (isF3dFile(bytes)) {
-      throw const FormatException('That is already a .f3d file.');
+      throw const SourceFormatException('That is already a .f3d file.');
     }
-    throw FormatException('Unrecognised extension: $path');
+    throw SourceFormatException('Unrecognised extension: $path');
   }
   return decodeModelBytes(
     ModelLoadRequest(
@@ -613,7 +833,7 @@ Future<ModelDocument> _decode(
       decoders: decoders,
     ),
     bytes,
-    fileUriResolverFor(path),
+    fileUriResolverFor(path, root: root),
   );
 }
 
@@ -629,19 +849,30 @@ final class _PathSource extends AssetSource {
   String get key => 'file:$path';
 
   @override
-  Future<Uint8List> read() => File(path).readAsBytes();
+  Future<Uint8List> read(AssetRead request) => File(path).readAsBytes();
 
   @override
   AssetUriResolver get resolveUri => fileUriResolverFor(path);
 }
 
 /// Reads sibling files relative to the model, the way the decoders expect.
-AssetUriResolver fileUriResolverFor(String modelPath) {
+///
+/// **Only inside [root]**, the model's own directory when null: a URI that
+/// climbs out with `..` or names an absolute path throws
+/// [SourceFormatException] instead of being read, so a document cannot put
+/// a file from elsewhere on the disk into what it converts to.
+AssetUriResolver fileUriResolverFor(String modelPath, {String? root}) {
   final directory = File(modelPath).parent.path;
+  final inside = root ?? directory;
   return (request) async {
     final uri = request.uri;
     if (uri.startsWith('data:')) return decodeDataUri(uri);
-    final file = File('$directory/${Uri.decodeComponent(uri)}');
+    final reference = Uri.decodeComponent(uri);
+    final path = resolveInside(reference, directory: directory, root: inside);
+    if (path == null) {
+      throw SourceFormatException(outsideMessage(reference, inside));
+    }
+    final file = File(path);
     if (!file.existsSync()) {
       throw FileSystemException('Referenced file not found', file.path);
     }
@@ -653,4 +884,16 @@ String _bytes(int count) {
   if (count < 1024) return '$count B';
   if (count < 1024 * 1024) return '${(count / 1024).toStringAsFixed(1)} KB';
   return '${(count / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _sameList<T>(Iterable<T>? a, Iterable<T>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  final ib = b.iterator;
+  for (final x in a) {
+    ib.moveNext();
+    if (x != ib.current) return false;
+  }
+  return true;
 }

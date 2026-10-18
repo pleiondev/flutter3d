@@ -15,6 +15,8 @@ import 'ground_grid.dart';
 /// A ⌀60 dial that shows which way the model is turned and turns it when
 /// pressed.
 class OrientationDial extends StatelessWidget {
+  /// A dial for a camera at [yaw] and [pitch]; a press calls [onPressed]
+  /// with the axis of the button under it.
   const OrientationDial({
     super.key,
     required this.yaw,
@@ -27,12 +29,16 @@ class OrientationDial extends StatelessWidget {
   /// because a widget that held the controller would rebuild the dial and the
   /// viewport for the same frame and only one of them needs to.
   final double yaw;
+
+  /// The camera's pitch, in radians, the partner of [yaw].
   final double pitch;
 
   /// What to look down. The caller animates; the dial does not know the camera
   /// exists.
   final void Function(ViewAxis axis) onPressed;
 
+  /// The arithmetic: where the buttons sit and which one a press lands on.
+  /// Its radii also size the dial.
   final OrientationGizmo gizmo;
 
   /// The box the dial lives in: the circle plus a ball's worth of room at each
@@ -99,7 +105,7 @@ class _DialPainter extends CustomPainter {
   /// are read from [kDialAxisColours] so there is one hex per axis and the
   /// contrast test in `ux-34` measures the colour the painter actually uses.
   /// The three behind are darkened versions nothing writes on.
-  static final Map<ViewAxis, Color> _colours = <ViewAxis, Color>{
+  static final Map<ViewAxis, Color> _colors = <ViewAxis, Color>{
     ViewAxis.xPositive: kDialAxisColours['X']!,
     ViewAxis.xNegative: const Color(0xFF7A3A48),
     ViewAxis.yPositive: kDialAxisColours['Y']!,
@@ -116,9 +122,9 @@ class _DialPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centre = Offset(size.width / 2, size.height / 2);
+    final center = Offset(size.width / 2, size.height / 2);
     canvas.drawCircle(
-      centre,
+      center,
       gizmo.radius + gizmo.handleRadius - 1,
       Paint()..color = const Color(0x66000000),
     );
@@ -127,8 +133,8 @@ class _DialPainter extends CustomPainter {
     // near balls then cover the far ones without this needing a depth buffer
     // for six discs.
     for (final GizmoButton button in buttons) {
-      final at = centre + Offset(button.dx, button.dy);
-      final colour = _colours[button.axis]!;
+      final at = center + Offset(button.dx, button.dy);
+      final color = _colors[button.axis]!;
       // Facing runs from one to minus one. A ball turned away is drawn hollow,
       // which is the whole reading of the dial: the three you can see the
       // labels on are the three in front.
@@ -137,7 +143,7 @@ class _DialPainter extends CustomPainter {
         at,
         6,
         Paint()
-          ..color = front ? colour : const Color(0xFF181C1D)
+          ..color = front ? color : const Color(0xFF181C1D)
           ..style = PaintingStyle.fill,
       );
       if (!front) {
@@ -145,7 +151,7 @@ class _DialPainter extends CustomPainter {
           at,
           6,
           Paint()
-            ..color = colour
+            ..color = color
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
         );

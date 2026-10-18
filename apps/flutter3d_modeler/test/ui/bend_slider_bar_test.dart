@@ -8,12 +8,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/bend_slider_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4, Quaternion;
 
 /// One joint, its skeleton, and the rest pose it is bent away from.
 ///
@@ -21,7 +20,7 @@ import 'package:vector_math/vector_math.dart' show Matrix4, Quaternion;
 /// only ever checked "not identity" after a drag could not tell a real bend
 /// from a bug that just left the joint at whatever `SceneNode`'s own default
 /// happens to be.
-typedef _Fixture = ({SceneNode joint, Skeleton skeleton, Pose pose});
+typedef _Fixture = ({SceneNode joint, Skeleton skeleton, AnimationPose pose});
 
 _Fixture _buildFixture() {
   final SceneNode joint = SceneNode(name: 'elbow');
@@ -34,7 +33,7 @@ _Fixture _buildFixture() {
     name: 'arm',
   );
 
-  final Pose pose = Pose(
+  final AnimationPose pose = AnimationPose(
     parents: <int>[-1],
     restTranslations: Float32List.fromList(<double>[0.0, 0.4, 0.0]),
     restRotations: Float32List.fromList(<double>[0.0, 0.0, 0.0, 1.0]),

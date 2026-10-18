@@ -19,11 +19,7 @@ library;
 
 import 'dart:io';
 
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -139,30 +135,31 @@ void main() {
           );
         });
       }
-      // The twenty names the manifest has today: `R1`'s velocity stages
-      // brought v_current, v_previous and v_depth, a family of their own.
-      // Stated so that a shader adding a twenty-first has to come back and
-      // read the family rule.
-      expect(seen.length, 20);
+      // The twenty-five names the manifest has today: `R1`'s velocity stages
+      // brought v_current, v_previous and v_depth, a family of their own, and
+      // the physical sky brought v_rayleigh, v_mie, v_planet and v_stars into
+      // the sky's family, through the v_ray, v_sun and v_disc it shares.
+      // `P8` brought v_instance into the mesh family. Stated so that a
+      // shader adding a twenty-sixth has to come back and read the family
+      // rule.
+      expect(seen.length, 25);
     });
 
     test('keeps every family inside WebGPU\'s sixteen locations', () {
       expect(
-        locations.values.every(
-          (location) => location < kMaxInterStageVariables,
-        ),
+        locations.values.every((location) => location < maxInterStageVariables),
         isTrue,
       );
-      // Five families and a widest of eight. One flat numbering would have
-      // needed twenty.
-      expect(locations.length, 20);
-      expect(locations.values.toSet().length, 8);
+      // Five families and a widest of twelve, the sky's. One flat numbering
+      // would have needed twenty-five.
+      expect(locations.length, 25);
+      expect(locations.values.toSet().length, 12);
     });
 
     test('gives every stage its own bind group', () {
       for (final entry in shaders.stages.entries) {
         final prepared = prepare(entry.key);
-        final group = entry.value.fragment ? kFragmentGroup : kVertexGroup;
+        final group = entry.value.fragment ? fragmentGroup : vertexGroup;
         for (final block in prepared.blocks) {
           expect(block.group, group, reason: entry.key);
         }
@@ -218,7 +215,7 @@ void main() {
       expect(
         () => compileStage(combined, name: 'combined', fragment: true),
         throwsA(
-          isA<WgslCompileError>().having(
+          isA<WgslCompileException>().having(
             (error) => error.message,
             'message',
             contains('invalid id'),
@@ -242,7 +239,7 @@ void main() {
         ..writeAsStringSync(source);
       final spirv = '${directory.path}/flip.spv';
       expect(
-        Process.runSync(kGlslang, <String>[
+        Process.runSync(glslangExecutable, <String>[
           '-V',
           '--auto-map-locations',
           glsl.path,
@@ -255,7 +252,11 @@ void main() {
       String translate(List<String> flags) {
         final out = '${directory.path}/flip${flags.length}.wgsl';
         expect(
-          Process.runSync(kNaga, <String>[...flags, spirv, out]).exitCode,
+          Process.runSync(nagaExecutable, <String>[
+            ...flags,
+            spirv,
+            out,
+          ]).exitCode,
           0,
         );
         return File(out).readAsStringSync();

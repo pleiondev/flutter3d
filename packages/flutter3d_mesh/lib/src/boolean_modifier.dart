@@ -29,14 +29,24 @@ part of 'modifier.dart';
 /// `BooleanModifier` naming it passes its base straight through rather than
 /// looping or refusing loudly.
 final class BooleanModifier extends Modifier {
+  /// A boolean of the base mesh with object [operandId]'s mesh, placed by
+  /// [operandTransform].
   const BooleanModifier({
     required this.operation,
     required this.operandId,
     required this.operandTransform,
   });
 
+  /// Which combination is taken: union, subtraction of the operand, or
+  /// intersection.
   final CsgOperation operation;
+
+  /// The key of the operand's mesh in [ModifierContext.operands]; an id
+  /// with no entry passes the base through unchanged.
   final int operandId;
+
+  /// The operand's mesh-local space mapped into the base mesh's local
+  /// space. See the class doc.
   final Matrix4 operandTransform;
 
   @override
@@ -60,32 +70,43 @@ final class BooleanModifier extends Modifier {
     'operandTransform': operandTransform.storage.toList(),
   };
 
-  /// [BooleanModifier] from its own [toJson], or null when a field is
-  /// missing, [operation] names none of [CsgOperation]'s three, or
-  /// [operandTransform] is not the 16 numbers a 4×4 matrix needs.
-  static BooleanModifier? fromJson(Map<String, Object?> json) => switch (json) {
+  /// [BooleanModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when a field is missing, [operation] names none
+  /// of [CsgOperation]'s three, or [operandTransform] is not the 16 numbers a
+  /// 4×4 matrix needs.
+  static BooleanModifier fromJson(Map<String, Object?> json) => switch (json) {
     {
       'operation': final String operationName,
       'operandId': final int operandId,
       'operandTransform': final List<Object?> matrix,
     } =>
       _fromFields(operationName, operandId, matrix),
-    _ => null,
+    _ => throw const ModifierFormatException(
+      'a boolean modifier names its "operation", its whole "operandId" and '
+      'its sixteen-number "operandTransform"',
+    ),
   };
 
-  static BooleanModifier? _fromFields(
+  static BooleanModifier _fromFields(
     String operationName,
     int operandId,
     List<Object?> matrix,
   ) {
     final operation = _operationNamed(operationName);
-    if (operation == null || matrix.length != 16) return null;
-    final values = List<double>.filled(16, 0.0);
-    for (var i = 0; i < 16; i++) {
-      final entry = matrix[i];
-      if (entry is! num) return null;
-      values[i] = entry.toDouble();
+    if (operation == null) {
+      throw ModifierFormatException(
+        'a boolean modifier\'s "operation" is not one this build has: '
+        '$operationName',
+      );
     }
+    if (matrix.length != 16 || matrix.any((Object? entry) => entry is! num)) {
+      throw const ModifierFormatException(
+        'a boolean modifier\'s "operandTransform" is sixteen numbers',
+      );
+    }
+    final values = <double>[
+      for (final entry in matrix) (entry! as num).toDouble(),
+    ];
     return BooleanModifier(
       operation: operation,
       operandId: operandId,

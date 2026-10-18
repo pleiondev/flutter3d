@@ -7,6 +7,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -15,8 +18,8 @@ const int _size = 32;
 const double _grey = 0.5;
 
 /// The middle pixel's red, as the composite hands it back, of a frame with
-/// one particle of [colour] at the origin drawn with [blend] over a grey clear.
-double _middle(BlendState blend, Vector4 colour) {
+/// one particle of [color] at the origin drawn with [blend] over a grey clear.
+double _middle(BlendState blend, LinearColor color) {
   final device = CpuDevice(
     width: _size,
     height: _size,
@@ -33,7 +36,7 @@ double _middle(BlendState blend, Vector4 colour) {
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         lifetime: const Range.exact(5.0),
         size: const Range.exact(1.0),
-        color: colour,
+        color: color,
       ),
       Vector3.zero(),
     );
@@ -43,15 +46,18 @@ double _middle(BlendState blend, Vector4 colour) {
     ..lookAt(Vector3.zero());
   final scene = Scene()..add(camera);
   final renderer = Renderer.create(device: device)
-    ..addContributor(
+    ..renderSteps.addContributor(
       MeshParticleContributor(particles, mesh: shard, blend: blend),
     );
   final result = renderer.render(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(_grey, _grey, _grey, 1.0)),
+    views: <CameraView>[
+      CameraView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(_grey, _grey, _grey, 1.0),
+      ),
     ],
     settings: const RenderSettings(
       tonemap: false,
@@ -65,22 +71,31 @@ double _middle(BlendState blend, Vector4 colour) {
 void main() {
   // The grey with nothing over it, as the composite hands it back: a
   // particle of no colour changes nothing, whichever way it blends.
-  final background = _middle(BlendState.additive, Vector4(0.0, 0.0, 0.0, 1.0));
+  final background = _middle(
+    BlendState.additive,
+    LinearColor(0.0, 0.0, 0.0, 1.0),
+  );
 
   test('added, a particle brightens what is behind it', () {
     expect(
-      _middle(BlendState.additive, Vector4(0.3, 0.3, 0.3, 1.0)),
+      _middle(BlendState.additive, LinearColor(0.3, 0.3, 0.3, 1.0)),
       greaterThan(background + 0.1),
     );
   });
 
   test('darkening, it takes its colour out of what is behind it', () {
     expect(
-      _middle(MeshParticleContributor.darkening, Vector4(0.6, 0.6, 0.6, 1.0)),
+      _middle(
+        MeshParticleContributor.darkening,
+        LinearColor(0.6, 0.6, 0.6, 1.0),
+      ),
       lessThan(background - 0.2),
     );
     expect(
-      _middle(MeshParticleContributor.darkening, Vector4(0.0, 0.0, 0.0, 1.0)),
+      _middle(
+        MeshParticleContributor.darkening,
+        LinearColor(0.0, 0.0, 0.0, 1.0),
+      ),
       closeTo(background, 1e-6),
       reason: 'black takes nothing away',
     );
@@ -89,11 +104,11 @@ void main() {
   test('darkening, its alpha fades it towards nothing', () {
     final full = _middle(
       MeshParticleContributor.darkening,
-      Vector4(0.6, 0.6, 0.6, 1.0),
+      LinearColor(0.6, 0.6, 0.6, 1.0),
     );
     final faint = _middle(
       MeshParticleContributor.darkening,
-      Vector4(0.6, 0.6, 0.6, 0.25),
+      LinearColor(0.6, 0.6, 0.6, 0.25),
     );
     expect(faint, greaterThan(full + 0.1));
     expect(faint, lessThan(background));

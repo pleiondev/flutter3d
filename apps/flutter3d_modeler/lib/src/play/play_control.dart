@@ -31,5 +31,6 @@ final class PlayControl {
   /// The running game, or null when the modeller is the thing on screen.
   PlayRunning? running;
 
+  /// Whether a game is on screen now.
   bool get isRunning => running != null;
 }

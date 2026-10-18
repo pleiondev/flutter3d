@@ -1,0 +1,110 @@
+{
+  "format": "f3d.experiment",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d",
+  "name": "bench",
+  "title": "Pouring on the chemistry bench",
+  "level": "bench.level.json",
+  "substances": [
+    {
+      "id": "f3d.water",
+      "role": "solvent"
+    },
+    {
+      "id": "f3d.borosilicateGlass",
+      "role": "glassware"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "poured",
+      "value": {
+        "value": 0.0,
+        "unit": "mL"
+      },
+      "min": {
+        "value": 0.0,
+        "unit": "mL"
+      },
+      "max": {
+        "value": 5.0,
+        "unit": "mL"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "cleanTube",
+      "quantity": "f3d.liquidVolume",
+      "unit": "mL",
+      "region": {
+        "kind": "body"
+      },
+      "on": "Clean tube"
+    },
+    {
+      "id": "cleanTubeTemperature",
+      "quantity": "f3d.temperature",
+      "unit": "°C",
+      "region": {
+        "kind": "body"
+      },
+      "on": "Clean tube"
+    }
+  ],
+  "scenario": {
+    "steps": [
+      {
+        "name": "look",
+        "title": "Five tubes, a clean one, a cylinder, a beaker and a flask"
+      },
+      {
+        "name": "pour",
+        "title": "Pour two millilitres of the acid into the clean tube",
+        "set": {
+          "poured": {
+            "value": 2.0,
+            "unit": "mL"
+          }
+        },
+        "run": {
+          "value": 5.0,
+          "unit": "s"
+        },
+        "expect": [
+          {
+            "probe": "cleanTube",
+            "value": {
+              "value": 2.0,
+              "unit": "mL"
+            },
+            "tolerance": {
+              "value": 0.05,
+              "unit": "mL"
+            }
+          },
+          {
+            "probe": "cleanTubeTemperature",
+            "value": {
+              "value": 20.0,
+              "unit": "°C"
+            },
+            "tolerance": {
+              "value": 0.5,
+              "unit": "K"
+            }
+          }
+        ],
+        "check": {
+          "question": "Which colour does the clean tube show now?",
+          "answers": [
+            "none",
+            "colourless",
+            "colorless"
+          ]
+        }
+      }
+    ]
+  }
+}

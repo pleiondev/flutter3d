@@ -14,17 +14,24 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:hooks/hooks.dart';
 
+import 'build_steps.dart';
 import 'convert.dart';
 import 'device_classes.dart';
 import 'layout.dart';
 import 'pipeline_version.dart';
+import 'plugin_discovery.dart';
+import 'shader_build.dart' show ShaderBuildTarget;
+import 'user_defines.dart';
 
 /// What one call to [runAssetBuild] did, for a hook's own log line and for
 /// a test to assert against without parsing stdout.
 final class AssetBuildReport {
+  /// The report of one run: what it [converted], what it [skipped], and the
+  /// [dependencies] it declares.
   const AssetBuildReport({
     required this.converted,
     required this.skipped,
@@ -55,8 +62,16 @@ final class _CacheEntry {
     required this.lods,
   });
 
+  factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
+    hash: json['hash']! as String,
+    formatVersion: json['formatVersion']! as int,
+    pipelineVersion: json['pipelineVersion']! as int,
+    textures: json['textures'] as String? ?? '(unrecorded)',
+    lods: json['lods'] as String? ?? '',
+  );
   final String hash;
   final int formatVersion;
+
   final int pipelineVersion;
 
   /// Which compression family the cached output was written with — `gfx-69n`.
@@ -74,14 +89,6 @@ final class _CacheEntry {
   /// changes nothing about the source's bytes, so without this the old file
   /// would stand.
   final String lods;
-
-  factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
-    hash: json['hash']! as String,
-    formatVersion: json['formatVersion']! as int,
-    pipelineVersion: json['pipelineVersion']! as int,
-    textures: json['textures'] as String? ?? '(unrecorded)',
-    lods: json['lods'] as String? ?? '',
-  );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'hash': hash,
@@ -127,19 +134,40 @@ final class _Target {
 String _cachePath(AssetLayout layout) =>
     '${layout.generatedDir.path}/.flutter3d_cache.json';
 
+/// The asset cache's envelope: `format` and the layout of its entries.
+///
+/// **A cache, so a mismatch is a rebuild, not a refusal.** A cache written
+/// by another layout — the bare map before 1.0, or a later build's — reads
+/// as empty, and everything converts again once. That is the conservative
+/// answer for a stamp, and why the layout is matched exactly here, which a
+/// file a person keeps would never be.
+const String _cacheFormat = 'f3d.assetCache';
+const int _cacheLayout = 1;
+
 Map<String, _CacheEntry> _readCache(String path) {
   final file = File(path);
   if (!file.existsSync()) return const <String, _CacheEntry>{};
   try {
-    final json = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
-    return <String, _CacheEntry>{
-      for (final entry in json.entries)
-        entry.key: _CacheEntry.fromJson(entry.value! as Map<String, Object?>),
+    return switch (jsonDecode(file.readAsStringSync())) {
+      {
+        'format': _cacheFormat,
+        'version': _cacheLayout,
+        'entries': final Map<String, Object?> entries,
+      } =>
+        <String, _CacheEntry>{
+          for (final entry in entries.entries)
+            entry.key: _CacheEntry.fromJson(
+              entry.value! as Map<String, Object?>,
+            ),
+        },
+      _ => const <String, _CacheEntry>{},
     };
   } on FormatException {
     // A cache nobody can read is a cache that has nothing in it — the
     // conservative failure, since it converts everything rather than
     // trusting a stamp it cannot make sense of.
+    return const <String, _CacheEntry>{};
+  } on TypeError {
     return const <String, _CacheEntry>{};
   }
 }
@@ -148,7 +176,13 @@ void _writeCache(String path, Map<String, _CacheEntry> cache) {
   final file = File(path)..parent.createSync(recursive: true);
   file.writeAsStringSync(
     jsonEncode(<String, Object?>{
-      for (final entry in cache.entries) entry.key: entry.value.toJson(),
+      'format': _cacheFormat,
+      'version': _cacheLayout,
+      'requires': const <String>[],
+      'generator': 'flutter3d',
+      'entries': <String, Object?>{
+        for (final entry in cache.entries) entry.key: entry.value.toJson(),
+      },
     }),
   );
 }
@@ -253,8 +287,8 @@ Future<AssetBuildReport> runAssetBuild(
     for (final target in targets) {
       final entry = _CacheEntry(
         hash: hash,
-        formatVersion: kF3dVersion,
-        pipelineVersion: kAssetPipelineVersion,
+        formatVersion: f3dVersion,
+        pipelineVersion: assetPipelineVersion,
         textures: textures.name,
         lods:
             '${target.lods.join(',')}${target.impostor ? ' impostor' : ''}'
@@ -330,6 +364,23 @@ TextureFamily familyForTargetOS(OS? targetOS) => switch (targetOS) {
   _ => TextureFamily.auto,
 };
 
+/// Says on stderr, where the build's log keeps it, each key under
+/// `hooks: user_defines: <package>:` this build does not read. The defines
+/// are read from the project's pubspec, or from the workspace's above it
+/// when the project is a workspace member.
+void _warnUnreadUserDefines(Directory projectRoot, String package) {
+  for (Directory? at = projectRoot; at != null;) {
+    final pubspec = File('${at.path}/pubspec.yaml');
+    final text = pubspec.existsSync() ? pubspec.readAsStringSync() : '';
+    unknownUserDefineWarnings(text, package: package).forEach(stderr.writeln);
+    if (!RegExp(r'^resolution:\s*workspace', multiLine: true).hasMatch(text)) {
+      return;
+    }
+    final parent = at.parent;
+    at = parent.path == at.path ? null : parent;
+  }
+}
+
 TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
   input.config.buildCodeAssets ? input.config.code.targetOS : null,
 );
@@ -339,6 +390,8 @@ TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
 /// `package:hooks`' own `build()`.
 ///
 /// ```dart
+/// // The build runs these from dev_dependencies; nothing here ships.
+/// // ignore_for_file: depend_on_referenced_packages
 /// import 'package:flutter3d_build/flutter3d_build.dart';
 /// import 'package:hooks/hooks.dart';
 ///
@@ -346,7 +399,39 @@ TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
 ///   await build(arguments, buildAssets);
 /// }
 /// ```
-Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
+///
+/// The engine's three [BuildStep]s and nothing else: [buildAssetsWith] with
+/// no steps of the project's own.
+Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) =>
+    buildAssetsWith(const <BuildStep>[])(input, output);
+
+/// The hook's body with a project's own [steps] beside the engine's —
+/// importers, bakers, generated files — ordered by their `after` and
+/// `before` against `models`, `materials` and `plugins`. See [BuildStep].
+///
+/// ```dart
+/// void main(List<String> arguments) async {
+///   await build(arguments, buildAssetsWith(<BuildStep>[WindBaker()]));
+/// }
+/// ```
+///
+/// Every step's inputs are declared to the hook, so an edit to any of them
+/// runs the build again. A step that throws fails the build with a
+/// [BuildError] naming it.
+Future<void> Function(BuildInput input, BuildOutputBuilder output)
+buildAssetsWith(Iterable<BuildStep> steps) {
+  final given = List<BuildStep>.unmodifiable(steps);
+  // Checked now, when the hook is written, rather than on the first build.
+  buildStepOrder(given);
+  return (BuildInput input, BuildOutputBuilder output) =>
+      _buildAssets(input, output, given);
+}
+
+Future<void> _buildAssets(
+  BuildInput input,
+  BuildOutputBuilder output,
+  List<BuildStep> steps,
+) async {
   // `packageRoot` is a directory `Uri` — its own path ends in `/`, and
   // `Directory.fromUri(...).path` keeps that trailing slash rather than
   // dropping it the way a hand-typed directory path never would. Every path
@@ -364,26 +449,70 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // (or `etc2`, or `none`) under this package's key in its
   // `hook_user_defines`, which is also how `--textures` finally reaches the
   // application path. Failing that, the platform being built for.
-  final requested = input.userDefines['textures'];
-  final textures = requested is String
-      ? TextureFamily.parse(requested) ?? _familyForTarget(input)
-      : _familyForTarget(input);
+  // A value that is not one of the choices fails the build naming them; a
+  // key this does not read is a warning (`user_defines.dart`).
+  _warnUnreadUserDefines(projectRoot, input.packageName);
+  final TextureFamily? requested;
+  final List<DeviceClass>? requestedClasses;
+  try {
+    requested = texturesDefine(input.userDefines['textures']);
+    requestedClasses = deviceClassesDefine(input.userDefines['deviceClasses']);
+  } on FormatException catch (error, stackTrace) {
+    Error.throwWithStackTrace(BuildError(message: error.message), stackTrace);
+  }
+  final textures = requested ?? _familyForTarget(input);
 
   // **Which device classes — `N7`.** Only matters to a manifest that names
   // some. A project's own `deviceClasses: [web]` user define first, for a
   // build the target cannot tell apart; failing that, the target: a native
   // build carries the phone and desktop files, a web build the web's alone.
   final deviceClasses =
-      parseDeviceClasses(input.userDefines['deviceClasses']) ??
+      requestedClasses ??
       deviceClassesForTargetOS(
         input.config.buildCodeAssets ? input.config.code.targetOS : null,
       );
 
-  final report = await runAssetBuild(
-    projectRoot,
-    textures: textures,
-    deviceClasses: deviceClasses,
-  );
+  // **The steps — models, then materials, then plugins, then the project's
+  // own.** Materials (P8) come after the models and in the same hook, because
+  // they land in the same directory the project already bundles; one that
+  // does not compile fails the build here, naming its file and line, rather
+  // than a draw at run time. The plugin list (`lib/plugins.g.dart`) is
+  // written before the Dart is compiled, so a plugin dependency added since
+  // the last build is in this one; the package graph and every pubspec read
+  // are declared below, so adding or removing one reruns the hook.
+  // **The shaders — D15.** Every stage when the project asks for every one
+  // (`fullShaders: true` among this package's user defines, what
+  // `--full-shaders` sets); the native target's section for a native build,
+  // both sections when the build names no target.
+  final fullShaders = input.userDefines['fullShaders'] == true;
+  final shaderTarget = input.config.buildCodeAssets
+      ? ShaderBuildTarget.native
+      : ShaderBuildTarget.any;
+
+  final BuildStepsReport report;
+  try {
+    report = await runBuildSteps(
+      projectRoot,
+      steps: steps,
+      textures: textures,
+      deviceClasses: deviceClasses,
+      fullShaders: fullShaders,
+      shaderTarget: shaderTarget,
+    );
+  } on MaterialBuildException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      BuildError(message: error.toString()),
+      stackTrace,
+    );
+  } on PluginDiscoveryException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      BuildError(message: error.toString()),
+      stackTrace,
+    );
+  } on BuildStepException catch (error, stackTrace) {
+    Error.throwWithStackTrace(BuildError(message: error.message), stackTrace);
+  }
+
   for (final source in report.dependencies) {
     output.dependencies.add(Uri.file(source));
   }

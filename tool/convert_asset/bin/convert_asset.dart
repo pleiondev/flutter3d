@@ -98,7 +98,7 @@ final class _CliAssetSource extends AssetSource {
   String get key => path;
 
   @override
-  Future<Uint8List> read() => File(path).readAsBytes();
+  Future<Uint8List> read(AssetRead request) => File(path).readAsBytes();
 
   @override
   AssetUriResolver get resolveUri => (AssetRequest request) async {

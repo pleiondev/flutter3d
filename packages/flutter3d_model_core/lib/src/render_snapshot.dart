@@ -35,6 +35,9 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show meshWorkStaysHere;
 import 'package:vector_math/vector_math.dart';
 
@@ -58,6 +61,8 @@ typedef TileDevice = GraphicsDevice Function(int width, int height);
 /// its own node on its own device, and a node built on one device cannot draw
 /// on another.
 final class SnapshotCamera {
+  /// A camera at [position] looking at [target], perspective with the default
+  /// up vector unless [up] or [projection] says otherwise.
   const SnapshotCamera({
     required this.position,
     required this.target,
@@ -88,6 +93,12 @@ final class SnapshotCamera {
 /// and supersampling is the one knob screen 12 used to call "samples" before
 /// the 2026-09-09 decision named it for what it is.
 final class RenderPreset {
+  /// A snapshot [width] by [height] pixels seen through [camera], one tile with
+  /// no supersampling and default [settings] unless given.
+  ///
+  /// Asserts that both sides are positive, that [ssaa] is one or two, that both
+  /// tile counts are positive and that each side divides evenly by its tile
+  /// count.
   const RenderPreset({
     required this.width,
     required this.height,
@@ -120,8 +131,11 @@ final class RenderPreset {
   /// down — the size the returned PNG is encoded at.
   final int width;
 
+  /// The snapshot's own height in pixels, after any supersampling has been
+  /// resolved back down. See [width].
   final int height;
 
+  /// Where the snapshot is seen from.
   final SnapshotCamera camera;
 
   /// 1 for no supersampling, 2 for a linear 2×2 supersample resolved back down
@@ -136,14 +150,22 @@ final class RenderPreset {
   /// own [TiledProjection], stitched afterwards. `(1, 1)` is one tile the size
   /// of the whole frame, the same code path with nothing to stitch.
   final int tilesX;
+
+  /// How many tiles tall the grid is. See [tilesX].
   final int tilesY;
 
-  final Vector4? clearColor;
+  /// The background, linear as `CameraView.clearColor` is; opaque
+  /// black when null.
+  final LinearColor? clearColor;
 }
 
 /// A snapshot of [project] at [preset], each tile rendered on a device of its
 /// own from [tileDevice].
 final class RenderSnapshotJob {
+  /// A job rendering [project] at [preset], drawing each tile on a device from
+  /// [tileDevice], one tile at a time unless [concurrency] says otherwise.
+  ///
+  /// Asserts that [concurrency] is at least one.
   RenderSnapshotJob(
     this.project,
     this.preset, {
@@ -151,7 +173,10 @@ final class RenderSnapshotJob {
     this.concurrency = 1,
   }) : assert(concurrency >= 1, 'a grid is drawn by at least one worker');
 
+  /// The project rendered, as it was when the job was built.
   final ModelProject project;
+
+  /// What the snapshot is asked for: size, camera, supersampling and tiling.
   final RenderPreset preset;
 
   /// Where each tile is drawn. See [TileDevice] for why it is a function.
@@ -603,7 +628,7 @@ TextureHandle _texel(GraphicsDevice device, List<int> rgba) =>
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
 
 /// A plain box filter, [factor] × [factor] source pixels averaged per channel
 /// into one destination pixel — the resolve half of "SSAA ×2" that
@@ -705,21 +730,15 @@ Future<Uint8List> drawTile(
     width: tileWidth,
     height: tileHeight,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
-        clearColor: preset.clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: preset.clearColor ?? LinearColor.black,
       ),
     ],
     settings: preset.settings,
   );
 
-  final tile = await device.readPixels(result.frame);
-  if (tile == null) {
-    throw StateError(
-      'tile $tileX,$tileY could not be read back from the device it was '
-      'drawn on',
-    );
-  }
+  final tile = await device.readback(result.frame);
   return tile.buffer.asUint8List();
 }

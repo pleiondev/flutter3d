@@ -9,16 +9,21 @@ const double _dt = 1.0 / 60.0;
 /// Half the player: 0.7 m across, 1.8 m tall.
 final Vector3 _playerHalf = Vector3(0.35, 0.9, 0.35);
 
-/// A floor at y = 0 with walls around it.
-CollisionWorld _room({double size = 20.0, bool walls = true}) {
+/// A floor at y = 0 with walls [height] tall around it.
+CollisionWorld _room({
+  double size = 20.0,
+  bool walls = true,
+  double height = 4.0,
+}) {
   final world = CollisionWorld();
   world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(size, 1.0, size));
   if (walls) {
     final half = size / 2.0;
-    world.addBox(Vector3(half, 2.0, 0.0), Vector3(1.0, 4.0, size));
-    world.addBox(Vector3(-half, 2.0, 0.0), Vector3(1.0, 4.0, size));
-    world.addBox(Vector3(0.0, 2.0, half), Vector3(size, 4.0, 1.0));
-    world.addBox(Vector3(0.0, 2.0, -half), Vector3(size, 4.0, 1.0));
+    final mid = height / 2.0;
+    world.addBox(Vector3(half, mid, 0.0), Vector3(1.0, height, size));
+    world.addBox(Vector3(-half, mid, 0.0), Vector3(1.0, height, size));
+    world.addBox(Vector3(0.0, mid, half), Vector3(size, height, 1.0));
+    world.addBox(Vector3(0.0, mid, -half), Vector3(size, height, 1.0));
   }
   return world;
 }
@@ -45,6 +50,52 @@ void _walk(
 }
 
 void main() {
+  group('driven by root motion', () {
+    // Mutation: drop the `drivenBy` branch in `step`. The body then
+    // accelerates towards a wish of nothing and does not move.
+    test('moves exactly as far as it is handed, not by its wish', () {
+      final player = _player(_room());
+      for (var i = 0; i < 10; i++) {
+        player.step(
+          1.0 / 60.0,
+          wishDirection: Vector3(-1.0, 0.0, 0.0),
+          drivenBy: Vector3(0.0, 0.0, 0.05),
+        );
+      }
+      expect(player.position.z, closeTo(0.5, 1e-5));
+      expect(player.position.x, 0.0);
+      expect(player.isGrounded, isTrue);
+    });
+
+    test('stops at a wall as any move does', () {
+      final player = _player(_room(size: 4.0));
+      for (var i = 0; i < 120; i++) {
+        player.step(
+          1.0 / 60.0,
+          wishDirection: Vector3.zero(),
+          drivenBy: Vector3(0.0, 0.0, 0.05),
+        );
+      }
+      // The wall's face is at z = 1.5; half the body is 0.35.
+      expect(player.position.z, closeTo(1.5 - 0.35, 0.01));
+    });
+
+    test('and falls while it walks off an edge', () {
+      final world = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(2.0, 1.0, 2.0));
+      final player = _player(world);
+      for (var i = 0; i < 60; i++) {
+        player.step(
+          1.0 / 60.0,
+          wishDirection: Vector3.zero(),
+          drivenBy: Vector3(0.0, 0.0, 0.05),
+        );
+      }
+      expect(player.position.z, closeTo(3.0, 1e-5));
+      expect(player.position.y, lessThan(0.0));
+    });
+  });
+
   group('walking', () {
     test('settles onto the floor and stays there', () {
       final world = _room();
@@ -281,7 +332,7 @@ void main() {
       );
       // The whole of the ledge, in one step, and never more than the limit.
       expect(climbed, closeTo(0.3, 0.02));
-      expect(climbed, lessThanOrEqualTo(const MovementTuning().stepHeight));
+      expect(climbed, lessThanOrEqualTo(const MovementSettings().stepHeight));
       // And it is this step's news, not a running total.
       _walk(player, 5, direction: Vector3(0.0, 0.0, -1.0));
       expect(player.steppedUp, 0.0);
@@ -576,16 +627,25 @@ void main() {
       final player = _player(world);
       _walk(player, 20);
 
+      // Every step, not the last one: the net of the floor's push up and the
+      // platform's down put the body in the middle of the gap by jumping
+      // across it, so it flipped between above the floor and half a metre
+      // into it, and the last step happened to be an "above" under 24 m/s².
+      // Mutation: drop the `moverOnly` give-back in `depenetrate`, so the
+      // platform's push alone may set the body into the floor — the lowest
+      // is -0.46.
+      var lowest = double.infinity;
       for (var i = 0; i < 200; i++) {
         ceiling.moveTo(ceiling.position + Vector3(0.0, -0.03, 0.0));
         player.step(_dt, wishDirection: Vector3.zero());
         world.update();
         world.clearKinematicDeltas();
+        lowest = math.min(lowest, player.position.y);
       }
 
       // Squashed against the floor, and above it. Being pushed through would
       // put the player under the level, which is unrecoverable.
-      expect(player.position.y, greaterThan(0.0));
+      expect(lowest, greaterThan(0.0));
     });
   });
 
@@ -608,7 +668,7 @@ void main() {
     /// ground.
     int airborneWalkingDown(
       CollisionWorld world,
-      MovementTuning tuning, {
+      MovementSettings tuning, {
       int steps = 600,
     }) {
       final player = CharacterController(
@@ -633,7 +693,7 @@ void main() {
       //
       // Mutation: default `floorSnapLength` to 0.3 and this reads zero.
       expect(
-        airborneWalkingDown(staircase(), const MovementTuning()),
+        airborneWalkingDown(staircase(), const MovementSettings()),
         greaterThan(100),
         reason:
             'eight centimetres of probe cannot hold a twenty centimetre '
@@ -647,7 +707,7 @@ void main() {
       // at `groundProbe`, which is the same thing said in the controller.
       final airborne = airborneWalkingDown(
         staircase(),
-        const MovementTuning(floorSnapLength: 0.3),
+        const MovementSettings(floorSnapLength: 0.3),
       );
 
       expect(airborne, 0, reason: 'a 0.3 m reach carries a 0.2 m step');
@@ -672,7 +732,7 @@ void main() {
           world: world,
           shape: CollisionBox(_playerHalf),
           position: Vector3(0.0, 3.9, 0.0),
-          tuning: MovementTuning(floorSnapLength: snap),
+          tuning: MovementSettings(floorSnapLength: snap),
         );
         var last = 0.0;
         for (var i = 0; i < 200; i++) {
@@ -718,9 +778,9 @@ void main() {
           return world;
         }
 
-        for (final tuning in <MovementTuning>[
-          const MovementTuning(),
-          const MovementTuning(floorSnapLength: 0.3),
+        for (final tuning in <MovementSettings>[
+          const MovementSettings(),
+          const MovementSettings(floorSnapLength: 0.3),
         ]) {
           final world = pit();
           final player = CharacterController(
@@ -789,11 +849,13 @@ void main() {
           world: world,
           shape: CollisionBox(_playerHalf),
           position: Vector3(0.0, 0.9, -3.0),
-          tuning: const MovementTuning(floorSnapLength: 0.5),
+          tuning: const MovementSettings(floorSnapLength: 0.5),
         )..solidFilter = (SweptContact c) => c.other != refused;
 
+        // Two seconds: at the world's 9.81 the six metres down take until
+        // step 95, which at the 24 m/s² this was written under took 60.
         var stoodOnIt = 0;
-        for (var i = 0; i < 90; i++) {
+        for (var i = 0; i < 120; i++) {
           player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
           world.update();
           // Past the lip, and not yet down on the real floor.
@@ -828,14 +890,14 @@ void main() {
         world: open,
         shape: CollisionBox(_playerHalf),
         position: Vector3(0.0, 0.9, 0.0),
-        tuning: const MovementTuning(floorSnapLength: 0.5),
+        tuning: const MovementSettings(floorSnapLength: 0.5),
       );
       _walk(thrown, 30);
       thrown.velocity.y = 15.0;
       thrown.suppressFloorSnap();
       thrown.step(_dt, wishDirection: Vector3.zero());
 
-      expect(thrown.velocity.y, closeTo(15.0 - 24.0 * _dt, 1e-6));
+      expect(thrown.velocity.y, closeTo(15.0 - thrown.gravity * _dt, 1e-6));
       expect(thrown.isGrounded, isFalse);
 
       // The half that does need it: a low ceiling takes the upward speed away
@@ -855,7 +917,7 @@ void main() {
         world: shaft,
         shape: CollisionBox(_playerHalf),
         position: Vector3(0.0, 0.9, 0.0),
-        tuning: const MovementTuning(floorSnapLength: 0.5),
+        tuning: const MovementSettings(floorSnapLength: 0.5),
       );
       _walk(bonked, 30);
       final pad = bonked.position.y;
@@ -887,7 +949,7 @@ void main() {
         world: world,
         shape: CollisionBox(_playerHalf),
         position: Vector3(0.0, 0.9, 0.5),
-        tuning: const MovementTuning(floorSnapLength: 0.3),
+        tuning: const MovementSettings(floorSnapLength: 0.3),
       );
 
       var airborne = 0;
@@ -910,7 +972,12 @@ void main() {
       // nobody did: the wedge that ejects, the corner that swallows, the seam
       // between two brushes that a sweep slips through. It is the single most
       // valuable test in this file.
-      final world = _room(size: 30.0);
+      // Walls nobody can get on top of: a body starts up to 6 m off the floor
+      // and a jump at the world's 9.81 rises 3.3 m. At 4 m, the height these
+      // were while characters fell at 24 m/s², seventeen runs stood on a
+      // wall and walked off its outside, which is over a wall and not
+      // through one.
+      final world = _room(size: 30.0, height: 12.0);
 
       // Pillars, steps and a low ceiling, to give the sweep awkward company.
       for (var i = 0; i < 12; i++) {

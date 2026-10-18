@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "racing start",
   "generatedBy": "tool/make_templates.py",
   "editor": {
@@ -44,7 +47,8 @@
         400.0
       ],
       "material": "grass",
-      "surface": "grass"
+      "surface": "grass",
+      "id": "b0249938"
     },
     {
       "at": [
@@ -57,7 +61,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "e7511381"
     },
     {
       "at": [
@@ -70,7 +75,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "15699001"
     },
     {
       "at": [
@@ -83,7 +89,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "df146012"
     },
     {
       "at": [
@@ -96,7 +103,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "4ee68692"
     },
     {
       "at": [
@@ -109,7 +117,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "2e2090e2"
     },
     {
       "at": [
@@ -122,7 +131,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "be4e6a62"
     },
     {
       "at": [
@@ -135,7 +145,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "6225892b"
     },
     {
       "at": [
@@ -148,7 +159,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "903e05ab"
     },
     {
       "at": [
@@ -161,7 +173,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "8944e662"
     },
     {
       "at": [
@@ -174,7 +187,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "f9170ce2"
     },
     {
       "at": [
@@ -187,7 +201,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "b7c7a592"
     },
     {
       "at": [
@@ -200,7 +215,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "47f57f12"
     },
     {
       "at": [
@@ -213,7 +229,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "4df14c01"
     },
     {
       "at": [
@@ -226,7 +243,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "1fd8cf81"
     },
     {
       "at": [
@@ -239,7 +257,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "231478aa"
     },
     {
       "at": [
@@ -252,7 +271,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "0ab0dcba"
     },
     {
       "at": [
@@ -265,7 +285,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "8e1f9197"
     },
     {
       "at": [
@@ -278,7 +299,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "59a62e3a"
     },
     {
       "at": [
@@ -291,7 +313,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "7209ca2a"
     },
     {
       "at": [
@@ -304,7 +327,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "aa91862a"
     },
     {
       "at": [
@@ -317,7 +341,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "922dea3a"
     },
     {
       "at": [
@@ -330,7 +355,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "77b1fc17"
     },
     {
       "at": [
@@ -343,7 +369,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "433898ba"
     },
     {
       "at": [
@@ -356,7 +383,8 @@
         12.0,
         4.0
       ],
-      "material": "stone"
+      "material": "stone",
+      "id": "5b9c34aa"
     }
   ],
   "lights": [
@@ -372,8 +400,9 @@
         0.95,
         0.86
       ],
-      "intensity": 3.1,
-      "castsShadow": true
+      "intensity": 17950.809091799998,
+      "castsShadow": true,
+      "id": "f32061bf"
     }
   ],
   "entities": []

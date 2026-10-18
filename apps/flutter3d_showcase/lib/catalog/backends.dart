@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `backends` category's pages, one page per backend the same scene runs on, and one on what differs between them, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> backendsFeatures = <Feature>[
   Feature(
     id: 'backend-impeller',

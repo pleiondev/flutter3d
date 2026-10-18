@@ -12,7 +12,7 @@
 /// So the genre ships the readouts and the game ships the layout. Each widget
 /// takes the genre's own type — an [Arsenal], an [Inventory] — rather than the
 /// numbers pulled out of it, because pulling them out is where the three
-/// mistakes were. Each takes a [ReadoutStyle], because where it sits and what
+/// mistakes were. Each takes a [ShooterReadoutStyle], because where it sits and what
 /// colour it is are the game's business and not this package's.
 ///
 /// **This is one of the two files under `src/` that belong to the visible
@@ -31,8 +31,10 @@ import 'inventory.dart';
 /// **One object rather than a dozen parameters**, so a game states its look
 /// once and passes the same object to every readout — and so a readout that
 /// grows a fourth thing to colour does not change the shape of six call sites.
-final class ReadoutStyle {
-  const ReadoutStyle({
+final class ShooterReadoutStyle {
+  /// A style with each field at the default its own doc gives: white text
+  /// at 18, a red warning, bars 120 by 6 logical pixels.
+  const ShooterReadoutStyle({
     this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0),
     this.dim = const Color(0x66FFFFFF),
     this.warning = const Color(0xFFE5533D),
@@ -50,7 +52,10 @@ final class ReadoutStyle {
   /// What a bar turns when it is nearly empty. See [HealthBar.lowAt].
   final Color warning;
 
+  /// How tall one bar is, in logical pixels.
   final double barHeight;
+
+  /// How wide the bars are, in logical pixels.
   final double barWidth;
 }
 
@@ -62,43 +67,54 @@ final class ReadoutStyle {
 /// first and it reads as twice the health, which is exactly wrong at the
 /// moment it matters.
 final class HealthBar extends StatelessWidget {
+  /// A bar of [health] out of [maxHealth], with [armor] out of [maxArmor]
+  /// over it.
   const HealthBar({
     super.key,
     required this.health,
-    required this.armour,
+    required this.armor,
     this.maxHealth = 100.0,
-    this.maxArmour = 100.0,
+    this.maxArmor = 100.0,
     this.lowAt = 0.25,
-    this.style = const ReadoutStyle(),
+    this.style = const ShooterReadoutStyle(),
   });
 
+  /// In hit points (unitless).
   final double health;
-  final double armour;
-  final double maxHealth;
-  final double maxArmour;
 
-  /// The share of health below which the bar turns [ReadoutStyle.warning].
+  /// In armour points (unitless).
+  final double armor;
+
+  /// What a full bar is, in hit points (unitless).
+  final double maxHealth;
+
+  /// What a full bar is, in armour points (unitless).
+  final double maxArmor;
+
+  /// The share of health below which the bar turns [ShooterReadoutStyle.warning].
   final double lowAt;
 
-  final ReadoutStyle style;
+  /// How the bars are drawn; a healthy bar takes its text colour, so that
+  /// must be set.
+  final ShooterReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {
     final left = (health / maxHealth).clamp(0.0, 1.0);
-    final shield = (armour / maxArmour).clamp(0.0, 1.0);
-    final colour = left <= lowAt ? style.warning : style.text.color!;
+    final shield = (armor / maxArmor).clamp(0.0, 1.0);
+    final color = left <= lowAt ? style.warning : style.text.color!;
     return SizedBox(
       width: style.barWidth,
       height: style.barHeight * 2.0 + 2.0,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _Bar(fraction: left, colour: colour, style: style),
+          _Bar(fraction: left, color: color, style: style),
           const SizedBox(height: 2.0),
           // Absent rather than empty: a shield bar at nought is a bar the
           // player learns to ignore, and then does not notice arriving.
           if (shield > 0.0)
-            _Bar(fraction: shield, colour: style.dim, style: style),
+            _Bar(fraction: shield, color: style.dim, style: style),
         ],
       ),
     );
@@ -114,15 +130,20 @@ final class HealthBar extends StatelessWidget {
 /// the two apart, and doing it here is what stops the next game from getting it
 /// wrong again.
 final class AmmoReadout extends StatelessWidget {
+  /// The ammunition carried for [arsenal]'s weapon in hand, drawn in
+  /// [style]; nothing at all when nothing is held.
   const AmmoReadout({
     super.key,
     required this.arsenal,
-    this.style = const ReadoutStyle(),
+    this.style = const ShooterReadoutStyle(),
     this.endless = '∞',
   });
 
+  /// The player's weapons, read as they are when the widget builds.
   final Arsenal arsenal;
-  final ReadoutStyle style;
+
+  /// How the number is drawn.
+  final ShooterReadoutStyle style;
 
   /// What to draw for a weapon that spends nothing.
   final String endless;
@@ -143,25 +164,30 @@ final class AmmoReadout extends StatelessWidget {
 ///
 /// Takes the [Inventory] rather than the set of names, because a key that has
 /// been used is removed from it and a game holding its own copy showed one that
-/// was gone. Unknown names are drawn in [ReadoutStyle.dim]: a level may name a
+/// was gone. Unknown names are drawn in [ShooterReadoutStyle.dim]: a level may name a
 /// key colour this table has never heard of, and a pip in grey is a better
 /// answer than a crash or a missing pip a player cannot account for.
 final class KeyPips extends StatelessWidget {
+  /// A pip for each key in [inventory], coloured by [colors].
   const KeyPips({
     super.key,
     required this.inventory,
-    this.colours = const <String, Color>{},
-    this.style = const ReadoutStyle(),
+    this.colors = const <String, Color>{},
+    this.style = const ShooterReadoutStyle(),
     this.pipSize = 10.0,
   });
 
+  /// What the player carries; its keys are read when the widget builds.
   final Inventory inventory;
 
   /// What colour each key name is drawn in. A name not here gets
-  /// [ReadoutStyle.dim].
-  final Map<String, Color> colours;
+  /// [ShooterReadoutStyle.dim].
+  final Map<String, Color> colors;
 
-  final ReadoutStyle style;
+  /// Where the colour of an unknown key comes from ([ShooterReadoutStyle.dim]).
+  final ShooterReadoutStyle style;
+
+  /// How big one key's pip is, in logical pixels.
   final double pipSize;
 
   @override
@@ -176,7 +202,7 @@ final class KeyPips extends StatelessWidget {
             height: pipSize,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: colours[key] ?? style.dim,
+                color: colors[key] ?? style.dim,
                 shape: BoxShape.circle,
               ),
             ),
@@ -190,13 +216,14 @@ final class KeyPips extends StatelessWidget {
 final class _Bar extends StatelessWidget {
   const _Bar({
     required this.fraction,
-    required this.colour,
+    required this.color,
     required this.style,
   });
 
+  /// How full the bar is, a 0..1 fraction.
   final double fraction;
-  final Color colour;
-  final ReadoutStyle style;
+  final Color color;
+  final ShooterReadoutStyle style;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -211,7 +238,7 @@ final class _Bar extends StatelessWidget {
         FractionallySizedBox(
           widthFactor: fraction,
           child: DecoratedBox(
-            decoration: BoxDecoration(color: colour),
+            decoration: BoxDecoration(color: color),
             child: const SizedBox.expand(),
           ),
         ),

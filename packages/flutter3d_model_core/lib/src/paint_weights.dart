@@ -55,46 +55,51 @@ part of 'command.dart';
 /// One brush hit within a drag: where it landed, in the same space
 /// [worldTransformOf] answers in, and how far its influence reaches.
 final class BrushSample {
+  /// A dab at [center] reaching [radius] metres.
   const BrushSample({required this.center, required this.radius});
 
+  /// Where the brush landed, in world space as [worldTransformOf] answers it.
   final Vector3 center;
 
   /// Vertices farther than this from [center] (in their own current, posed
   /// position) are untouched by this sample.
   final double radius;
 
+  /// The sample as JSON; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'center': <double>[center.x, center.y, center.z],
     'radius': radius,
   };
 
-  /// A [BrushSample] from its own [toJson], or null when a field is missing
-  /// or the wrong shape.
-  static BrushSample? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
-    return switch (json) {
-      {'center': final Object? centerJson, 'radius': final num radius} =>
-        switch (_doubles(centerJson, 3)) {
-          final List<double> center => BrushSample(
-            center: Vector3(center[0], center[1], center[2]),
-            radius: radius.toDouble(),
-          ),
-          null => null,
-        },
-      _ => null,
-    };
-  }
+  /// A [BrushSample] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape.
+  static BrushSample fromJson(Object? json) => switch (json) {
+    {'center': final Object? centerJson, 'radius': final num radius} =>
+      switch (_doubles(centerJson, 3)) {
+        final List<double> center => BrushSample(
+          center: Vector3(center[0], center[1], center[2]),
+          radius: radius.toDouble(),
+        ),
+        null => throw const ProjectFormatException(
+          'a brush sample\'s "center" is three numbers',
+        ),
+      },
+    _ => throw const ProjectFormatException(
+      'a brush sample names its "center" and its "radius"',
+    ),
+  };
 }
 
 /// How a sample changes a vertex's weight at `paintWeights`' own `joint`.
 ///
 /// A `final class` with `static const` instances rather than an `enum` —
-/// the same choice `BlendMode`/`DriverAxis` already make in this package,
+/// the same choice `PaintBlendMode`/`DriverAxis` already make in this package,
 /// and for the same reason: a fixed, small domain that does not want a
 /// fourth case added by accident.
 final class PaintWeightsMode {
   const PaintWeightsMode._(this.name);
 
+  /// What the mode is called in a command's arguments, `paint` or `assign`.
   final String name;
 
   /// Accumulates onto whatever a vertex already has, via [paintWeight] —
@@ -110,6 +115,22 @@ final class PaintWeightsMode {
   /// defect [assignSelection] itself exists to avoid.
   static const PaintWeightsMode assign = PaintWeightsMode._('assign');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PaintWeightsMode> values = <PaintWeightsMode>[
+    paint,
+    assign,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PaintWeightsMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'PaintWeightsMode.$name';
 }
@@ -118,6 +139,9 @@ final class PaintWeightsMode {
 /// itself is done — the same parameters [mirrorWeights] already takes,
 /// carried here as one value instead of four loose ones.
 final class PaintMirror {
+  /// A mirror across the plane at [plane] metres on [axis], remapping joints
+  /// through [jointMirror] and matching vertices within [tolerance] metres: a
+  /// tenth of a millimetre unless given.
   const PaintMirror({
     required this.axis,
     required this.jointMirror,
@@ -133,9 +157,14 @@ final class PaintMirror {
   /// gives a spine or a head bone straddling the plane.
   final Map<int, int> jointMirror;
 
+  /// In metres along [axis].
   final double plane;
+
+  /// In metres.
   final double tolerance;
 
+  /// The mirror as JSON, joint ids written as string keys; [fromJson] reads it
+  /// back.
   Map<String, Object?> toJson() => <String, Object?>{
     'axis': axis,
     'jointMirror': jointMirror.map(
@@ -145,13 +174,15 @@ final class PaintMirror {
     'tolerance': tolerance,
   };
 
-  /// A [PaintMirror] from its own [toJson], or null when a field is missing
-  /// or the wrong shape — [MirrorJoints]' own `jointMirror` reader, repeated
-  /// here rather than shared, since the two commands' readers live in
-  /// different `switch` shapes and neither is worth a third file just to
-  /// hold one map decode.
-  static PaintMirror? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
+  /// A [PaintMirror] from its own [toJson]. Throws a
+  /// [ProjectFormatException] when a field is missing or the wrong shape —
+  /// [MirrorJoints]' own `jointMirror` reader, repeated here rather than
+  /// shared, since the two commands' readers live in different `switch` shapes
+  /// and neither is worth a third file just to hold one map decode.
+  static PaintMirror fromJson(Object? json) {
+    if (json is! Map<String, Object?>) {
+      throw const ProjectFormatException('a paint mirror is an object');
+    }
     return switch (json) {
       {
         'axis': final int axis,
@@ -166,7 +197,9 @@ final class PaintMirror {
           plane: (json['plane'] as num?)?.toDouble() ?? 0.0,
           tolerance: (json['tolerance'] as num?)?.toDouble() ?? 1e-4,
         ),
-      _ => null,
+      _ => throw const ProjectFormatException(
+        'a paint mirror names its whole "axis" and its "jointMirror"',
+      ),
     };
   }
 }
@@ -323,6 +356,9 @@ void paintWeights({
 /// brush this runs inside one journal step, and for what [normalize] and
 /// [maxInfluences] do together once the stroke itself is painted.
 final class PaintWeights extends ModelCommand {
+  /// A stroke of [samples] painting [joint] of skeleton [skeletonIndex] onto
+  /// object [objectId] at [strength], in [PaintWeightsMode.paint] mode,
+  /// unmirrored and normalised unless given.
   const PaintWeights({
     required this.objectId,
     required this.skeletonIndex,
@@ -338,15 +374,26 @@ final class PaintWeights extends ModelCommand {
   /// The object with the mesh a stroke paints onto.
   final int objectId;
 
+  /// Index of the skeleton into [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton, and a [joint] that is not one of its joints.
   final int skeletonIndex;
 
   /// [ModelObject.id] of the joint this stroke paints — [skeletonIndex]'s
   /// own joint, not the mesh's local, vertex-attribute-slot index.
   final int joint;
 
+  /// Where the brush landed, in drag order. [apply] refuses an empty list.
   final List<BrushSample> samples;
+
+  /// A 0..1 weight.
   final double strength;
+
+  /// Whether the stroke blends onto the existing weights or assigns the joint
+  /// outright, [PaintWeightsMode.paint] by default.
   final PaintWeightsMode mode;
+
+  /// The mirror applied once the stroke is painted, or null to paint one side
+  /// only.
   final PaintMirror? mirror;
 
   /// Whether every vertex the stroke touched is pruned to [maxInfluences]
@@ -446,7 +493,7 @@ final class PaintWeights extends ModelCommand {
 List<BrushSample>? _brushSamplesFrom(List<Object?> json) {
   final out = <BrushSample>[];
   for (final Object? each in json) {
-    final sample = BrushSample.fromJson(each);
+    final sample = _readOrNull(() => BrushSample.fromJson(each));
     if (sample == null) return null;
     out.add(sample);
   }
@@ -460,6 +507,6 @@ List<BrushSample>? _brushSamplesFrom(List<Object?> json) {
 /// nullable return cannot.
 (PaintMirror?, bool) _paintMirrorFrom(Object? json) {
   if (json == null) return (null, true);
-  final mirror = PaintMirror.fromJson(json);
+  final mirror = _readOrNull(() => PaintMirror.fromJson(json));
   return (mirror, mirror != null);
 }

@@ -18,6 +18,8 @@ import 'physics_step_component.dart';
 /// again, a pooled ship say. A component moved to another parent keeps it:
 /// Flame moves by removing and mounting at once, and the move dropped the
 /// entry for good.
+///
+/// A game makes one with `ColliderRegistry()` and hands it to its bridge.
 final class ColliderRegistry {
   final Map<Collider, PositionComponent> _components =
       <Collider, PositionComponent>{};
@@ -88,7 +90,7 @@ final class ColliderRegistry {
   /// own raycast, which knows only Flame's hitboxes and none of the level.
   /// [mask] is the layers it can see, as a collider's is; triggers are
   /// seen only when asked for.
-  ({PositionComponent? component, Vector2 point, Collider collider})? raycast(
+  ColliderRayHit? raycast(
     CollisionWorld world,
     BridgePlane plane,
     Vector2 from,
@@ -116,10 +118,44 @@ final class ColliderRegistry {
       return null;
     }
     final met = hit.collider!;
-    return (
+    return ColliderRayHit(
       component: componentFor(met),
       point: plane.to2d(hit.point),
       collider: met,
     );
   }
+}
+
+/// What a [ColliderRegistry.raycast] met first: the collider, where on the
+/// plane, and the component it belongs to.
+final class ColliderRayHit {
+  /// [collider] met at [point], belonging to [component].
+  const ColliderRayHit({
+    required this.component,
+    required this.point,
+    required this.collider,
+  });
+
+  /// The component [collider] is registered to, or null for level geometry
+  /// and anything else nothing on the Flame side stands for.
+  final PositionComponent? component;
+
+  /// Where the ray met [collider], in Flame's coordinates on the plane.
+  final Vector2 point;
+
+  /// The collider the ray met first.
+  final Collider collider;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ColliderRayHit &&
+      other.component == component &&
+      other.point == point &&
+      other.collider == collider;
+
+  @override
+  int get hashCode => Object.hash(component, point, collider);
+
+  @override
+  String toString() => 'ColliderRayHit($collider at $point)';
 }

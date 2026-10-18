@@ -17,17 +17,19 @@ part of 'renderer.dart';
 
 /// Slot 0 as the velocity stages read it: the position alone, stepped over
 /// the standard sixty-four-byte vertex.
-final VertexLayoutSpec _kVelocityLayout = VertexLayoutSpec(<BufferLayout>[
-  BufferLayout(
-    strideInBytes: VertexLayout.standard.strideInBytes,
-    attributes: const <InputAttribute>[
-      InputAttribute(name: 'position', format: VertexFormat.float32x3),
-    ],
-  ),
-]);
+final VertexLayoutDescriptor _kVelocityLayout = VertexLayoutDescriptor(
+  <BufferLayout>[
+    BufferLayout(
+      strideInBytes: VertexLayout.standard.strideInBytes,
+      attributes: const <InputAttribute>[
+        InputAttribute(name: 'position', format: VertexFormat.float32x3),
+      ],
+    ),
+  ],
+);
 
 /// The skinned vertex: position, joints and weights, over its own stride.
-final VertexLayoutSpec _kVelocitySkinnedLayout = VertexLayoutSpec(
+final VertexLayoutDescriptor _kVelocitySkinnedLayout = VertexLayoutDescriptor(
   <BufferLayout>[
     BufferLayout(
       strideInBytes: VertexLayout.skinned.strideInBytes,
@@ -48,7 +50,7 @@ final VertexLayoutSpec _kVelocitySkinnedLayout = VertexLayoutSpec(
 /// The batch: the position per vertex, then the rows of the placement now
 /// (slot 1) and last frame (slot 2), both laid out as `InstancedMeshNode`
 /// holds them.
-final VertexLayoutSpec _kVelocityInstancedLayout = VertexLayoutSpec(
+final VertexLayoutDescriptor _kVelocityInstancedLayout = VertexLayoutDescriptor(
   <BufferLayout>[
     _kVelocityLayout.buffers.single,
     for (final prefix in <String>['i_', 'i_prev_'])
@@ -84,18 +86,20 @@ extension _VelocityPass on Renderer {
         : name;
     return _pipelineCache.putIfAbsent(
       key,
-      () => device.createPipeline(
-        instanced
-            ? velocityInstancedVertexShader
-            : skinned
-            ? velocitySkinnedVertexShader
-            : velocityVertexShader,
-        fragment,
-        layout: instanced
-            ? _kVelocityInstancedLayout
-            : skinned
-            ? _kVelocitySkinnedLayout
-            : _kVelocityLayout,
+      () => device.createPipelineFrom(
+        PipelineDescriptor(
+          vertex: instanced
+              ? _velocityInstancedVertexShader
+              : skinned
+              ? _velocitySkinnedVertexShader
+              : _velocityVertexShader,
+          fragment: fragment,
+          layout: instanced
+              ? _kVelocityInstancedLayout
+              : skinned
+              ? _kVelocitySkinnedLayout
+              : _kVelocityLayout,
+        ),
       ),
     );
   }
@@ -106,7 +110,7 @@ extension _VelocityPass on Renderer {
     final eye = vm.Vector3.zero();
     final forward = vm.Vector3.zero();
     camera
-      ..readWorldPosition(eye)
+      ..readViewOrigin(eye)
       ..readForward(forward);
     _prevFrameInfo.camera
       ..[0] = eye.x
@@ -142,10 +146,10 @@ extension _VelocityPass on Renderer {
     if (instanced != null && instanced.count == 0) return null;
     final skeleton = node.skeleton;
     final stage = instanced != null
-        ? velocityInstancedVertexShader
+        ? _velocityInstancedVertexShader
         : skeleton != null
-        ? velocitySkinnedVertexShader
-        : velocityVertexShader;
+        ? _velocitySkinnedVertexShader
+        : _velocityVertexShader;
 
     pass.bindPipeline(
       _velocityPipelineFor(
@@ -157,7 +161,7 @@ extension _VelocityPass on Renderer {
     );
     pass
       ..setWindingOrder(
-        node.worldIsMirrored
+        node.isWorldMirrored
             ? WindingOrder.clockwise
             : WindingOrder.counterClockwise,
       )
@@ -218,18 +222,28 @@ extension _VelocityPass on Renderer {
       // the frame; a skinned node that moves every frame pays one small
       // upload a frame, as a batch with per-instance weights already does.
       final palette = past?.joints ?? skeleton.matrices;
-      final texture = device.createTextureFromPixels(
-        width: 4,
-        height: palette.length ~/ 16,
-        format: TextureFormat.r32g32b32a32Float,
-        pixels: ByteData.sublistView(palette),
-      );
+      // A device that will not take the palette draws the joints standing
+      // still, which is the velocity a skinned node had before this pass.
+      TextureHandle? upload() {
+        try {
+          return device.createTextureFromPixels(
+            width: 4,
+            height: palette.length ~/ 16,
+            format: TextureFormat.r32g32b32a32Float,
+            pixels: ByteData.sublistView(palette),
+          );
+        } on DeviceResourceException {
+          return null;
+        }
+      }
+
+      final texture = upload();
       if (texture != null) _destroyAfterFrame(texture);
       pass.bindTexture(
         stage,
         'prev_joint_texture',
         texture ?? fallbackAlbedo,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
     }
     return stage;
@@ -243,7 +257,7 @@ extension _VelocityPass on Renderer {
     required TextureHandle target,
     required TextureHandle surface,
     required Scene scene,
-    required RenderView view,
+    required CameraView view,
     required RenderSettings settings,
     required int width,
     required int height,
@@ -256,13 +270,13 @@ extension _VelocityPass on Renderer {
       scene,
       view,
       viewMatrix: camera.viewMatrix,
-      frustum: vm.Frustum.matrix(unjittered),
+      frustum: _DepthConvention._viewFrustum(unjittered),
     );
     final moved = <MeshNode>[
       for (final index in _renderList.opaque)
         if (_renderList.itemAt(index).requireNode case final node
-            when frameHistory.moved(node) &&
-                frameHistory.of(node) != null &&
+            when frameHistory.moved(node, view) &&
+                frameHistory.of(node, view) != null &&
                 node.mesh is DrawableGeometry)
           node,
     ];
@@ -272,7 +286,7 @@ extension _VelocityPass on Renderer {
     final origin = device.framebufferOrigin;
     final current = toFramebufferOrigin(unjittered, origin);
     final previous = toFramebufferOrigin(
-      frameHistory.viewProjection(camera) ?? unjittered,
+      frameHistory.viewProjection(view) ?? unjittered,
       origin,
     );
     final jittered = _drawViewProjection(camera, rect, settings);
@@ -308,7 +322,7 @@ extension _VelocityPass on Renderer {
     );
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: rect,
+        viewport: PassViewport.ofRect(rect),
         scissor: rect,
         polygonMode: PolygonMode.fill,
         blend: null,
@@ -321,22 +335,22 @@ extension _VelocityPass on Renderer {
       final stage = _bindVelocityNode(
         pass: pass,
         node: node,
-        past: frameHistory.of(node),
+        past: frameHistory.of(node, view),
         jittered: jittered,
         current: current,
         previous: previous,
-        fragment: velocityShader,
+        fragment: _velocityShader,
         name: 'Velocity',
         settings: settings,
       );
       if (stage == null) continue;
       pass
-        ..bindBlock(velocityShader, _velocityInfo)
+        ..bindBlock(_velocityShader, _velocityInfo)
         ..bindTexture(
-          velocityShader,
+          _velocityShader,
           'surface_texture',
           surface,
-          sampler: SamplerOptions.nearestClamp,
+          sampler: SamplerDescriptor.nearestClamp,
         )
         ..draw(instanceCount: node is InstancedMeshNode ? node.count : 1);
     }
@@ -360,7 +374,7 @@ extension _VelocityPass on Renderer {
     required TextureHandle target,
     required TextureHandle surface,
     required Scene scene,
-    required RenderView view,
+    required CameraView view,
     required RenderSettings settings,
     required List<PassContributor> contributors,
     required int width,
@@ -374,13 +388,13 @@ extension _VelocityPass on Renderer {
       scene,
       view,
       viewMatrix: camera.viewMatrix,
-      frustum: vm.Frustum.matrix(unjittered),
+      frustum: _DepthConvention._viewFrustum(unjittered),
     );
     final blended = <MeshNode>[
       for (final index in _renderList.transparent)
         if (_renderList.itemAt(index).requireNode case final node
             when node.mesh is DrawableGeometry &&
-                node.material.baseColor.w > 0.0)
+                node.material.baseColor.a > 0.0)
           node,
     ];
     if (blended.isEmpty && contributors.isEmpty) return 0;
@@ -416,7 +430,7 @@ extension _VelocityPass on Renderer {
     );
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: rect,
+        viewport: PassViewport.ofRect(rect),
         scissor: rect,
         polygonMode: PolygonMode.fill,
         blend: ReactiveFrame.state.blend,
@@ -433,27 +447,27 @@ extension _VelocityPass on Renderer {
         jittered: jittered,
         current: current,
         previous: current,
-        fragment: reactiveShader,
+        fragment: _reactiveShader,
         name: 'Reactive',
         settings: settings,
       );
       if (stage == null) continue;
       // The material's alpha is how much of the pixel it covers: glass at a
       // fifth is a fifth reactive.
-      _reactiveInfo.params[2] = node.material.baseColor.w.clamp(0.0, 1.0);
+      _reactiveInfo.params[2] = node.material.baseColor.a.clamp(0.0, 1.0);
       pass
-        ..bindBlock(reactiveShader, _reactiveInfo)
+        ..bindBlock(_reactiveShader, _reactiveInfo)
         ..bindTexture(
-          reactiveShader,
+          _reactiveShader,
           'surface_texture',
           surface,
-          sampler: SamplerOptions.nearestClamp,
+          sampler: SamplerDescriptor.nearestClamp,
         )
         ..draw(instanceCount: node is InstancedMeshNode ? node.count : 1);
     }
 
     if (contributors.isNotEmpty) {
-      final frame = ReactiveFrame(
+      final frame = newReactiveFrame(
         encoder: pass,
         device: device,
         view: view,

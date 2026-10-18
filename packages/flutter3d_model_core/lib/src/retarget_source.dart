@@ -24,37 +24,14 @@ import 'project_document.dart';
 /// A file opened for retargeting alone — [project] and [skeleton] are read
 /// by [retargetClip], never merged into the document being edited.
 final class RetargetSource {
+  /// A source named [name] reading skeleton [skeletonIndex] of [project], with
+  /// [warning] set when that skeleton had to be synthesised.
   const RetargetSource({
     required this.name,
     required this.project,
     required this.skeletonIndex,
     this.warning,
   });
-
-  /// The file's own name, for the clip library's own card and the status
-  /// line — not [ModelDocument]'s own concern, since a decoded document
-  /// carries no file name at all.
-  final String name;
-
-  /// Read through [fromModelDocument], the same importer the live document
-  /// uses — but never folded into it. See the library doc comment.
-  final ModelProject project;
-
-  /// Which of [project]'s own skeletons [retargetClip] reads as
-  /// `sourceSkeleton` — always `0` today, since a source file names at most
-  /// one rig worth retargeting from.
-  final int skeletonIndex;
-
-  /// Set when [project] carried no skin at all and [skeleton] had to be
-  /// synthesised from its animated nodes — screen 14's own warning card:
-  /// "imported without a skin — mapped by node names only". Null for a file
-  /// that named a real skin, which is the ordinary case.
-  final String? warning;
-
-  ProjectSkeleton get skeleton => project.skeletons[skeletonIndex];
-
-  /// Every clip [project] carries — the clip library's own card list.
-  List<ProjectClip> get clips => project.clips;
 
   /// [document] read as a [RetargetSource] named [name].
   ///
@@ -103,4 +80,32 @@ final class RetargetSource {
       warning: 'Imported without a skin — mapped by node names only.',
     );
   }
+
+  /// The file's own name, for the clip library's own card and the status
+  /// line — not [ModelDocument]'s own concern, since a decoded document
+  /// carries no file name at all.
+  final String name;
+
+  /// Read through [fromModelDocument], the same importer the live document
+  /// uses — but never folded into it. See the library doc comment.
+  final ModelProject project;
+
+  /// Which of [project]'s own skeletons [retargetClip] reads as
+  /// `sourceSkeleton` — always `0` today, since a source file names at most
+  /// one rig worth retargeting from.
+  final int skeletonIndex;
+
+  /// Set when [project] carried no skin at all and [skeleton] had to be
+  /// synthesised from its animated nodes — screen 14's own warning card:
+  /// "imported without a skin — mapped by node names only". Null for a file
+  /// that named a real skin, which is the ordinary case.
+  final String? warning;
+
+  /// The skeleton the retarget reads from, [skeletonIndex] of
+  /// [ModelProject.skeletons]. Throws a [RangeError] when [skeletonIndex] is
+  /// out of range.
+  ProjectSkeleton get skeleton => project.skeletons[skeletonIndex];
+
+  /// Every clip [project] carries — the clip library's own card list.
+  List<ProjectClip> get clips => project.clips;
 }

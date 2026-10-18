@@ -14,6 +14,7 @@
 /// to grow.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -22,6 +23,9 @@ import 'monster_def.dart';
 
 /// One wave: what arrives, and how long after the one before.
 final class Wave {
+  /// [count] of [monster], arriving [after] seconds behind the wave before.
+  ///
+  /// Asserts [count] is above nought and [after] is not negative.
   const Wave({
     required this.monster,
     this.count = 1,
@@ -56,6 +60,8 @@ final class Wave {
 /// rather than by asking twice. `restore` keeps that: a saved crypt does not
 /// re-arm what it already spent.
 final class Spawner extends Mechanism {
+  /// A spawner bringing [waves] to [at] through [bestiary], facing [yaw];
+  /// asserts there is at least one wave.
   Spawner({
     super.name,
     required this.at,
@@ -96,7 +102,7 @@ final class Spawner extends Mechanism {
   bool get isDone => _spent && _wave >= waves.length;
 
   @override
-  Vector3 get origin => at;
+  Vector3 get origin => at.clone();
 
   @override
   ActivationOutcome activate(Activation by) {

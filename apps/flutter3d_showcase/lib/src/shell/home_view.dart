@@ -6,9 +6,12 @@ import 'package:flutter3d_showcase/src/catalog/catalog.dart';
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 import 'package:flutter3d_showcase/src/catalog/routes.dart';
 
+/// The home page: what the showcase is, and each category's pages as buttons.
 class HomeView extends StatelessWidget {
+  /// A home view that hands the page a button opens to [onOpen].
   const HomeView({super.key, required this.onOpen});
 
+  /// Called with the address of the page a button opens.
   final void Function(ShowcaseAddress address) onOpen;
 
   @override

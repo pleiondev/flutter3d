@@ -15,19 +15,24 @@ import 'package:flutter/widgets.dart';
 import 'purse.dart';
 
 /// How a game wants its readouts drawn.
-final class ReadoutStyle {
-  const ReadoutStyle({
+final class PlatformerReadoutStyle {
+  /// A style drawing in [text], white at 18 by default, with spent lives in
+  /// [dim] and pips [pipSize] logical pixels across.
+  const PlatformerReadoutStyle({
     this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0),
     this.dim = const Color(0x66FFFFFF),
     this.pipSize = 10.0,
   });
 
+  /// The style of the purse's lines; its colour is also the colour of a
+  /// life left in [LivesStrip], so it must have one.
   final TextStyle text;
 
   /// A life already spent, and anything the player is not being asked to look
   /// at.
   final Color dim;
 
+  /// How big one life's pip is, in logical pixels.
   final double pipSize;
 }
 
@@ -38,13 +43,15 @@ final class ReadoutStyle {
 /// the first time a level has gems in it. What is in the purse is what is
 /// drawn, in the order [order] gives or the order it was collected in.
 final class PurseReadout extends StatelessWidget {
+  /// What [purse] holds, a line per kind in [order], drawn in [style].
   const PurseReadout({
     super.key,
     required this.purse,
     this.order = const <String>[],
-    this.style = const ReadoutStyle(),
+    this.style = const PlatformerReadoutStyle(),
   });
 
+  /// The runner's purse, read as it is when the widget builds.
   final Purse purse;
 
   /// The kinds to draw, in the order to draw them. Empty draws everything the
@@ -52,7 +59,8 @@ final class PurseReadout extends StatelessWidget {
   /// with five usually does not.
   final List<String> order;
 
-  final ReadoutStyle style;
+  /// How the lines are drawn.
+  final PlatformerReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -75,11 +83,12 @@ final class PurseReadout extends StatelessWidget {
 /// counting, and a strip of pips that appears only when lives matter is how a
 /// player learns that they do.
 final class LivesStrip extends StatelessWidget {
+  /// A pip for each of [lives], with the spent ones of [of] drawn dim.
   const LivesStrip({
     super.key,
     required this.lives,
     this.of,
-    this.style = const ReadoutStyle(),
+    this.style = const PlatformerReadoutStyle(),
   });
 
   /// How many are left. Negative means unlimited; see the class doc.
@@ -89,7 +98,9 @@ final class LivesStrip extends StatelessWidget {
   /// draws only what is left.
   final int? of;
 
-  final ReadoutStyle style;
+  /// How the pips are drawn: their size, and the colours of a life left and
+  /// a life spent.
+  final PlatformerReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {

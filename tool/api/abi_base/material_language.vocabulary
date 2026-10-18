@@ -1,0 +1,520 @@
+# Recorded from the working tree (no release tagged yet) by `dart run api_snapshot:abi_base`.
+# A language's vocabulary, one fact a line, each ending in the version
+# it arrived in; "<language> version <N>" is the newest this build
+# reads. Generated; a line new since the base recorded at the tag
+# carries a version above the base's newest (the rule `a language's
+# vocabulary grows only with its version`).
+f3dmat binding base_color_texture 1
+f3dmat binding emissive_texture 1
+f3dmat binding metallic_roughness_texture 1
+f3dmat binding normal_texture 1
+f3dmat binding occlusion_texture 1
+f3dmat blend additive 2
+f3dmat blend alpha 2
+f3dmat blend hashed 2
+f3dmat blend mask 2
+f3dmat blend opaque 2
+f3dmat blend premultiplied 2
+f3dmat block AccumulateInfo 1
+f3dmat block BloomInfo 1
+f3dmat block CameraVelocityInfo 1
+f3dmat block CausticInfo 1
+f3dmat block CompositeInfo 1
+f3dmat block ContactShadowInfo 1
+f3dmat block ContactShadowResolveInfo 1
+f3dmat block ContributorLightInfo 1
+f3dmat block ConvolveInfo 1
+f3dmat block DecalInfo 1
+f3dmat block DepthPyramidInfo 1
+f3dmat block DofInfo 1
+f3dmat block DofTileInfo 1
+f3dmat block EasuInfo 1
+f3dmat block EvsmFilterInfo 1
+f3dmat block FieldDecayInfo 1
+f3dmat block FogInfo 1
+f3dmat block FogUpsampleInfo 1
+f3dmat block FragCoordInfo 1
+f3dmat block FragInfo 1
+f3dmat block FrameInfo 1
+f3dmat block FxaaInfo 1
+f3dmat block HighContrastInfo 1
+f3dmat block IdInfo 1
+f3dmat block IrradianceInfo 1
+f3dmat block LayerInfo 1
+f3dmat block LensFlareInfo 1
+f3dmat block LightListInfo 1
+f3dmat block LineInfo 1
+f3dmat block LocalExposureBlurInfo 1
+f3dmat block LocalExposureInfo 1
+f3dmat block LuminanceInfo 1
+f3dmat block MaskInfo 1
+f3dmat block MaterialParams 1
+f3dmat block MorphInfo 1
+f3dmat block MorphInstanceInfo 1
+f3dmat block MotionBlurInfo 1
+f3dmat block NeighborMaxInfo 1
+f3dmat block NoiseInfo 1
+f3dmat block OutlineMaskInfo 1
+f3dmat block ParticleInfo 1
+f3dmat block ParticleMeshInfo 1
+f3dmat block PlanarReflectionInfo 1
+f3dmat block PointShadow 1
+f3dmat block PredrawInfo 1
+f3dmat block PrevFrameInfo 1
+f3dmat block ProbeInfo 1
+f3dmat block ReactiveInfo 1
+f3dmat block ReflectionInfo 1
+f3dmat block RenderTextureInfo 1
+f3dmat block SceneCopyInfo 1
+f3dmat block ShadeInfo 1
+f3dmat block ShadowCopyInfo 1
+f3dmat block ShadowLight 1
+f3dmat block ShaftInfo 1
+f3dmat block SixWayInfo 1
+f3dmat block SkinInfo 1
+f3dmat block SmaaInfo 1
+f3dmat block SoftParticleInfo 1
+f3dmat block SplatHashInfo 1
+f3dmat block SsaoBlurInfo 1
+f3dmat block SsaoInfo 1
+f3dmat block TemporalInfo 1
+f3dmat block TileMaxInfo 1
+f3dmat block TransmittanceInfo 1
+f3dmat block VelocityInfo 1
+f3dmat block VolumeFogInfo 1
+f3dmat builtin abs 1
+f3dmat builtin clamp 1
+f3dmat builtin cos 1
+f3dmat builtin dot 1
+f3dmat builtin floor 1
+f3dmat builtin fract 1
+f3dmat builtin length 1
+f3dmat builtin max 1
+f3dmat builtin min 1
+f3dmat builtin mix 1
+f3dmat builtin normalize 1
+f3dmat builtin pow 1
+f3dmat builtin sin 1
+f3dmat builtin smoothstep 1
+f3dmat builtin sqrt 1
+f3dmat builtin step 1
+f3dmat depthCompare always 2
+f3dmat depthCompare equal 2
+f3dmat depthCompare greater 2
+f3dmat depthCompare greaterEqual 2
+f3dmat depthCompare less 2
+f3dmat depthCompare lessEqual 2
+f3dmat depthCompare never 2
+f3dmat depthCompare notEqual 2
+f3dmat input ambient lightmap vec3 2
+f3dmat input composite direct vec3 2
+f3dmat input composite indirect vec3 2
+f3dmat input compute cell vec2 2
+f3dmat input compute size vec2 2
+f3dmat input compute uv vec2 2
+f3dmat input fullscreen sceneDepth float 2
+f3dmat input fullscreen uv vec2 2
+f3dmat input light halfDir vec3 1
+f3dmat input light lightDir vec3 1
+f3dmat input light lightKind float 3
+f3dmat input light lightParams vec4 3
+f3dmat input light nDotH float 1
+f3dmat input light nDotL float 1
+f3dmat input light standard vec3 3
+f3dmat input light vDotH float 1
+f3dmat input lit lit vec3 1
+f3dmat input scene sceneDepth float 2
+f3dmat input scene scenePosition vec3 2
+f3dmat input scene viewDepth float 2
+f3dmat input surface albedo vec3 1
+f3dmat input surface alpha float 1
+f3dmat input surface ambient vec3 1
+f3dmat input surface emissive vec3 1
+f3dmat input surface instance vec4 1
+f3dmat input surface metallic float 1
+f3dmat input surface nDotV float 1
+f3dmat input surface normal vec3 1
+f3dmat input surface occlusion float 1
+f3dmat input surface roughness float 1
+f3dmat input surface uv vec2 1
+f3dmat input surface view vec3 1
+f3dmat input surface world vec3 1
+f3dmat input vertex color vec4 2
+f3dmat input vertex instance vec4 3
+f3dmat input vertex normal vec3 2
+f3dmat input vertex objectNormal vec3 2
+f3dmat input vertex origin vec3 2
+f3dmat input vertex position vec3 2
+f3dmat input vertex uv vec2 2
+f3dmat input vertex world vec3 2
+f3dmat lighting standard 3
+f3dmat output surface albedo vec3 3
+f3dmat output surface alpha float 3
+f3dmat output surface emissive vec3 3
+f3dmat output surface metallic float 3
+f3dmat output surface normal vec3 3
+f3dmat output surface occlusion float 3
+f3dmat output surface roughness float 3
+f3dmat output vertex normal vec3 2
+f3dmat output vertex position vec3 2
+f3dmat output vertex world vec3 2
+f3dmat prefix f3d_ 2
+f3dmat prefix gl_ 1
+f3dmat reserved every AccumulateLights 1
+f3dmat reserved every ApplyCommonMaps 1
+f3dmat reserved every F3dLightRow 3
+f3dmat reserved every F3dLightTypeHook 3
+f3dmat reserved every LightSample 1
+f3dmat reserved every LightVisibility 1
+f3dmat reserved every MaterialLights 2
+f3dmat reserved every MaterialParams 1
+f3dmat reserved every ReadSurface 1
+f3dmat reserved every SampleLightmap 1
+f3dmat reserved every SceneDepthInfo 2
+f3dmat reserved every ShadeAmbient 2
+f3dmat reserved every ShadeComposite 2
+f3dmat reserved every ShadeLight 1
+f3dmat reserved every ShadeLightHook 3
+f3dmat reserved every ShadeSurfaceHook 3
+f3dmat reserved every ShadowFactor 1
+f3dmat reserved every StandardLight 3
+f3dmat reserved every Surface 1
+f3dmat reserved every WriteSurface 1
+f3dmat reserved every active 1
+f3dmat reserved every asm 1
+f3dmat reserved every atomic_uint 1
+f3dmat reserved every attribute 1
+f3dmat reserved every base_color_texture 1
+f3dmat reserved every bool 1
+f3dmat reserved every break 1
+f3dmat reserved every buffer 1
+f3dmat reserved every bvec2 1
+f3dmat reserved every bvec3 1
+f3dmat reserved every bvec4 1
+f3dmat reserved every case 1
+f3dmat reserved every cast 1
+f3dmat reserved every centroid 1
+f3dmat reserved every class 1
+f3dmat reserved every coherent 1
+f3dmat reserved every common 1
+f3dmat reserved every const 1
+f3dmat reserved every continue 1
+f3dmat reserved every default 1
+f3dmat reserved every discard 1
+f3dmat reserved every dmat2 1
+f3dmat reserved every dmat2x2 1
+f3dmat reserved every dmat2x3 1
+f3dmat reserved every dmat2x4 1
+f3dmat reserved every dmat3 1
+f3dmat reserved every dmat3x2 1
+f3dmat reserved every dmat3x3 1
+f3dmat reserved every dmat3x4 1
+f3dmat reserved every dmat4 1
+f3dmat reserved every dmat4x2 1
+f3dmat reserved every dmat4x3 1
+f3dmat reserved every dmat4x4 1
+f3dmat reserved every do 1
+f3dmat reserved every double 1
+f3dmat reserved every dvec2 1
+f3dmat reserved every dvec3 1
+f3dmat reserved every dvec4 1
+f3dmat reserved every else 1
+f3dmat reserved every emissive_texture 1
+f3dmat reserved every enum 1
+f3dmat reserved every extern 1
+f3dmat reserved every external 1
+f3dmat reserved every false 1
+f3dmat reserved every filter 1
+f3dmat reserved every fixed 1
+f3dmat reserved every flat 1
+f3dmat reserved every float 1
+f3dmat reserved every for 1
+f3dmat reserved every frag_color 2
+f3dmat reserved every fvec2 1
+f3dmat reserved every fvec3 1
+f3dmat reserved every fvec4 1
+f3dmat reserved every goto 1
+f3dmat reserved every half 1
+f3dmat reserved every highp 1
+f3dmat reserved every hvec2 1
+f3dmat reserved every hvec3 1
+f3dmat reserved every hvec4 1
+f3dmat reserved every if 1
+f3dmat reserved every iimage1D 1
+f3dmat reserved every iimage1DArray 1
+f3dmat reserved every iimage2D 1
+f3dmat reserved every iimage2DArray 1
+f3dmat reserved every iimage2DMS 1
+f3dmat reserved every iimage2DMSArray 1
+f3dmat reserved every iimage2DRect 1
+f3dmat reserved every iimage3D 1
+f3dmat reserved every iimageBuffer 1
+f3dmat reserved every iimageCube 1
+f3dmat reserved every iimageCubeArray 1
+f3dmat reserved every image1D 1
+f3dmat reserved every image1DArray 1
+f3dmat reserved every image2D 1
+f3dmat reserved every image2DArray 1
+f3dmat reserved every image2DMS 1
+f3dmat reserved every image2DMSArray 1
+f3dmat reserved every image2DRect 1
+f3dmat reserved every image3D 1
+f3dmat reserved every imageBuffer 1
+f3dmat reserved every imageCube 1
+f3dmat reserved every imageCubeArray 1
+f3dmat reserved every imageStore 2
+f3dmat reserved every in 1
+f3dmat reserved every inline 1
+f3dmat reserved every inout 1
+f3dmat reserved every input 1
+f3dmat reserved every int 1
+f3dmat reserved every interface 1
+f3dmat reserved every invariant 1
+f3dmat reserved every isampler1D 1
+f3dmat reserved every isampler1DArray 1
+f3dmat reserved every isampler2D 1
+f3dmat reserved every isampler2DArray 1
+f3dmat reserved every isampler2DMS 1
+f3dmat reserved every isampler2DMSArray 1
+f3dmat reserved every isampler2DRect 1
+f3dmat reserved every isampler3D 1
+f3dmat reserved every isamplerBuffer 1
+f3dmat reserved every isamplerCube 1
+f3dmat reserved every isamplerCubeArray 1
+f3dmat reserved every isubpassInput 1
+f3dmat reserved every isubpassInputMS 1
+f3dmat reserved every itexture1D 1
+f3dmat reserved every itexture1DArray 1
+f3dmat reserved every itexture2D 1
+f3dmat reserved every itexture2DArray 1
+f3dmat reserved every itexture2DMS 1
+f3dmat reserved every itexture2DMSArray 1
+f3dmat reserved every itexture2DRect 1
+f3dmat reserved every itexture3D 1
+f3dmat reserved every itextureBuffer 1
+f3dmat reserved every itextureCube 1
+f3dmat reserved every itextureCubeArray 1
+f3dmat reserved every ivec2 1
+f3dmat reserved every ivec3 1
+f3dmat reserved every ivec4 1
+f3dmat reserved every layout 1
+f3dmat reserved every light 1
+f3dmat reserved every lit 1
+f3dmat reserved every long 1
+f3dmat reserved every lowp 1
+f3dmat reserved every main 1
+f3dmat reserved every mat2 1
+f3dmat reserved every mat2x2 1
+f3dmat reserved every mat2x3 1
+f3dmat reserved every mat2x4 1
+f3dmat reserved every mat3 1
+f3dmat reserved every mat3x2 1
+f3dmat reserved every mat3x3 1
+f3dmat reserved every mat3x4 1
+f3dmat reserved every mat4 1
+f3dmat reserved every mat4x2 1
+f3dmat reserved every mat4x3 1
+f3dmat reserved every mat4x4 1
+f3dmat reserved every material_params 1
+f3dmat reserved every mediump 1
+f3dmat reserved every metallic_roughness_texture 1
+f3dmat reserved every namespace 1
+f3dmat reserved every noinline 1
+f3dmat reserved every noperspective 1
+f3dmat reserved every normal_texture 1
+f3dmat reserved every occlusion_texture 1
+f3dmat reserved every out 1
+f3dmat reserved every output 1
+f3dmat reserved every partition 1
+f3dmat reserved every patch 1
+f3dmat reserved every precise 1
+f3dmat reserved every precision 1
+f3dmat reserved every public 1
+f3dmat reserved every readonly 1
+f3dmat reserved every resource 1
+f3dmat reserved every restrict 1
+f3dmat reserved every result 1
+f3dmat reserved every return 1
+f3dmat reserved every s 1
+f3dmat reserved every sample 1
+f3dmat reserved every sampler 1
+f3dmat reserved every sampler1D 1
+f3dmat reserved every sampler1DArray 1
+f3dmat reserved every sampler1DArrayShadow 1
+f3dmat reserved every sampler1DShadow 1
+f3dmat reserved every sampler2D 1
+f3dmat reserved every sampler2DArray 1
+f3dmat reserved every sampler2DArrayShadow 1
+f3dmat reserved every sampler2DMS 1
+f3dmat reserved every sampler2DMSArray 1
+f3dmat reserved every sampler2DRect 1
+f3dmat reserved every sampler2DRectShadow 1
+f3dmat reserved every sampler2DShadow 1
+f3dmat reserved every sampler3D 1
+f3dmat reserved every sampler3DRect 1
+f3dmat reserved every samplerBuffer 1
+f3dmat reserved every samplerCube 1
+f3dmat reserved every samplerCubeArray 1
+f3dmat reserved every samplerCubeArrayShadow 1
+f3dmat reserved every samplerCubeShadow 1
+f3dmat reserved every samplerShadow 1
+f3dmat reserved every scene_depth_info 2
+f3dmat reserved every scene_depth_texture 2
+f3dmat reserved every scene_texture 2
+f3dmat reserved every shared 1
+f3dmat reserved every short 1
+f3dmat reserved every sizeof 1
+f3dmat reserved every smooth 1
+f3dmat reserved every static 1
+f3dmat reserved every struct 1
+f3dmat reserved every subpassInput 1
+f3dmat reserved every subpassInputMS 1
+f3dmat reserved every subroutine 1
+f3dmat reserved every superp 1
+f3dmat reserved every surface_texture 2
+f3dmat reserved every switch 1
+f3dmat reserved every target 2
+f3dmat reserved every template 1
+f3dmat reserved every texture 1
+f3dmat reserved every texture1D 1
+f3dmat reserved every texture1DArray 1
+f3dmat reserved every texture2D 1
+f3dmat reserved every texture2DArray 1
+f3dmat reserved every texture2DMS 1
+f3dmat reserved every texture2DMSArray 1
+f3dmat reserved every texture2DRect 1
+f3dmat reserved every texture3D 1
+f3dmat reserved every textureBuffer 1
+f3dmat reserved every textureCube 1
+f3dmat reserved every textureCubeArray 1
+f3dmat reserved every textureLod 2
+f3dmat reserved every this 1
+f3dmat reserved every true 1
+f3dmat reserved every typedef 1
+f3dmat reserved every uimage1D 1
+f3dmat reserved every uimage1DArray 1
+f3dmat reserved every uimage2D 1
+f3dmat reserved every uimage2DArray 1
+f3dmat reserved every uimage2DMS 1
+f3dmat reserved every uimage2DMSArray 1
+f3dmat reserved every uimage2DRect 1
+f3dmat reserved every uimage3D 1
+f3dmat reserved every uimageBuffer 1
+f3dmat reserved every uimageCube 1
+f3dmat reserved every uimageCubeArray 1
+f3dmat reserved every uint 1
+f3dmat reserved every uniform 1
+f3dmat reserved every union 1
+f3dmat reserved every unsigned 1
+f3dmat reserved every usampler1D 1
+f3dmat reserved every usampler1DArray 1
+f3dmat reserved every usampler2D 1
+f3dmat reserved every usampler2DArray 1
+f3dmat reserved every usampler2DMS 1
+f3dmat reserved every usampler2DMSArray 1
+f3dmat reserved every usampler2DRect 1
+f3dmat reserved every usampler3D 1
+f3dmat reserved every usamplerBuffer 1
+f3dmat reserved every usamplerCube 1
+f3dmat reserved every usamplerCubeArray 1
+f3dmat reserved every using 1
+f3dmat reserved every usubpassInput 1
+f3dmat reserved every usubpassInputMS 1
+f3dmat reserved every utexture1D 1
+f3dmat reserved every utexture1DArray 1
+f3dmat reserved every utexture2D 1
+f3dmat reserved every utexture2DArray 1
+f3dmat reserved every utexture2DMS 1
+f3dmat reserved every utexture2DMSArray 1
+f3dmat reserved every utexture2DRect 1
+f3dmat reserved every utexture3D 1
+f3dmat reserved every utextureBuffer 1
+f3dmat reserved every utextureCube 1
+f3dmat reserved every utextureCubeArray 1
+f3dmat reserved every uvec2 1
+f3dmat reserved every uvec3 1
+f3dmat reserved every uvec4 1
+f3dmat reserved every v_texcoord 1
+f3dmat reserved every v_uv 2
+f3dmat reserved every v_world_position 1
+f3dmat reserved every varying 1
+f3dmat reserved every vec2 1
+f3dmat reserved every vec3 1
+f3dmat reserved every vec4 1
+f3dmat reserved every void 1
+f3dmat reserved every volatile 1
+f3dmat reserved every while 1
+f3dmat reserved every writeonly 1
+f3dmat reserved vertex ApplyMorph 2
+f3dmat reserved vertex ApplyMorphInstanced 3
+f3dmat reserved vertex F3dInstanceIndex 3
+f3dmat reserved vertex FrameInfo 2
+f3dmat reserved vertex JointIndex 2
+f3dmat reserved vertex MaterialVertexInfo 2
+f3dmat reserved vertex MorphInstanceInfo 3
+f3dmat reserved vertex SkinInfo 2
+f3dmat reserved vertex SkinMatrix 2
+f3dmat reserved vertex frame_info 2
+f3dmat reserved vertex i_color 3
+f3dmat reserved vertex i_data 3
+f3dmat reserved vertex i_row0 3
+f3dmat reserved vertex i_row1 3
+f3dmat reserved vertex i_row2 3
+f3dmat reserved vertex joints 2
+f3dmat reserved vertex material_vertex_info 2
+f3dmat reserved vertex morph_instance_weights 3
+f3dmat reserved vertex skin_info 2
+f3dmat reserved vertex tangent 2
+f3dmat reserved vertex texcoord 2
+f3dmat reserved vertex v_color 2
+f3dmat reserved vertex v_instance 2
+f3dmat reserved vertex v_lightmap_uv 2
+f3dmat reserved vertex v_normal 2
+f3dmat reserved vertex v_tangent 2
+f3dmat reserved vertex weights 2
+f3dmat type float 1
+f3dmat type vec2 1
+f3dmat type vec3 1
+f3dmat type vec4 1
+f3dmat version 3
+f3dmat word alphaToCoverage 2
+f3dmat word ambient 2
+f3dmat word blend 2
+f3dmat word composite 2
+f3dmat word compute 2
+f3dmat word cutoff 2
+f3dmat word depthCompare 2
+f3dmat word depthLayer 2
+f3dmat word depthTest 2
+f3dmat word depthWrite 2
+f3dmat word directional 2
+f3dmat word doubleSided 2
+f3dmat word effectsDepth 2
+f3dmat word environment 2
+f3dmat word f3dmat 1
+f3dmat word fragment 1
+f3dmat word fullscreen 2
+f3dmat word kernel 2
+f3dmat word let 1
+f3dmat word light 1
+f3dmat word lighting 3
+f3dmat word lighttype 3
+f3dmat word material 1
+f3dmat word off 2
+f3dmat word on 2
+f3dmat word out 2
+f3dmat word param 1
+f3dmat word remove 3
+f3dmat word rename 3
+f3dmat word return 1
+f3dmat word sample 1
+f3dmat word scale 3
+f3dmat word standard 3
+f3dmat word state 2
+f3dmat word surface 3
+f3dmat word texture 1
+f3dmat word uniform 1
+f3dmat word updates 3
+f3dmat word version 3
+f3dmat word vertex 2
+f3dmat word workgroup 2

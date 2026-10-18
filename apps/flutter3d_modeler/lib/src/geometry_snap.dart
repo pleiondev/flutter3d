@@ -28,9 +28,9 @@
 /// entirely.
 library;
 
-import 'package:flutter3d_core/geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show LocalRay;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'element_picking.dart' show PickingView;
 
@@ -42,7 +42,16 @@ import 'element_picking.dart' show PickingView;
 /// through it; an edge before a face, for the same reason one level down —
 /// every face's boundary is edges, and a tie is more often aimed at the seam
 /// than at the open surface either side of it.
-enum SnapLevel { vertex, edge, face }
+enum SnapLevel {
+  /// A vertex: the target lands exactly on its position.
+  vertex,
+
+  /// An edge: the target lands on the nearest point along it.
+  edge,
+
+  /// A face: the target lands where the ray meets the surface.
+  face,
+}
 
 /// One other object's geometry, offered up as something a drag might snap
 /// onto.
@@ -53,6 +62,8 @@ enum SnapLevel { vertex, edge, face }
 /// without the other would be a caller free to hand over a picker for one
 /// object and the transform of another.
 final class SnapSource {
+  /// Object [id]'s geometry, searched through [picker]; [objectToWorld] is
+  /// null when the mesh is already in world space.
   const SnapSource({
     required this.id,
     required this.picker,
@@ -64,6 +75,9 @@ final class SnapSource {
   /// naming it in a highlight.
   final int id;
 
+  /// The object's mesh, with the index the search asks for the nearest
+  /// vertex, edge or face. Its positions are in the object's own space until
+  /// [objectToWorld] moves them.
   final MeshPicker picker;
 
   /// This object's local-to-world transform, or null when it already is one
@@ -80,6 +94,7 @@ final class SnapSource {
 /// built to is not approximate: the two positions are the same [Vector3],
 /// bit for bit.
 final class SnapTarget {
+  /// A target on object [sourceId], at [position].
   const SnapTarget({
     required this.sourceId,
     required this.level,
@@ -87,7 +102,10 @@ final class SnapTarget {
     required this.position,
   });
 
+  /// The [SnapSource.id] of the object the target is on.
   final int sourceId;
+
+  /// Which kind of element [element] names.
   final SnapLevel level;
 
   /// A vertex id for [SnapLevel.vertex], the half-edge `edgeNear` answered
@@ -95,6 +113,8 @@ final class SnapTarget {
   /// for [SnapLevel.face].
   final int element;
 
+  /// Where the dragged element goes, in world space: the vertex's own
+  /// position, the nearest point on the edge, or the point on the face.
   final Vector3 position;
 }
 
@@ -248,10 +268,13 @@ SnapTarget? findSnapTarget({
 /// shorter world lengths are there — the same conversion `element_picking.dart`
 /// makes to trace a click into a mesh's own space, needed again here because
 /// [MeshPicker] answers in whatever space its mesh's own positions are in.
-({Ray ray, double shrink}) _intoLocal(Ray world, Matrix4? objectToWorld) {
+({LocalRay ray, double shrink}) _intoLocal(
+  LocalRay world,
+  Matrix4? objectToWorld,
+) {
   if (objectToWorld == null) return (ray: world, shrink: 1.0);
   final inverse = Matrix4.copy(objectToWorld)..invert();
-  final local = world.transformInto(inverse, Ray.zero());
+  final local = world.transformInto(inverse, LocalRay.zero());
   final shrink = local.direction.length;
   return (ray: local.normalizeDirection(), shrink: shrink);
 }

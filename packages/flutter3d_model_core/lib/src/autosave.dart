@@ -19,6 +19,8 @@ import 'dart:convert';
 /// session of continuous small edits — each one going quiet for a moment —
 /// does not autosave every couple of seconds regardless. Both have to pass.
 final class AutosavePolicy {
+  /// A policy waiting [debounce] after the last edit and [minInterval] after
+  /// the last write: two seconds and fifteen seconds unless given.
   const AutosavePolicy({
     this.debounce = const Duration(seconds: 2),
     this.minInterval = const Duration(seconds: 15),
@@ -106,6 +108,11 @@ String _fnv1a64(String value) {
 }
 
 /// What opening a project should do when a newer autosave exists for it.
+///
+/// **Closed for good**: open the saved file or offer the autosave: the two
+/// answers to whether the autosave is newer. No member can be added without
+/// changing what the type means, so it stays an enum and a `switch` over it may
+/// name every case.
 enum RecoveryDecision {
   /// Nothing to offer: there is no autosave, or the file on disk is at least
   /// as new. Open the file as normal, without asking.

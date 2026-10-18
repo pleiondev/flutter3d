@@ -6,6 +6,7 @@
   "description": "Documentation site for the flutter3d engine",
   "scripts": {
     "build": "node tool/build.mjs",
+    "plugins": "node tool/plugins.mjs",
     "demos": "tool/demos.sh",
     "showcase": "tool/showcase.sh"
   },

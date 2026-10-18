@@ -1,8 +1,7 @@
 /// One allowance of time per frame for the work that can wait — `N3`.
 library;
 
-/// How many microseconds a frame may spend on work that can be spread over
-/// frames. Irradiance probe updates and point-shadow faces ask it today;
+/// How long a frame may spend on work that can be spread over frames. Irradiance probe updates and point-shadow faces ask it today;
 /// anything else a frame can put off is meant to ask it the same way.
 ///
 /// **Time, where each of those used to count items.** A count is a guess at
@@ -20,13 +19,18 @@ library;
 /// of a frame is always allowed, whatever the allowance, so every queue
 /// drains even on a device too slow to fit one item: progress over
 /// smoothness, one item at a time, rather than nothing ever. An allowance of
-/// nought means no limit, which is what a frame had before this existed.
+/// [Duration.zero] means no limit, which is what a frame had before this existed.
 final class FrameWorkBudget {
-  FrameWorkBudget({this.microseconds = 0, int Function()? clock})
-    : _clock = clock ?? _stopwatchClock();
+  /// A budget of [allowance] per frame, no limit when zero, timed by [clock]
+  /// in microseconds or by a stopwatch when it is null.
+  FrameWorkBudget({this.allowance = Duration.zero, int Function()? clock})
+    : _microseconds = allowance.inMicroseconds,
+      _clock = clock ?? _stopwatchClock();
 
-  /// The allowance, in microseconds; nought for none.
-  final int microseconds;
+  /// The allowance, against the wall clock; [Duration.zero] for none.
+  final Duration allowance;
+
+  final int _microseconds;
 
   final int Function() _clock;
 
@@ -53,7 +57,7 @@ final class FrameWorkBudget {
 
   /// What is left of this frame's allowance; unbounded with none.
   int get remaining =>
-      microseconds <= 0 ? 1 << 62 : (microseconds - _spent).clamp(0, 1 << 62);
+      _microseconds <= 0 ? 1 << 62 : (_microseconds - _spent).clamp(0, 1 << 62);
 
   /// Starts a frame: nothing spent, nothing deferred.
   void beginFrame() {
@@ -64,8 +68,8 @@ final class FrameWorkBudget {
 
   /// Whether another piece of work may start now. Counts a refusal.
   bool allows() {
-    if (microseconds <= 0 || _items == 0) return true;
-    if (_spent + _average <= microseconds) return true;
+    if (_microseconds <= 0 || _items == 0) return true;
+    if (_spent + _average <= _microseconds) return true;
     _deferred++;
     return false;
   }

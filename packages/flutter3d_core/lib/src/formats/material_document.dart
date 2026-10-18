@@ -23,6 +23,8 @@ export 'material_hint.dart';
 /// instead of by index into a container, a shader of the application's own, and
 /// the parameters that shader reads.
 final class MaterialDocument {
+  /// A material of [surface]; by default it names no images, takes the
+  /// scene's lighting model, and binds no parameters.
   const MaterialDocument({
     required this.surface,
     this.images = const <String>[],
@@ -32,6 +34,7 @@ final class MaterialDocument {
     this.hints = const <String, MaterialHint>{},
     this.extraTextures = const <String, TextureBinding>{},
     this.warnings = const <String>[],
+    this.unknown = const <String, Object?>{},
   });
 
   /// Colours, factors, texture slots and alpha — the vocabulary shared with
@@ -86,4 +89,9 @@ final class MaterialDocument {
   /// Non-fatal findings from reading: unknown keys, a slot that names an image
   /// the file does not list. Surfaced rather than logged, like a model's.
   final List<String> warnings;
+
+  /// The top-level keys of the file this build does not read, as they were,
+  /// written back by `writeFmat` after its own: a material a later build
+  /// wrote keeps what it added when an earlier one opens and saves it.
+  final Map<String, Object?> unknown;
 }

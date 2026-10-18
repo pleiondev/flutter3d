@@ -6,17 +6,17 @@
 ///
 /// **No real machine behind this.** `doc/lesson-scenarios-plan.md`'s
 /// `ls-i-02` names no specific factory or sensor — unlike `ls-e-00`'s own
-/// `prep-00`, closing this scenario never needed one: a plausible, clearly
-/// synthetic temperature curve is what `flutter3d_lab_twin`'s own
-/// `spindle-temp` sampler already stood in for the same real object, and an
-/// incident replay needs a shape to scrub through, not a real factory's own
-/// data.
+/// `prep-00`, closing this scenario never needed one: an incident replay
+/// needs a plausible, clearly synthetic shape to scrub through, not a real
+/// factory's own data. A twin fed by a real source, its readings on a tape
+/// and scrubbed through a `RunTimeline`, is
+/// `packages/flutter3d_app/example/lib/twin_main.dart`.
 library;
 
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-/// The reading `edu-00` §9's own `resolveBindings` would read back —
-/// `flutter3d_lab_twin`'s own key for the same synthetic sensor.
+/// The reading `edu-00` §9's own `resolveBindings` would read back: the key
+/// the synthetic sensor's value is recorded under.
 const String spindleTempBindingPath = 'value';
 
 /// The synthetic spindle temperature at [step] — 60°C at rest, a rise
@@ -41,10 +41,9 @@ double spindleTemperatureAt(int step) {
 const int spindleOverheatTraceLength = 260;
 
 /// Records [spindleTemperatureAt] into a real [DataSourceTrace], one step at
-/// a time — the same `record` call a live run's own sampling loop makes
-/// (`flutter3d_lab_twin`'s own `_onTick`), just run once up front rather
-/// than on a ticker, since what this screen shows is a recording, not a
-/// live feed.
+/// a time — the same `record` call a live run's own sampling loop makes,
+/// just run once up front rather than on a ticker, since what this screen
+/// shows is a recording, not a live feed.
 DataSourceTrace recordSpindleOverheatIncident() {
   final trace = DataSourceTrace();
   for (var step = 0; step <= spindleOverheatTraceLength; step++) {

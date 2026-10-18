@@ -18,7 +18,11 @@ import 'package:vector_math/vector_math.dart';
 
 import 'mechanism.dart';
 
+/// A way out of the level: reached when a body walks into its trigger or a
+/// mechanism switches it on, unless it wants a [key] the body lacks.
 final class Exit extends Mechanism with CollisionListener {
+  /// An exit over [collider], which it turns into a trigger listening to
+  /// itself.
   Exit({
     super.name,
     required this.collider,
@@ -32,6 +36,7 @@ final class Exit extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger volume a body walks into; its `userData` is this exit.
   final Collider collider;
 
   /// The level that follows this one, overriding `Level.next`.
@@ -47,6 +52,8 @@ final class Exit extends Mechanism with CollisionListener {
   /// A key they must be carrying, or null.
   final String? key;
 
+  /// Whether the exit has been reached; once true, stays true until a
+  /// restore says otherwise.
   bool get isReached => _reached;
   bool _reached = false;
 
@@ -58,7 +65,7 @@ final class Exit extends Mechanism with CollisionListener {
   bool justReached = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   ActivationOutcome activate(Activation by) {
@@ -77,7 +84,8 @@ final class Exit extends Mechanism with CollisionListener {
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 

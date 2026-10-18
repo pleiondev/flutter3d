@@ -1,0 +1,295 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: ff5772a3c77c0712
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: game_platformer-KeyKind'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart', 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      class: 'KeyKind'
+    changes:
+      - kind: 'rename'
+        newName: 'PlatformerKeyKind'
+  - title: 'flutter3d 1.0.0-rc.1: game_platformer-ReadoutStyle'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/bridge.dart', 'package:flutter3d_game_racing/bridge.dart', 'package:flutter3d_game_shooter/bridge.dart']
+      class: 'ReadoutStyle'
+    changes:
+      - kind: 'rename'
+        newName: 'PlatformerReadoutStyle'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowCamera-follow'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      method: 'follow'
+      inClass: 'FollowCamera'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'travelling'
+        newName: 'traveling'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning-FollowTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'FollowTuning'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'recentre'
+        newName: 'recenter'
+      - kind: 'renameParameter'
+        oldName: 'recentreAbove'
+        newName: 'recenterAbove'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning-recentre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'recentre'
+      inClass: 'FollowTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'recenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning-recentreAbove'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'recentreAbove'
+      inClass: 'FollowTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'recenterAbove'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-Crumbling-takeWeight'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      method: 'takeWeight'
+      inClass: 'Crumbling'
+    changes:
+      - kind: 'rename'
+        newName: 'bearWeight'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowCamera-extraFov'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      getter: 'extraFov'
+      inClass: 'FollowCamera'
+    changes:
+      - kind: 'rename'
+        newName: 'extraFovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-Hunter-hunting'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      getter: 'hunting'
+      inClass: 'Hunter'
+    changes:
+      - kind: 'rename'
+        newName: 'isHunting'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-FollowTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      class: 'FollowTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'FollowSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-RunnerTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      class: 'RunnerTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'RunnerSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_platformer-SwimTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      class: 'SwimTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'SwimSettings'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Climbable-Climbable'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'Climbable'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'period'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Climbable-period'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'period'
+      inClass: 'Climbable'
+    changes:
+      - kind: 'rename'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Crumbling-Crumbling'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'Crumbling'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'delay'
+        newName: 'delaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Crumbling-delay'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'delay'
+      inClass: 'Crumbling'
+    changes:
+      - kind: 'rename'
+        newName: 'delaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-PlatformerSimulation-PlatformerSimulation'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'PlatformerSimulation'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'elapsed'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-PlatformerSimulation-elapsed'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'elapsed'
+      inClass: 'PlatformerSimulation'
+    changes:
+      - kind: 'rename'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Runner-dashCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      getter: 'dashCooldown'
+      inClass: 'Runner'
+    changes:
+      - kind: 'rename'
+        newName: 'dashCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-RunnerSettings'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'coyoteTime'
+        newName: 'coyoteSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dashCooldown'
+        newName: 'dashCooldownSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dropThroughTime'
+        newName: 'dropThroughSeconds'
+      - kind: 'renameParameter'
+        oldName: 'jumpBufferTime'
+        newName: 'jumpBufferSeconds'
+      - kind: 'renameParameter'
+        oldName: 'slideTime'
+        newName: 'slideSeconds'
+      - kind: 'renameParameter'
+        oldName: 'wallCoyoteTime'
+        newName: 'wallCoyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-copyWith'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      method: 'copyWith'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'coyoteTime'
+        newName: 'coyoteSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dashCooldown'
+        newName: 'dashCooldownSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dropThroughTime'
+        newName: 'dropThroughSeconds'
+      - kind: 'renameParameter'
+        oldName: 'jumpBufferTime'
+        newName: 'jumpBufferSeconds'
+      - kind: 'renameParameter'
+        oldName: 'slideTime'
+        newName: 'slideSeconds'
+      - kind: 'renameParameter'
+        oldName: 'wallCoyoteTime'
+        newName: 'wallCoyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-coyoteTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'coyoteTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'coyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-dashCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'dashCooldown'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'dashCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-dropThroughTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'dropThroughTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'dropThroughSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-jumpBufferTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'jumpBufferTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'jumpBufferSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-slideTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'slideTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'slideSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-wallCoyoteTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'wallCoyoteTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'wallCoyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-stagePlatformer'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      function: 'stagePlatformer'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'elapsed'
+        newName: 'elapsedSeconds'

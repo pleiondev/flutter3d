@@ -19,8 +19,13 @@ import 'package:vector_math/vector_math.dart';
 
 /// Which way a handle points, and so which way grabbing it lets a thing go.
 enum GizmoAxis {
+  /// The X axis, tinted [kGizmoTintX].
   x,
+
+  /// The Y axis, tinted [kGizmoTintY].
   y,
+
+  /// The Z axis, tinted [kGizmoTintZ].
   z,
 
   /// The box in the middle of a scale gizmo: every axis at once, which is no
@@ -170,13 +175,15 @@ const double kGizmoUniformPixels = 11.0;
 /// importantly, steady: the same pivot and the same camera give the same
 /// numbers to the last bit, so a still camera draws a still gizmo.
 final class GizmoView {
+  /// A camera at [eye] whose logical pixel is [pixel] world units across.
+  /// The two factories work [pixel] out from a lens.
   const GizmoView({
     required this.eye,
     required this.pixel,
     this.perspective = true,
   });
 
-  /// A camera with a vertical field of view of [fovYRadians] looking at a
+  /// A camera with a vertical field of view of [fovY] looking at a
   /// viewport [viewportHeight] logical pixels tall.
   ///
   /// The same conversion `MeshOverlay.lookFrom` documents, written out here
@@ -185,12 +192,9 @@ final class GizmoView {
   /// test a drag without a device.
   factory GizmoView.perspective({
     required Vector3 eye,
-    required double fovYRadians,
+    required double fovY,
     required double viewportHeight,
-  }) => GizmoView(
-    eye: eye,
-    pixel: 2.0 * math.tan(fovYRadians / 2.0) / viewportHeight,
-  );
+  }) => GizmoView(eye: eye, pixel: 2.0 * math.tan(fovY / 2.0) / viewportHeight);
 
   /// An orthographic camera showing [height] metres over a viewport
   /// [viewportHeight] logical pixels tall.
@@ -226,6 +230,7 @@ final class GizmoView {
 /// arrow drawn in one place and grabbable in another — which reads to a person
 /// as the mouse being broken rather than as a gizmo being wrong.
 final class GizmoHandle {
+  /// A handle whose drawn shape and grab box were worked out together.
   const GizmoHandle({
     required this.axis,
     required this.base,
@@ -251,7 +256,11 @@ final class GizmoHandle {
   /// The point of the arrow.
   final Vector3 tip;
 
+  /// The shaft's radius, in world units at the pivot's distance.
   final double shaftRadius;
+
+  /// The head's radius, in the same units: several times the shaft's, so the
+  /// point reads from across the screen.
   final double headRadius;
 
   /// The box a ray is traced against, fattened by [kGizmoGrabPixels].
@@ -275,8 +284,8 @@ final class GizmoHandle {
   /// every arrow and arm handle, which are boxes and say so with [min]/[max].
   final double? ringRadius;
 
-  /// The same colour as the linear-ish triple a `Material` wants.
-  Vector3 get colour => Vector3(
+  /// The same colour as the linear-ish triple a `RenderMaterial` wants.
+  Vector3 get color => Vector3(
     ((tint >> 16) & 0xFF) / 255.0,
     ((tint >> 8) & 0xFF) / 255.0,
     (tint & 0xFF) / 255.0,
@@ -366,7 +375,16 @@ List<GizmoHandle> gizmoHandles(
 /// this file is the geometry half and knows nothing about a modal, a tool id
 /// or a command — the split its own library comment insists on — and one
 /// enum with three members is cheaper than the dependency the other way.
-enum GizmoKindForHit { move, rotate, scale }
+enum GizmoKindForHit {
+  /// Arrows along the three axes.
+  move,
+
+  /// Rings, one in the plane each axis turns things in.
+  rotate,
+
+  /// Arms ending in boxes, and the box in the middle for all three at once.
+  scale,
+}
 
 /// Three rings, one per axis, in the plane that axis turns things in.
 List<GizmoHandle> _rings(Vector3 pivot, GizmoView view) {
@@ -438,6 +456,7 @@ Float64List gizmoGeometry(List<GizmoHandle> handles) {
 /// altogether; a press that waited for it would be a press that orbits the
 /// camera and then jumps when the answer arrives.
 final class GizmoHit {
+  /// A hit on [handle] at [at], [away] along the ray.
   const GizmoHit({required this.handle, required this.at, required this.away});
 
   /// The arrow that was hit.
@@ -449,6 +468,8 @@ final class GizmoHit {
   /// How far along the ray that is.
   final double away;
 
+  /// The axis the hit handle stands for: what the drag that follows is
+  /// confined to.
   GizmoAxis get axis => handle.axis;
 
   /// The nearest of [handles] the ray from [eye] along the unit vector [along]

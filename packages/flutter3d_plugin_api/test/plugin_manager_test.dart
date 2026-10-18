@@ -1,0 +1,639 @@
+/// The plugin host before any loop: versions, ids, dependency order, and
+/// switching at a boundary.
+///
+///     dart test test/plugin_manager_test.dart
+///
+/// Against a registry that writes down what was registered, so a test reads
+/// the effect of installing rather than the manager's own bookkeeping. Each
+/// test was written by breaking what it covers; the mutation is named.
+library;
+
+import 'dart:async';
+
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:test/test.dart';
+
+/// A loop that keeps the systems registered, in registration order, by name.
+final class _Loop extends LoopRegistry {
+  final List<String> systems = <String>[];
+
+  @override
+  Registration addPhase(
+    LoopPhase phase, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => Registration(() {});
+
+  @override
+  Registration addSystem(
+    String name,
+    LoopPhase phase,
+    LoopSystem system, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
+  }) {
+    systems.add(name);
+    return Registration(() => systems.remove(name));
+  }
+
+  @override
+  LoopRegistry forPlugin(PluginScope scope) => _ScopedLoop(this, scope);
+}
+
+final class _ScopedLoop extends LoopRegistry {
+  _ScopedLoop(this._loop, this._scope);
+
+  final _Loop _loop;
+  final PluginScope _scope;
+
+  @override
+  Registration addPhase(
+    LoopPhase phase, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _loop.addPhase(phase);
+
+  @override
+  Registration addSystem(
+    String name,
+    LoopPhase phase,
+    LoopSystem system, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
+  }) {
+    final registration = _loop.addSystem(name, phase, system);
+    _scope.track(registration);
+    return registration;
+  }
+
+  @override
+  LoopRegistry forPlugin(PluginScope scope) => _loop.forPlugin(scope);
+}
+
+final class _Events extends EventRegistry {
+  @override
+  List<EventDeclaration> get declared => const <EventDeclaration>[];
+
+  @override
+  Registration declare<T extends BusEvent>(
+    String name, {
+    BusChannel channel = BusChannel.step,
+    String? description,
+    EventCodec<T>? codec,
+  }) => Registration(() {});
+
+  @override
+  Registration onFrame<T extends BusEvent>(
+    String label,
+    EventHandler<T> handler,
+  ) => Registration(() {});
+
+  @override
+  Registration onStep<T extends BusEvent>(
+    String label,
+    EventHandler<T> handler,
+  ) => Registration(() {});
+
+  @override
+  void publish(BusEvent event) {}
+
+  @override
+  EventRegistry forPlugin(PluginScope scope) => this;
+}
+
+/// A plugin that registers one system named after itself.
+final class _Plugin extends Flutter3dPlugin {
+  _Plugin(
+    this.id, {
+    this.dependsOn = const <String>[],
+    this.api = PluginApiVersion.current,
+    this.backends = const <String>{},
+  });
+
+  final String id;
+  final List<String> dependsOn;
+  final PluginApiVersion api;
+  final Set<String> backends;
+  int uninstalled = 0;
+
+  @override
+  PluginManifest get manifest => PluginManifest(
+    id: id,
+    apiVersion: api,
+    dependsOn: dependsOn,
+    backends: backends,
+  );
+
+  @override
+  void install(PluginHost host) {
+    host.loop.addSystem(id, LoopPhase.rules, (_) {});
+  }
+
+  @override
+  void uninstall(PluginHost host) => uninstalled++;
+}
+
+void main() {
+  late _Loop loop;
+  PluginManager manager({String? backend}) {
+    loop = _Loop();
+    return PluginManager(loop: loop, events: _Events(), backend: backend);
+  }
+
+  group('the API version', () {
+    test(
+      'an older minor installs, a newer minor or another major does not',
+      () {
+        // Mutation: compare only majors. The newer-minor case installs.
+        const engine = PluginApiVersion(1, 2);
+        expect(const PluginApiVersion(1, 0).refusalOn(engine), isNull);
+        expect(const PluginApiVersion(1, 2).refusalOn(engine), isNull);
+        expect(
+          const PluginApiVersion(1, 3).refusalOn(engine),
+          allOf(contains('needs plugin API 1.3'), contains('provides 1.2')),
+        );
+        expect(
+          const PluginApiVersion(2, 0).refusalOn(engine),
+          allOf(contains('2.0'), contains('major version')),
+        );
+        expect(
+          const PluginApiVersion(0, 9).refusalOn(engine),
+          contains('major version'),
+        );
+      },
+    );
+
+    test('install refuses a plugin for another API, naming it', () {
+      // Mutation: skip the check in installAll. Nothing throws, and the
+      // system of a plugin written for API 2 is registered.
+      final plugins = manager();
+      expect(
+        () => plugins.installAll(<Flutter3dPlugin>[
+          _Plugin('future', api: const PluginApiVersion(2, 0)),
+        ]),
+        throwsA(
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"future"'), contains('2.0'), contains('1.0')),
+          ),
+        ),
+      );
+      expect(loop.systems, isEmpty);
+    });
+
+    test('reads MAJOR.MINOR and refuses anything else', () {
+      // Mutation: parse a lone '1' as 1.0 — the first refusal returns.
+      // The refusal is the engine's own format exception, so a host catches
+      // it under `Flutter3dException` with every other unreadable file.
+      expect(PluginApiVersion.parse('1.4'), const PluginApiVersion(1, 4));
+      expect(
+        () => PluginApiVersion.parse('1'),
+        throwsA(isA<PluginFormatException>()),
+      );
+      expect(
+        () => PluginApiVersion.parse('1.0.0'),
+        throwsA(isA<PluginFormatException>()),
+      );
+    });
+  });
+
+  group('the manifest', () {
+    test('a kind of touch this build does not know is kept, and held to '
+        'the simulation\'s rules', () {
+      // Mutation: read an unknown name as `simulation`, and writing the
+      // manifest back turns a later minor's kind into the wrong word.
+      final manifest = PluginManifest.fromJson(<String, Object?>{
+        'id': 'trails',
+        'apiVersion': '1.0',
+        'touches': 'audio',
+      });
+      expect(manifest.touches.name, 'audio');
+      expect(manifest.touches.isKnown, isFalse);
+      expect(manifest.touches.simulates, isTrue);
+      expect(manifest.toJson()['touches'], 'audio');
+      expect(PluginTouches.named('view'), PluginTouches.view);
+    });
+
+    test('a plugin that touches only tooling is known and simulates '
+        'nothing', () {
+      // Mutation: leave `tooling` out of `named`. A manifest read back
+      // would be an unknown kind, held to the simulation's rules, and an
+      // editor plugin would enter every run's version.
+      final manifest = PluginManifest.fromJson(<String, Object?>{
+        'id': 'acme_boats.editor',
+        'apiVersion': '1.0',
+        'touches': 'tooling',
+      });
+      expect(manifest.touches, PluginTouches.tooling);
+      expect(manifest.touches.isKnown, isTrue);
+      expect(manifest.touches.simulates, isFalse);
+      expect(manifest.toJson()['touches'], 'tooling');
+    });
+
+    test('keeps keys it does not know, and writes them back', () {
+      // Mutation: drop `extra` from toJson. A tool that rewrites a manifest
+      // strips a later minor's fields.
+      final manifest = PluginManifest.fromJson(<String, Object?>{
+        'id': 'trails',
+        'apiVersion': '1.0',
+        'touches': 'view',
+        'catalogue': <String, Object?>{'tag': 'effects'},
+      });
+      expect(manifest.touches, PluginTouches.view);
+      expect(manifest.extra, <String, Object?>{
+        'catalogue': <String, Object?>{'tag': 'effects'},
+      });
+      expect(manifest.toJson()['catalogue'], <String, Object?>{
+        'tag': 'effects',
+      });
+    });
+
+    test('an id that cannot be a namespace is refused', () {
+      expect(
+        () => manager().installAll(<Flutter3dPlugin>[_Plugin('My Plugin')]),
+        throwsA(isA<PluginException>()),
+      );
+      expect(
+        () =>
+            manager().installAll(<Flutter3dPlugin>[_Plugin('a'), _Plugin('a')]),
+        throwsA(
+          isA<NameTakenException>()
+              .having((e) => e.name, 'name', 'a')
+              .having((e) => e.what, 'what', 'the plugin id'),
+        ),
+      );
+    });
+  });
+
+  group('a plugin that throws', () {
+    test('in install is left off with its dependents, and the rest '
+        'install', () {
+      // Mutation: rethrow from installAll as before, and "after" and
+      // "fire" never install because "broken" did not.
+      final broken = _Broken();
+      final plugins = manager()
+        ..installAll(<Flutter3dPlugin>[
+          _Plugin('before'),
+          broken,
+          _Plugin('fire', dependsOn: <String>['broken']),
+          _Plugin('after'),
+        ]);
+      final status = <String, PluginStatus>{
+        for (final s in plugins.statuses) s.id: s,
+      };
+      expect(status['before']!.enabled, isTrue);
+      expect(status['after']!.enabled, isTrue);
+      expect(status['broken']!.enabled, isFalse);
+      expect(status['broken']!.reason, contains('its install threw'));
+      expect(status['broken']!.error, isA<StateError>());
+      expect(status['fire']!.enabled, isFalse);
+      expect(status['fire']!.reason, contains('"broken"'));
+      // What it registered before it threw is withdrawn.
+      expect(loop.systems, <String>['before', 'after']);
+    });
+
+    test('in ready is switched off at the next boundary, with its '
+        'dependents', () async {
+      // Mutation: ignore what ready threw, and a plugin that never loaded
+      // what it draws with stays on.
+      final plugins = manager()
+        ..installAll(<Flutter3dPlugin>[
+          _Readies('slow'),
+          _Readies('bad', fails: true),
+          _Plugin('needs_bad', dependsOn: <String>['bad']),
+        ]);
+      expect(plugins.isEnabled('bad'), isTrue);
+      await plugins.whenReady();
+      expect(plugins.isEnabled('bad'), isTrue, reason: 'only at a boundary');
+      plugins.applyPending(1);
+      final status = <String, PluginStatus>{
+        for (final s in plugins.statuses) s.id: s,
+      };
+      expect(status['slow']!.enabled, isTrue);
+      expect(status['bad']!.enabled, isFalse);
+      expect(status['bad']!.reason, contains('its ready threw'));
+      expect(status['needs_bad']!.enabled, isFalse);
+      expect(status['needs_bad']!.reason, contains('"bad"'));
+      expect(loop.systems, <String>['slow']);
+    });
+
+    test('ready runs after install, and what it registers late is the '
+        'plugin\'s', () async {
+      final plugins = manager()..installAll(<Flutter3dPlugin>[_Readies('a')]);
+      expect(loop.systems, <String>['a']);
+      await plugins.whenReady();
+      expect(loop.systems, <String>['a', 'a.late']);
+      plugins
+        ..disable('a')
+        ..applyPending(1);
+      expect(loop.systems, isEmpty);
+    });
+
+    test('a registration made after the plugin was switched off is '
+        'withdrawn at once', () async {
+      // Mutation: file a late registration with whatever installation is
+      // current, and a plugin that is off keeps a system in the loop.
+      final waiting = _Readies('a', waits: true);
+      final plugins = manager()..installAll(<Flutter3dPlugin>[waiting]);
+      plugins
+        ..disable('a')
+        ..applyPending(1);
+      waiting.release();
+      await plugins.whenReady();
+      expect(loop.systems, isEmpty);
+    });
+  });
+
+  group('dependency order', () {
+    test('dependencies install first, and ties keep the order given', () {
+      // Heat moves up to the place of fire, which waits for it; ui keeps its
+      // place after fire. Mutation: take the earliest ready plugin instead of
+      // the one the earliest waiting plugin needs. Ui slips ahead of heat.
+      final plugins = manager()
+        ..installAll(<Flutter3dPlugin>[
+          _Plugin('fire', dependsOn: <String>['heat']),
+          _Plugin('ui'),
+          _Plugin('heat'),
+          _Plugin('smoke', dependsOn: <String>['fire']),
+        ]);
+      expect(plugins.order, <String>['heat', 'fire', 'ui', 'smoke']);
+      expect(loop.systems, <String>['heat', 'fire', 'ui', 'smoke']);
+    });
+
+    test('a missing dependency names the plugin and what it wanted', () {
+      expect(
+        () => manager().installAll(<Flutter3dPlugin>[
+          _Plugin('fire', dependsOn: <String>['heat']),
+        ]),
+        throwsA(
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"fire"'), contains('"heat"')),
+          ),
+        ),
+      );
+    });
+
+    test('a cycle is an error naming every plugin in it', () {
+      // Mutation: return the partial order instead of throwing. The three
+      // plugins in the cycle are silently never installed.
+      expect(
+        () => manager().installAll(<Flutter3dPlugin>[
+          _Plugin('free'),
+          _Plugin('a', dependsOn: <String>['c']),
+          _Plugin('b', dependsOn: <String>['a']),
+          _Plugin('c', dependsOn: <String>['b']),
+        ]),
+        throwsA(
+          isA<ConstraintCycleException>()
+              .having((e) => e.what, 'what', 'plugins')
+              .having((e) => e.cycle.toSet(), 'cycle', <String>{'a', 'b', 'c'})
+              .having((e) => e.toString(), 'message', contains('→')),
+        ),
+      );
+    });
+
+    test('a plugin for another backend is installed off, with a reason', () {
+      final plugins = manager(backend: 'webgl')
+        ..installAll(<Flutter3dPlugin>[
+          _Plugin('compute', backends: <String>{'webgpu'}),
+          _Plugin('needs-compute', dependsOn: <String>['compute']),
+        ]);
+      expect(loop.systems, isEmpty);
+      expect(plugins.statuses.map((s) => s.reason), <Matcher>[
+        contains('webgpu'),
+        contains('"compute"'),
+      ]);
+      expect(() => plugins.enable('compute'), throwsA(isA<PluginException>()));
+    });
+  });
+
+  group('switching', () {
+    test('takes effect at the boundary, and is journalled with its step', () {
+      // Mutation: install in `enable` itself. The system is there before
+      // the boundary, which is in the middle of whatever step is running.
+      final heat = _Plugin('heat');
+      final plugins = manager()..installAll(<Flutter3dPlugin>[heat]);
+      plugins.disable('heat');
+      expect(loop.systems, <String>['heat'], reason: 'not before the boundary');
+      final applied = plugins.applyPending(12);
+      expect(loop.systems, isEmpty);
+      expect(heat.uninstalled, 1);
+      expect(applied.single, isA<PluginDisabled>());
+      expect(applied.single.step, 12);
+      expect(applied.single.affectsSimulation, isTrue);
+
+      plugins.enable('heat');
+      plugins.applyPending(20);
+      expect(loop.systems, <String>['heat']);
+      expect(plugins.journal.map((c) => c.toString()), <String>[
+        'disable heat at step 12',
+        'enable heat at step 20',
+      ]);
+    });
+
+    test('a dependency cannot be switched off under an enabled dependent', () {
+      final plugins = manager()
+        ..installAll(<Flutter3dPlugin>[
+          _Plugin('heat'),
+          _Plugin('fire', dependsOn: <String>['heat']),
+        ]);
+      expect(
+        () => plugins.disable('heat'),
+        throwsA(
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            contains('"fire"'),
+          ),
+        ),
+      );
+      // Off in the right order is fine, and is checked against the pending
+      // requests rather than the present.
+      plugins
+        ..disable('fire')
+        ..disable('heat');
+      expect(() => plugins.enable('fire'), throwsA(isA<PluginException>()));
+      plugins.applyPending(1);
+      expect(loop.systems, isEmpty);
+    });
+
+    test('a scheduled journal is made at the same steps', () {
+      // Mutation: apply scheduled changes after the requests, or not at
+      // all. The replay's order of systems differs from the run's.
+      final live = manager()
+        ..installAll(<Flutter3dPlugin>[_Plugin('a'), _Plugin('b')]);
+      live.disable('a');
+      live.applyPending(5);
+      live.enable('a');
+      live.applyPending(9);
+      live.reorder(<String>['b', 'a']);
+      live.applyPending(9);
+
+      final replay = manager()
+        ..installAll(<Flutter3dPlugin>[_Plugin('a'), _Plugin('b')])
+        ..schedule(live.journal);
+      for (var step = 0; step < 12; step++) {
+        replay.applyPending(step);
+      }
+      expect(replay.order, live.order);
+      expect(
+        replay.journal.map((c) => c.toJson()),
+        live.journal.map((c) => c.toJson()),
+      );
+    });
+
+    test('changes survive a trip through JSON', () {
+      for (final change in <PluginChange>[
+        const PluginEnabled(step: 3, plugin: 'a', affectsSimulation: true),
+        const PluginDisabled(step: 4, plugin: 'b', affectsSimulation: false),
+        const PluginsReordered(
+          step: 5,
+          order: <String>['b', 'a'],
+          affectsSimulation: true,
+        ),
+        const PluginsSet(
+          step: 0,
+          order: <String>['a', 'b'],
+          enabled: <String>['b'],
+          affectsSimulation: true,
+        ),
+      ]) {
+        expect(
+          PluginChange.fromJson(change.toJson()).toJson(),
+          change.toJson(),
+        );
+      }
+      expect(
+        () => PluginChange.fromJson(<String, Object?>{
+          'kind': 'teleport',
+          'step': 1,
+        }),
+        throwsA(isA<PluginFormatException>()),
+      );
+    });
+  });
+
+  test('a registry the engine does not have is refused by name', () {
+    Object? refusal;
+    final plugins = manager();
+    plugins.installAll(<Flutter3dPlugin>[_AsksForEditor((e) => refusal = e)]);
+    expect(refusal, isA<StateError>());
+    expect('$refusal', allOf(contains('_MissingSlot'), contains('"asks"')));
+  });
+
+  test('a group installs as its plugins, in its order', () {
+    // Mutation: install the group's members sorted, or only the first. The
+    // order a group gives is the order its plugins' systems run in.
+    final plugins = manager();
+    plugins.installGroup(
+      PluginGroup(<Flutter3dPlugin>[_Plugin('wind'), _Plugin('rain')]),
+    );
+    expect(plugins.order, <String>['wind', 'rain']);
+    expect(loop.systems, <String>['wind', 'rain']);
+  });
+
+  test('a plugin is told the promise its simulation makes', () {
+    // Mutation: hand every host `deterministic`. A plugin that may only run
+    // where the bits agree would install on an `accurate` engine unwarned.
+    SimulationProfile? told;
+    final asks = _AsksForProfile((p) => told = p);
+    PluginManager(
+      loop: _Loop(),
+      events: _Events(),
+    ).installAll(<Flutter3dPlugin>[asks]);
+    expect(told, SimulationProfile.deterministic);
+    PluginManager(
+      loop: _Loop(),
+      events: _Events(),
+      profile: SimulationProfile.accurate,
+    ).installAll(<Flutter3dPlugin>[_AsksForProfile((p) => told = p)]);
+    expect(told, SimulationProfile.accurate);
+    expect(told!.isBitExact, isFalse);
+  });
+}
+
+/// Registers a system, then throws from install.
+final class _Broken extends Flutter3dPlugin {
+  @override
+  PluginManifest get manifest =>
+      const PluginManifest(id: 'broken', apiVersion: PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) {
+    host.loop.addSystem('broken', LoopPhase.rules, (_) {});
+    throw StateError('no assets');
+  }
+}
+
+/// Registers a system in install, and one more once its ready has loaded —
+/// or throws from ready when [fails], or waits for [release] when [waits].
+final class _Readies extends Flutter3dPlugin {
+  _Readies(this.id, {this.fails = false, this.waits = false});
+
+  final String id;
+  final bool fails;
+  final bool waits;
+  final Completer<void> _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  PluginManifest get manifest =>
+      PluginManifest(id: id, apiVersion: const PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) =>
+      host.loop.addSystem(id, LoopPhase.rules, (_) {});
+
+  @override
+  Future<void> ready(PluginHost host) async {
+    if (waits) await _gate.future;
+    await Future<void>.delayed(Duration.zero);
+    if (fails) throw StateError('the library would not load');
+    if (id == 'a') host.loop.addSystem('a.late', LoopPhase.rules, (_) {});
+  }
+}
+
+final class _AsksForProfile extends Flutter3dPlugin {
+  _AsksForProfile(this.told);
+
+  final void Function(SimulationProfile profile) told;
+
+  @override
+  PluginManifest get manifest =>
+      const PluginManifest(id: 'profiled', apiVersion: PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) => told(host.profile);
+}
+
+/// A registry slot no engine in this test fills, as an editor's is in a
+/// game.
+abstract base class _MissingSlot extends PluginRegistry {}
+
+final class _AsksForEditor extends Flutter3dPlugin {
+  _AsksForEditor(this.caught);
+
+  final void Function(Object error) caught;
+
+  @override
+  PluginManifest get manifest =>
+      const PluginManifest(id: 'asks', apiVersion: PluginApiVersion(1, 0));
+
+  @override
+  void install(PluginHost host) {
+    expect(host.maybeRegistry<_MissingSlot>(), isNull);
+    try {
+      host.registry<_MissingSlot>();
+    } on StateError catch (error) {
+      caught(error);
+    }
+  }
+}

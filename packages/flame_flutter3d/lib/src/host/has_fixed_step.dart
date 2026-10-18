@@ -1,6 +1,11 @@
+import 'package:flame/collisions.dart'
+    show Broadphase, ShapeHitbox, StandardCollisionDetection;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
+import 'package:flutter/foundation.dart' show mustCallSuper;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show CatchUp, EngineLoop, InputState, WorldTiming;
 
 import 'step_clock.dart';
 
@@ -48,8 +53,9 @@ void _changedStepping(Component component) {
 /// the actors already step in fixed steps; this is the same for the game's
 /// own logic.
 ///
-/// Each frame, the time is spent in whole steps of [fixedStep]'s size, at
-/// most its `maxStepsPerFrame` after a stall. Each step calls
+/// Each frame, the time is spent in whole steps of the world's step rate
+/// ([engineLoop]'s), at most its catch-up's after a stall, and the rest is
+/// announced as `TimeLost` rather than dropped unheard. Each step calls
 /// [fixedUpdate] on the game and then on every [FixedStepUpdate] component
 /// in it, in tree order. Flame's own `update` still runs once a frame after
 /// them, for what should follow the screen rather than the simulation: a
@@ -67,7 +73,32 @@ void _changedStepping(Component component) {
 /// pushes move in turn, step by step, and [alpha] is the one fraction every
 /// drawing between two steps uses.
 ///
-/// Flame's collision detection still runs once a frame.
+/// Flame's collision detection runs once a frame, unless the game mixes in
+/// [HasFixedStepCollisions], which runs it in the steps.
+///
+/// ## On the engine's loop
+///
+/// **The steps are [engineLoop]'s**, the `EngineLoop` every flutter3d game
+/// runs on, and what used to be this mixin's own frame is systems in its
+/// phases. Each step, in this order, which is the order the mixin always
+/// stepped in:
+///
+/// | phase   | system              | what                                  |
+/// |---------|---------------------|---------------------------------------|
+/// | input   | `flame.followers`   | each follower keeps its place         |
+/// | input   | `flame.stepStarts`  | [beforeEachStep]'s callbacks          |
+/// | rules   | `flame.fixedUpdate` | the game's [fixedUpdate]              |
+/// | rules   | `flame.components`  | every [FixedStepUpdate], tree order   |
+/// | rules   | `flame.collisions`  | with [HasFixedStepCollisions] only    |
+/// | publish | `flame.stepEnds`    | [afterEachStep]'s callbacks           |
+///
+/// The components stay one system, in tree order, rather than spread over
+/// the phases by what they are: a `PhysicsStepComponent` and the game's own
+/// components step in the order the game put them in the tree, and a game
+/// recorded under that order replays under it. A game or a plugin adds its
+/// own systems to [engineLoop] around these by name, or replaces the loop
+/// altogether through [createEngineLoop] — its plugins, its registries, its
+/// world's step rate.
 ///
 /// Generic over the game's world, as `HasFlutter3d` is, so a game whose
 /// world has a type of its own can step too.
@@ -78,8 +109,57 @@ void _changedStepping(Component component) {
 /// before each step, ahead of the game's own logic, then drawn [alpha] of the
 /// way on.
 mixin HasFixedStep<W extends World> on FlameGame<W> implements StepClock {
-  /// How the frame's time is cut: a sixtieth of a second unless replaced.
-  FixedStep fixedStep = FixedStep();
+  /// The loop this game's steps run on: made on first use by
+  /// [createEngineLoop], with this game's systems added to it.
+  late final EngineLoop engineLoop = _made();
+
+  EngineLoop _made() {
+    final loop = createEngineLoop();
+    installStepSystems(loop);
+    return loop;
+  }
+
+  /// Makes the loop [engineLoop] holds. Override to hand it plugins, its
+  /// registries, a world's step rate or a catch-up policy; the systems this
+  /// mixin adds go into whatever loop comes back.
+  ///
+  /// By default a loop at sixty steps a second and at most five steps a
+  /// frame, over an input state of its own that nothing reads: the bridge's
+  /// input is closed after each step by `FlameInputBridge.stepEnd`, through
+  /// [afterEachStep]. Override for another step rate ([WorldTiming]) or
+  /// catch-up ([CatchUp]).
+  EngineLoop createEngineLoop() => EngineLoop(
+    input: InputState(),
+    timing: const WorldTiming(),
+    catchUp: const CatchUp.announce(),
+  );
+
+  /// Adds this game's systems to [loop]: see the table above. Called once,
+  /// when [engineLoop] is made. A mixin that adds its own calls `super`
+  /// first, and orders against these by name.
+  @mustCallSuper
+  void installStepSystems(EngineLoop loop) {
+    loop
+      ..addSystem('flame.followers', LoopPhase.input, _rememberPlaces)
+      ..addSystem(
+        'flame.stepStarts',
+        LoopPhase.input,
+        _startStep,
+        after: const <String>['flame.followers'],
+      )
+      ..addSystem(
+        'flame.fixedUpdate',
+        LoopPhase.rules,
+        (LoopContext step) => fixedUpdate(step.dt),
+      )
+      ..addSystem(
+        'flame.components',
+        LoopPhase.rules,
+        _stepComponents,
+        after: const <String>['flame.fixedUpdate'],
+      )
+      ..addSystem('flame.stepEnds', LoopPhase.publish, _endStep);
+  }
 
   int _steps = 0;
 
@@ -88,7 +168,7 @@ mixin HasFixedStep<W extends World> on FlameGame<W> implements StepClock {
 
   /// How far this frame is past the last step, from 0 up to 1.
   @override
-  double get alpha => fixedStep.alpha;
+  double get alpha => engineLoop.alpha;
 
   final Set<StepFollower> _followers = <StepFollower>{};
 
@@ -161,30 +241,90 @@ mixin HasFixedStep<W extends World> on FlameGame<W> implements StepClock {
     for (final start in List<void Function()>.of(_frameStarts)) {
       start();
     }
-    _steps = fixedStep.advance(dt);
-    if (_steps > 0) {
-      final stepping = _stepping ??= descendants()
-          .whereType<FixedStepUpdate>()
-          .toList(growable: false);
-      for (var i = 0; i < _steps; i++) {
-        final step = fixedStep.stepSeconds;
-        for (final follower in List<StepFollower>.of(_followers)) {
-          follower.rememberPlace();
-        }
-        for (final start in List<void Function()>.of(_stepStarts)) {
-          start();
-        }
-        fixedUpdate(step);
-        for (final component in stepping) {
-          if (component.isMounted && !component.isRemoving) {
-            component.fixedUpdate(step);
-          }
-        }
-        for (final end in List<void Function()>.of(_stepEnds)) {
-          end();
-        }
+    _steps = engineLoop.frame(dt);
+    super.update(dt);
+  }
+
+  void _rememberPlaces(LoopContext step) {
+    for (final follower in List<StepFollower>.of(_followers)) {
+      follower.rememberPlace();
+    }
+  }
+
+  void _startStep(LoopContext step) {
+    for (final start in List<void Function()>.of(_stepStarts)) {
+      start();
+    }
+  }
+
+  void _stepComponents(LoopContext step) {
+    final stepping = _stepping ??= descendants()
+        .whereType<FixedStepUpdate>()
+        .toList(growable: false);
+    for (final component in stepping) {
+      if (component.isMounted && !component.isRemoving) {
+        component.fixedUpdate(step.dt);
       }
     }
-    super.update(dt);
+  }
+
+  void _endStep(LoopContext step) {
+    for (final end in List<void Function()>.of(_stepEnds)) {
+      end();
+    }
+  }
+}
+
+/// A [HasFixedStep] game whose Flame collision detection runs in its fixed
+/// steps rather than once a frame.
+///
+/// **A collision decided by the frame is decided by the machine.** A meteor
+/// moved in the steps and tested against the ship once a frame met it on
+/// one frame at 60 Hz and passed through it between two at 30, and a run
+/// played back did not hit what it hit. Mixed in after
+/// `HasCollisionDetection`, the detection runs as the system
+/// `flame.collisions` in the `rules` phase, after `flame.components` — once
+/// every component has moved in the step — and not in the frame at all.
+/// `onCollision` and its kin are then called inside the step, with the
+/// step's positions, and a frame with no step tests nothing.
+///
+/// For the standard detection, which it puts in place when the loop is
+/// made; a game with a detection of its own runs that from a system of its
+/// own instead.
+mixin HasFixedStepCollisions<W extends World>
+    on HasFixedStep<W>, HasCollisionDetection<Broadphase<ShapeHitbox>> {
+  final _SteppedCollisions _stepped = _SteppedCollisions();
+
+  @override
+  void installStepSystems(EngineLoop loop) {
+    super.installStepSystems(loop);
+    collisionDetection = _stepped;
+    loop.addSystem(
+      'flame.collisions',
+      LoopPhase.rules,
+      (LoopContext step) => _stepped.runInStep(),
+      after: const <String>['flame.components'],
+    );
+  }
+}
+
+/// The standard detection, run only from inside a step: the frame's call
+/// from `HasCollisionDetection.update` finds it shut.
+final class _SteppedCollisions
+    extends StandardCollisionDetection<Broadphase<ShapeHitbox>> {
+  bool _open = false;
+
+  void runInStep() {
+    _open = true;
+    try {
+      run();
+    } finally {
+      _open = false;
+    }
+  }
+
+  @override
+  void run() {
+    if (_open) super.run();
   }
 }

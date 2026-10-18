@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -18,6 +19,8 @@ import 'surfaces.dart';
 /// own platform is an enemy the level cannot rely on, and one that turns at a
 /// wall but not at a drop looks fine in a room and is useless outdoors.
 base class Patrol extends Brain {
+  /// A patrol walking between the posts of [route], copied, starting
+  /// towards the second. Asserts there are at least two posts.
   Patrol({
     required List<Vector3> route,
     this.speed = 0.55,
@@ -48,7 +51,8 @@ base class Patrol extends Brain {
   /// Which post it is walking towards. For a test, and for a save.
   int get target => _target;
 
-  Vector3 get destination => _route[_target];
+  /// The post it is walking towards, in world metres; a copy.
+  Vector3 get destination => _route[_target].clone();
 
   @override
   void act(Mind it) {
@@ -114,7 +118,7 @@ base class Patrol extends Brain {
       ..setFrom(body.position)
       ..x += dx / length * ledgeProbe
       ..z += dz / length * ledgeProbe;
-    _down.setValues(0.0, -(body.halfExtents.y + 0.6), 0.0);
+    _down.setValues(0.0, -(body.shape.boundsHalfExtents.y + 0.6), 0.0);
     return !body.world.sweep(
       body.shape,
       _ahead,
@@ -159,6 +163,7 @@ base class Patrol extends Brain {
 /// a brain that asks every step does not fly. Writing `velocity.y` would work
 /// once and then keep working, in the air, for ever.
 final class Leaper extends Patrol {
+  /// A patrol over `route` that jumps gaps up to [reach] metres wide.
   Leaper({
     required super.route,
     super.speed,
@@ -168,6 +173,7 @@ final class Leaper extends Patrol {
   });
 
   /// How wide a gap it will try. Beyond this it turns round like any patrol.
+  /// In metres.
   final double reach;
 
   @override
@@ -190,7 +196,7 @@ final class Leaper extends Patrol {
         ..setFrom(body.position)
         ..x += dx / length * reach
         ..z += dz / length * reach;
-      _probe.setValues(0.0, -(body.halfExtents.y + 1.2), 0.0);
+      _probe.setValues(0.0, -(body.shape.boundsHalfExtents.y + 1.2), 0.0);
       final ground = body.world.sweep(
         body.shape,
         _landing,
@@ -236,6 +242,7 @@ final class Leaper extends Patrol {
 /// after [patience] seconds out of sight, so a runner who breaks line of
 /// sight and keeps going is a runner who got away.
 final class Hunter extends Brain {
+  /// A hunter seeing [sight] metres and keeping on for [patience] seconds.
   Hunter({this.sight = 14.0, this.patience = 3.0});
 
   /// How far it sees, in metres.
@@ -247,7 +254,7 @@ final class Hunter extends Brain {
   double _memory = 0.0;
 
   /// Whether it is currently after the player. For a test and a save.
-  bool get hunting => _memory > 0.0;
+  bool get isHunting => _memory > 0.0;
 
   @override
   void think(Mind it) {

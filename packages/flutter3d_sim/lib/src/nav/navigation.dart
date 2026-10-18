@@ -22,7 +22,8 @@ import 'nav_grid.dart';
 
 /// Somewhere to walk, and the way there.
 final class Navigation {
-  Navigation(this.grid);
+  /// Navigation over a grid already baked, with no field built yet.
+  Navigation(NavGrid grid) : _grid = grid;
 
   /// Bakes the level's architecture. See [NavGrid.bake] for what [issues]
   /// collects — a level with a walkway over a floor is worth hearing about —
@@ -48,7 +49,15 @@ final class Navigation {
     ),
   );
 
-  final NavGrid grid;
+  /// The walkable lattice. Replaced when the level changes under it — a
+  /// wall broken, see `NavGrid.rebake` — and every field is then swept
+  /// again over the new one, on first use, to the goals it had.
+  NavGrid get grid => _grid;
+  NavGrid _grid;
+  set grid(NavGrid next) {
+    _grid = next;
+    _fields.clear();
+  }
 
   final Map<(int, JumpReach?, int), FlowField> _fields =
       <(int, JumpReach?, int), FlowField>{};

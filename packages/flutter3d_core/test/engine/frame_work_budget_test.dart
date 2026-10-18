@@ -16,7 +16,10 @@ final class _Clock {
 void main() {
   test('a burst of equal pieces stops short of the allowance', () {
     final clock = _Clock();
-    final budget = FrameWorkBudget(microseconds: 1000, clock: clock.read);
+    final budget = FrameWorkBudget(
+      allowance: const Duration(microseconds: 1000),
+      clock: clock.read,
+    );
     for (var frame = 0; frame < 5; frame++) {
       budget.beginFrame();
       var ran = 0;
@@ -35,8 +38,10 @@ void main() {
 
   test('a piece bigger than the allowance still runs, one a frame', () {
     final clock = _Clock();
-    final budget = FrameWorkBudget(microseconds: 100, clock: clock.read)
-      ..beginFrame();
+    final budget = FrameWorkBudget(
+      allowance: const Duration(microseconds: 100),
+      clock: clock.read,
+    )..beginFrame();
     expect(budget.spend(() => clock.now += 5000), isTrue);
     expect(budget.spend(() => clock.now += 5000), isFalse);
     budget.beginFrame();

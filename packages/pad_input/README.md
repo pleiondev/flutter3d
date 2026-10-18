@@ -67,8 +67,8 @@ it by moving it.
 | Web | **yes** | `navigator.getGamepads()`, pure Dart, no native code |
 | iOS | **yes** | the same file, through `sharedDarwinSource` |
 | Android | **yes** | Kotlin forwards raw `MotionEvent` axes and an inventory of what the device has; every decision is in Dart |
-| Windows | no | XInput, when somebody needs it |
-| Linux | no | evdev, likewise |
+| Windows | **yes**, built in CI, not yet played | XInput, four slots asked about 120 times a second, the numbers read in Dart |
+| Linux | **yes**, built in CI, not yet played | the kernel joystick devices `/dev/input/js0` to `js3`, the numbers read in Dart |
 
 A build picks its implementation through a conditional export
 (`lib/src/platform_default.dart`) instead of a plugin registration. The web
@@ -174,7 +174,7 @@ that means the wrong thing is worse than a pad that does not answer.
 
 It knows nothing about games: it has no actions, bindings or vocabulary. The
 code that turns `face.south` into "jump" belongs beside the keyboard's
-equivalent in the game layer, for the same reason `pointer_lock` reports deltas
+equivalent in the game layer, for the same reason `flutter3d_pointer_lock` reports deltas
 and lets its caller decide what they mean.
 
 The following are deliberately absent. None has a consumer, and each would
@@ -198,7 +198,7 @@ test shows. That holds for the platform channel and not for anything above it,
 so everything above it is tested: the dead zone in both directions, the
 trigger's travel, a disconnection zeroing before it announces itself, and the
 button vocabulary's own spelling. `test/gamepad_test.dart` supplies a fake
-platform, as `pointer_lock` does.
+platform, as `flutter3d_pointer_lock` does.
 
 The browser's mapping table is tested too, separately from the browser. The
 seventeen button indices and four axis indices live in
@@ -230,7 +230,7 @@ because a person has to do it.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

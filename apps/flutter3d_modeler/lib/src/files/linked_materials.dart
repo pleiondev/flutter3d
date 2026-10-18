@@ -38,6 +38,7 @@ typedef LinkedMaterialHost = ({
 /// wholesale on [follow], because a project that just changed is cheaper to
 /// re-read than to diff.
 final class LinkedMaterials {
+  /// Watches nothing until [follow] is handed a project.
   LinkedMaterials({required this.host, required this.onRelink, this.onTrouble});
 
   /// The platform half — see [LinkedMaterialHost].

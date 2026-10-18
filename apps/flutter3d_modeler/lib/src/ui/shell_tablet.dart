@@ -24,6 +24,7 @@ import 'tools.dart';
 
 /// The tablet shell: a palette instead of a rail, a sheet instead of a panel.
 class ModelerTabletShell extends StatelessWidget {
+  /// The tablet shell around the parts it is handed.
   const ModelerTabletShell({
     super.key,
     required this.mode,
@@ -46,24 +47,40 @@ class ModelerTabletShell extends StatelessWidget {
   /// person who cannot see which file is open, or that it is unsaved, has
   /// only the window title to go on, and a web build has no window title.
   final String documentName;
+
+  /// Whether [documentName] has unsaved changes, which marks the label.
   final bool isDirty;
 
+  /// The mode on screen, highlighted in the top bar's switcher.
   final ModelerMode mode;
+
+  /// A mode was picked in the switcher.
   final ValueChanged<ModelerMode> onMode;
 
   /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
+  /// The element level mesh editing picks at; the switcher shows it in
+  /// [ModelerMode.mesh] and [ModelerMode.uv].
   final MeshSubmode submode;
+
+  /// An element level was picked.
   final ValueChanged<MeshSubmode> onSubmode;
 
   /// The id of the armed tool, from [ModelerTool.id]. Null is the pointer.
   final String? activeTool;
+
+  /// A palette tool was pressed, by its [ModelerTool.id].
   final ValueChanged<String> onTool;
 
+  /// The picture, beside the palette and under the properties sheet.
   final Widget viewport;
+
+  /// The properties panel, in the sheet over the picture's bottom edge.
   final Widget properties;
+
+  /// The status line along the bottom.
   final Widget status;
 
   /// What sits at the right of the top bar: opening, saving, exporting.
@@ -72,7 +89,7 @@ class ModelerTabletShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
+    final colors = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
       // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
       // not `surface`. The two differ by five points of lightness, which is
@@ -149,7 +166,7 @@ class ModelerTabletShell extends StatelessWidget {
                 Expanded(
                   child: Stack(
                     children: <Widget>[
-                      ColoredBox(color: colours.viewport, child: viewport),
+                      ColoredBox(color: colors.viewport, child: viewport),
                       // A sheet over the viewport's own bottom edge rather
                       // than a fourth column: the properties panel is
                       // something reached for and put away, not something a
@@ -285,13 +302,17 @@ class _TabletPalette extends StatelessWidget {
 /// person to be able to resize it — that is a real, later refinement this
 /// does not need to carry to close honestly.
 class ModelerPropertiesSheet extends StatelessWidget {
+  /// A sheet [height] tall around [child].
   const ModelerPropertiesSheet({
     super.key,
     required this.height,
     required this.child,
   });
 
+  /// How tall the sheet is, handle included, in logical pixels.
   final double height;
+
+  /// The sheet's content, under the handle and filling the rest of it.
   final Widget child;
 
   @override

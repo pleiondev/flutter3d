@@ -24,7 +24,7 @@
 ///
 /// It knows nothing about games: no actions, no bindings, no vocabulary. What
 /// turns `face.south` into "jump" lives in the game layer beside the keyboard's
-/// equivalent, for the same reason `pointer_lock` reports deltas and lets
+/// equivalent, for the same reason `flutter3d_pointer_lock` reports deltas and lets
 /// `DesktopInput` decide what they mean.
 ///
 /// ## One pad a player
@@ -45,12 +45,17 @@ import 'src/pad_snapshot.dart';
 
 export 'src/deadzone.dart';
 export 'src/gamepad_platform_interface.dart'
-    show GamepadPlatform, PadConnection, UnsupportedGamepad;
+    show GamepadPlatform, PadConnection, PadReadContext, UnsupportedGamepad;
 export 'src/pad_button.dart';
 export 'src/pad_snapshot.dart';
 
 /// The gamepad a player is holding.
 final class Gamepad {
+  /// A reader for the controller in slot [index], through [platform] (the
+  /// shared [GamepadPlatform.instance] when null) with [deadzone] applied.
+  ///
+  /// Asserts that [index] is from nought to below
+  /// [GamepadPlatform.maxPads].
   Gamepad({
     GamepadPlatform? platform,
     Deadzone deadzone = const Deadzone(),
@@ -67,7 +72,9 @@ final class Gamepad {
   /// connect, one for the second. See [GamepadPlatform.readPad].
   final int index;
 
-  /// The one a game uses when it has not made its own.
+  /// The one a game uses when it has not made its own: process-wide, one
+  /// per process, like the platform channel under it. The engine reaches
+  /// it only through a `PadDevice`, which a game or a test replaces.
   ///
   /// Constructed on first use, so a build that never touches a gamepad never
   /// touches a platform channel either.
@@ -103,14 +110,24 @@ final class Gamepad {
   /// Whether this build can see a gamepad at all.
   bool get isSupported => _platform.isSupported;
 
+  /// Each attach and detach the platform reports, as it happens.
+  ///
+  /// Never fires where [isSupported] is false.
   Stream<PadConnection> get connectionChanges => _platform.connectionChanges;
 
   final List<double> _stick = <double>[0.0, 0.0];
 
+  /// What [GamepadPlatform.readPad] is handed, made on the first read and
+  /// set on each after: a read allocates nothing.
+  PadReadContext? _reading;
+
   /// Fills [out] with what the pad is doing, dead zone already applied.
   void read(PadSnapshot out) {
-    _platform.readPad(index, out);
-    if (!out.connected) return;
+    _platform.readPad(switch (_reading) {
+      null => _reading = PadReadContext(index: index, out: out),
+      final reading => reading..out = out,
+    });
+    if (!out.isConnected) return;
 
     _stick[0] = out.axis(PadAxis.leftStickX);
     _stick[1] = out.axis(PadAxis.leftStickY);

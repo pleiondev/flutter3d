@@ -1,6 +1,6 @@
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../transform/object3d_component.dart';
 
@@ -37,7 +37,10 @@ import '../transform/object3d_component.dart';
 /// craft seen across the seam reaches the craft.
 ///
 /// [min] and [max] are the world's corners in Flame's coordinates.
-class WrapSpace extends Component {
+base class WrapSpace extends Component {
+  /// A world from [min] to [max], ghosts drawn in [scene] for children
+  /// within [margin] of an edge, one by default. Asserts [max] is past
+  /// [min] on both axes.
   WrapSpace({
     required this.min,
     required this.max,
@@ -45,7 +48,12 @@ class WrapSpace extends Component {
     this.margin = 1.0,
   }) : assert(max.x > min.x && max.y > min.y, 'a world with no room');
 
+  /// The world's top left corner in Flame's coordinates: a child past it
+  /// comes in at [max].
   final Vector2 min;
+
+  /// The world's bottom right corner in Flame's coordinates: a child past
+  /// it comes in at [min].
   final Vector2 max;
 
   /// Where the ghosts are drawn.
@@ -229,7 +237,7 @@ final class _Ghost {
     drawing
       ..setPositionFrom(at)
       ..setRotation(owner.node.readRotation())
-      ..visible = owner.node.visible;
+      ..isVisible = owner.node.isVisible;
     final s = owner.node.readScale();
     drawing.setScale(s.x, s.y, s.z);
     _tint(owner.node, drawing);
@@ -239,7 +247,7 @@ final class _Ghost {
   /// shape: a hit flash or a fade out shows on the ghost too.
   static void _tint(SceneNode from, SceneNode to) {
     if (from is MeshNode && to is MeshNode && to.tint != from.tint) {
-      to.tint.setFrom(from.tint);
+      to.tint = from.tint;
     }
     final a = from.childrenView;
     final b = to.childrenView;
@@ -315,7 +323,7 @@ final class _Ghost {
   /// shared, the transforms copied.
   static SceneNode _copy(SceneNode node) {
     final SceneNode made = node is MeshNode
-        ? (MeshNode(node.mesh, node.material)..tint.setFrom(node.tint))
+        ? (MeshNode(node.mesh, node.material)..tint = node.tint)
         : SceneNode();
     made
       ..setPositionFrom(node.readPosition())

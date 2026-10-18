@@ -1,0 +1,12 @@
+f3dmat 3
+material Hatch version 2 {
+  uniform vec3 inkColor = vec3(0.1);
+  uniform float spacing = 4.0;
+  updates {
+    2: rename ink -> inkColor;
+    2: scale spacing 0.5;
+  }
+  fragment {
+    return vec4(inkColor * spacing, 1.0);
+  }
+}

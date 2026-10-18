@@ -5,9 +5,10 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One material, unpainted, no objects.
 ModelHistory painted() => ModelHistory(
@@ -33,7 +34,7 @@ ModelHistory wired() {
       materialIndex: 0,
       graph: TextureGraph(
         nodes: <TextureNode>[
-          ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
+          ColorTextureNode(id: 1, value: LinearColor(1, 0, 0, 1)),
           OutputTextureNode(id: 2, result: 1, slot: 'albedo'),
           const ChannelsTextureNode(id: 3),
         ],
@@ -57,7 +58,7 @@ void main() {
             fields: <String, Object?>{
               'value': <double>[1, 1, 1, 1],
             },
-            position: (12, 34),
+            position: NodePosition(x: 12, y: 34),
           ),
         ),
         isNull,
@@ -66,8 +67,8 @@ void main() {
       final graph = history.project.materials.single.graph!;
       expect(graph.nodes, hasLength(4));
       final added = graph.nodeById(before)! as ColorTextureNode;
-      expect(added.value, Vector4(1, 1, 1, 1));
-      expect(graph.positions[before], (12.0, 34.0));
+      expect(added.value, const LinearColor(1, 1, 1, 1));
+      expect(graph.positions[before], const NodePosition(x: 12, y: 34));
       expect(history.project.nextId, before + 1);
     });
 
@@ -246,7 +247,7 @@ void main() {
       );
 
       final material = history.project.materials.single;
-      expect(material.graph!.positions[1], (5.0, 6.0));
+      expect(material.graph!.positions[1], const NodePosition(x: 5, y: 6));
       expect(material.version, before); // a drag is not an edit to bake over
       expect(material.isGraphStale, isFalse);
     });

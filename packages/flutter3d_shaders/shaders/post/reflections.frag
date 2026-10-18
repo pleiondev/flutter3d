@@ -24,6 +24,7 @@ precision highp float;
 
 #include <lib/frag_coord_info.glsl>
 #include <lib/blue_noise.glsl>
+#include <lib/shading_constants.glsl>
 
 in vec2 v_uv;
 
@@ -274,8 +275,8 @@ void main() {
         hitColor = textureLod(scene_texture, hitUv, 0.0).rgb;
         // Fade at the edges of the frame, and with the length of the ray: a
         // hit at the far end of the march weighs nothing, so the reflection
-        // thins out instead of stopping where the march does (three.js's
-        // `(1 - d / max)^2`).
+        // thins out instead of stopping where the march does (a quadratic
+        // falloff, `(1 - d / max)^2`).
         vec2 edge = abs(hitUv * 2.0 - 1.0);
         float border = 1.0 - max(edge.x, edge.y);
         float along = clamp(1.0 - travelled / reach, 0.0, 1.0);
@@ -288,11 +289,12 @@ void main() {
     travelled += stride;
   }
 
-  // Schlick's Fresnel for a dielectric, F0 = 0.04: four percent head-on, all
-  // of it at grazing. The buffer carries no metalness to tint it with. This
-  // used to floor at fifteen percent with a fourth power, which put nearly
-  // four times the reflection on a floor seen from above.
-  float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
+  // Schlick's Fresnel for a dielectric, F0 = kDielectricF0: four percent
+  // head-on, all of it at grazing. The buffer carries no metalness to tint it
+  // with. This used to floor at fifteen percent with a fourth power, which put
+  // nearly four times the reflection on a floor seen from above.
+  float fresnel =
+      kDielectricF0 + (1.0 - kDielectricF0) * pow(1.0 - facing, 5.0);
   vec3 reflection = hitColor * hit * intensity * polish * fresnel;
   // The share of the hit that is used, [intensity] included: a reflection
   // dialled down to seventy percent takes the sky's place in the same

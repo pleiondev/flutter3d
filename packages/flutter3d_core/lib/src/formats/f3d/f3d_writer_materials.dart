@@ -22,10 +22,12 @@ extension _F3dWriteMaterials on F3dWriter {
       view.setUint32(o + 4, nameLength, Endian.little);
       o += 8;
 
-      view.setFloat32(o, material.baseColor.x, Endian.little);
-      view.setFloat32(o + 4, material.baseColor.y, Endian.little);
-      view.setFloat32(o + 8, material.baseColor.z, Endian.little);
-      view.setFloat32(o + 12, material.baseColor.w, Endian.little);
+      // sRGB-encoded in the file, as it always was.
+      final tint = material.baseColor.toSrgb();
+      view.setFloat32(o, tint.r, Endian.little);
+      view.setFloat32(o + 4, tint.g, Endian.little);
+      view.setFloat32(o + 8, tint.b, Endian.little);
+      view.setFloat32(o + 12, tint.a, Endian.little);
       o += 16;
 
       view.setFloat32(o, material.metallic, Endian.little);
@@ -34,15 +36,14 @@ extension _F3dWriteMaterials on F3dWriter {
       view.setFloat32(o + 12, material.occlusionStrength, Endian.little);
       o += 16;
 
-      view.setFloat32(o, material.emissive.x, Endian.little);
-      view.setFloat32(o + 4, material.emissive.y, Endian.little);
-      view.setFloat32(o + 8, material.emissive.z, Endian.little);
+      view.setFloat32(o, material.emissive.r, Endian.little);
+      view.setFloat32(o + 4, material.emissive.g, Endian.little);
+      view.setFloat32(o + 8, material.emissive.b, Endian.little);
       view.setFloat32(o + 12, material.emissiveStrength, Endian.little);
       o += 16;
 
-      // The alpha mode's index is written deliberately: the enum is part of the
-      // format now, so its order may not be shuffled without a version bump.
-      view.setUint32(o, material.alphaMode.index, Endian.little);
+      // A code from `f3d_wire.dart`, never the enum's ordinal.
+      view.setUint32(o, alphaModeCode(material.alphaMode), Endian.little);
       view.setFloat32(o + 4, material.alphaCutoff, Endian.little);
       view.setUint32(o + 8, material.doubleSided ? 1 : 0, Endian.little);
       view.setUint32(o + 12, material.unlit ? 1 : 0, Endian.little);
@@ -97,8 +98,8 @@ extension _F3dWriteMaterials on F3dWriter {
       (s.minLinear ? F3dSamplingFlags.minLinear : 0) |
       (s.useMipmaps ? F3dSamplingFlags.useMipmaps : 0) |
       (s.mipLinear ? 0 : F3dSamplingFlags.mipNearest) |
-      (s.wrapS.index << F3dSamplingFlags.wrapSShift) |
-      (s.wrapT.index << F3dSamplingFlags.wrapTShift);
+      (textureWrapCode(s.wrapS) << F3dSamplingFlags.wrapSShift) |
+      (textureWrapCode(s.wrapT) << F3dSamplingFlags.wrapTShift);
 
   void _writeBinding(ByteData view, int offset, TextureBinding? binding) {
     if (binding == null) {

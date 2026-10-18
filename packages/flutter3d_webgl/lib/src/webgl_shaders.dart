@@ -14,9 +14,14 @@ library;
 
 import 'dart:js_interop';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ShaderCompileException, ShaderDiagnostic;
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
+import 'package:flutter3d_shaders/backend.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
 import 'package:web/web.dart' as web;
 
 import 'webgl_device.dart';
@@ -27,6 +32,7 @@ import 'webgl_device.dart';
 /// text comes from is not this package's business, and a package that reached
 /// for `rootBundle` would be untestable off a Flutter binding.
 final class ShaderSources {
+  /// Sources for the [vertex] and [fragment] stages, by entry point name.
   const ShaderSources(this.vertex, this.fragment);
 
   /// Name to source, for vertex stages.
@@ -41,6 +47,7 @@ final class ShaderSources {
 
 /// What a [ShaderHandle] carries here: a compiled stage and which kind it is.
 final class WebGlShader {
+  /// A handle's stage over a compiled shader object.
   WebGlShader(this._shader, this.isVertex);
 
   /// The compiled object this stage currently is.
@@ -58,6 +65,8 @@ final class WebGlShader {
   }
 
   web.WebGLShader _shader;
+
+  /// True for a vertex stage, false for a fragment stage.
   final bool isVertex;
 
   /// The uniform blocks and samplers this stage's own source declares.
@@ -120,12 +129,39 @@ final RegExp _samplerDeclaration = RegExp(
   r'\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w*sampler\w*\s+(\w+)\s*;',
 );
 
-/// Compiles one stage, or throws naming it and quoting the driver's log.
+/// [source], a GLSL ES vertex stage, declaring [views] views for
+/// `OVR_multiview2`: the extension after the `#version` line and
+/// `layout(num_views = N) in;` after the last `#extension`, where a
+/// declaration may first stand. A stage that names the extension itself was
+/// written for multiview and is left as it is.
+///
+/// Public for the test that holds it to the engine's own sources.
+String withViewCount(String source, int views) {
+  if (source.contains('GL_OVR_multiview2')) return source;
+  final lines = source.split('\n');
+  final version = lines.indexWhere(
+    (String line) => line.trimLeft().startsWith('#version'),
+  );
+  lines.insert(version + 1, '#extension GL_OVR_multiview2 : require');
+  final lastExtension = lines.lastIndexWhere(
+    (String line) => line.trimLeft().startsWith('#extension'),
+  );
+  lines.insert(lastExtension + 1, 'layout(num_views = $views) in;');
+  return lines.join('\n');
+}
+
+/// Every `mediump` a stage spells, for [WebGlShaderLibrary.highpMaterials].
+final RegExp _mediump = RegExp(r'\bmediump\b');
+
+/// Compiles one stage, or throws a [ShaderCompileException] naming it and
+/// quoting the driver's log.
 ///
 /// Shared by the engine's library and a loaded one, because a stage that
 /// failed to compile and came back null would look exactly like a stage the
 /// bundle never had, and the two need different fixes — so both refuse the
-/// same way, loudly.
+/// same way, loudly. A [ShaderCompileException] rather than the `StateError`
+/// it was before 1.0: the root's type, which every backend that compiles at
+/// run time throws, so `on Flutter3dException` catches it.
 ///
 /// The info log is read before the shader is deleted, and deleted it must be:
 /// nothing caches a failure, so every retry would otherwise leak one more GL
@@ -146,9 +182,17 @@ web.WebGLShader compileWebGlShader(
       gl.getShaderParameter(shader, web.WebGLRenderingContext.COMPILE_STATUS)!
           as JSBoolean;
   if (!ok.toDart) {
-    final log = gl.getShaderInfoLog(shader);
+    final log = gl.getShaderInfoLog(shader)?.trim() ?? '';
     gl.deleteShader(shader);
-    throw StateError('the "$name" shader did not compile:\n$log');
+    final stage = isVertex ? 'vertex' : 'fragment';
+    throw ShaderCompileException(
+      shader: name,
+      backend: webglBackendName,
+      log: log,
+      stage: stage,
+      target: ShaderBundle.webglSection,
+      diagnostics: ShaderDiagnostic.parseLog(log, stage: stage, source: source),
+    );
   }
   return shader;
 }
@@ -158,11 +202,26 @@ web.WebGLShader compileWebGlShader(
 /// Compiled lazily and cached, because a scene uses a handful of the bundle's
 /// stages and compiling all of them at startup would cost a visible pause for
 /// shaders the frame never binds.
-final class WebGlShaderLibrary implements ShaderLibrary {
-  WebGlShaderLibrary(this._gl, this._sources);
+final class WebGlShaderLibrary with ShaderLibrary {
+  /// A library compiling the stages of the given sources on the context as they
+  /// are first asked for; true [highpMaterials] compiles the material stages at
+  /// highp throughout.
+  WebGlShaderLibrary(this._gl, this._sources, {this.highpMaterials = false});
 
   final web.WebGL2RenderingContext _gl;
   final ShaderSources _sources;
+
+  /// Whether the material stages are compiled at highp throughout — the
+  /// picture before `A1.1`.
+  ///
+  /// The lit models run their colour arithmetic at mediump where
+  /// `flutter3d_shaders/shaders/PRECISION.md` allows it: a stretch opened by
+  /// `precision mediump float;` and a few locals qualified `mediump`. True
+  /// turns every `mediump` in a stage's source to `highp` before it is
+  /// compiled, which is the arithmetic every earlier release ran. A desktop
+  /// browser computes both at full precision and draws the same picture
+  /// either way; a phone is where the two differ.
+  final bool highpMaterials;
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
 
   /// Linked programs, by the *handles* of the pair and not their names.
@@ -191,13 +250,28 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     // while a contributor merely draws nothing.
     if (source == null) return null;
     // A failed compile throws out of `putIfAbsent`, so it is never cached.
-    final shader = compileWebGlShader(_gl, name, source, isVertex: isVertex);
-    return ShaderHandle(
+    final shader = compileWebGlShader(
+      _gl,
+      name,
+      highpMaterials ? source.replaceAll(_mediump, 'highp') : source,
+      isVertex: isVertex,
+    );
+    return wrapShader(
       backend: WebGlShader(shader, isVertex),
       name: name,
       kept: stageBindings[name],
       layouts: uniformBlocks[name],
+      release: _release,
     );
+  }
+
+  /// A disposed handle's release: forgotten, and its shader object deleted.
+  /// A program already linked from it keeps the object alive until the
+  /// program goes, which is GL's rule for a shader deleted while attached.
+  void _release(ShaderHandle handle) {
+    if (!identical(_handles[handle.name], handle)) return;
+    _handles.remove(handle.name);
+    _gl.deleteShader((handle.backend as WebGlShader).shader);
   }
 
   /// Links a pair of stages and reflects what the engine will need to bind.
@@ -215,16 +289,40 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// program twice; ignoring the layout when a cached program is found would
   /// hand back a pipeline that quietly draws with the wrong one, which is the
   /// mistake this shape makes impossible rather than merely unlikely.
+  ///
+  /// [owner] is the device whose `releasePipeline` the handle's `dispose`
+  /// calls, which hands it to [release].
   PipelineHandle link(
     ShaderHandle vertex,
     ShaderHandle fragment, {
-    VertexLayoutSpec? layout,
+    VertexLayoutDescriptor? layout,
+    GraphicsDevice? owner,
   }) {
-    final key = '${vertex.name}+${fragment.name}';
     final linked = _programs
         .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
-        .putIfAbsent(fragment, () => _link(vertex, fragment));
-    return PipelineHandle(
+        .putIfAbsent(fragment, () {
+          // A link of this pair already out on the driver's threads is
+          // finished here rather than started again: asking its status waits
+          // for it, which is what a synchronous caller wants, and the pair is
+          // linked once.
+          final pending = _linking[vertex]?.remove(fragment);
+          return pending == null
+              ? _link(vertex, fragment)
+              : pending.finish(this, vertex, fragment);
+        });
+    return _hold(vertex, fragment, linked, layout, owner);
+  }
+
+  /// A handle over [linked], the cached program of the pair, counted among
+  /// its holders so [release] deletes it with the last one.
+  PipelineHandle _hold(
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+    WebGlProgram linked,
+    VertexLayoutDescriptor? layout,
+    GraphicsDevice? owner,
+  ) {
+    final handle = wrapPipeline(
       backend: WebGlProgram(
         linked.program,
         linked.attributes,
@@ -233,8 +331,219 @@ final class WebGlShaderLibrary implements ShaderLibrary {
         layout: layout,
         fragmentOutputs: linked.fragmentOutputs,
       ),
-      name: key,
+      name: '${vertex.name}+${fragment.name}',
+      owner: owner,
     );
+    _holders[linked] = (_holders[linked] ?? 0) + 1;
+    _linkedFor[handle] = (vertex: vertex, fragment: fragment, linked: linked);
+    return handle;
+  }
+
+  /// Whether the context links on the driver's own threads and says when it
+  /// is done (`KHR_parallel_shader_compile`), which [linkAsync] needs. Set
+  /// by the device that asked for the extension.
+  bool parallelCompile = false;
+
+  /// Links out on the driver's threads, by the handles of the pair.
+  final Map<ShaderHandle, Map<ShaderHandle, _PendingLink>> _linking =
+      <ShaderHandle, Map<ShaderHandle, _PendingLink>>{};
+
+  /// [link] without waiting for the driver in the calling turn.
+  ///
+  /// **The link runs on the driver's threads either way; what blocks is
+  /// asking how it went.** `getProgramParameter(LINK_STATUS)` waits for the
+  /// link to finish. With [parallelCompile] the program is linked, and then
+  /// `COMPLETION_STATUS_KHR`, which never waits, is asked once a turn until
+  /// it says yes; only then is the status read and the program reflected.
+  /// Without it this is [link], completed in the calling turn.
+  ///
+  /// The program it finishes is cached and counted as [link]'s is, so its
+  /// handle is given back through [release] like any other. A [link] of the
+  /// same pair in the meantime finishes this program rather than linking a
+  /// second; where every handle over that program was released before this
+  /// future looked, the pair is linked again rather than handed back
+  /// deleted. A pair the linker refuses completes the future with the
+  /// [ShaderCompileException] [link] throws.
+  Future<PipelineHandle> linkAsync(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+    GraphicsDevice? owner,
+  }) async {
+    if (!parallelCompile) {
+      return link(vertex, fragment, layout: layout, owner: owner);
+    }
+    final cached = _programs[vertex]?[fragment];
+    if (cached != null) {
+      return _hold(vertex, fragment, cached, layout, owner);
+    }
+    final byFragment = _linking.putIfAbsent(
+      vertex,
+      () => <ShaderHandle, _PendingLink>{},
+    );
+    final pending = byFragment[fragment] ??= _PendingLink.start(
+      _gl,
+      vertex,
+      fragment,
+    );
+    while (!pending.done) {
+      // A turn first: a link the driver has finished by the time it is asked
+      // still lets the caller's event loop go round once, as the contract's
+      // "without holding up the caller" says.
+      await Future<void>.delayed(Duration.zero);
+      if (pending.done) break;
+      if (!identical(_linking[vertex]?[fragment], pending)) {
+        // A refresh swapped the code behind a stage while the link was out
+        // ([forgetPrograms] retired it): the pair is linked again, from the
+        // code the handles carry now.
+        return linkAsync(vertex, fragment, layout: layout, owner: owner);
+      }
+      if (!pending.isComplete(_gl)) continue;
+      _linking[vertex]!.remove(fragment);
+      _programs
+          .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
+          .putIfAbsent(fragment, () => pending.finish(this, vertex, fragment));
+    }
+    final linked = pending.result();
+    if (!identical(_programs[vertex]?[fragment], linked)) {
+      // Finished by a synchronous link whose handles were all released, or
+      // by a refresh: the program is gone from the cache, and deleted.
+      return linkAsync(vertex, fragment, layout: layout, owner: owner);
+    }
+    return _hold(vertex, fragment, linked, layout, owner);
+  }
+
+  /// The programs [multiviewProgram] linked, by the program each stands in
+  /// for and the number of views.
+  final Map<web.WebGLProgram, Map<int, WebGlProgram>> _multiview =
+      Map<web.WebGLProgram, Map<int, WebGlProgram>>.identity();
+
+  /// [bound]'s pair linked again with its vertex stage declaring [views]
+  /// views ([withViewCount]), for a pass that draws them at once through
+  /// `OVR_multiview2` — GL refuses a draw into a multiview framebuffer with
+  /// a program that declares another count. Linked once per program and
+  /// count, and deleted with the program it stands in for; [bound]'s layout
+  /// carries over.
+  ///
+  /// The stage reads its view as `gl_ViewID_OVR` only if it was written to;
+  /// the engine's own stages do not, and draw the same picture into every
+  /// view.
+  WebGlProgram multiviewProgram(WebGlProgram bound, int views) {
+    final variant = _multiview
+        .putIfAbsent(bound.program, () => <int, WebGlProgram>{})
+        .putIfAbsent(views, () => _linkViews(bound.program, views));
+    return WebGlProgram(
+      variant.program,
+      variant.attributes,
+      variant.blocks,
+      variant.samplers,
+      layout: bound.layout,
+      fragmentOutputs: variant.fragmentOutputs,
+    );
+  }
+
+  WebGlProgram _linkViews(web.WebGLProgram program, int views) {
+    final attached =
+        _gl.getAttachedShaders(program)?.toDart ?? const <web.WebGLShader>[];
+    bool isVertex(web.WebGLShader shader) =>
+        (_gl.getShaderParameter(shader, web.WebGLRenderingContext.SHADER_TYPE)
+                as JSNumber?)
+            ?.toDartInt ==
+        web.WebGLRenderingContext.VERTEX_SHADER;
+    final vertex = attached.where(isVertex).first;
+    final fragment = attached.where((s) => !isVertex(s)).first;
+    final stage = compileWebGlShader(
+      _gl,
+      'a vertex stage with $views views',
+      withViewCount(_gl.getShaderSource(vertex) ?? '', views),
+      isVertex: true,
+    );
+    final linked = _gl.createProgram()!;
+    _gl
+      ..attachShader(linked, stage)
+      ..attachShader(linked, fragment)
+      ..linkProgram(linked)
+      // Flagged now and deleted with the program, as GL keeps an attached
+      // shader alive.
+      ..deleteShader(stage);
+    final ok =
+        _gl.getProgramParameter(linked, web.WebGLRenderingContext.LINK_STATUS)!
+            as JSBoolean;
+    if (!ok.toDart) {
+      final log = _gl.getProgramInfoLog(linked);
+      _gl.deleteProgram(linked);
+      throw ShaderCompileException(
+        shader: 'a program with $views views',
+        backend: webglBackendName,
+        log: log?.trim() ?? '',
+        target: ShaderBundle.webglSection,
+      );
+    }
+    return WebGlProgram(
+      linked,
+      _reflectAttributes(linked),
+      _reflectBlocks(linked),
+      _reflectSamplers(linked),
+      fragmentOutputs: _reflectOutputs(
+        linked,
+        _gl.getShaderSource(fragment) ?? '',
+      ),
+    );
+  }
+
+  /// Deletes the multiview programs linked from [program].
+  void _dropViews(web.WebGLProgram program) {
+    for (final variant
+        in _multiview.remove(program)?.values ?? const <WebGlProgram>[]) {
+      _gl.deleteProgram(variant.program);
+    }
+  }
+
+  /// How many handles [link] gave out over each cached program and have not
+  /// been [release]d: the program is deleted when the last one goes.
+  final Map<WebGlProgram, int> _holders = Map<WebGlProgram, int>.identity();
+
+  /// The pair and the cached program behind each handle [link] gave out.
+  final Expando<
+    ({ShaderHandle vertex, ShaderHandle fragment, WebGlProgram linked})
+  >
+  _linkedFor = Expando('linked program');
+
+  /// Gives back a handle [link] made: `GraphicsDevice.releasePipeline`.
+  ///
+  /// **One program, several handles.** Two layouts over one pair share the
+  /// program [link] cached, and so does every pipeline a renderer asked for
+  /// twice, so the program goes with the last handle over it and not the
+  /// first. Then it leaves the cache, and the next [link] of the pair links
+  /// again. A program a refresh already retired is deleted here too, rather
+  /// than kept to the next refresh, since nothing holds it any more.
+  ///
+  /// Deleting a program the context is still using is GL's to defer: it stays
+  /// until it is no longer current, so the draws already made with it stand.
+  /// A handle given back twice, or one this library did not make, changes
+  /// nothing.
+  void release(PipelineHandle handle) {
+    final entry = _linkedFor[handle];
+    if (entry == null) return;
+    _linkedFor[handle] = null;
+    final (:vertex, :fragment, :linked) = entry;
+    final left = (_holders[linked] ?? 1) - 1;
+    if (left > 0) {
+      _holders[linked] = left;
+      return;
+    }
+    _holders.remove(linked);
+    final byFragment = _programs[vertex];
+    if (identical(byFragment?[fragment], linked)) {
+      byFragment!.remove(fragment);
+      if (byFragment.isEmpty) _programs.remove(vertex);
+    } else if (!_retired.remove(linked.program)) {
+      // Neither cached nor retired: the library was disposed, which deleted
+      // it already.
+      return;
+    }
+    _dropViews(linked.program);
+    _gl.deleteProgram(linked.program);
   }
 
   /// Programs [forgetPrograms] took out of the cache and has not yet deleted.
@@ -266,6 +575,15 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   void forgetPrograms(Iterable<ShaderHandle> stale) {
     _deleteRetired();
     final gone = stale.toSet();
+    // Links still out on the driver's threads were started from the old code
+    // too; [linkAsync] starts them again when it next looks.
+    for (final vertex in _linking.keys) {
+      _linking[vertex]!.removeWhere((ShaderHandle fragment, _PendingLink link) {
+        if (!gone.contains(vertex) && !gone.contains(fragment)) return false;
+        _retired.add(link.program);
+        return true;
+      });
+    }
     for (final vertex in gone) {
       final byFragment = _programs.remove(vertex);
       if (byFragment == null) continue;
@@ -281,16 +599,23 @@ final class WebGlShaderLibrary implements ShaderLibrary {
 
   void _deleteRetired() {
     for (final program in _retired) {
+      _dropViews(program);
       _gl.deleteProgram(program);
     }
     _retired.clear();
   }
 
-  WebGlProgram _link(ShaderHandle vertex, ShaderHandle fragment) {
-    final program = _gl.createProgram()!;
-    _gl.attachShader(program, (vertex.backend as WebGlShader).shader);
-    _gl.attachShader(program, (fragment.backend as WebGlShader).shader);
-    _gl.linkProgram(program);
+  WebGlProgram _link(ShaderHandle vertex, ShaderHandle fragment) =>
+      _linked(_startLink(_gl, vertex, fragment), vertex, fragment);
+
+  /// [program], linked from [vertex] and [fragment], reflected; or a
+  /// [ShaderCompileException] with the program deleted, where the linker
+  /// refused it. Asking its status waits for a link still running.
+  WebGlProgram _linked(
+    web.WebGLProgram program,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) {
     final linked =
         _gl.getProgramParameter(program, web.WebGLRenderingContext.LINK_STATUS)!
             as JSBoolean;
@@ -301,8 +626,11 @@ final class WebGlShaderLibrary implements ShaderLibrary {
       // if this path kept the object.
       final log = _gl.getProgramInfoLog(program);
       _gl.deleteProgram(program);
-      throw StateError(
-        'linking ${vertex.name} with ${fragment.name} failed:\n$log',
+      throw ShaderCompileException(
+        shader: '${vertex.name} with ${fragment.name}',
+        backend: webglBackendName,
+        log: log?.trim() ?? '',
+        target: ShaderBundle.webglSection,
       );
     }
 
@@ -364,12 +692,25 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// names — so this is also where they go.
   void dispose() {
     _deleteRetired();
+    for (final byFragment in _linking.values) {
+      for (final pending in byFragment.values) {
+        pending.abandon(_gl);
+      }
+    }
+    _linking.clear();
     for (final byFragment in _programs.values) {
       for (final program in byFragment.values) {
         _gl.deleteProgram(program.program);
       }
     }
     _programs.clear();
+    for (final variants in _multiview.values) {
+      for (final variant in variants.values) {
+        _gl.deleteProgram(variant.program);
+      }
+    }
+    _multiview.clear();
+    _holders.clear();
     for (final handle in _handles.values.nonNulls) {
       _gl.deleteShader((handle.backend as WebGlShader).shader);
     }
@@ -412,10 +753,11 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     web.WebGLRenderingContext.FLOAT_VEC2 => 2,
     web.WebGLRenderingContext.FLOAT_VEC3 => 3,
     web.WebGLRenderingContext.FLOAT_VEC4 => 4,
-    _ => throw UnsupportedError(
+    _ => throw webglRefusal(
+      '_componentsOf',
       'vertex attributes in this engine are floats and vectors of them; '
-      'GL type $type is neither. Integer attributes would need the HAL '
-      'to describe a vertex layout rather than take it from the shader.',
+          'GL type $type is neither. Integer attributes would need the HAL '
+          'to describe a vertex layout rather than take it from the shader.',
     ),
   };
 
@@ -480,32 +822,34 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     return blocks;
   }
 
-  /// Sampler uniforms, by name.
+  /// The texture target a GL sampler uniform type samples, or null for a
+  /// uniform that is not a sampler.
   ///
-  /// Only their presence matters here; the texture unit is assigned per bind,
-  /// because the engine binds a slot when its material declares one and the set
-  /// differs between draws.
-  /// Whether a GL uniform type is one of the sampler types.
-  ///
-  /// The list is the WebGL2 set. Named by value rather than by constant because
-  /// `package:web` exposes only the two this backend uses.
-  static bool _isSampler(int type) => const <int>[
-    0x8B5E, // SAMPLER_2D
-    0x8B60, // SAMPLER_CUBE
-    0x8DC1, // SAMPLER_2D_ARRAY
-    0x8B62, // SAMPLER_2D_SHADOW
-    0x8DC4, // SAMPLER_2D_ARRAY_SHADOW
-    0x8DC5, // SAMPLER_CUBE_SHADOW
-    0x8DCA, // INT_SAMPLER_2D
-    0x8DCF, // INT_SAMPLER_2D_ARRAY
-    0x8DD2, // UNSIGNED_INT_SAMPLER_2D
-    0x8DD7, // UNSIGNED_INT_SAMPLER_2D_ARRAY
-    0x8B5F, // SAMPLER_3D
-    0x8DCB, // INT_SAMPLER_3D
-    0x8DD3, // UNSIGNED_INT_SAMPLER_3D
-    0x8DCC, // INT_SAMPLER_CUBE
-    0x8DD4, // UNSIGNED_INT_SAMPLER_CUBE
-  ].contains(type);
+  /// The whole WebGL2 set. Named by value rather than by constant because
+  /// `package:web` exposes only a few of them. Until 1.0 only `SAMPLER_2D`
+  /// and `SAMPLER_CUBE` were accepted and the rest threw at link: array, 3D
+  /// and comparison samplers are what `DeviceFeature.textureArrays`,
+  /// `texture3D` and `samplerCompare` need a shader to declare.
+  static int? _samplerTarget(int type) => switch (type) {
+    0x8B5E || // SAMPLER_2D
+    0x8B62 || // SAMPLER_2D_SHADOW
+    0x8DCA || // INT_SAMPLER_2D
+    0x8DD2 => web.WebGLRenderingContext.TEXTURE_2D, // UNSIGNED_INT_SAMPLER_2D
+    0x8B60 || // SAMPLER_CUBE
+    0x8DC5 || // SAMPLER_CUBE_SHADOW
+    0x8DCC || // INT_SAMPLER_CUBE
+    0x8DD4 => // UNSIGNED_INT_SAMPLER_CUBE
+    web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
+    0x8DC1 || // SAMPLER_2D_ARRAY
+    0x8DC4 || // SAMPLER_2D_ARRAY_SHADOW
+    0x8DCF || // INT_SAMPLER_2D_ARRAY
+    0x8DD7 => // UNSIGNED_INT_SAMPLER_2D_ARRAY
+    web.WebGL2RenderingContext.TEXTURE_2D_ARRAY,
+    0x8B5F || // SAMPLER_3D
+    0x8DCB || // INT_SAMPLER_3D
+    0x8DD3 => web.WebGL2RenderingContext.TEXTURE_3D, // UNSIGNED_INT_SAMPLER_3D
+    _ => null,
+  };
 
   Map<String, WebGlSampler> _reflectSamplers(web.WebGLProgram program) {
     final count =
@@ -519,39 +863,97 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     for (var i = 0; i < count; i++) {
       final info = _gl.getActiveUniform(program, i);
       if (info == null) continue;
-      final type = info.type;
-      if (type == web.WebGLRenderingContext.SAMPLER_2D ||
-          type == web.WebGLRenderingContext.SAMPLER_CUBE) {
-        // **Its own texture unit, for the life of the program.** Units used to
-        // be handed out per draw in bind order, while the sampler's `uniform1i`
-        // kept whatever number it was last given, so a sampler a draw did not
-        // bind read the unit another slot now held: a morph texture sampling
-        // the base colour, or a cube and a 2D texture on one unit and the draw
-        // dropped. The ordinal among the program's samplers never collides.
-        samplers[info.name] = (
-          unit: samplers.length,
-          cube: type == web.WebGLRenderingContext.SAMPLER_CUBE,
-        );
-        continue;
-      }
-      // Anything else is not something this reflection knows how to bind, and
-      // dropping it silently is how a sampler stops working with nothing said.
-      //
-      // That is not hypothetical: this line read `!= SAMPLER_2D` and skipped
-      // the rest, so a `samplerCube` never reached `samplers`, `bindTexture`
-      // then found no location and returned, and the draw sampled whatever was
-      // left in texture unit zero. Impeller and the software rasteriser drew
-      // the right picture; the web drew rubbish and logged nothing. Throwing
-      // means the next non-2D sampler is a message rather than a mystery.
-      if (_isSampler(type)) {
-        throw StateError(
-          'The shader declares "${info.name}", a sampler of GL type 0x'
-          '${type.toRadixString(16)} that this backend cannot bind. Teach '
-          '_reflectSamplers and bindTexture about it, or the draw will sample '
-          'whatever was in the texture unit.',
-        );
-      }
+      // Every sampler type WebGL2 has, each with the target it samples. This
+      // used to accept two and throw for the rest, after a version that
+      // skipped the rest silently — so a `samplerCube` never reached
+      // `samplers`, `bindTexture` found no location, and the draw sampled
+      // whatever was left in unit zero. The table in [_samplerTarget] is
+      // complete, so nothing a shader can declare is dropped any more.
+      final target = _samplerTarget(info.type);
+      if (target == null) continue;
+      // **Its own texture unit, for the life of the program.** Units used to
+      // be handed out per draw in bind order, while the sampler's `uniform1i`
+      // kept whatever number it was last given, so a sampler a draw did not
+      // bind read the unit another slot now held: a morph texture sampling
+      // the base colour, or a cube and a 2D texture on one unit and the draw
+      // dropped. The ordinal among the program's samplers never collides.
+      samplers[info.name] = (unit: samplers.length, target: target);
     }
     return samplers;
+  }
+}
+
+/// A program attached and linked, before anybody asked how the link went.
+web.WebGLProgram _startLink(
+  web.WebGL2RenderingContext gl,
+  ShaderHandle vertex,
+  ShaderHandle fragment,
+) {
+  final program = gl.createProgram()!;
+  gl.attachShader(program, (vertex.backend as WebGlShader).shader);
+  gl.attachShader(program, (fragment.backend as WebGlShader).shader);
+  gl.linkProgram(program);
+  return program;
+}
+
+/// `COMPLETION_STATUS_KHR`, from `KHR_parallel_shader_compile`.
+const int webglCompletionStatus = 0x91B1;
+
+/// A link out on the driver's threads: the program, and what came of it once
+/// somebody finished it — [WebGlShaderLibrary.linkAsync]'s poll or a
+/// [WebGlShaderLibrary.link] of the same pair.
+final class _PendingLink {
+  _PendingLink.start(
+    web.WebGL2RenderingContext gl,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) : _program = _startLink(gl, vertex, fragment);
+
+  final web.WebGLProgram _program;
+
+  /// The program, for a refresh that retires it.
+  web.WebGLProgram get program => _program;
+
+  WebGlProgram? _linked;
+  ShaderCompileException? _refused;
+
+  /// Whether [finish] or [abandon] ran.
+  bool done = false;
+
+  /// Whether the driver has finished the link, asked without waiting.
+  bool isComplete(web.WebGL2RenderingContext gl) =>
+      (gl.getProgramParameter(_program, webglCompletionStatus)! as JSBoolean)
+          .toDart;
+
+  /// The link's verdict, waited for if the driver is still on it; throws
+  /// the refusal, as [WebGlShaderLibrary.link] does, and remembers either.
+  WebGlProgram finish(
+    WebGlShaderLibrary library,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) {
+    done = true;
+    try {
+      return _linked = library._linked(_program, vertex, fragment);
+    } on ShaderCompileException catch (error) {
+      _refused = error;
+      rethrow;
+    }
+  }
+
+  /// What [finish] came to.
+  WebGlProgram result() => _linked ?? (throw _refused!);
+
+  /// Deletes the program nobody will finish: its library is going.
+  void abandon(web.WebGL2RenderingContext gl) {
+    if (done) return;
+    done = true;
+    gl.deleteProgram(_program);
+    _refused = ShaderCompileException(
+      shader: 'a pipeline',
+      backend: webglBackendName,
+      log: 'the device was disposed while the link was out',
+      target: ShaderBundle.webglSection,
+    );
   }
 }

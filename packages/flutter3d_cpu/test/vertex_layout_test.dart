@@ -36,7 +36,7 @@ final Float32List _perInstance = Float32List.fromList(<double>[
 
 final Uint16List _indices = Uint16List.fromList(<int>[0, 1, 2]);
 
-const VertexLayoutSpec _layout = VertexLayoutSpec(<BufferLayout>[
+const VertexLayoutDescriptor _layout = VertexLayoutDescriptor(<BufferLayout>[
   BufferLayout(
     strideInBytes: 12,
     attributes: <InputAttribute>[
@@ -59,8 +59,8 @@ double _draw(int instances) {
     height: 8,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  final colour = device.createTexture(
-    const RenderTargetSpec(
+  final color = device.createTexture(
+    const RenderTargetDescriptor(
       width: 8,
       height: 8,
       format: TextureFormat.r16g16b16a16Float,
@@ -73,9 +73,9 @@ double _draw(int instances) {
     RenderPassDescriptor(
       colors: <ColorTarget>[
         ColorTarget(
-          texture: colour,
+          texture: color,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -94,7 +94,7 @@ double _draw(int instances) {
     ..draw(instanceCount: instances)
     ..submit();
 
-  return (colour.backend as CpuTexture).pixels[0];
+  return (color.backend as CpuTexture).pixels[0];
 }
 
 void main() {
@@ -122,8 +122,8 @@ void main() {
       height: 4,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    final colour = device.createTexture(
-      const RenderTargetSpec(
+    final color = device.createTexture(
+      const RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.r16g16b16a16Float,
@@ -134,7 +134,7 @@ void main() {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: colour, loadAction: LoadAction.clear),
+          ColorTarget(texture: color, loadAction: LoadAction.clear),
         ],
       ),
     );
@@ -157,29 +157,69 @@ void main() {
     );
   });
 
-  test('an integer attribute is refused rather than reinterpreted', () {
+  test('an integer attribute is refused rather than reinterpreted', () async {
+    // A stage here receives floats, and reinterpreting an integer as one
+    // turns a joint index into 1.4e-45. Refused through the device's record
+    // since 1.0 rather than thrown, so a frame that met it draws the rest.
+    //
+    // Mutation: build a `CpuPipeline` for the layout anyway, and the record
+    // stays empty and the draw lands.
     final device = CpuDevice(
       width: 4,
       height: 4,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    expect(
-      () => device.createPipeline(
-        device.shaders['DebugLineVertex']!,
-        device.shaders['DebugLine']!,
-        layout: const VertexLayoutSpec(<BufferLayout>[
-          BufferLayout(
-            strideInBytes: 4,
-            attributes: <InputAttribute>[
-              InputAttribute(name: 'joints', format: VertexFormat.uint32),
-            ],
-          ),
-        ]),
-      ),
-      throwsA(isA<UnsupportedError>()),
-      reason:
-          'a stage here receives floats, and reinterpreting an integer as '
-          'one turns a joint index into 1.4e-45',
+    final pipeline = device.createPipeline(
+      device.shaders['DebugLineVertex']!,
+      device.shaders['DebugLine']!,
+      layout: const VertexLayoutDescriptor(<BufferLayout>[
+        BufferLayout(
+          strideInBytes: 4,
+          attributes: <InputAttribute>[
+            InputAttribute(name: 'joints', format: VertexFormat.uint32),
+          ],
+        ),
+      ]),
     );
+    final refusal = device.pipelineRefusals.drain().single;
+    expect(refusal.reason, PipelineRefusalReason.unsupportedFormat);
+    expect(refusal.detail, contains('joint index into 1.4e-45'));
+    // Final at once (`retry: false`): a format is the same at every build.
+    expect(device.pipelineRefusals.isRefused(pipeline), isTrue);
+    expect(
+      device.pipelineRefusals.failuresOf(pipeline),
+      PipelineRefusals.maxBuilds,
+    );
+
+    // Its draw is skipped: the target keeps its clear.
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: ClearColor.transparentBlack,
+            ),
+          ],
+        ),
+      )
+      ..bindPipeline(pipeline)
+      ..bindVertexData(ByteData.sublistView(Uint32List(3)), 3)
+      ..bindIndexData(
+        ByteData.sublistView(Uint16List.fromList(<int>[0, 1, 2])),
+        IndexType.int16,
+        3,
+      )
+      ..draw()
+      ..submit();
+    final pixels = (await device.readback(target)).buffer.asUint8List();
+    expect(pixels, everyElement(0));
   });
 }

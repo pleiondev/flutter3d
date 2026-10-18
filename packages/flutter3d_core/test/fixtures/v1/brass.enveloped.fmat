@@ -1,0 +1,18 @@
+{
+  "format": "f3d.fmat",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d",
+  "fmat": 1,
+  "name": "brass",
+  "baseColor": [0.75, 0.5, 0.25, 1.0],
+  "metallic": 1.0,
+  "roughness": 0.375,
+  "doubleSided": true,
+  "textures": {
+    "albedo": "brass_albedo.png"
+  },
+  "parameters": {
+    "tarnish": [0.25]
+  }
+}

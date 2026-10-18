@@ -3,6 +3,7 @@
 /// today (a class, a field, a default, an incident a real test now guards),
 /// not a general description of what a 3D engine is like.
 final class EngineUserSkill {
+  /// The skill written to `.claude/skills/<slug>/SKILL.md`, holding [body].
   const EngineUserSkill({required this.slug, required this.body});
 
   /// Directory name under `.claude/skills/` — also the SKILL.md's own
@@ -114,14 +115,15 @@ view can be switched on for one frame and off for the next with no
   Sixty golden images are recorded against there being no sky at all, so
   turning it on changes every pixel a frame did not otherwise draw.
 
-## Sky colour is linear, and the clear colour is not
+## Sky and clear colours are linear, and a colour picker's are not
 
 `SkySettings`'s colours (`zenith`, `horizon`, `nadir`, `sunColor`) are
 linear and scene-referred: they are multiplied by `RenderSettings.exposure`
 and pass through the tone curve exactly like everything else in the frame.
-`RenderView.clearColor`, by contrast, is decoded from sRGB by the renderer.
-The first sky value copied from a colour picker will look far too bright,
-and it reads as a shader defect rather than as the units mismatch it is.
+`CameraView.clearColor` is a linear `LinearColor` too. A colour picker's
+numbers are sRGB: pass them through `LinearColor.fromSrgb`, or the first
+value copied from one will look far too bright, and it reads as a shader
+defect rather than as the units mismatch it is.
 
 ## Ambient occlusion changes the whole frame's antialiasing, not just the corners
 
@@ -141,8 +143,8 @@ room away, so no single value worked as both "thick enough to be a surface a
 ray can land in" and "thin enough that a distant wall does not always
 count as a hit"). If a screen-space reflection or occlusion setting is
 being hand-tuned and nothing seems to respond, check which quantities are
-metres and which are texels or degrees before assuming the pass itself is
-broken — `SkySettings.sunAngularRadiusDegrees` and
+metres and which are texels or radians before assuming the pass itself is
+broken — `SkySettings.sunAngularRadius` and
 `AmbientOcclusionSettings.radius` are two more that look interchangeable
 and are not.
 
@@ -185,7 +187,7 @@ one; `LodGroup.select` takes an explicit `verticalFieldOfView` (or
 
 ## Anisotropy is one number, clamped for you
 
-`RenderSettings.anisotropy` is clamped to `GraphicsDevice.maxAnisotropy`
+`RenderSettings.anisotropy` is clamped to `DeviceLimits.maxSamplerAnisotropy`
 before it reaches a sampler, so asking for sixteen is always safe — a
 device that only filters isotropically simply draws the picture it always
 drew, with no branch a game has to write for it. The setting only touches
@@ -262,20 +264,22 @@ through a shipped genre). `GameRandom(seed)`'s `.state` is one number;
 writing it into a save and restoring it on load is what makes a saved
 game's future rolls continue rather than restart.
 
-## `NetSession`'s three numbers trade against each other, not independently
+## `RollbackSession`'s three numbers trade against each other, not independently
 
-`NetSession(inputDelay: 2, maxRollbackFrames: 8, redundancy: 8)` — the
+`RollbackSession(inputDelay: 2, maxRollbackFrames: 8, redundancy: 8)` — the
 defaults are a starting point, not a universal answer:
 
 - `inputDelay` — steps a captured local input waits before it is applied.
   Too low and a correction fires on almost every step from ordinary
   latency; the number has to fit the connection it runs on.
 - `maxRollbackFrames` — how many past steps keep a snapshot a correction can
-  restore. `droppedCorrections` (a public counter on the session) increments
-  every time a confirmation arrives for a step that has already aged out of
-  this window — a non-zero count on a connection the other two numbers were
+  restore. `droppedCorrections` (a public counter on the session, and in
+  `session.stats`) counts a confirmation that arrives after its step aged
+  out of this window and contradicts the guess the step settled on, once
+  per step — a non-zero count on a connection the other two numbers were
   actually sized for is the signal the window is too small, not a
-  transport bug.
+  transport bug. `stats` also times every step run again (p50, p99, max),
+  which is what a rollback costs a frame.
 - `redundancy` — how many past steps each outgoing message repeats, trading
   bandwidth against tolerance for a dropped packet.
 
@@ -284,7 +288,7 @@ defaults are a starting point, not a universal answer:
 A step that has just run is still a guess about the far side until its
 confirmation lands — a digest taken the moment a step executes is a digest
 of a guess, and two honest peers holding different guesses is not a
-desync, only two sides that have not compared notes yet. `NetSession`'s
+desync, only two sides that have not compared notes yet. `RollbackSession`'s
 `onSettled(step, after)` callback fires exactly once a step ages out of the
 rollback window, which is the first moment no later correction can ever
 touch it again — call `DigestTrace.observe` from there, and nowhere else,

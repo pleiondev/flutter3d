@@ -5,10 +5,19 @@
 /// unchanged, which is the first evidence that the level format really was
 /// written for levels rather than for one game.
 abstract final class PlatformerEntities {
+  /// Something the runner walks into and keeps, counted into the purse.
   static const String collectible = 'collectible';
+
+  /// A volume that hurts, or kills outright, whoever stands in it.
   static const String hazard = 'hazard';
+
+  /// A place the runner is put back at after a death.
   static const String checkpoint = 'checkpoint';
+
+  /// A box the runner can shove about and climb on.
   static const String crate = 'crate';
+
+  /// A pad that throws whoever lands on it upwards.
   static const String spring = 'spring';
 
   /// A platform you jump up through and land on top of.

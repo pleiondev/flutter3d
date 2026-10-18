@@ -5,8 +5,8 @@ library;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'
     show DidNotStart, SceneSurface;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
@@ -87,7 +87,7 @@ void main() {
       MaterialApp(
         home: Flutter3dFlameWidget(
           game: game,
-          existing: (device: device, renderer: renderer),
+          existing: BorrowedRenderer(device: device, renderer: renderer),
         ),
       ),
     );
@@ -208,7 +208,7 @@ void main() {
     game
       ..viewport3d = const ViewportRect(0.0, 0.0, 0.5, 1.0)
       ..moreViews3d.add(
-        RenderView(
+        CameraView(
           camera: second,
           viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
         ),

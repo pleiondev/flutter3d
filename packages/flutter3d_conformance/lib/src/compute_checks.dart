@@ -4,6 +4,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show computeShaders;
 
 import '../flutter3d_conformance.dart';
 
@@ -17,11 +18,21 @@ const int _count = 1024;
 /// before it was written or written back somewhere else each leave a wrong
 /// number, and the message names the first one.
 Future<void> checkPrefixSum(GraphicsDevice device) async {
-  if (!device.supportsCompute) {
-    throw const ConformanceDeclined(
-      'this device answers false to supportsCompute, which is a legitimate '
-      'answer: compute is optional, and FieldPass is the path every backend '
-      'has',
+  if (!device.features.has(DeviceFeature.compute)) {
+    decline(
+      device,
+      'has no compute, which is a legitimate answer: compute is optional, '
+      'and FieldPass is the path every backend has',
+    );
+  }
+  // 1.0: a device that ships none of the engine's compute stages computes
+  // kernels only — the wgpu sidecar — and is held to the kernel checks
+  // instead. A device that ships some of them and not this one is wrong.
+  if (computeShaders.every((String name) => device.shaders[name] == null)) {
+    decline(
+      device,
+      'computes kernels only and ships none of the engine\'s own compute '
+      'stages; the kernel checks hold it to the same bytes',
     );
   }
   final stage = device.shaders['PrefixSum'];
@@ -31,9 +42,19 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
   for (var i = 0; i < _count; i++) {
     input.setUint32(i * 4, i, Endian.little);
   }
-  final buffer = device.createStorageBuffer(input, hostReadable: true);
+  final buffer = device.createBuffer(
+    BufferDescriptor(
+      lengthInBytes: input.lengthInBytes,
+      usage: BufferUsage.standardStorage | BufferUsage.hostReadable,
+    ),
+    contents: input,
+  );
   device.beginComputePass(label: 'prefix sum')
-    ..bindPipeline(device.createComputePipeline(stage!))
+    ..bindPipeline(
+      device.createComputePipelineFrom(
+        ComputePipelineDescriptor(shader: stage!),
+      ),
+    )
     ..bindStorageBuffer(stage, 'Values', buffer)
     ..dispatch(1)
     ..submit();
@@ -58,6 +79,17 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
 }
 
 /// Run these where a device says it computes. Each declines otherwise.
+///
+/// Since 1.0 with the four kernel-language kernels of `kernel_checks.dart`,
+/// which hold every placement — the device's own compute, the wgpu
+/// sidecar, the CPU — to the same bytes; and since 1.0.0-rc.1 with the
+/// checks of `kernel_tolerance_checks.dart`, which hold each inexact
+/// operation to its declared tolerance of the CPU's.
 List<ConformanceCheck> get computeChecks => <ConformanceCheck>[
-  (name: 'a compute pass scans a buffer in place', run: checkPrefixSum),
+  ConformanceCheck(
+    name: 'a compute pass scans a buffer in place',
+    run: checkPrefixSum,
+  ),
+  ...kernelChecks,
+  ...kernelToleranceChecks,
 ];

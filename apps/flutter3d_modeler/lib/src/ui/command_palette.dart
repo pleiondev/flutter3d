@@ -29,6 +29,7 @@ import 'tools.dart';
 /// be done from where the person is standing.
 @immutable
 final class PaletteEntry {
+  /// An entry for the command [id]; [disabledBecause] null means it can run.
   const PaletteEntry({
     required this.id,
     required this.label,
@@ -43,6 +44,7 @@ final class PaletteEntry {
   /// `run_command` all name a tool by.
   final String id;
 
+  /// The command's name, as the list shows it and the search matches it.
   final String label;
 
   /// `ModelerTool.about` — one sentence on what running it does, shown under
@@ -54,6 +56,7 @@ final class PaletteEntry {
   /// it would make the list longer without making it clearer.
   final String about;
 
+  /// The command's icon, the one its rail button shows.
   final IconData icon;
 
   /// Which mode this tool belongs to, shown beside the label so the list
@@ -66,6 +69,7 @@ final class PaletteEntry {
   /// Why running it from here would not work, or null when it would.
   final String? disabledBecause;
 
+  /// Whether the command can run from here: [disabledBecause] is null.
   bool get enabled => disabledBecause == null;
 }
 
@@ -171,6 +175,8 @@ bool _needsSelection(String id) =>
 /// `ux-27`'s own two folds, as palette entries — the ids are this file's
 /// own rather than any rail's, since nothing on a rail folds a panel.
 const String kFoldPanelCommand = 'view.foldPanel';
+
+/// The palette's id for folding the tool rail, beside [kFoldPanelCommand].
 const String kFoldRailCommand = 'view.foldRail';
 
 /// `rel-21d`'s own: the licence, the privacy policy and the four beside them.
@@ -249,8 +255,10 @@ Future<String?> showCommandPalette(
 
 /// The dialog itself — a field and a list, and nothing else.
 class CommandPalette extends StatefulWidget {
+  /// A palette listing [entries].
   const CommandPalette({super.key, required this.entries});
 
+  /// Every command the palette can find, disabled ones included.
   final List<PaletteEntry> entries;
 
   @override
@@ -322,7 +330,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                       // is scanned, and a list that gives three lines to
                       // every row shows four things at a time.
                       subtitle: switch ((entry.disabledBecause, entry.about)) {
-                        (final String why?, _) => Text(
+                        (final String why, _) => Text(
                           why,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

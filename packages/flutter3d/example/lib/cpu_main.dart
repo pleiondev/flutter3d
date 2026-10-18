@@ -28,15 +28,16 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart'
     show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'cpu_shapes_scene.dart';
 
@@ -50,16 +51,16 @@ import 'cpu_shapes_scene.dart';
 const int _width = int.fromEnvironment('cpuWidth', defaultValue: 320);
 const int _height = int.fromEnvironment('cpuHeight', defaultValue: 240);
 
-void main() => runApp(const CpuApp());
+void main() => runApp(const _CpuApp());
 
-class CpuApp extends StatefulWidget {
-  const CpuApp({super.key});
+class _CpuApp extends StatefulWidget {
+  const _CpuApp();
 
   @override
-  State<CpuApp> createState() => _CpuAppState();
+  State<_CpuApp> createState() => _CpuAppState();
 }
 
-class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
+class _CpuAppState extends State<_CpuApp> with SingleTickerProviderStateMixin {
   late final CpuDevice _device;
   late final Renderer _renderer;
   late final Ticker _ticker;
@@ -121,7 +122,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
       width: _width,
       height: _height,
       scene: _scene,
-      views: <RenderView>[RenderView(camera: _camera)],
+      views: <CameraView>[CameraView(camera: _camera)],
       settings: paritySettingsFor(ParityScene.plain),
     );
     final ms = DateTime.now().difference(started).inMicroseconds / 1000.0;
@@ -148,7 +149,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(<int>[r, g, b, 255])),
-  )!;
+  );
 
   @override
   void dispose() {

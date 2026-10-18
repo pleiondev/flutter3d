@@ -7,6 +7,8 @@ import '../render/material.dart';
 /// One drawable piece of a model: geometry, appearance, and where it sits
 /// relative to the model's own origin.
 final class ModelPart {
+  /// A part drawing [mesh] with [material] at [transform], the identity when
+  /// null; the morph and variant lists default to empty.
   ModelPart({
     required this.mesh,
     required this.material,
@@ -18,25 +20,35 @@ final class ModelPart {
     this.morphTargetCount = 0,
     List<double>? morphWeights,
     List<Aabb3>? morphReaches,
-    Map<int, Material>? variantMaterials,
+    Map<int, RenderMaterial>? variantMaterials,
   }) : transform = transform ?? Matrix4.identity(),
        morphWeights = morphWeights ?? const <double>[],
        morphReaches = morphReaches ?? const <Aabb3>[],
-       variantMaterials = variantMaterials ?? const <int, Material>{};
+       variantMaterials = variantMaterials ?? const <int, RenderMaterial>{};
 
+  /// The geometry, uploaded once and shared by every instance.
   final DeviceMesh mesh;
-  final Material material;
+
+  /// The appearance in the default variant, bound once at upload and shared
+  /// by every instance.
+  final RenderMaterial material;
 
   /// What this part wears in each material variant it takes part in, by
   /// index into `ModelAsset.variants`; [material] in every other one. Bound
   /// once at upload and shared by every instance, the same as [material].
-  final Map<int, Material> variantMaterials;
+  final Map<int, RenderMaterial> variantMaterials;
+
+  /// Where the part sits relative to the model's own origin.
   final Matrix4 transform;
+
+  /// The part's name from the source file, or null when it has none.
   final String? name;
 
   /// Index into [ModelAsset.skins], when this part is skinned.
   final int? skinIndex;
 
+  /// Whether [transform] mirrors, so the renderer flips its front-face
+  /// winding to keep back-face culling right.
   final bool flipWinding;
 
   /// This surface's morph deltas, uploaded once and shared by every instance.

@@ -3,7 +3,7 @@ library;
 
 import 'dart:collection' show ListQueue;
 
-import 'peer_wire.dart';
+import 'package:flutter3d_net/flutter3d_net.dart' show PeerSend, PeerWire;
 
 /// Turns across two machines: the one holding the baton runs the game, and
 /// the other replays what it is told.
@@ -37,18 +37,32 @@ import 'peer_wire.dart';
 /// wire that keeps every message but not always their order — dashwire's
 /// network simulator is one — replays the turn as it was played. A wire
 /// that loses reliable messages is not one this can mend.
+///
+/// **The engine's messages, behind the room's hello.** Each is
+/// `{"f3d": "baton", "k": …, "n": …, "body": …}`, under the wire's reserved
+/// key, so a game's message with an `n` or a `body` is never taken for a
+/// turn's. Two machines meet in a `PeerRoom` and run the turns on one of
+/// its channels (`room.channel('turns')`), so a machine on another protocol
+/// or simulation is refused by the room's hello before a turn is played.
 final class BatonStream {
+  /// Turns over [transport], listening from now on, with this machine
+  /// starting as the player when [holding] and as the watcher otherwise.
   BatonStream(
     this.transport, {
-    required this._holding,
+    required bool holding,
     required this.onFrame,
     required this.onEvent,
     required this.onBaton,
     this.catchUpAfter = 4,
-  }) {
+  }) : // A plain named parameter, not `this._holding`: the signature a user
+       // reads, and the API snapshot, then spell no private name.
+       // ignore: prefer_initializing_formals
+       _holding = holding {
     transport.listen(_arrive);
   }
 
+  /// The wire the turns go over, every message reliably; a game's own
+  /// messages on it pass by untouched.
   final PeerWire transport;
 
   /// A frame of the other machine's turn, to draw.
@@ -61,10 +75,12 @@ final class BatonStream {
   /// The baton, and the state the turn starts from: this machine plays now.
   final void Function(Map<String, Object?> state) onBaton;
 
+  /// How many frames a watcher may fall behind before [step] replays more
+  /// than one at a time, a count; four by default.
   final int catchUpAfter;
 
   /// Whether this machine is the one playing.
-  bool get holding => _holding;
+  bool get isHolding => _holding;
   bool _holding;
 
   /// What has arrived in order and not been handed on yet.
@@ -81,7 +97,7 @@ final class BatonStream {
 
   static const String _frame = 'f';
   static const String _event = 'e';
-  static const String _baton = 'b';
+  static const String _pass = 'b';
 
   /// This step of the holder's turn, for the watcher to draw.
   void tellFrame(Map<String, Object?> frame) {
@@ -96,13 +112,26 @@ final class BatonStream {
   /// from; this one watches from now on.
   void pass(Map<String, Object?> state) {
     _holding = false;
-    _send(_baton, state);
+    _send(_pass, state);
   }
 
-  void _send(String kind, Map<String, Object?> body) =>
-      transport.send(<String, Object?>{'k': kind, 'n': _sent++, 'body': body});
+  /// What the turns' messages name under [PeerWire.engineKey].
+  static const String _baton = 'baton';
+
+  void _send(String kind, Map<String, Object?> body) => transport.send(
+    PeerSend(
+      message: <String, Object?>{
+        PeerWire.engineKey: _baton,
+        'k': kind,
+        'n': _sent++,
+        'body': body,
+      },
+    ),
+  );
 
   void _arrive(Map<String, Object?> message) {
+    // A game's message on the same wire, whatever fields it has.
+    if (message[PeerWire.engineKey] != _baton) return;
     final n = message['n'];
     if (n is! int || n < _expected) return;
     _early[n] = message;
@@ -113,7 +142,7 @@ final class BatonStream {
 
   /// Takes the baton without it being passed: the first turn, or a new game,
   /// on the machine whose turn that is.
-  void take() => _holding = true;
+  void claim() => _holding = true;
 
   /// Hands on what arrived: every event while holding, and while watching
   /// the events and frames up to one frame — more when far behind. Once a
@@ -127,7 +156,7 @@ final class BatonStream {
       if (body is! Map) continue;
       final said = body.cast<String, Object?>();
       switch (message['k']) {
-        case _baton:
+        case _pass:
           _holding = true;
           onBaton(said);
         case _event:

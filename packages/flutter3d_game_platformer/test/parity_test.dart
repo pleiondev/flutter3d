@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -63,7 +64,7 @@ void main() {
 /// controller's, and the two files should not have to agree that by
 /// coincidence.
 CollisionWorld _room() {
-  final world = CollisionWorld()
+  final world = CollisionWorld(properties: platformerWorld)
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
     ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
     ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
@@ -148,46 +149,53 @@ DigestTrace _play(List<({bool forward, bool jump})> tape, {int every = 25}) {
   return trace;
 }
 
-/// Recorded on macOS-arm64 under the VM, 2026-09-12.
+/// Recorded on macOS-arm64 under the VM, 2026-10-08, once the runner's push
+/// was held to its grip.
+///
+/// **Re-recorded on 2026-10-09, macOS-arm64, the VM and Chrome agreeing on
+/// all forty**, after the controller's sweep went by shape and its wave-1
+/// fixes landed: the run moved from the first checkpoint on, the same day
+/// `flutter3d_sim`'s and `flutter3d_game_shooter`'s parity files moved for
+/// the same controller.
 const List<String> _recorded = <String>[
-  'bb9e0171',
-  '0fd867d5',
-  '4e9391fe',
-  'ddc05a18',
-  '8d22cefe',
-  '309a14fa',
-  '5e7213e6',
-  'bb742308',
-  'c91b21cb',
-  '1bc03276',
-  '4c849101',
-  'b3ebc3e5',
-  '8133b25b',
-  'a4c24fbe',
-  'ded93d8c',
-  '2055247e',
-  'bc7ddbb9',
-  '75d5f4ee',
-  'b461a66a',
-  '48abbbc6',
-  'fbb66590',
-  '01238495',
-  '89c70c86',
-  '150907c4',
-  'c7b545d0',
-  '7ba2901e',
-  'f53618e4',
-  '8bfc7b33',
-  '8f07424b',
-  '90db1f20',
-  '0fb208d3',
-  'ffc963fe',
-  '5c253ed5',
-  '94bf51ef',
-  '72b7e877',
-  'e7090d03',
-  '9fee6404',
-  'dd4a407b',
-  'd5d535bd',
-  '7df6e6d2',
+  '8014bb97',
+  'd17707e7',
+  'bee33490',
+  '54abf74a',
+  '0b5a98b0',
+  'efecc376',
+  '4737bc7c',
+  'e9c4c142',
+  '6b1def81',
+  '6a3f8164',
+  '137a1cf3',
+  '669d616b',
+  '2fa70519',
+  'd62346a0',
+  'c47ce732',
+  'f903e0a0',
+  'd3cf57eb',
+  '2cac6b28',
+  '5c3e9670',
+  '963bf974',
+  'e4053e1a',
+  'b2d588ff',
+  '9b5ca340',
+  '845d388a',
+  'c5e9235a',
+  'a73c0ca8',
+  '8cd85d3a',
+  'f2a34705',
+  'bd4bca65',
+  '2c76f7d6',
+  '13f184c9',
+  'e1ace3d0',
+  '6f7e6b17',
+  'e9165161',
+  '4fb7a1fd',
+  '67259969',
+  '38784c30',
+  'cf52f5b9',
+  '32b38257',
+  '0fc5f034',
 ];

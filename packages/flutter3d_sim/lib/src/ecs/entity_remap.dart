@@ -34,7 +34,19 @@ library;
 
 /// The result of [remapEntitySave]: a document [EcsWorld.restore] can read,
 /// and the names it could not place.
-typedef EntityRemap = ({Map<String, Object?> save, List<String> dropped});
+///
+/// A class rather than a record, so a later field — the names it moved, say
+/// — is not a break.
+final class EntityRemap {
+  /// A result of the rewritten [save] and the names [dropped].
+  const EntityRemap({required this.save, required this.dropped});
+
+  /// The save, rewritten to the new indices.
+  final Map<String, Object?> save;
+
+  /// The names of the entities left out, in the order they were met.
+  final List<String> dropped;
+}
 
 /// Rewrites [saved] — an [EcsWorld.save] document — from the entity indices
 /// it was written at to the ones [newNames] hands out, matching by name.
@@ -95,7 +107,7 @@ EntityRemap remapEntitySave(
     }
   }
 
-  return (
+  return EntityRemap(
     save: <String, Object?>{
       'generations': List<int>.of(newGenerations),
       'free': List<int>.of(newFree),

@@ -13,7 +13,6 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/weight_gradient.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The same IEC 61966-2-1 curve `weight_gradient.dart` applies, worked out
 /// independently here so a test of it is not the same formula checked
@@ -248,7 +247,7 @@ void main() {
         device,
         EditMesh.cuboid().toMeshData(),
       );
-      final own = Material(name: 'clay');
+      final own = RenderMaterial(name: 'clay');
       final root = SceneNode(name: 'root');
       final node = MeshNode(deviceMesh, own, name: 'leg');
       root.add(node);
@@ -269,8 +268,8 @@ void main() {
         device,
         EditMesh.cuboid().toMeshData(),
       );
-      final first = Material(name: 'first');
-      final second = Material(name: 'second');
+      final first = RenderMaterial(name: 'first');
+      final second = RenderMaterial(name: 'second');
       final root = SceneNode(name: 'root');
       final node = MeshNode(deviceMesh, first, name: 'leg');
       root.add(node);
@@ -293,7 +292,7 @@ void main() {
         device,
         EditMesh.cuboid().toMeshData(),
       );
-      final clay = Material(name: 'clay');
+      final clay = RenderMaterial(name: 'clay');
       final root = SceneNode(name: 'root');
       final node = MeshNode(deviceMesh, clay, name: 'leg');
       root.add(node);
@@ -304,7 +303,7 @@ void main() {
 
       // Then an edit lands — `SceneSync` writes the rebuilt material onto the
       // node after a colour changes in the panel or over MCP.
-      final Material edited = Material(name: 'edited');
+      final RenderMaterial edited = RenderMaterial(name: 'edited');
       node.material = edited;
       shading.apply(root, active: false);
 
@@ -323,11 +322,15 @@ void main() {
         EditMesh.cuboid().toMeshData(),
       );
       final root = SceneNode(name: 'root');
-      final node = MeshNode(deviceMesh, Material(name: 'clay'), name: 'leg');
+      final node = MeshNode(
+        deviceMesh,
+        RenderMaterial(name: 'clay'),
+        name: 'leg',
+      );
       root.add(node);
 
       final shading = WeightGradientShading()..apply(root, active: true);
-      final Material edited = Material(name: 'edited');
+      final RenderMaterial edited = RenderMaterial(name: 'edited');
       node.material = edited;
       shading.apply(root, active: true);
       expect(node.material, same(kWeightGradientMaterial));

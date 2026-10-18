@@ -136,15 +136,15 @@ void main() {
   vec3 origin = WorldAtDepth(v_uv, surface.a) + normal * contact_info.params.w;
   float stride = reach / float(steps);
 
-  // **Jittered by a Bayer cell**, as Unreal's march is by its dither and
-  // Bend's by its offsets: eight fixed steps otherwise quantise the fade
+  // **Jittered by a Bayer cell**, each pixel starting its march at its own
+  // offset into the first step: eight fixed steps otherwise quantise the fade
   // below into eight flat levels, a staircase across every penumbra. Each
   // sample lands somewhere in its own step rather than at its end. A pattern
   // rather than a hash so the software backend matches bit for bit.
   float jitter = PixelNoise(TargetFragCoord());
 
-  // **A tolerance at least twice what one step moves in depth**, as Unreal's
-  // `CompareTolerance`: a ray running steeply away from the camera crosses
+  // **A tolerance at least twice what one step moves in depth**, so the
+  // test scales with the stride: a ray running steeply away from the camera crosses
   // more depth per step than a fixed thickness, and a thin blocker passed
   // between two samples was never found.
   float stepDepth = abs(DepthOf(origin + toLight * stride) - DepthOf(origin));

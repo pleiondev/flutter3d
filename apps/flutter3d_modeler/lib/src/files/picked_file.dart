@@ -20,12 +20,18 @@ import 'package:crypto/crypto.dart' show sha256;
 /// just read off a disk is not a cost worth trading that for.
 String shaOfBytes(List<int> bytes) => sha256.convert(bytes).toString();
 
+/// A file a person chose, already read: what a picker, a drop or a recent
+/// project hands the editor, the same on every platform.
 final class PickedFile {
+  /// A file read as [bytes] and shown as [name]; [path] only where the
+  /// platform has one.
   const PickedFile({required this.name, required this.bytes, this.path});
 
   /// What to show in a title bar. Never a path — a browser has none.
   final String name;
 
+  /// The whole file. It is read before anything opens it, so nothing holds the
+  /// file open behind it.
   final Uint8List bytes;
 
   /// Where it came from, or null in a browser.
@@ -52,9 +58,13 @@ enum SaveOutcome {
   refused,
 }
 
+/// How a save went: whether it landed, and where, or why not.
 final class SaveResult {
+  /// A result of [outcome], with [path] when it landed and [said] when it was
+  /// refused.
   const SaveResult(this.outcome, {this.path, this.said});
 
+  /// Which of the three it was; a caller switches on this, not on [path].
   final SaveOutcome outcome;
 
   /// Where it landed, when the platform has paths and the save succeeded.
@@ -63,5 +73,6 @@ final class SaveResult {
   /// What went wrong, when it did.
   final String? said;
 
+  /// The picker was dismissed: no path, nothing to say.
   static const SaveResult cancelled = SaveResult(SaveOutcome.cancelled);
 }

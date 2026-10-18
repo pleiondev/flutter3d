@@ -13,18 +13,19 @@
 /// language allowed and a generator cannot carry fails here rather than in a
 /// browser.
 ///
-/// **Here rather than in `flutter3d_webgl`** because this is the one package
-/// that already has both: its own generator, and the other backend's as a dev
-/// dependency, for exactly the reason its `prepareStage` gives — two answers
-/// to "which headers does this shader pull in" would drift where neither side
-/// could see it.
+/// Both generators live in `flutter3d_shaders` since P8; this file stays here
+/// because it is the WebGPU half — `prepareStage` — that has the most to
+/// refuse. `flutter3d_build`'s `material_build_test.dart` runs the same source
+/// all the way into a bundle, through glslang and naga where a machine has
+/// them.
 ///
 /// **Impeller is the one not exercised.** `impellerc` is a binary out of the
-/// Flutter SDK's artifact cache, and `build_shaders_test.dart` next door stubs
-/// it rather than depending on a machine having it. What this file can say is
-/// that the emitted text is the same shape as every `.frag` that binary
-/// already compiles — the same `#version`, the same one header, the same
-/// prototypes — and that is stated rather than proved.
+/// Flutter SDK's artifact cache, and `flutter3d_impeller`'s
+/// `build_shaders_test.dart` stubs it rather than depending on a machine
+/// having it. What this file can say is that the emitted text is the same
+/// shape as every `.frag` that binary already compiles — the same `#version`,
+/// the same one header, the same prototypes — and that is stated rather than
+/// proved.
 ///
 /// **The VM only**, because resolving headers against the real tree is file
 /// access: `loadShaders` starts from `Directory.current`, which a browser
@@ -34,13 +35,7 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
-// The include resolver, and only the include resolver — the same
-// `implementation_imports` `tool/generate_shaders.dart` takes, for the same
-// reason.
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Everything the language has: a texture, a parameter of each shape, a
@@ -69,7 +64,7 @@ material RimLight {
 void main() {
   final shaders = loadShaders();
   final glsl = emitMaterialFragment(
-    specialiseMaterial(
+    specializeMaterial(
       parseMaterial(_source),
       const MaterialVariant('RimLight'),
     ),
@@ -144,7 +139,7 @@ void main() {
     // that needed a sampler to exist, or a block, would fail here and nowhere
     // else.
     final plain = emitMaterialFragment(
-      specialiseMaterial(
+      specializeMaterial(
         parseMaterial(
           'material Flat { fragment { return vec4(albedo, alpha); } }',
         ),

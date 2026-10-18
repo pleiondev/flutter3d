@@ -8,6 +8,8 @@ library;
 
 /// Width and height both runs render at.
 const int kParityWidth = 256;
+
+/// Height in pixels both runs render at.
 const int kParityHeight = 192;
 
 /// Cells across and down in the comparison grid.

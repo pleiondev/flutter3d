@@ -54,10 +54,10 @@ names, `mod/lti/lang/en/lti.php`):
 | Access token URL | fixed path | `http://localhost:8798/mod/lti/token.php` |
 | Authentication request URL | fixed path | `http://localhost:8798/mod/lti/auth.php` |
 
-These five feed `LtiPlatformConfig` directly:
+These five feed `LtiPlatformSettings` directly:
 
 ```dart
-LtiPlatformConfig(
+LtiPlatformSettings(
   issuer: 'http://localhost:8798',               // Platform ID
   clientId: '<copied from the modal>',            // Client ID
   deploymentId: '<copied from the modal>',         // Deployment ID, as a string
@@ -82,5 +82,5 @@ Not here — `doc/edu-03-lti-plan.md` §5 takes it as its own step. Canvas's
 own external-app registration screen asks for the same five values in the
 other direction (Moodle above is the *platform*; a Canvas launch would work
 the same way once Canvas is in `docker-compose.yml`), so nothing about
-`LtiPlatformConfig` or `LtiLaunchValidator` changes for it — only which
+`LtiPlatformSettings` or `LtiLaunchValidator` changes for it — only which
 platform's issuer/URLs are configured.

@@ -9,8 +9,6 @@ library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 
 /// What this game lets a driver ask for.
 ///
@@ -18,16 +16,45 @@ import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 /// has a throttle and a brake, not a forward and a back, and `GameAction` is a
 /// string for exactly this reason.
 abstract final class Drive {
+  /// Open the throttle: the car accelerates while this is held.
   static const GameAction throttle = GameAction('throttle');
+
+  /// Brake, and below walking pace, reverse.
   static const GameAction brake = GameAction('brake');
+
+  /// Steer towards the left of the car, however it is facing.
   static const GameAction left = GameAction('steerLeft');
+
+  /// Steer towards the right of the car, however it is facing.
   static const GameAction right = GameAction('steerRight');
+
+  /// Lock the wheels: they stop and the car slides on, which is how the back
+  /// is brought round in a hairpin.
   static const GameAction handbrake = GameAction('handbrake');
 
   /// Change tyres. A verb the car has rather than a screen, so it can be
   /// rebound like every other one and so a pad has it too.
-  static const GameAction tyres = GameAction('tyres');
+  static const GameAction tireSet = GameAction('tyres');
 }
+
+/// What this game declares, in the order the panel lists it: [Drive]'s
+/// verbs, every one rebindable.
+const ActionSet driveActions = ActionSet('racing.demo', <ActionDeclaration>[
+  ActionDeclaration(Drive.throttle),
+  ActionDeclaration(Drive.brake),
+  ActionDeclaration(Drive.left, label: 'steer left'),
+  ActionDeclaration(Drive.right, label: 'steer right'),
+  ActionDeclaration(Drive.handbrake),
+  ActionDeclaration(Drive.tireSet),
+]);
+
+/// The driving keys and the driving pad, as one action map over
+/// [driveActions].
+ActionMap driveActionMap() => PadInput.addDrivingDefaultsTo(
+  ActionMap(actions: driveActions, buttons: padBindings(driveKeys())),
+  steerLeft: Drive.left,
+  steerRight: Drive.right,
+);
 
 /// What a player can move, in the order the panel lists it.
 ///
@@ -39,7 +66,7 @@ const List<GameAction> rebindableActions = <GameAction>[
   Drive.left,
   Drive.right,
   Drive.handbrake,
-  Drive.tyres,
+  Drive.tireSet,
 ];
 
 /// The driving pad.
@@ -49,12 +76,12 @@ const List<GameAction> rebindableActions = <GameAction>[
 /// engine's own defaults left out: this game does not walk, and a d-pad bound
 /// to `moveForward` here would be a control that means nothing.
 Bindings padBindings(Bindings bindings) => bindings
-  ..bind(InputSource.pad(PadButton.triggerRight.id), Drive.throttle)
-  ..bind(InputSource.pad(PadButton.triggerLeft.id), Drive.brake)
-  ..bind(InputSource.pad(PadButton.faceSouth.id), Drive.handbrake)
-  ..bind(InputSource.pad(PadButton.faceNorth.id), Drive.tyres)
-  ..bind(InputSource.pad(PadButton.dpadLeft.id), Drive.left)
-  ..bind(InputSource.pad(PadButton.dpadRight.id), Drive.right);
+  ..bind(InputSource.pad(GamePadButton.triggerRight.id), Drive.throttle)
+  ..bind(InputSource.pad(GamePadButton.triggerLeft.id), Drive.brake)
+  ..bind(InputSource.pad(GamePadButton.faceSouth.id), Drive.handbrake)
+  ..bind(InputSource.pad(GamePadButton.faceNorth.id), Drive.tireSet)
+  ..bind(InputSource.pad(GamePadButton.dpadLeft.id), Drive.left)
+  ..bind(InputSource.pad(GamePadButton.dpadRight.id), Drive.right);
 
 /// The driving keys.
 ///
@@ -76,6 +103,6 @@ Bindings driveKeys() {
   bind(LogicalKeyboardKey.keyD, Drive.right);
   bind(LogicalKeyboardKey.arrowRight, Drive.right);
   bind(LogicalKeyboardKey.space, Drive.handbrake);
-  bind(LogicalKeyboardKey.keyT, Drive.tyres);
+  bind(LogicalKeyboardKey.keyT, Drive.tireSet);
   return bindings;
 }

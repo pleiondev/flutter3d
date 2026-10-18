@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -8,6 +9,9 @@ import 'package:vector_math/vector_math.dart';
 /// touched" is the implementation everybody writes first and nobody notices is
 /// wrong until somebody backtracks for a coin they missed.
 final class Checkpoint extends Mechanism with CollisionListener {
+  /// A checkpoint over [collider], [order] along the level, putting the
+  /// runner back at [at] or at the collider's middle when null. [collider]
+  /// is made a trigger that reports here.
   Checkpoint({
     super.name,
     required this.collider,
@@ -20,6 +24,7 @@ final class Checkpoint extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger volume the runner walks into to reach it.
   final Collider collider;
 
   /// Where along the level this one is. Bigger is further on.
@@ -30,13 +35,15 @@ final class Checkpoint extends Mechanism with CollisionListener {
   final Vector3 at;
 
   bool _reached = false;
+
+  /// Whether the runner has reached it; it stays reached once it is.
   bool get isReached => _reached;
 
   /// True on the step it was first reached, for a sound or a flag going up.
   bool justReached = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   ActivationOutcome activate(Activation by) {
@@ -50,7 +57,8 @@ final class Checkpoint extends Mechanism with CollisionListener {
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 

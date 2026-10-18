@@ -22,6 +22,8 @@ import 'gift.dart';
 /// once. What stayed is what makes it a pickup: a gift, an amount, and the line
 /// it says when it lands.
 final class Pickup extends Takeable {
+  /// A pickup giving [amount] of [gift], with [detail] where the gift has
+  /// kinds; offered again for as long as it is stood on.
   Pickup({
     super.name,
     required this.gift,
@@ -30,19 +32,31 @@ final class Pickup extends Takeable {
     this.detail,
   }) : super(retryWhileTouching: true);
 
+  /// What it gives; a gift that refuses leaves the pickup where it is.
   final Gift gift;
 
+  /// How much of [gift] it gives, in the gift's own unit: hit points, armour
+  /// points or rounds.
   final double amount;
 
   /// Which one, where a gift has kinds — a key's colour, a weapon's name.
   final String? detail;
 
+  /// What the gift said when it was taken, for a game to word; null before
+  /// then, or when it says nothing. [message] carries its English wording.
+  GiftAnnouncement? announcement;
+
   @override
   bool offerTo(Object? taker) {
     if (taker is! Collector) return false;
-    if (!gift.grantTo(taker.inventory, amount, detail)) return false;
+    final granted = gift.grantTo(
+      GiftGrant(to: taker.inventory, amount: amount, detail: detail),
+    );
+    if (!granted) return false;
 
-    message = gift.announce(amount, detail);
+    final said = gift.announce(GiftAnnounce(amount: amount, detail: detail));
+    announcement = said;
+    message = said?.english;
     return true;
   }
 }

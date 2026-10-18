@@ -1,3 +1,381 @@
+## 1.0.0-rc.1
+
+- **`light_shafts.frag` and `volumetric_fog.frag` pick a cascade by the way
+  along the ray from the eye's plane**, which is the depth along the axis
+  through an orthographic lens, where the renderer cuts the cascades.
+- **`FogTransmittance` in `lib/contributor_eye.glsl`**: every particle and
+  splat stage fogs by it, the height fog integrated along the ray as
+  `ApplyFog` does, from the falloff in `FogInfo.eye.w`.
+- **A backend's compiler runs as a process of its own.**
+  `runMaterialCompiler` (in `compile.dart`) is the whole of a backend
+  package's compiler executable, and `encodeMaterialCompileRequest` and
+  `decodeMaterialCompileRequest` what the build hands it: a backend from
+  outside names the file under `flutter3d_backend:` in its pubspec, and
+  `flutter3d_build` runs it for its sections.
+- **A section taken is a `NameTakenException`.**
+  `MaterialCompilerRegistry.register` refused a compiler writing the
+  section another backend's writes with an `ArgumentError`; it is the
+  plugin API's typed refusal now, naming the section and its compiler.
+  The package depends on `flutter3d_plugin_api` for it.
+- **Breaking: the scene's colour copy is spelled `SceneColorCopy` in the
+  shader ABI.** The entry point `SceneColourCopy`, the `LayerInfo` member
+  `scene_colour` and the sampler `scene_colour_texture` are `SceneColorCopy`,
+  `scene_color` and `scene_color_texture`, before the ABI is recorded at the
+  tag: they are bound by name on Impeller, WebGL2 and the CPU, so a British
+  word there would be frozen for 1.x. A prebuilt plugin stage that reads
+  the copy is rebuilt against this bundle.
+- **The shader ABI file writes varyings, sampler kinds and attribute
+  formats.** `api/flutter3d_shaders.abi` gains each vertex stage's `out`s
+  and each fragment stage's `in`s and colour outputs in declaration order,
+  each vertex input's `VertexFormat` (`float32x4` for a `vec4`), and a
+  sampler's line ends in the type it is declared as (`sampler2D`,
+  `samplerCube`). A prebuilt plugin stage is paired with the engine's by
+  those, and before they were outside the file: a minor could have
+  inserted a varying before `v_instance`, or turned a decal slot into an
+  array texture, with every check green. The ABI is the one every target
+  shares; the index attributes only Impeller's OpenGL ES target declares
+  are not in it. The base is recorded from the working tree until rc.1 is
+  tagged, and from the tag after (`dart run api_snapshot:abi_base`).
+- **The kernel language's vocabulary is a file.**
+  `api/kernel_language.vocabulary` holds every word with the version it
+  arrived in, the words taken early and the material language's words the
+  parser names; `dart run tool/kernel_vocabulary.dart` writes it, a test
+  keeps it current, and a structure rule holds it to the base recorded at
+  the tag.
+- **Every word of the kernel language says which version it arrived in.**
+  The parser kept its words in one list for every version, so a version
+  that added `barrier` or `shared` would have refused each older kernel
+  with a local of that name. Now a word is taken from a binding or a local
+  only in a source of its own version or later, and in an older one it is
+  a name like any other; calling it there is refused with the version it
+  needs (`"atomicAdd" is kernel language 2: open the source with "kernel
+  2"`). Version 2's `atomic…` words stay taken in version 1 sources, as
+  they were: no version 1 source ever used them as names. Additive: every
+  source that parsed still parses and means what it meant.
+- **Breaking: kernel language 2, with atomic buffers.** A buffer of `i32` or `u32` may be
+  declared `atomic`, and is read and written only through `atomicLoad`,
+  `atomicStore`, `atomicExchange` and `atomicAdd` (the last two as a value
+  or as a statement), each element by any number of invocations at once:
+  what a list many invocations build together needs, a grid of
+  neighbours. WGSL gets `array<atomic<T>>` and WGSL's atomics; the Dart
+  kernel, which runs invocations one after another, the plain read and
+  write. A source that uses them opens with `kernel 2`, and one that does
+  not reads as before. `kernelLanguageVersion` is 2, which is the break:
+  code that compared it with 1 sees the new number. Every kernel 1 source
+  means what it meant.
+- **The kernel language has a version, and refuses what it cannot read.**
+  `kernelLanguageVersion` (new, 1) and `kernelLanguageFirstVersion` (new):
+  a source may open with `kernel <N>`, after a `.f3dmat` file's
+  `f3dmat <N>` line, and `ComputeKernel.languageVersion` (new) says which
+  it was written in. A newer source is refused with both versions. A
+  top-level word other than `compute`, `material` or `fullscreen` is
+  refused rather than skipped as a block, which took the kernels after it
+  along, and the material language's `compute` form is named when met.
+- **`WorkgroupSize` (new) is three numbers in a class.**
+  `ComputeKernel.workgroupSize` and `WgslKernel.workgroupSize` answer one
+  rather than a record, as `MaterialProgram.workgroupSize` does.
+- **`sin`, `cos` and `pow` in the kernel language**, on f32s and vectors,
+  the f32 nearest the exact value on the CPU and WGSL's own on the GPU.
+- **A debug-line point is one pixel on Metal too.** The stage wrote its
+  point size under a macro `impellerc` never defines, so Metal drew points
+  at whatever size it found; it is written under the target macros the
+  compiler does define.
+- **`countGlslBindings` answers a `GlslBindingCount`** (new), a class
+  with `textures` and `uniformBlocks`, rather than a record that could
+  never count one more kind of binding.
+- **The budget counts GLSL, and names a plugin model's share.**
+  `MaterialStageBudget.problemOfGlsl` and `countGlslBindings` (new) count a
+  stage's textures and blocks from its GLSL after `#ifdef`, which every
+  backend's path has; `MaterialStageBudget.materialTextures` and
+  `materialUniformBlocks` (new) are what a lighting model of a plugin's own
+  may bind of its own in every 1.x.
+- **A stage over WebGPU's binding budget is refused when it is built.**
+  `MaterialStageBudget` (16 textures, 16 samplers, 12 uniform blocks a
+  stage, the engine's and a material's together) is what every WebGPU
+  device guarantees; `wgslSectionDocument`, which every writer of a WebGPU
+  section calls, refuses a stage past it with the stage and the count
+  rather than leaving the pipeline to fail on a device.
+- **Breaking: `RequiredShader` is a class**, with the same `name` and
+  `fragment` and a `kind` beside them; a literal `(name: …, fragment: …)`
+  becomes `RequiredShader(name: …, fragment: …)`.
+- **A stage says its kind.** `MaterialStageSource` and `compileStage` take
+  a `ShaderStageKind` beside the `fragment` flag, which each still takes,
+  and `kernelBundle` claims its kernels as compute stages rather than as
+  vertex ones.
+- **`KernelPixels` takes `rgba:` by name**, so it can take another in a
+  minor.
+- **A kernel's WGSL gives the Dart kernel's bytes on Dawn too.** Chrome
+  compiles under Metal's relaxed math, which folds `0.0 + x`; a sum
+  starting at zero then wrapped one `f3d_exact` straight in another, and
+  two exclusive ors with one zero cancel, so a product fused into the next
+  sum (the skinning kernel an ulp off in 26 values of 512). The barrier is
+  an inclusive or, which a second one leaves standing. An image store is
+  handed its level over 255, rounded ties to even by `f3d_unorm8`, where
+  Dawn and wgpu stored a sum halfway between two levels half up (the blur
+  kernel a level off in 12 channels of 1024).
+- **The debug-line stage writes `gl_PointSize`** under `impellerc` and in
+  a WebGL2 compile, where a point's size was undefined; the road to WGSL
+  sees neither.
+- **`ShaderStageNeed`: which of the engine's stages a project carries.**
+  `base`, always carried, and the needs a project may declare
+  (`pbrLayered`, `blinnPhong`, `lambert`, `toon`, `impostor`), each with the
+  entry points it brings; `byName`, `bringing` (the need a stage comes with)
+  and `stagesFor`. Every entry point of the manifest is brought by exactly
+  one need, which a test holds. A plugin declares its own under its id. An
+  open set, like every other.
+- **`MissingShaderStageException`: a stage asked for and not in the
+  bundle.** Under the root through `ResourceException`, with the stage,
+  the need that brings it and the backend; `forStage` fills the need in from
+  the engine's table, and the message names the word to add under
+  `shaders:` in `flutter3d_assets.yaml`.
+- **`EngineBundleStamp`: what the engine's own bundle was built with.** The
+  Dart, the engine revision, the needs and the stage count, in a section of
+  its own (`flutter3d.stamp`); `bundle` wraps compiled sections into the
+  engine's container, and `projectAsset`, `previousProjectAsset` and
+  `projectMaterialAsset` are where a project's build writes them.
+  `compile.dart` gains `engineRevisionAt`, an SDK's engine revision.
+- **No stage reads a built-in index on Impeller's OpenGL ES target.**
+  `lib/vertex_index.glsl` and `lib/instance_index.glsl` give
+  `F3dVertexIndex()` and `F3dInstanceIndex()`: `gl_VertexIndex` and
+  `gl_InstanceIndex` everywhere else, the attributes `f3d_vertex_index` and
+  `f3d_instance_index` under `IMPELLER_TARGET_OPENGLES`, where GLSL ES 1.00
+  has neither built-in. The morph column, the instanced mesh and the
+  caustic photons read them. Every other target compiles what it did.
+- **`dielectricF0`: a dielectric's F0, written once.** 0.04, the
+  reflectance head-on of an index of 1.5. The GLSL reads it as
+  `kDielectricF0` from `shaders/lib/shading_constants.glsl`, which
+  `tool/gen_shading_constants.dart` writes from the Dart constant; the
+  metal-rough base, the coat's Fresnel, lobe and ambient, the iridescence's
+  start and the reflections' Schlick term no longer write the literal. The
+  compiled stages are the ones they were: the WGSL translation is
+  unchanged to the byte.
+- **A material's own binding names are one name space.** `prepareStage`
+  refuses, with a `WgslPrepareException` naming the source, an
+  `ownBindings` list that names one block or texture twice, or that takes
+  a name one of the engine's stages binds (`MaterialParams` aside, the
+  block a material's plain uniforms are members of).
+- **A material's own blocks and textures are numbered after the engine's
+  on WebGPU.** `prepareStage(ownBindings:)` takes the names of a
+  material's slot table, its blocks and then its textures, and numbers
+  them after every block and sampler of the engine's, in that order rather
+  than by name, as "The shader ABI" in `docs/CONTRACTS.md` says. Empty by
+  default, which numbers every engine stage as before.
+- **The section writers refuse a bundle whose stages disagree.**
+  `encodeWebGlSection` and `wgslSectionDocument` hold every vertex stage to
+  the fragment stage its name pairs it with (`<F>Vertex` and its
+  `Skinned`, `Instanced` and `Lightmapped` halves to `<F>`,
+  `pairedFragmentStage`) by `checkStageAgreement`, and throw a
+  `StageAgreementException` naming both stages and what each declares:
+  a build error, not a pair that links on one backend and draws zeros on
+  another. `checkBundleAgreement` and `requireBundleAgreement` are the
+  check on its own, for a packer.
+- **The engine's light loops skip a plugin's light type.** `SampleLight` in
+  `surface.glsl` and `ContributorLight` in `contributor_lights.glsl` give a
+  row coded 16 or more nothing, before any branch would read it as a panel
+  or a point.
+- **Compute kernels in `.f3dmat compute`, in `package:flutter3d_shaders/kernel.dart`.**
+  `ComputeKernel.parse` reads a `compute Name { … }` block once into one
+  checked tree (a mistake is a `ComputeKernelException` with its line and
+  column) and translates it twice: `toWgsl` for WebGPU and the wgpu
+  sidecar, `toDartKernel` for the CPU. The WGSL rounds every f32 sum,
+  difference and product where the source does, through an opaque bit cast,
+  because Metal fuses a multiply into the add beside it and reorders sums;
+  with that, the four conformance kernels give the Dart kernel's bytes on
+  wgpu over Metal. `kernelBundle` packs kernels into a bundle's kernel
+  section and `kernelsOf` reads them back for a device's `loadShaders`;
+  `KernelTexture`, `KernelImage` and `KernelPixels` are what the Dart
+  kernel reads and writes texels through.
+- **`package:flutter3d_shaders/backend.dart`, the shader contract a
+  backend is written against.** `stageBindings` and `uniformBlocks` move
+  here from `internal.dart`, which keeps the typed blocks (**Breaking**
+  for outside backends that imported them from there). Beside them:
+  `MaterialCompiler`, `MaterialCompileRequest`, `MaterialCompileResult`,
+  `MaterialCompileException` and `MaterialCompilerRegistry` — how a backend
+  compiles the material language into its section of a bundle, found by
+  backend name by the build hook and by `RuntimeShaders`, with
+  `MaterialCompileRequest.webGpuStagesOption`, the one key the WGSL stages
+  are handed over under, and `MaterialCompiler.isSectionWrittenByBuild` for a
+  backend whose section a build writes with a tool of its own; `ShaderTarget`;
+  and `StageInterface`, `StageVariable`, `StageBlockMember`,
+  `StageMismatch`, `StageMismatchKind` and `checkStageAgreement`, the check
+  that a pipeline's stages agree on varyings, attributes and blocks before
+  they reach a device.
+- **Breaking: `compileStage` takes a `target` and hands back the SPIR-V.**
+  `CompiledStage` is a class rather than a record: `spirv`, `target`, the
+  `text` in the target's language (WGSL, MSL, HLSL or GLSL, none for
+  `ShaderTarget.spirv`) and `offsets`; `wgsl` still reads the WGSL.
+- **Hashed alpha is anchored on the world.** `surface.glsl` and
+  `depth_predraw.frag` share `HashedAlphaNoise`, which takes the scene's
+  origin out of the cutoff, so a shift of the origin keeps every speck, and
+  replaces `fract(sin(…) · 43758)` with a `sin`-free hash that every GPU
+  computes alike. Hashed surfaces draw a different pattern than before.
+- **Lambert's opaque stage declares no metallic-roughness sampler.**
+  `F3D_NO_METALLIC_ROUGHNESS_MAP` leaves it out, since a declared but
+  unread sampler was dropped by Metal's compiler while its reflection still
+  listed the slot.
+
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  exceptions its refusals extend.
+
+- **`sky_physical` absorbs by ozone**, from the amount in `v_stars.w`, and
+  documents `v_sun.w` as the sunlight on the luminance scale.
+- **A spot's falloff is squared** in `surface.glsl`, `contributor_lights.glsl`
+  and `volumetric_fog.frag`, as `KHR_lights_punctual`'s reference is.
+- **Breaking: a WebGL section that will not read throws
+  `BundleSectionFormatException`**, a `Flutter3dFormatException`, where
+  `decodeWebGlSection` threw the SDK's `FormatException`;
+  `decodeSectionJson` reads a section's JSON the same way for the WebGPU
+  backend.
+
+- **`internal.dart`**: the stage bindings, the uniform block layouts and the
+  typed blocks the renderer and the four backends read, as a library of
+  their own rather than `src/` imports. For engine backends; not covered by
+  semver for applications.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kComputeShaders` is `computeShaders`,
+  `kCubeDimension` is `cubeDimension`, `kFragmentGroup` is `fragmentGroup`,
+  `kGlslang` is `glslangExecutable`, `kMaxInterStageVariables` is
+  `maxInterStageVariables`, `kNaga` is `nagaExecutable`, `kRequiredShaders`
+  is `requiredShaders`, `kSectionVersion` is `sectionVersion`,
+  `kTwoDimensional` is `twoDimensional`, `kVertexGroup` is `vertexGroup`.
+  The values are the same; `dart fix` carries the renames.
+- **Breaking: the generated uniform tables are not API.**
+  `typed_blocks.dart`, `uniform_blocks.dart` and `stage_bindings.dart` moved
+  under `lib/src`: they are the engine's and its backends' own, and a
+  change to a shader is no longer a major release.
+
+- **The translator's refusals are exceptions, named as such.**
+  `GlslTranslateException`, `WgslPrepareException`, `WgslCompileException` and
+  `WgslSectionException` (called `*Error` earlier in this cycle) extend
+  `Flutter3dFormatException` from `flutter3d_plugin_api`. A shader the
+  translator cannot read is something a correct program meets, and `*Error` is
+  kept for programmer mistakes.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **`WriteDebugView` draws nine more views and a wipe between two.**
+  `FragInfo.debug_view` now carries the right view, the wipe's column in
+  pixels, the left view and the draw's identity; the composite's
+  `lens.y` says which sides of the wipe hold display values.
+
+- **The lit models have opaque variants and a depth pre-draw — `A1.2`.**
+  `PbrOpaque`, `PbrLayeredOpaque`, `BlinnPhongOpaque`, `LambertOpaque`,
+  `ToonOpaque` and `UnlitOpaque` are the six models with `F3D_OPAQUE`
+  defined, which leaves the alpha cut's `discard` out of `ReadSurface`;
+  `DepthPredraw` makes the cut and a level of detail's share of a
+  cross-fade in depth only. A hundred and five entry points, and
+  `PredrawInfoBlock` for the new block. The four simple models moved into
+  `lib/` headers so each variant is the same text.
+
+- **The sun's shadow map may keep its depth the other way round — `A2.8`.**
+  `lib/shadow_storage.glsl` turns it back for every reader and takes the
+  bias's floor at a fragment's own depth; `FragInfo.shadow_params.y`, which
+  nothing read, carries the mode.
+
+- **The sky draws at the depth its vertices give** — the far plane less a
+  hair, or nought reversed — instead of a constant in the stage.
+
+- **Material stages run their colour arithmetic at mediump — `A1.1`.**
+  The twelve lit stages define `F3D_MEDIUMP`; a few functions whose numbers
+  are colours and factors (`F_Schlick`, `SrgbToLinear`, the octahedral
+  encode, the map reads) run at mediump on a phone, and everything carrying
+  a position, a coordinate, a depth, light or noise stays highp.
+  `shaders/PRECISION.md` is the contract. Desktop GPUs compute at full
+  precision whatever the qualifier, so no desktop golden moves.
+
+- **`SplatSortCount`, `SplatSortScan` and `SplatSortScatter`**, the compute
+  stages of the GPU splat sort (`H11`): a digit count per tile of 256
+  keys, a scan of the counts in one workgroup, and a stable scatter whose
+  last pass writes six indices a splat. A computing backend may leave them
+  out, and the software rasteriser does.
+
+- **`OutlineMask` and `HighContrast`**, the stages of
+  `RenderSettings.highContrast`: a marked node's ring colour, drawn through
+  the velocity vertex stages and dropped behind the surface buffer, and the
+  look over the finished frame.
+
+- **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
+  of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
+  when its photons are followed.
+- `ShadowTransmittance` reads the material's base colour map, and neither it
+  nor the stored transmittance is held to one; `ShadowFactor` reads up to
+  four, so a caster can brighten as well as darken.
+
+- **`ShadowTransmittance`**, the stage a see-through caster is drawn into the
+  sun's atlas with (`ShadowSettings.translucentCasters`), and
+  `light_transmittance` in `surface.glsl`, which `ShadowFactor` sets and the
+  light loop multiplies the sun by.
+
+- **A masked cutoff above one is drawn as coverage** — `P7`: `ReadSurface`
+  keeps the fragment and sharpens its alpha over a pixel with `fwidth`. A
+  plain cutoff leaves the surviving fragment's alpha at one.
+
+- **`FogInfo.projection`, `Orthographic`, `TowardsEye`** — `P7`: the lit
+  models, the planar reflection's Fresnel and `EyeDistance` ask whether the
+  camera is orthographic. `light_shafts.frag` starts its march on the eye's
+  plane.
+
+- **`FragInfo.debug_view` and `WriteDebugView`** in `surface.glsl` — `P6`:
+  every lit model asks it before writing its light. NaN is found by
+  comparison, because `impellerc`'s GLSL ES output has no bit casts.
+  `CompositeInfo.lens` y and z say whether a debug view is on and where it
+  starts.
+
+- **`LensFlare`**, with the `LensFlareInfo` block, and a `lens` member
+  appended to `CompositeInfo` for the distortion.
+
+- **Three stages for SMAA 1x**: `SmaaEdges`, `SmaaWeights` and `SmaaBlend`,
+  with the `SmaaInfo` block. A bundle must answer to them; the renderer falls
+  back to FXAA when one does not.
+
+**A decal stage.** `post/decal.frag` (`Decal`) paints up to sixteen
+projected boxes, reading four pictures, over the point the surface buffer
+names under each pixel. It writes a factor and a term for two blends, the
+albedo swapped under the light the albedo buffer lets it read back, and the
+colour an unlit surface and an emissive decal add.
+
+**Two stages for `P4`.** `lighting/planar_reflection.frag` lays a mirrored
+picture over a reflector's surface, read by the fragment's place in its view
+and weighted by Schlick's Fresnel; it declares no surface buffer, as
+`xray.frag` does not. `post/render_texture_encode.frag` turns a camera's
+light into the sRGB bytes a material's map is read as, turning the rows over
+where the backend draws its first row at the bottom. Both are in the bundle,
+in `requiredShaders` and in `stageBindings`, `uniformBlocks` and
+`typed_blocks.dart`.
+
+**`SkyPhysical` and `SkyPhysicalVertex`**, the physical sky: single
+scattering by molecules and haze marched per pixel, sixteen samples along the
+view and eight towards the sun from each, the disc and the stars dimmed by the
+air, and the ground below the horizon. The air travels on the vertices, as the
+gradient's preset does.
+
+**`ApplyFog` integrates a height fog.** `FogInfo.eye.w` carries the falloff
+and `FogInfo.fog.w` the density at the eye; a falloff of nought takes the old
+path unchanged.
+
+**The WebGL2 and WebGPU translators live here now, behind
+`translate.dart` and `compile.dart`.** `flutter3d_build`'s material step has
+to translate a project's materials from a hook process that cannot resolve a
+package declaring the Flutter SDK, and `flutter3d_webgl` and
+`flutter3d_webgpu` both declare one. None of the moved files ever needed the
+SDK. `translate.dart` holds the pure parts: `translateGlsl` and
+`resolveIncludes`, `prepareStage`, and the writers for both sections.
+`compile.dart` adds the parts that need a machine: `loadShaders` (which now
+takes `from:`, and whose `ShaderSet` carries the `root` it read),
+`compileStage` through glslang and naga, and `bundleVaryingLocations`, which
+used to be private to `pack_wgsl_section.dart`. The barrel exports neither,
+so an application carries no compiler.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

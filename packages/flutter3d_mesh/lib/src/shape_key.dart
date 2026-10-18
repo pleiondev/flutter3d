@@ -30,6 +30,9 @@ import 'layout_plan.dart';
 /// are how a caller keeps one in step with `EditMesh`'s own growth and
 /// compaction without either of them having to know about the other.
 final class ShapeKey {
+  /// A key called [name] holding a copy of [positions], three floats a
+  /// vertex. Throws an `ArgumentError` when the length is not a multiple
+  /// of three.
   ShapeKey(this.name, Float32List positions)
     : _positions = Float32List.fromList(positions) {
     if (_positions.length % 3 != 0) {
@@ -40,9 +43,12 @@ final class ShapeKey {
     }
   }
 
+  /// What the key is called, and the key a caller's map holds it under.
   final String name;
   final Float32List _positions;
 
+  /// Vertices the key stores, a count; a mesh may have grown past it, see
+  /// [grownTo].
   int get vertexCount => _positions.length ~/ 3;
 
   /// Every vertex this key stores, three floats each, in one copy — for a
@@ -52,12 +58,16 @@ final class ShapeKey {
   /// without going through [setPosition].
   Float32List get positions => Float32List.fromList(_positions);
 
+  /// Returns where this key puts [vertex], in the mesh's own space, as a
+  /// new vector. Throws a `RangeError` at or past [vertexCount].
   Vector3 positionOf(int vertex) => Vector3(
     _positions[vertex * 3],
     _positions[vertex * 3 + 1],
     _positions[vertex * 3 + 2],
   );
 
+  /// Moves [vertex] to [position] in this key. Throws a `RangeError` at or
+  /// past [vertexCount].
   void setPosition(int vertex, Vector3 position) {
     _positions[vertex * 3] = position.x;
     _positions[vertex * 3 + 1] = position.y;

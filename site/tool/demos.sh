@@ -36,7 +36,13 @@ games=(
   "strategy:apps/flutter3d_demo_strategy"
   "arcade:apps/flutter3d_demo_arcade"
   "river:apps/flutter3d_demo_river"
-  "chemlab:packages/education/chemlab"
+  "chemlab:packages/flutter3d_education/example"
+  # Not a game either: a level or prefab document in an editor, drawn as it
+  # is typed. content/playground.md embeds it.
+  "playground:apps/flutter3d_playground"
+  # Not a game: the level editor's web build, which the download page sends
+  # people to first.
+  "editor:apps/flutter3d_editor"
 )
 
 wanted="${1:-}"

@@ -6,17 +6,18 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const double _frame = 1.0 / 60.0;
 
-CollisionWorld _empty() => CollisionWorld();
+CollisionWorld _empty() => CollisionWorld(properties: platformerWorld);
 
 /// A world with a wall two metres behind the origin, across the camera's path.
 CollisionWorld _walled() {
-  final world = CollisionWorld();
+  final world = CollisionWorld(properties: platformerWorld);
   world.addBox(Vector3(0.0, 2.0, -2.0), Vector3(20.0, 8.0, 0.5));
   return world;
 }
@@ -48,7 +49,7 @@ void main() {
       previous = behind;
     }
     // And it ends up trailing at about the distance it was asked for.
-    expect(previous, closeTo(const FollowTuning().distance, 1.5));
+    expect(previous, closeTo(const FollowSettings().distance, 1.5));
   });
 
   test('lag is the same at 30 and 120 frames a second', () {
@@ -85,7 +86,7 @@ void main() {
     expect(camera.eye.z, greaterThan(-2.0), reason: 'not through the wall');
     expect(
       (camera.eye - camera.target).length,
-      lessThan(const FollowTuning().distance),
+      lessThan(const FollowSettings().distance),
     );
   });
 
@@ -209,12 +210,12 @@ void main() {
     for (var i = 0; i < 100; i++) {
       camera.look(Vector2(0.0, 1000.0));
     }
-    expect(camera.pitch, greaterThanOrEqualTo(const FollowTuning().minPitch));
+    expect(camera.pitch, greaterThanOrEqualTo(const FollowSettings().minPitch));
 
     for (var i = 0; i < 200; i++) {
       camera.look(Vector2(0.0, -1000.0));
     }
-    expect(camera.pitch, lessThanOrEqualTo(const FollowTuning().maxPitch));
+    expect(camera.pitch, lessThanOrEqualTo(const FollowSettings().maxPitch));
   });
 
   test('strafing goes to the camera\'s right, not its left', () {
@@ -226,7 +227,7 @@ void main() {
     // The camera at yaw 0 sits at -Z looking towards +Z. Screen-right is then
     // world -X, because right is `cross(forward, up)`. Mutation: flip the sign
     // of either `axis.x` term in `Runner._readWish`.
-    final world = CollisionWorld()
+    final world = CollisionWorld(properties: platformerWorld)
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(60.0, 1.0, 60.0));
     final runner = Runner(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
@@ -252,7 +253,7 @@ void main() {
     // takes it as an argument. Turn the camera a quarter turn and forward is
     // world +X.
     final camera = FollowCamera(world: _empty(), yaw: math.pi / 2);
-    final world = CollisionWorld()
+    final world = CollisionWorld(properties: platformerWorld)
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
     final runner = Runner(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
@@ -372,7 +373,7 @@ void main() {
       // A room, not six floors: the first draft used the same flat slab for
       // every side, so the "walls" were horizontal and the camera was inside
       // three of them before anything was even shaken.
-      final world = CollisionWorld();
+      final world = CollisionWorld(properties: platformerWorld);
       void slab(Vector3 at, Vector3 half) => world.add(
         Collider(
           shape: CollisionBox(half),
@@ -427,12 +428,12 @@ void main() {
     test('a widened view narrows again', () {
       final camera = FollowCamera(world: _empty());
       camera.widen(0.3);
-      expect(camera.extraFov, greaterThan(0.2));
+      expect(camera.extraFovY, greaterThan(0.2));
 
       for (var i = 0; i < 90; i++) {
         camera.follow(Vector3.zero(), 1.0 / 60.0);
       }
-      expect(camera.extraFov, lessThan(0.01));
+      expect(camera.extraFovY, lessThan(0.01));
     });
   });
 
@@ -443,7 +444,7 @@ void main() {
     // back until they corrected it themselves.
 
     test('a runner who keeps going gets the camera behind them', () {
-      // Mutation: `recentre = 0.0`, which is the old behaviour exactly. The
+      // Mutation: `recenter = 0.0`, which is the old behaviour exactly. The
       // yaw never moves and this fails.
       final camera = FollowCamera(world: _empty());
       // Looking one way, running another: a quarter turn apart.
@@ -452,7 +453,7 @@ void main() {
 
       final north = Vector3(0.0, 0.0, 8.0);
       for (var i = 0; i < 240; i++) {
-        camera.follow(Vector3.zero(), _frame, travelling: north);
+        camera.follow(Vector3.zero(), _frame, traveling: north);
       }
 
       expect(
@@ -472,13 +473,13 @@ void main() {
       // somebody who is not going anywhere is the camera deciding where the
       // player should be looking.
       //
-      // Mutation: drop the `recentreAbove` guard.
+      // Mutation: drop the `recenterAbove` guard.
       final camera = FollowCamera(world: _empty());
       camera.look(Vector2(-400.0, 0.0));
       final started = camera.yaw;
 
       for (var i = 0; i < 240; i++) {
-        camera.follow(Vector3.zero(), _frame, travelling: Vector3.zero());
+        camera.follow(Vector3.zero(), _frame, traveling: Vector3.zero());
       }
 
       expect(
@@ -502,7 +503,7 @@ void main() {
       expect(started.abs(), greaterThan(3.0), reason: 'not near the wrap');
 
       final justPast = Vector3(-0.5, 0.0, -8.0);
-      camera.follow(Vector3.zero(), _frame, travelling: justPast);
+      camera.follow(Vector3.zero(), _frame, traveling: justPast);
 
       // Whichever way it went, one frame of a slow drift must be a small step.
       expect(
@@ -520,7 +521,7 @@ void main() {
       final camera = FollowCamera(world: _empty());
       final north = Vector3(0.0, 0.0, 8.0);
 
-      camera.follow(Vector3.zero(), _frame, travelling: north);
+      camera.follow(Vector3.zero(), _frame, traveling: north);
       final before = camera.yaw;
       camera.look(Vector2(-200.0, 0.0));
       final after = camera.yaw;
@@ -538,27 +539,27 @@ void main() {
     // body, so a player sprinting right saw as much level behind them as
     // ahead — and a platformer is about what is coming.
 
-    Vector3 aimAfter({required double ahead, required Vector3 travelling}) {
+    Vector3 aimAfter({required double ahead, required Vector3 traveling}) {
       final camera = FollowCamera(
         world: _empty(),
-        tuning: FollowTuning(lookAhead: ahead, recentre: 0.0),
+        tuning: FollowSettings(lookAhead: ahead, recenter: 0.0),
       );
       for (var i = 0; i < 240; i++) {
-        camera.follow(Vector3.zero(), _frame, travelling: travelling);
+        camera.follow(Vector3.zero(), _frame, traveling: traveling);
       }
       return camera.rig.target.clone();
     }
 
     test('aims ahead of a runner who is moving', () {
-      final still = aimAfter(ahead: 0.34, travelling: Vector3.zero());
-      final running = aimAfter(ahead: 0.34, travelling: Vector3(8.0, 0.0, 0.0));
+      final still = aimAfter(ahead: 0.34, traveling: Vector3.zero());
+      final running = aimAfter(ahead: 0.34, traveling: Vector3(8.0, 0.0, 0.0));
 
       expect(running.x, greaterThan(still.x + 1.0));
     });
 
     test('and a look-ahead of nothing is the old behaviour exactly', () {
-      final still = aimAfter(ahead: 0.0, travelling: Vector3.zero());
-      final running = aimAfter(ahead: 0.0, travelling: Vector3(8.0, 0.0, 0.0));
+      final still = aimAfter(ahead: 0.0, traveling: Vector3.zero());
+      final running = aimAfter(ahead: 0.0, traveling: Vector3(8.0, 0.0, 0.0));
 
       expect(running.x, closeTo(still.x, 1e-6));
     });
@@ -566,7 +567,7 @@ void main() {
     test('and a fall does not throw the aim off the level', () {
       // A spring or a long drop moves the runner far faster than it runs, and
       // the limit is what stops the camera going with it.
-      final far = aimAfter(ahead: 0.34, travelling: Vector3(400.0, 0.0, 0.0));
+      final far = aimAfter(ahead: 0.34, traveling: Vector3(400.0, 0.0, 0.0));
 
       expect(far.x, lessThanOrEqualTo(4.0 + 1e-6));
     });
@@ -574,8 +575,8 @@ void main() {
     test('and it never leads a jump vertically', () {
       // Pointing at the sky on the way up and the floor on the way down, twice
       // a second, is the version of this every game tries first and removes.
-      final level = aimAfter(ahead: 0.34, travelling: Vector3.zero());
-      final rising = aimAfter(ahead: 0.34, travelling: Vector3(0.0, 9.0, 0.0));
+      final level = aimAfter(ahead: 0.34, traveling: Vector3.zero());
+      final rising = aimAfter(ahead: 0.34, traveling: Vector3(0.0, 9.0, 0.0));
 
       expect(rising.y, closeTo(level.y, 1e-6));
     });

@@ -27,6 +27,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -45,13 +47,13 @@ ModelProject _project() {
       ProjectMaterial(
         surface: SurfaceMaterial(
           name: 'a',
-          baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
         ),
       ),
       ProjectMaterial(
         surface: SurfaceMaterial(
           name: 'b',
-          baseColor: Vector4(0.2, 0.4, 0.9, 1.0),
+          baseColor: LinearColor.fromSrgb(0.2, 0.4, 0.9, 1.0),
         ),
       ),
     ],
@@ -88,7 +90,7 @@ RenderPreset _preset({int ssaa = 1, int tilesX = 1, int tilesY = 1}) =>
       camera: SnapshotCamera(
         position: Vector3(2.2, 1.4, 3.4),
         target: Vector3.zero(),
-        projection: const PerspectiveProjection(fovYRadians: 0.9),
+        projection: const PerspectiveProjection(fovY: 0.9),
       ),
       ssaa: ssaa,
       tilesX: tilesX,
@@ -108,8 +110,7 @@ RenderPreset _preset({int ssaa = 1, int tilesX = 1, int tilesY = 1}) =>
 RenderSnapshotJob _job(ModelProject project, RenderPreset preset) =>
     RenderSnapshotJob(project, preset, tileDevice: _cpuDevice);
 
-Future<Rgba8Image> _decode(Uint8List png) async =>
-    (await decodeImagePure(png))!;
+Future<Rgba8Image> _decode(Uint8List png) async => decodeImagePure(png);
 
 void main() {
   test('SSAA x1 matches a golden byte for byte', () async {

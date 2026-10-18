@@ -60,7 +60,10 @@ void main() {
       // both(r), both(g), both(b), then a zero table/diff/flip byte and an
       // all-zero index word.
       final encoded = encodeEtc2Rgb8Block(
-        List<(int, int, int, int)>.generate(16, (_) => (136, 68, 204, 255)),
+        List<Rgba8Texel>.generate(
+          16,
+          (_) => const Rgba8Texel(r: 136, g: 68, b: 204, a: 255),
+        ),
       );
       int both(int v) => ((v >> 4) << 4) | (v >> 4);
       expect(encoded[0], both(136));
@@ -112,9 +115,11 @@ void main() {
       // Top half near black, bottom half near white: a delta this large does
       // not fit differential mode's 3-bit range, so individual mode — two
       // independent base colours — has to win on error.
-      final pixels = <(int, int, int, int)>[
-        for (var i = 0; i < 8; i++) (10, 10, 10, 255),
-        for (var i = 0; i < 8; i++) (250, 250, 250, 255),
+      final pixels = <Rgba8Texel>[
+        for (var i = 0; i < 8; i++)
+          const Rgba8Texel(r: 10, g: 10, b: 10, a: 255),
+        for (var i = 0; i < 8; i++)
+          const Rgba8Texel(r: 250, g: 250, b: 250, a: 255),
       ];
       final encoded = encodeEtc2Rgb8Block(pixels);
       final diff = (encoded[3] & 0x2) != 0;
@@ -124,7 +129,7 @@ void main() {
         width: 4,
         height: 4,
         pixels: Uint8List.fromList(<int>[
-          for (final (r, g, b, a) in pixels) ...<int>[r, g, b, a],
+          for (final Rgba8Texel(:r, :g, :b, :a) in pixels) ...<int>[r, g, b, a],
         ]),
       );
       final decoded = decodeEtc2Rgb8(encoded, 4, 4);

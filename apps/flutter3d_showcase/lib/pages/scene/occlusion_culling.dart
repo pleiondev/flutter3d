@@ -9,11 +9,20 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `occlusion-culling` page: a wall in front of a yard of crates, seen
+/// from a lookout. Its check is that the wall reached the occlusion buffer
+/// and hid some crates from the lookout but not all.
 final class OcclusionCullingDemo extends ShowcaseDemo {
+  /// The wall's x, in metres, -2.5 to 2.5: sliding it changes which crates it
+  /// hides.
   double wallX = 0.0;
+
+  /// Whether the wall is marked an occluder; off, it hides nothing from the
+  /// culling.
   bool wallOccludes = true;
+
+  /// How this view culls: 0 none, 1 software, 2 hiZ.
   int mode = 1;
 
   static const List<OcclusionMode> _modes = <OcclusionMode>[
@@ -29,8 +38,8 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
   late final MeshNode _wall;
   late final List<MeshNode> _crates;
   late final CameraNode _lookout;
-  late final Material _seen;
-  late final Material _hidden;
+  late final RenderMaterial _seen;
+  late final RenderMaterial _hidden;
 
   final SoftwareOcclusion _probe = SoftwareOcclusion();
   int _hiddenCount = 0;
@@ -46,24 +55,24 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.42, 0.48, 0.6)
-      ..ambientIntensity = 0.18
+      ..ambientColor = LinearColor(0.42, 0.48, 0.6)
+      ..ambientIntensity = 0.18 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             const PlaneShape(width: 10, depth: 10).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'yard',
-            baseColor: Vector4(0.5, 0.5, 0.48, 1.0),
+            baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.48, 1.0),
             roughness: 0.9,
           ),
           name: 'ground',
         )..setPosition(0.0, 0.0, -0.5),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.45)),
       );
 
@@ -73,9 +82,9 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(2.6, 1.6, 0.15)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(0.36, 0.42, 0.5, 1.0),
+        baseColor: LinearColor.fromSrgb(0.36, 0.42, 0.5, 1.0),
         roughness: 0.8,
       ),
       name: 'wall',
@@ -85,14 +94,14 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
     // #endregion wall
 
     // #region crates
-    _seen = Material(
+    _seen = RenderMaterial(
       name: 'seen',
-      baseColor: Vector4(0.92, 0.55, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.92, 0.55, 0.2, 1.0),
       roughness: 0.6,
     );
-    _hidden = Material(
+    _hidden = RenderMaterial(
       name: 'hidden',
-      baseColor: Vector4(0.22, 0.22, 0.24, 1.0),
+      baseColor: LinearColor.fromSrgb(0.22, 0.22, 0.24, 1.0),
       roughness: 0.6,
     );
     final DeviceMesh crate = DeviceMesh.upload(
@@ -113,7 +122,7 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
         CameraNode(
             name: 'lookout',
             projection: const PerspectiveProjection(
-              fovYRadians: 60 * math.pi / 180,
+              fovY: 60 * math.pi / 180,
               near: 0.1,
               far: 30.0,
             ),
@@ -126,9 +135,9 @@ final class OcclusionCullingDemo extends ShowcaseDemo {
           context.device,
           SphereShape(radius: 0.15, segments: 16, rings: 8).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'lookout marker',
-          baseColor: Vector4(0.3, 0.8, 0.95, 1.0),
+          baseColor: LinearColor.fromSrgb(0.3, 0.8, 0.95, 1.0),
           roughness: 0.4,
         ),
         name: 'lookout marker',

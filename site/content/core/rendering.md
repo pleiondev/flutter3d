@@ -1,17 +1,19 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto and local exposure, HDR output, bloom, cascaded and point shadows, the sky, reflection probes, fog, screen-space reflections, ambient occlusion, colour grading, temporal anti-aliasing, glass and transparency, material layers, occlusion culling, the frame budget, picking by pixel, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto and local exposure, HDR output, bloom, cascaded and point shadows, the sky, reflection probes, planar reflections and cameras into textures, fog, screen-space reflections, ambient occlusion, colour grading, temporal anti-aliasing, glass and transparency, material layers, occlusion culling, the frame budget, picking by pixel, and the frame graph that schedules them.
 ---
 
 # The frame
 
 One call takes a scene and gives back something Flutter can composite. Everything on this page is what happens in between.
 
+An application usually never writes this call: `Flutter3dView` makes it every frame, through `SceneSurface`, with the views and settings it was given (see the [quickstart](/quickstart/)). It is written out here because it is what the view does, and because a host with a frame clock of its own calls it directly.
+
 ```dart
 final frame = renderer.render(
   width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
   height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
   scene: scene,
-  views: <RenderView>[view],
+  views: <CameraView>[view],
   settings: RenderSettings(
     fog: fog,
     shadows: const ShadowSettings(cascades: 3, resolution: 1024),
@@ -48,7 +50,7 @@ sequenceDiagram
 
 Each of those is a **separate command buffer**. Metal allows one open encoder per command buffer and `flutter_gpu` has no way to end a `RenderPass`, so a multi-pass frame needs a buffer per pass, submitted in order. Buffers on one queue execute in submission order, which is also how the passes get sequenced.
 
-The diagram is the frame with nothing optional switched on. The whole list, in the order the graph registers it, is `RenderSettings.passOrder`, and 0.8.0 added fifteen names to it: the velocity passes and the histories, the temporal resolve, volumetric fog, motion blur, local exposure, the spatial upscale, the scene colour copy and the transparent half, the depth pyramid, the shadow moments and the irradiance update. Each of them stays culled until a setting asks for it, and a frame that asks for none of them draws what 0.7.4 drew, apart from the corrections below.
+The diagram is the frame with nothing optional switched on. The whole list, in the order the graph registers it, is `RenderSettings.passOrder`, and 0.8.0 added fifteen names to it: the velocity passes and the histories, the temporal resolve, volumetric fog, motion blur, local exposure, the spatial upscale, the scene color copy and the transparent half, the depth pyramid, the shadow moments and the irradiance update. Each of them stays culled until a setting asks for it, and a frame that asks for none of them draws what 0.7.4 drew, apart from the corrections below.
 
 ## What 0.8.0 changes without being asked
 
@@ -66,16 +68,16 @@ The last row is described under [glass and transparency](#glass-and-transparency
 
 ## Render views
 
-A `RenderView` is a camera plus where it draws and what it may see. A frame takes a list of them, which is how split screen, a minimap and a picture-in-picture rear view all work without the renderer knowing what any of those are.
+A `CameraView` is a camera plus where it draws and what it may see. A frame takes a list of them, which is how split screen, a minimap and a picture-in-picture rear view all work without the renderer knowing what any of those are.
 
 ```dart
-final view = RenderView(camera: camera)
+final view = CameraView(camera: camera)
   ..viewportFraction = const ViewportRect(0.0, 0.0, 1.0, 1.0)
   ..layerMask = 0xFFFFFFFF      // which layers this view draws
   ..priority = 0                 // draw order between views
   ..opaqueSort = SortMode.frontToBack
   ..transparentSort = SortMode.backToFront
-  ..clearColor = Vector4(0.05, 0.07, 0.12, 1.0);
+  ..clearColor = LinearColor.fromSrgb(0.05, 0.07, 0.12);
 ```
 
 | Field | What it decides |
@@ -85,6 +87,8 @@ final view = RenderView(camera: camera)
 | `layerMask` | Which nodes this view is allowed to see |
 | `priority` | The order views are encoded in |
 | `opaqueSort` / `transparentSort` | Front-to-back for early-Z, back-to-front for blending |
+
+**Keep a view; do not make one per frame.** A view carries its own past: the matrix and the node positions it was last drawn with, which velocity, motion blur and the temporal resolve read, and its history textures. Each view keeps its own even when views are drawn by separate `render` calls, as an editor's viewports are. A view made afresh in every `build` takes over the state of the latest view through the same camera, which keeps one such view working; a view nobody draws for `Renderer.viewIdleFrames` calls gives its textures back. `Flutter3dView` and `Scene3D` hold theirs in their state. A `Scene.shiftOrigin` between frames is carried across too, so a floating origin is no motion to any of it. `Flutter3dView` makes that shift itself: once the camera is more than `originShift` from the scene's origin (`Flutter3dView(loop: LoopSettings(originShift: ...))`, 1000 m unless set, `null` to turn it off), it moves the loop's origin to the camera, rounded to whole metres, and float32 keeps about a tenth of a millimetre wherever the camera goes.
 
 <div class="warn">
 <p><code>Viewport</code> and <code>Scissor</code> default to a <strong>zero-sized</strong> rect and the API does not complain about drawing into one. The symptom is a black viewport with no errors at all. Both are set explicitly every frame.</p>
@@ -114,7 +118,7 @@ flowchart LR
 final pillars = InstancedMeshNode(mesh, material, capacity: 25, name: 'pillars');
 for (var i = 0; i < 25; i++) {
   pillars.setTransform(i, Matrix4.translation(Vector3(i % 5 * 3.0, 0, i ~/ 5 * 3.0)));
-  pillars.setColor(i, Vector4(1.0, 0.9, 0.8, 1.0));
+  pillars.setColor(i, const LinearColor(1.0, 0.9, 0.8));
 }
 scene.add(pillars);
 ```
@@ -160,7 +164,7 @@ The table carries a hash of the brushes it was baked from and refuses, with a wo
 The light a level's walls throw on each other, baked once and added at draw time. A brush face is a rectangle with its own two axes, so its unwrap is itself: the layout packs every visible face onto shelves at a stated density, computed from the level alone by the baker and by the geometry, so the sidecar beside the level carries pixels and a hash and no table that could go stale.
 
 ```bash
-dart run flutter3d_sim:bake_lightmap --density 4 --bounces 2 --samples 64 assets/levels/crypt.json
+dart run flutter3d_build:lightmap --density 4 --bounces 2 --samples 64 assets/levels/crypt.json
 # writes crypt.lightmap.bin beside it; --direct bakes the direct light in too, for looking at the unwrap
 ```
 
@@ -178,7 +182,7 @@ A floor seen along its length covers a footprint on the texture that is a few te
 
 {{golden anisotropic-floor | The demo's ground under the cube, retextured with a checkerboard and its mip chain and seen from just above it: eight taps on Impeller and WebGL2, one on the software rasteriser, which answers `maxAnisotropy` of one and draws its own set without them.}}
 
-`SamplerOptions.anisotropy` is the count of taps, one by default so every picture is the bytes it was, and it sits on a trilinear sampler only: the taps are taken across the chain, and flutter_gpu refuses them on a nearest filter, so the constructor asserts it where the sampler is built. A request above `GraphicsDevice.maxAnisotropy` is clamped by every backend rather than refused, which is what makes sixteen a safe thing to ask for.
+`SamplerDescriptor.anisotropy` is the count of taps, one by default so every picture is the bytes it was, and it sits on a trilinear sampler only: the taps are taken across the chain, and flutter_gpu refuses them on a nearest filter, so the constructor asserts it where the sampler is built. A request above `DeviceLimits.maxSamplerAnisotropy` is clamped by every backend rather than refused, which is what makes sixteen a safe thing to ask for.
 
 ```dart
 // A level's brushes: decided once, from the device, by the bridge.
@@ -200,11 +204,20 @@ That ordering is what lets bloom exist at all: a bright pass needs values above 
 
 ```dart
 RenderSettings(
-  exposure: 1.6,   // linear multiplier before the tone curve
-  tonemap: true,   // off for a debug view: a normal-as-colour is not a light value
+  exposure: 1.6,   // a linear factor before the tone curve, not an EV100
+  tonemap: true,   // off for a debug view: a normal-as-color is not a light value
   specular: 1.0,
 )
 ```
+
+`exposure` is a factor: twice the number is twice the light. The lights are in lux and candela, and the exposure a photographer would name, in stops, belongs to `PhysicalCamera`, whose `exposure` is the factor it makes. To expose a frame for a camera, hand that factor over:
+
+```dart
+final overcast = PhysicalCamera.atEv100(12.0); // f/4, ISO 100, a 1/256 s shutter
+final settings = RenderSettings().copyWith(exposure: overcast.exposure);
+```
+
+The default, 1.6, is the reference camera's (f/4, 1/60 s, ISO 100, about EV 9.9), and `PhysicalCamera.ev100ForExposure` names the EV100 any factor stands for. Writing an EV100 into `exposure` directly (`exposure: 12`) multiplies the light by twelve and the frame comes out white. `RenderSettings.camera` takes the same camera another way, as a scale on top of `exposure`; give it one way or the other, since both count it twice.
 
 <div class="warn">
 <p>A clear colour is authored display-referred, but the scene target holds linear light and the composite pass encodes on the way out. Convert the clear to linear or it goes through the encode twice and the background washes out.</p>
@@ -325,13 +338,15 @@ const ShadowSettings(
 
 With a radius above nought and no filter named, the sun's shadow is contact-hardening: sixteen taps search for the blocker and sixteen filter, on a Vogel disc, and the penumbra is worked out in metres from the gap between blocker and receiver, so a shadow keeps its softness crossing from one cascade into the next. `ShadowFilter.evsm` blurs the atlas once into exponential moments and reads the shadow with one filtered tap. It costs an rgba32f atlas and two blur passes (the `shadow moments` node), and it needs `supportsFloat32Filtering`: Impeller answers false, WebGL2 answers true only where `OES_texture_float_linear` was granted. A device that answers false reports the pass in `FrameResult.skipped` as `PassSkip.unsupported`, and the frame falls back to the 3×3 kernel.
 
+A filter is drawn through a `ShadowTechnique`, and `ShadowFilter.custom('mine', base: ShadowFilter.pcf, technique: MyTechnique())` names one of your own. A technique answers the cascade count, the stage that blurs the depth into moments (a `ShadowPrefilter`, which can be a stage from your own bundle), and the lookup the lit draws make with its parameters (`ShadowKernel.box3x3`, `.blockerSearch(lightRadius:)` or `.moments(bleedReduction:)`). The lookups themselves are compiled into the engine's lit stages; a different one means a lit stage of your own.
+
 ### Point lights
 
 Point shadows use a cube atlas with its own bias, normal offset and a softness estimate that hardens contacts.
 
 ```dart
 const ShadowSettings(
-  pointBias: 0.08,           // in metres, unlike the directional bias
+  pointBias: 0.08,           // in meters, unlike the directional bias
   pointNormalOffset: 1.5,    // in texels of a cube face, so it grows with range
   pointSoftness: 4.0,
   pointLightRadius: 0.0,     // > 0 turns on the penumbra estimate
@@ -410,8 +425,8 @@ The shaders write it either way, a pipeline may declare more outputs than its ta
 const ReflectionSettings(
   enabled: true,     // the only field this differs from the defaults in
   steps: 32,         // ray march length; the shader stops at 64 whatever this says
-  stride: 0.1,       // world metres a step advances
-  thickness: 0.12,   // how thick a surface is taken to be, in world metres
+  stride: 0.1,       // world meters a step advances
+  thickness: 0.12,   // how thick a surface is taken to be, in world meters
   intensity: 0.7,
   debugOnly: false,
 )
@@ -426,10 +441,10 @@ SSR reads the surface buffer, so turning it on implies filling one.
 ```dart
 const AmbientOcclusionSettings(
   enabled: true,
-  radius: 0.5,     // world metres a surface looks for things blocking its sky
+  radius: 0.5,     // world meters a surface looks for things blocking its sky
   samples: 12,     // the shader's loop is bounded at twelve whatever this says
   strength: 0.8,   // how dark a fully enclosed corner goes
-  bias: 0.02,      // in metres, so one tuning works at every range
+  bias: 0.02,      // in meters, so one tuning works at every range
 )
 ```
 
@@ -445,7 +460,7 @@ What it darkens is the **ambient term**, nothing else: applied to everything it 
 const AmbientOcclusionSettings(
   enabled: true,
   method: AmbientOcclusionMethod.gtao, // ssao by default; gtao or ssil
-  thickness: 0.3,                      // metres, read only by ssil
+  thickness: 0.3,                      // meters, read only by ssil
 )
 ```
 
@@ -457,10 +472,12 @@ Both read the albedo buffer, a third scene attachment. A device that opens only 
 
 ```dart
 FogSettings(
-  color: Vector3(0.05, 0.07, 0.12),
+  color: const LinearColor(0.05, 0.07, 0.12),
   density: 0.004,
 )
 ```
+
+The fog lies on the ground: it is `density` thick at `baseHeight` (nought) and thins upwards by `heightFalloff`, 0.05 per metre unless you say otherwise, which halves it every fourteen metres. At eye height that is within a tenth of `density`; a roof ten metres up stands in six tenths of it. The ray is integrated in closed form, an exponential more than a flat fog and no extra pass. `heightFalloff: 0.0` is the flat fog, the same numbers to the bit. Particles and splats thin upwards with it, integrated the same way.
 
 Every lit shader applies fog as it writes the HDR target (`ApplyFog` in `lib/color.glsl`, called from `WriteSurface`), in linear space, before the tone map. It is not a post pass, and for an extension that difference decides who gets fog: a shader that writes the frame directly writes the fog with it, so a lighting model of your own gets fog for free and a post pass of your own does not. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
 
@@ -476,7 +493,7 @@ RenderSettings(
     heightFalloff: 0.0,   // per metre; 0.5 halves the density about every metre and a half
     anisotropy: 0.3,      // Henyey-Greenstein g: a mild forward lobe
     steps: 24,            // at most 64 in the shader
-    distance: 40.0,       // metres marched
+    distance: 40.0,       // meters marched
   ),
 )
 ```
@@ -487,19 +504,21 @@ It is marched at half resolution and brought up by depth, so a halo behind a pil
 
 ```dart
 SkySettings(
-  enabled: true,        // off by default: seventy-eight goldens are recorded against none
-  zenith: Vector3(0.10, 0.22, 0.52),
-  horizon: Vector3(0.42, 0.50, 0.62),
-  nadir: Vector3(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
+  enabled: true,        // off by default: 96 goldens are recorded against none
+  zenith: const LinearColor(0.10, 0.22, 0.52),
+  horizon: const LinearColor(0.42, 0.50, 0.62),
+  nadir: const LinearColor(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
   sunIntensity: 20.0,   // 0 means no disc; the target is HDR, so far above 1 is fine
 )
 ```
 
-{{golden sky | The procedural sky behind a model: three stops, a scattering lobe and the sun's disc, all above display white before the tone curve.}}
+A sky switched on with none of `zenith`, `horizon`, `nadir` or `sunColor` given is the physical one, `const PhysicalSky()`: single scattering by molecules and haze, so the colours come from where the sun is, and stars once it is down. Name any of those colours, as above, and you get the gradient you named; set `physical:` for other air. It costs more than the gradient: sixteen samples along each view ray and eight towards the sun from each, per pixel of sky, with no precomputed table yet. On a phone looking mostly at sky, the gradient is the cheaper choice.
 
-One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The model is a three-stop gradient plus a scattering lobe and an analytic sun disc; a `cubemap` replaces all three of those, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
+{{golden sky | The default sky behind a model: the physical one, with the sun a third of the way up and its disc above display white before the tone curve.}}
 
-The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
+One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The gradient is three stops plus a scattering lobe and an analytic sun disc; a `cubemap` replaces it, or the air, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
+
+The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `CameraView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
 
 ## Reflection probes
 
@@ -533,6 +552,43 @@ What a rolling one costs was measured on the racing demo's frame (the player's c
 <div class="why">
 <p>A cube map is addressed by a left-handed table (on the +X face, column zero looks along +Z), and a right-handed camera puts every face's left on the right, so each view is drawn through a mirror and the winding is flipped with it; a backend whose row zero is at the bottom negates y as well, which makes the two a half turn and leaves the winding alone. Nothing in a picture says whether a face is mirrored, which is why the face table is tested by projecting known directions on both origins, and why the conformance suite clears one face of one level and reads it back through the very stage that fills the chain.</p>
 </div>
+
+## Planar reflections
+
+A probe is a cube seen from one point, which is right for a ball and wrong for a floor: the reflection in a floor depends on where you stand. A `PlanarReflectorNode` draws the world again through the view's own camera mirrored in a plane, so a mirror, a polished hall or a still pool shows what is actually above it from where the eye actually is.
+
+```dart
+final mirror = MeshNode(DeviceMesh.upload(device, const PlaneShape(width: 3, depth: 2).build()), floorMaterial);
+scene
+  ..add(mirror)
+  ..add(PlanarReflectorNode(surfaces: [mirror], reflectance: 1.0));  // 0.02 for water
+renderer.render(/* … */, settings: const RenderSettings(
+  planarReflections: PlanarReflectionSettings(enabled: true),
+));
+```
+
+{{golden planar-mirror | A black mirror set into a lit floor, with a red box, a blue ball and a yellow post standing on and around it. The reflection is the scene drawn through the camera mirrored in the floor, lit and shadowed by the same sun, at half the view's resolution and tinted slightly blue.}}
+
+The plane goes through the node's origin, with its local +Y as the side it is seen from; a camera behind it sees no reflection. The surfaces keep their own materials, and the reflection is laid over each of them straight after the opaque half of the scene pass, on exactly the pixels the surface won, weighted by Schlick's Fresnel from `reflectance`. With one the surface is a mirror at every angle; with water's 0.02 it reflects little looking down and nearly everything along the horizon. The picture is read by the pixel's place on screen, which is why it is drawn per view and at the view's own projection, at `resolution` of its size (half by default).
+
+Nothing below the plane may come up through it, and no stage here has a clip distance to write. So the mirrored camera's near plane is moved onto the mirror itself, the oblique frustum of Lengyel's 2005 paper: the rasteriser's own near clip does the cut, and what it costs is the far plane, which tilts. `clipOffset` lowers the cut a centimetre so a wall standing on the floor keeps its foot in the reflection. The software backend used to clip only at the eye and had to learn to drop fragments outside the depth range, as every GPU does, before it drew the same picture.
+
+It is off by default and costs a second drawing of the scene per view while it is on. Neither particles nor anything else a contributor draws is in the reflection, nothing is reflected twice, and a surface that blends is drawn after its reflection, so on transparent water the picture lies under the water rather than on it.
+
+## Cameras into textures
+
+The same pass, pointed through an ordinary camera, is public as a texture view, `CameraView.texture`: a monitor, a portal, a minimap.
+
+```dart
+final feed = CameraView.texture(device, camera: securityCamera, width: 256, height: 192);
+feed.excluded.add(monitor);   // a screen must not film itself
+scene.addTextureView(feed);
+monitor.material = RenderMaterial(lighting: LightingModel.unlit, albedo: feed.texture);
+```
+
+{{golden render-texture | The same props on the same floor, and a monitor on a stand showing what a second camera off to the left sees of them, drawn earlier in the same frame.}}
+
+It is drawn before the scene, so a material shows the picture in the frame it was taken. The texture holds sRGB bytes with the top of the picture in its first row on every backend, the way an uploaded image does, so it goes into an albedo or emissive slot like any picture: unlit, it shows what the camera saw; lit, it is lit again, like a printed photograph. The light is multiplied by `exposure` and clipped, and tone mapping is left to the frame that shows it. `CameraViewSettings(refreshEveryFrame: false)` draws it once and then only after `invalidate()`. No post chain runs on it.
 
 ## The look
 
@@ -640,13 +696,38 @@ RenderSettings(
 
 It runs after the tone map, because in HDR a highlight rings around any lobed filter, and only while `renderScale` is below one and the temporal resolve is off; `SpatialUpscaleSettings.runsFor(settings)` answers whether a frame will use it.
 
+## Decals
+
+```dart
+final decal = DecalNode(
+  texture: scorch,                      // sRGB, like a base color map; null paints the tint alone
+  color: const LinearColor(1.0, 1.0, 1.0, 0.9), // linear tint, and the opacity in alpha
+  emissive: LinearColor.black,          // light the painted color gives off, as a multiple of it
+  order: 0,                             // higher is painted over lower where two overlap
+  angleLimit: 1.3,                      // radians from the box's up past which a surface is left alone
+)
+  ..setScale(2.0, 0.5, 2.0)             // the picture's size in x and z, how deep it reaches in y
+  ..setPosition(0.0, 0.0, 0.0);
+scene.add(decal);
+
+RenderSettings(decals: DecalSettings(enabled: true)) // off by default
+```
+
+A decal is a box, its node's unit cube, and it paints its picture onto whatever geometry stands inside it, stamped down the box's y axis. A decal with no rotation lies on a floor; to put one on a wall, rotate the box until its up points out of the wall. `region` picks a cell of an atlas.
+
+The decal pass runs after the opaque half of the scene and before the transparent half. A depth attachment cannot be sampled, so it finds the point under each pixel the way reflections and occlusion do, from the depth the surface buffer holds. It then reads back the light that point was lit by, through the albedo buffer, and lays the decal's colour under that light: a decal in a shadow is in the shadow, and a decal under a red lamp is red. The surface's normal and roughness are not changed. Where a surface wrote no albedo, because it is unlit or black, there is no light to read back, and the decal is drawn at its own colour. The surface's own highlight, emission and fog are scaled along with the light, which is close on a matte wall and wrong on a mirror.
+
+Sixteen decals and four pictures fit in one draw. Past that the pass draws again, and where a decal of the second draw lies over one of the first, the light under the first is read through the surface's colour rather than the first decal's.
+
+What it costs: two fullscreen draws per batch, each cut to the screen rectangle its boxes cover. It reads the surface and albedo buffers, so it needs a device that opens three colour attachments, and it turns MSAA off. A frame with a visible decal splits the scene pass the way glass does, so glass in front of a decal is drawn over it rather than painted. A frame whose decals are all hidden registers the pass, finds it inactive and draws what it drew without them.
+
 ## Glass and transparency
 
 ### Glass that sees the scene
 
-A material shows what is behind it when it is drawn with the layered model and its `extensions` carry a `transmission` above nought ([material layers](#material-layers) below). A frame holding such a draw splits the scene around a copy of itself. The scene pass draws the opaque half with the glass left out, then the sky and the x-ray silhouettes, and stores its depth; the `scene colour copy` node writes the scene and five halvings of it side by side into one texture (`SceneColourChain`); the `transparent` node loads the scene's targets and depth and draws the glass reading that copy where the ray its index bends leaves the volume, at a level its roughness picks, with dispersion and attenuation. The transparent half and the contributors follow. The chain is one texture because a 2D render target has no mip levels in the hardware interface, and because the layered stage had one sampler left under WebGL2's sixteen, which the copy takes.
+A material shows what is behind it when it is drawn with the layered model and its `extensions` carry a `transmission` above nought ([material layers](#material-layers) below). A frame holding such a draw splits the scene around a copy of itself. The scene pass draws the opaque half with the glass left out, then the sky and the x-ray silhouettes, and stores its depth; the `scene color copy` node writes the scene and five halvings of it side by side into one texture (`SceneColorChain`); the `transparent` node loads the scene's targets and depth and draws the glass reading that copy where the ray its index bends leaves the volume, at a level its roughness picks, with dispersion and attenuation. The transparent half and the contributors follow. The chain is one texture because a 2D render target has no mip levels in the hardware interface, and because the layered stage had one sampler left under WebGL2's sixteen, which the copy takes.
 
-A frame without glass registers both nodes, finds them inactive and draws exactly what it drew. A frame with glass draws one sample a pixel: the multisampled targets live in tile memory and keep nothing for the pass after the first, and `FrameResult.antiAliasing.msaaDeclined` names that reason. The question is asked of the scene before the graph compiles, so a transmissive mesh on a view's layers splits the frame even when the frustum then culls it. Putting `transparent` in `disabledPasses` draws the frame in one pass as 0.7.4 did, multisampled, with the glass reading the environment.
+A frame without glass registers both nodes, finds them inactive and draws exactly what it drew. A frame with glass draws one sample a pixel: the multisampled targets live in tile memory and keep nothing for the pass after the first, and `FrameResult.antiAliasing.msaaDeclined` names that reason. The question is asked of the scene before the graph compiles, so a transmissive mesh on a view's layers splits the frame even when the frustum then culls it.
 
 ### Order-independent transparency
 
@@ -677,12 +758,12 @@ A Gaussian splat cloud has been sorted back to front and blended. The sort is no
 ```dart
 final layers = MaterialExtensions(
   transmission: 1.0,
-  thickness: 0.02,             // metres, for the volume's attenuation
+  thickness: 0.02,             // meters, for the volume's attenuation
   attenuationDistance: 0.5,
-  attenuationColor: Vector3(0.80, 0.95, 0.90),  // linear, as every layer colour is
+  attenuationColor: const LinearColor(0.80, 0.95, 0.90),  // linear, as every layer color is
   dispersion: 0.1,
 );
-final glass = Material(
+final glass = RenderMaterial(
   name: 'glass',
   roughness: 0.05,
   lighting: LightingModel.pbr.withLayers(layers),  // pbrLayered when a layer changes the shading
@@ -692,7 +773,7 @@ final glass = Material(
 
 A material that has layers and asks for plain `pbr` is drawn without them, which is why the loaders call `withLayers` and a material you build by hand should too. `MaterialExtensions.shades` is the test: an index other than 1.5, a specular other than one, a clearcoat, a sheen colour, anisotropy, transmission or iridescence. The layers' textures reach the stage packed, because the lit stages have no sampler to spare for each: the coat map carries the clearcoat in red, its roughness in green, the transmission in blue and the thickness in alpha, and the sheen map the sheen's colour and roughness. `bindSurfaceMaterial` packs them given `layerImages`, the device and a decoder, and `ModelAsset` does it for you, decoding each image once. The specular textures, the clearcoat's own normal map, the anisotropy texture and the iridescence textures are kept for export and not drawn, and the loader says so in its warnings.
 
-**A texture transform per map.** One `KHR_texture_transform` shared by every map of a material is still baked into the mesh's coordinates and costs nothing. Where the maps disagree, or a clip animates a texture offset, the loader keeps the transforms at the sampler in `Material.textureTransforms`, one `TextureTransform` per `MaterialMap`, and hands the material the layered model, the one stage with room in its block for a matrix per map. A material drawn by any other model has no matrices to read them through and keeps its warning.
+**A texture transform per map.** One `KHR_texture_transform` shared by every map of a material is still baked into the mesh's coordinates and costs nothing. Where the maps disagree, or a clip animates a texture offset, the loader keeps the transforms at the sampler in `RenderMaterial.textureTransforms`, one `TextureTransform` per `MaterialMap`, and hands the material the layered model, the one stage with room in its block for a matrix per map. A material drawn by any other model has no matrices to read them through and keeps its warning.
 
 ## Occlusion culling
 
@@ -709,10 +790,10 @@ Meshes the build cut into clusters (`MeshData.clusters`, runs of up to 4096 tria
 
 ## The frame budget
 
-Some work does not have to happen this frame: irradiance probe updates and the faces of dynamic point shadows. `frameWorkBudget` gives it one allowance, in microseconds, and what does not fit waits for the next frame.
+Some work does not have to happen this frame: irradiance probe updates and the faces of dynamic point shadows. `frameWorkBudget` gives it one allowance, a `Duration`, and what does not fit waits for the next frame.
 
 ```dart
-RenderSettings(frameWorkBudget: 2000) // nought, the default, is no limit
+RenderSettings(frameWorkBudget: Duration(milliseconds: 2)) // Duration.zero, the default, is no limit
 ```
 
 Each piece of work asks before it starts, and is allowed when what the frame has spent plus what a piece has lately been costing still fits, so the piece that would tip the allowance waits. The first piece of a frame always runs, so every queue drains even on a device too slow to fit one item. `Renderer.frameWorkBudget` reports what was spent, how many pieces ran and how many were told to wait.
@@ -724,7 +805,10 @@ Each piece of work asks before it starts, and is allowed when what the frame has
 ```dart
 final quality = AdaptiveQuality(
   QualityTable.of(DeviceClass.desktop),
-  const AdaptiveQualitySettings(enabled: true, budgetMicros: 16667),
+  settings: const AdaptiveQualitySettings(
+    enabled: true,
+    budget: Duration(microseconds: 16667),
+  ),
 );
 
 // every frame
@@ -752,14 +836,14 @@ final renderer = Renderer.create(device: device, materials: effects);
 const stripes = LightingModel('Stripes', 'ExampleStripes',
     usesFragInfo: false, usesAlbedoTexture: false, usesMaterialMaps: false,
     usesMetallicRoughnessMap: false, usesMaterialParameters: false);
-Material(name: 'striped', lighting: stripes);          // names a stage only the bundle has
+RenderMaterial(name: 'striped', lighting: stripes);    // names a stage only the bundle has
 ```
 
 A `.f3dshaders` file is a header (the bundle's name, the SDK it was compiled on, the stages it claims) and one section per backend: `impellerc` output for Impeller, GLSL ES text for WebGL2, WGSL and its reflection for WebGPU. The software rasteriser compiles nothing and answers the bundle's names with the Dart stages the device already has, so the same call works on all four; a name it has no Dart for refuses the bundle, naming the stage. `packages/flutter3d_webgl/tool/pack_shaders.dart` writes the file from a manifest, the `impellerc` output and a WGSL section, `packages/flutter3d_webgpu/tool/pack_wgsl_section.dart` writes that section through `glslangValidator` and `naga`, and `packages/flutter3d/example/tool/build_shaders.sh` is the three-step recipe an application copies. The WGSL step is the one allowed to be missing: on a machine with neither compiler installed it says so and the bundle comes out with two sections, because a backend's tooling must not become a requirement for everybody else's build.
 
 {{golden loaded-shader | The teapot wearing <code>ExampleStripes</code>, a look the engine never shipped: compiled into the example's own bundle and loaded from bytes before the renderer was built. Leave the bundle out and <code>Renderer.create</code> refuses to start, naming the stage.}}
 
-**Refused by name, never answered with nothing.** Bytes that are not a bundle, a bundle with no section for the running backend, a compiled section from another SDK (the bundle format follows the Flutter version, and a stage compiled for another one does not fail to parse so much as draw something else): all of them throw `ShaderBundleRefused` carrying the bundle's name. A device that returned an empty library instead would produce a renderer failing at its first draw for want of a stage, which names the stage rather than the file to rebuild.
+**Refused by name, never answered with nothing.** Bytes that are not a bundle, a bundle with no section for the running backend, a compiled section from another SDK (the bundle format follows the Flutter version, and a stage compiled for another one does not fail to parse so much as draw something else): all of them throw `ShaderBundleException` carrying the bundle's name. A device that returned an empty library instead would produce a renderer failing at its first draw for want of a stage, which names the stage rather than the file to rebuild.
 
 **Refreshing in place.** `LoadedShaderLibrary.refresh(bytes)` reparses a bundle the library already holds, and the handles already handed out are the same objects afterwards: flutter_gpu mutates the stage in place, WebGL swaps the compiled object behind the handle. That is what lets a renderer that resolved its stages once keep drawing through them; `Renderer.relinkShaders()` is the other half, dropping every pipeline so the next frame links the refreshed code. A refused refresh leaves the library as it was. The editor is built on exactly this: pass `--dart-define=shaders=<path>.f3dshaders` and it polls the file, so an edited shader shows on the next frame after the bundle is rebuilt. The recipe is in `apps/flutter3d_editor/README.md`.
 
@@ -773,7 +857,7 @@ The parts to reach for when a frame looks wrong.
 
 | Tool | What it gives |
 |---|---|
-| `DebugDrawOptions` | Bounds, vertex normals, light gizmos, world axes and camera frusta, all drawn in **one** call |
+| `DebugDrawSettings` | Bounds, vertex normals, light gizmos, world axes and camera frusta, all drawn in **one** call |
 | `RenderSettings.highlighted` | Outlines a list of nodes, typically whatever picking last selected |
 | `RenderSettings.wireframe` | Geometry without shading. Impeller only: neither the WebGL nor the software backend has a polygon mode, and a frame that asked for it comes back with `FrameResult.wireframeDeclined` set rather than filled triangles |
 | `showShadowMap` / `showSurfaceBuffer` | Composites a buffer instead of the scene |

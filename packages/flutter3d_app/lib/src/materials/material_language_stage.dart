@@ -1,0 +1,774 @@
+/// The software backend's half of the material language — `gfx-84n`.
+///
+/// **Twenty lines, and here rather than in `flutter3d_cpu`.** That package has
+/// `flutter3d_core` as a dev dependency with "nothing in `lib/` reaches it"
+/// written beside it: a backend that imported the engine's formats library
+/// would invert the direction an application assembles the two in. This
+/// package already depends on both, which is what it is for. It lived in
+/// `flutter3d_testing` until a game needed it — `P8`, a bundle built from a
+/// `.f3dmat` drawn on the software backend — and a game cannot depend on a
+/// package that carries `flutter_test`.
+///
+/// Everything that decides what a material *means* is in
+/// `material_eval.dart`, beside the emitter that writes the GLSL — so what is
+/// left here is filling in the surface a fragment is being shaded at, and
+/// handing back what `WriteSurface(rgb, a)` takes.
+///
+///     final program = specializeMaterial(
+///       parseMaterial(source),
+///       const MaterialVariant('RimLight'),
+///     );
+///     final device = CpuDevice(
+///       shaders: CpuShaderLibrary({
+///         ...builtinCpuShaders(),
+///         'RimLight': CpuStage.fragment(MaterialProgramStage(program)),
+///       }),
+///     );
+///
+/// **Version 2 of the language runs here whole**: the `vertex` block as
+/// [MaterialVertexStage], the `ambient` and `composite` hooks and the two
+/// switches through `composeMaterialLit`, the scene behind a translucent
+/// surface and a full-screen stage as [MaterialFullscreenStage]. A
+/// `compute` stage is not a stage of the rasteriser: it is lowered to the
+/// kernel language (`lowerMaterialCompute`), and the device loads it as any
+/// kernel.
+library;
+
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_cpu/builtin.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:vector_math/vector_math.dart';
+
+/// What `sceneDepth` reads where nothing was drawn behind: the sky, a
+/// million metres off — `materialNothingBehind` in the emitted GLSL.
+const double _nothingBehind = 1000000.0;
+
+/// One compiled material, as a stage the software backend can be given.
+///
+/// The program must already be through `specializeMaterial`: a parameter has
+/// no value until a variant gives it one, and a backend picking a default here
+/// would be a backend disagreeing with the compiled shader.
+final class MaterialProgramStage extends CpuFragmentShader {
+  /// The fragment stage of [program].
+  const MaterialProgramStage(this.program);
+
+  /// The compiled, specialised material this stage evaluates per pixel.
+  final MaterialProgram program;
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    // Version 3: a material lit by the standard model is the engine's
+    // metal-rough stage with the material's injection points filled, as the
+    // emitted stage is `pbr.frag` with its hooks defined.
+    if (program.isStandard) {
+      return PbrShader.hooked(
+        _StandardHooks(program, bindings, c),
+      ).run(v, bindings, c);
+    }
+    final s = readSurface(v, bindings, c);
+    // Null is the GLSL's `discard`, which `ReadSurface` performs for a masked
+    // material under its cutoff — the emitted shader gets it from the same
+    // header, so both sides drop the same fragments.
+    if (s == null) return null;
+
+    final footprint = uvFootprint(c);
+    // `P8`: a lighting hook makes this a lit model — the maps applied, the
+    // lights gathered through the block — as the emitted shader does.
+    final light = program.light;
+    if (light != null) applyCommonMaps(s, v, bindings, c);
+    final inputs = _surfaceInputs(s, v);
+    // `P8`: the draw's `MaterialParams`, which is `RenderMaterial.parameters`,
+    // member by member as the GLSL reads its block — or the block of the
+    // material's own a uniform names (D21).
+    final uniforms = <String, List<double>>{
+      for (final parameter in program.parameters)
+        if (parameter.uniform)
+          parameter.name: ?bindings.read(parameter.block!, parameter.name),
+    };
+    List<double> sample(MaterialTextureSlot slot, double u, double w) {
+      final texture = bindings.textures[slot.bindingName];
+      // White is what `surface.glsl` falls back to for an unbound base
+      // colour, so a material sampling a slot this draw did not fill
+      // looks the same on both sides.
+      if (texture == null) return const <double>[1, 1, 1, 1];
+      final texel = texture.sample(u, w, du: footprint.du, dv: footprint.dv);
+      return <double>[texel.x, texel.y, texel.z, texel.w];
+    }
+
+    if (light != null) {
+      // `lit` as the emitted `main` adds it up: the lights through the
+      // block, by radiance, n·l and shadow, then ambient and lightmap under
+      // the occlusion, then the emissive — `materialLitInput` — or as the
+      // version 2 hooks and switches say, through `composeMaterialLit`.
+      // Version 3: the row of the light being shaded, which a block that
+      // reads it gathers through `_rowLights`.
+      var row = (kind: 0.0, params: Vector4.zero());
+      Vector3 shade(Surface s, LightSample light) {
+        final half = (light.direction + s.view)..normalize();
+        final answer = evaluateMaterialLight(
+          program,
+          MaterialSurfaceValues(
+            inputs: <String, List<double>>{
+              ...inputs,
+              'lightDir': <double>[
+                light.direction.x,
+                light.direction.y,
+                light.direction.z,
+              ],
+              'halfDir': <double>[half.x, half.y, half.z],
+              'nDotL': <double>[light.nDotL],
+              'nDotH': <double>[light.nDotH],
+              'vDotH': <double>[light.vDotH],
+              'lightKind': <double>[row.kind],
+              'lightParams': <double>[
+                row.params.x,
+                row.params.y,
+                row.params.z,
+                row.params.w,
+              ],
+              for (final name in program.lightTypes.keys)
+                name: <double>[
+                  switch (uniforms[materialLightTypeMember(name)]) {
+                    final code? when (row.kind - code[0]).abs() < 0.5 => 1.0,
+                    _ => 0.0,
+                  },
+                ],
+            },
+            uniforms: uniforms,
+            sample: sample,
+          ),
+        );
+        return Vector3(answer[0], answer[1], answer[2]);
+      }
+
+      final direct = program.readsLightRow
+          ? _rowLights(
+              s,
+              bindings,
+              c,
+              shade,
+              directional: program.state.directional,
+              onRow: (kind, params) => row = (kind: kind, params: params),
+            )
+          : program.state.directional
+          ? accumulateLights(s, bindings, c, shade: shade, shadowed: true)
+          : _withoutDirectional(s, bindings, c, shade);
+      final lightmap = sampleLightmap(v, bindings, c);
+      final lit = composeMaterialLit(
+        program,
+        MaterialSurfaceValues(
+          inputs: inputs,
+          uniforms: uniforms,
+          sample: sample,
+        ),
+        direct: <double>[direct.x, direct.y, direct.z],
+        lightmap: <double>[lightmap.x, lightmap.y, lightmap.z],
+      );
+      inputs['lit'] = lit;
+    }
+
+    // Version 2: this fragment's depth along the view axis, and the opaque
+    // scene's behind it, as the emitted `main` reads them.
+    if (program.inputsUsed.contains('viewDepth') || program.readsSceneDepth) {
+      final depth = viewDepth(v, bindings);
+      inputs['viewDepth'] = <double>[depth];
+      if (program.readsSceneDepth) {
+        final behind = _sceneDepthAt(bindings, c);
+        final eye = bindings.vec4('FogInfo', 'eye', Vector4.zero());
+        final forward = bindings.vec4('FogInfo', 'forward', Vector4.zero());
+        final orthographic =
+            bindings.vec4('FogInfo', 'projection', Vector4.zero()).x > 0.5;
+        final at = orthographic
+            ? s.world +
+                  Vector3(forward.x, forward.y, forward.z) * (behind - depth)
+            : Vector3(eye.x, eye.y, eye.z) +
+                  (s.world - Vector3(eye.x, eye.y, eye.z)) *
+                      (behind / (depth > 1e-6 ? depth : 1e-6));
+        inputs['sceneDepth'] = <double>[behind];
+        inputs['scenePosition'] = <double>[at.x, at.y, at.z];
+      }
+    }
+
+    final result = evaluateMaterial(
+      program,
+      MaterialSurfaceValues(inputs: inputs, uniforms: uniforms, sample: sample),
+    );
+
+    // `blend premultiplied`: the colour is already times its alpha, and
+    // `writeLit` weighs a blended surface's by it — so it is divided out
+    // first, where there is an alpha to divide by. At nought the colour is
+    // light added through a surface that covers nothing, which the blend
+    // equation keeps and this one cannot; it is the emitted stage's case
+    // alone, and a golden would show it.
+    final premultiplied =
+        program.state.blend == MaterialBlend.premultiplied &&
+        premultiplies(bindings);
+    final undo = premultiplied && result[3] > 0.0 ? 1.0 / result[3] : 1.0;
+
+    // `WriteSurface(rgb, a)` in `color.glsl`, which is the one-argument form:
+    // a surface that cannot say how polished it is is written fully rough, so
+    // nothing reflects off it. The same call `unlit.frag` makes and the same
+    // transcription `UnlitShader` makes of it.
+    return writeLit(
+      c,
+      v,
+      bindings,
+      color: Vector3(result[0] * undo, result[1] * undo, result[2] * undo),
+      alpha: result[3],
+      normal: s.normal,
+      roughness: 1,
+    );
+  }
+}
+
+/// The surface's inputs as a block reads them, from [s] and the varyings
+/// [v].
+Map<String, List<double>> _surfaceInputs(
+  Surface s,
+  Float32List v,
+) => <String, List<double>>{
+  'albedo': <double>[s.albedo.x, s.albedo.y, s.albedo.z],
+  'alpha': <double>[s.alpha],
+  'normal': <double>[s.normal.x, s.normal.y, s.normal.z],
+  'view': <double>[s.view.x, s.view.y, s.view.z],
+  'nDotV': <double>[s.nDotV],
+  'metallic': <double>[s.metallic],
+  'roughness': <double>[s.roughness],
+  'occlusion': <double>[s.occlusion],
+  'emissive': <double>[s.emissive.r, s.emissive.g, s.emissive.b],
+  'ambient': <double>[s.ambient.x, s.ambient.y, s.ambient.z],
+  'uv': <double>[v[CpuMeshLayout.varyingUv], v[CpuMeshLayout.varyingUv + 1]],
+  'world': <double>[s.world.x, s.world.y, s.world.z],
+  'instance': <double>[
+    v[CpuMeshLayout.varyingInstance],
+    v[CpuMeshLayout.varyingInstance + 1],
+    v[CpuMeshLayout.varyingInstance + 2],
+    v[CpuMeshLayout.varyingInstance + 3],
+  ],
+};
+
+/// A material lit by the standard model, its blocks as the model's
+/// injection points — version 3, `lighting standard;`: what `pbr.frag`'s
+/// `ShadeSurfaceHook`, `ShadeLightHook` and `F3dLightTypeHook` are in the
+/// emitted stage.
+///
+/// One a fragment, for the draw's [bindings]: the material's uniforms and
+/// textures are the draw's, and the light row a `lighttype` reads is the
+/// light being sampled now.
+final class _StandardHooks extends PbrHooks {
+  _StandardHooks(this.program, this.bindings, FragmentContext c)
+    : _footprint = uvFootprint(c),
+      uniforms = <String, List<double>>{
+        for (final parameter in program.parameters)
+          if (parameter.uniform)
+            parameter.name: ?bindings.read(parameter.block!, parameter.name),
+      };
+
+  final MaterialProgram program;
+  final ShaderBindings bindings;
+  final Map<String, List<double>> uniforms;
+  final UvFootprint _footprint;
+  Float32List _varyings = Float32List(0);
+  double _kind = 0.0;
+  Vector4 _params = Vector4.zero();
+
+  List<double> _sample(MaterialTextureSlot slot, double u, double w) {
+    final texture = bindings.textures[slot.bindingName];
+    if (texture == null) return const <double>[1, 1, 1, 1];
+    final texel = texture.sample(u, w, du: _footprint.du, dv: _footprint.dv);
+    return <double>[texel.x, texel.y, texel.z, texel.w];
+  }
+
+  @override
+  bool get readsLightRow => program.readsLightRow;
+
+  @override
+  void surface(PbrSurfaceContext context) {
+    final PbrSurfaceContext(surface: s, varyings: v) = context;
+    _varyings = v;
+    final written = program.surface;
+    if (written == null) return;
+    final outputs = evaluateMaterialSurface(
+      program,
+      MaterialSurfaceValues(
+        inputs: _surfaceInputs(s, v),
+        uniforms: uniforms,
+        sample: _sample,
+      ),
+    );
+    for (final MapEntry(key: name, :value) in outputs.entries) {
+      switch (name) {
+        case 'albedo':
+          s.albedo.setValues(value[0], value[1], value[2]);
+        case 'alpha':
+          s.alpha = value[0];
+        case 'normal':
+          s.normal
+            ..setValues(value[0], value[1], value[2])
+            ..normalize();
+          s.nDotV = math.max(s.normal.dot(s.view), 1e-4);
+        case 'metallic':
+          s.metallic = value[0];
+        case 'roughness':
+          s.roughness = value[0];
+        case 'occlusion':
+          s.occlusion = value[0];
+        case 'emissive':
+          s.emissive.setValues(value[0], value[1], value[2]);
+      }
+    }
+  }
+
+  @override
+  bool lightType(PbrLightTypeContext context) {
+    final PbrLightTypeContext(:code, :params) = context;
+    _kind = code;
+    _params = params;
+    return code < 15.5 ||
+        program.lightTypes.keys.any((String name) => _isType(name, code));
+  }
+
+  bool _isType(String name, double code) =>
+      switch (uniforms[materialLightTypeMember(name)]) {
+        final own? => (code - own[0]).abs() < 0.5,
+        _ => false,
+      };
+
+  @override
+  Vector3 light(PbrLightContext context) {
+    final PbrLightContext(surface: s, :light, :standard) = context;
+    if (program.light == null) return standard;
+    final half = (light.direction + s.view)..normalize();
+    final answer = evaluateMaterialLight(
+      program,
+      MaterialSurfaceValues(
+        inputs: <String, List<double>>{
+          ..._surfaceInputs(s, _varyings),
+          'lightDir': <double>[
+            light.direction.x,
+            light.direction.y,
+            light.direction.z,
+          ],
+          'halfDir': <double>[half.x, half.y, half.z],
+          'nDotL': <double>[light.nDotL],
+          'nDotH': <double>[light.nDotH],
+          'vDotH': <double>[light.vDotH],
+          'lightKind': <double>[_kind],
+          'lightParams': <double>[_params.x, _params.y, _params.z, _params.w],
+          materialStandardLightInput.name: <double>[
+            standard.x,
+            standard.y,
+            standard.z,
+          ],
+          for (final name in program.lightTypes.keys)
+            name: <double>[if (_isType(name, _kind)) 1.0 else 0.0],
+        },
+        uniforms: uniforms,
+        sample: _sample,
+      ),
+    );
+    return Vector3(answer[0], answer[1], answer[2]);
+  }
+}
+
+/// `MaterialLights` in the emitted GLSL — `directional off`: every light the
+/// draw has but the directional ones, which always sit in its eight slots.
+Vector3 _withoutDirectional(
+  Surface s,
+  ShaderBindings b,
+  FragmentContext c,
+  Vector3 Function(Surface s, LightSample light) shade,
+) {
+  var total = Vector3.zero();
+  final count = lightCount(b, s.world);
+  for (var i = 0; i < count; i++) {
+    if (i < CpuMeshLayout.maxLights &&
+        b.vec4('FragInfo', 'light_position', Vector4.zero(), at: i).w < 0.5) {
+      continue;
+    }
+    final light = sampleLight(b, i, s);
+    if (light == null) continue;
+    var visibility = 1.0;
+    shadowTransmittance.setValues(1.0, 1.0, 1.0);
+    if (i < CpuMeshLayout.maxLights) {
+      visibility = shadowFactor(s, b, i, light.nDotL, c);
+      visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
+    }
+    if (visibility <= 0.0) continue;
+    final response = shade(s, light);
+    total += Vector3(
+      response.x * light.radiance.x * shadowTransmittance.x,
+      response.y * light.radiance.y * shadowTransmittance.y,
+      response.z * light.radiance.z * shadowTransmittance.z,
+    )..scale(light.nDotL * visibility);
+  }
+  return total;
+}
+
+/// `MaterialLights` in the emitted GLSL for a `light` block that reads the
+/// light's row — version 3: each row read whole and handed to [onRow]
+/// before the block runs, and a plugin's light type (code 16 and up), which
+/// `sampleLight` skips, shaded with its direction, n·l and its colour times
+/// its intensity, the falloff the block's own.
+Vector3 _rowLights(
+  Surface s,
+  ShaderBindings b,
+  FragmentContext c,
+  Vector3 Function(Surface s, LightSample light) shade, {
+  required bool directional,
+  required void Function(double kind, Vector4 params) onRow,
+}) {
+  var total = Vector3.zero();
+  final count = lightCount(b, s.world);
+  for (var i = 0; i < count; i++) {
+    final (:position, :color, :cone) = _lightRow(b, i, s.world);
+    if (!directional && i < CpuMeshLayout.maxLights && position.w < 0.5) {
+      continue;
+    }
+    onRow(position.w, cone);
+    if (position.w > 15.5) {
+      final toLight = (Vector3(position.x, position.y, position.z) - s.world)
+        ..normalize();
+      final nDotL = s.normal.dot(toLight);
+      if (nDotL <= 0.0) continue;
+      final half = (toLight + s.view)..normalize();
+      final own = LightSample(
+        direction: toLight,
+        radiance: Vector3(color.x, color.y, color.z)..scale(color.w),
+        nDotL: nDotL,
+        nDotH: math.max(s.normal.dot(half), 0.0),
+        vDotH: math.max(s.view.dot(half), 0.0),
+      );
+      final response = shade(s, own);
+      total += Vector3(
+        response.x * own.radiance.x,
+        response.y * own.radiance.y,
+        response.z * own.radiance.z,
+      )..scale(nDotL);
+      continue;
+    }
+    final light = sampleLight(b, i, s);
+    if (light == null) continue;
+    var visibility = 1.0;
+    shadowTransmittance.setValues(1.0, 1.0, 1.0);
+    if (i < CpuMeshLayout.maxLights) {
+      visibility = shadowFactor(s, b, i, light.nDotL, c);
+      visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
+    }
+    if (visibility <= 0.0) continue;
+    final response = shade(s, light);
+    total += Vector3(
+      response.x * light.radiance.x * shadowTransmittance.x,
+      response.y * light.radiance.y * shadowTransmittance.y,
+      response.z * light.radiance.z * shadowTransmittance.z,
+    )..scale(light.nDotL * visibility);
+  }
+  return total;
+}
+
+/// Light [index]'s row as `sampleLight` reads it: the slots, then the list,
+/// its cell's when the draw is clustered.
+({Vector4 position, Vector4 color, Vector4 cone}) _lightRow(
+  ShaderBindings b,
+  int index,
+  Vector3 world,
+) {
+  if (index < CpuMeshLayout.maxLights) {
+    return (
+      position: b.vec4('FragInfo', 'light_position', Vector4.zero(), at: index),
+      color: b.vec4('FragInfo', 'light_color', Vector4.zero(), at: index),
+      cone: b.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index),
+    );
+  }
+  final slot = index - CpuMeshLayout.maxLights;
+  final fromCell = clustered(b);
+  final row = fromCell
+      ? clusterRow(b, world, slot)
+      : lightListRow(b, slot).round();
+  return (
+    position: lightListTexel(b, row, 0),
+    color: lightListTexel(b, row, 1)
+      ..w *= fromCell ? (inSlots(b, row) ? 0.0 : 1.0) : lightListScale(b, slot),
+    cone: lightListTexel(b, row, 3),
+  );
+}
+
+/// The opaque scene's depth behind fragment [c], from `scene_depth_texture`
+/// through `SceneDepthInfo` as the emitted stage reads it; the sky where
+/// nothing was drawn, or where the draw was handed no buffer.
+double _sceneDepthAt(ShaderBindings bindings, FragmentContext c) {
+  final surface = bindings.textures['scene_depth_texture'];
+  if (surface == null) return _nothingBehind;
+  final target = bindings.vec4('SceneDepthInfo', 'target', Vector4.zero());
+  // `FragCoordFromTop`.
+  final row = target.z > 0.0 ? target.z - c.coord.y : c.coord.y;
+  final stored = surface.sample(c.coord.x * target.x, row * target.y).w;
+  return stored > 0.0 ? stored : _nothingBehind;
+}
+
+/// A material's `vertex` block as the software backend's vertex stage —
+/// version 2: the engine's mesh stage, or its skinned one, and then the
+/// block, as the emitted `<name>Vertex` and `<name>VertexSkinned` run it.
+///
+/// **What the block reads is taken back out of what the engine's stage
+/// wrote**, rather than the engine's arithmetic written a second time: the
+/// mesh-space position and normal are the world ones through the inverse
+/// of the model transform, which is the skinned pose's for a skinned draw,
+/// as the GLSL has it.
+final class MaterialVertexStage extends CpuVertexShaderByIndex {
+  /// The vertex stage of [program]: the plain half unless [skinned],
+  /// [instanced] or [lightmapped] picks another.
+  const MaterialVertexStage(
+    this.program, {
+    this.skinned = false,
+    this.instanced = false,
+    this.lightmapped = false,
+  });
+
+  /// The compiled material whose `vertex` block runs after the engine's
+  /// stage.
+  final MaterialProgram program;
+
+  /// Whether this is the skinned half.
+  final bool skinned;
+
+  /// Whether this is the instanced half — version 3: the block runs on the
+  /// vertex after the instance's transform, and reads its four numbers.
+  final bool instanced;
+
+  /// Whether this is the lightmapped half — version 3: `color` reads white,
+  /// the attribute holding the lightmap's coordinate.
+  final bool lightmapped;
+
+  static const MeshVertexShader _plain = MeshVertexShader();
+  static const MeshSkinnedVertexShader _skinned = MeshSkinnedVertexShader();
+  static const MeshInstancedVertexShader _instanced =
+      MeshInstancedVertexShader();
+  static const MeshLightmappedVertexShader _lightmapped =
+      MeshLightmappedVertexShader();
+
+  @override
+  int get varyingCount => CpuMeshLayout.varyings;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
+      runAt(-1, 0, a, bindings, out);
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    int instanceIndex,
+    Float32List a,
+    ShaderBindings bindings,
+    Float32List out,
+  ) {
+    final CpuVertexShaderByIndex engine = skinned
+        ? _skinned
+        : instanced
+        ? _instanced
+        : lightmapped
+        ? _lightmapped
+        : _plain;
+    final clip = engine.runAt(vertexIndex, instanceIndex, a, bindings, out);
+    final model = bindings.mat4('FrameInfo', 'model');
+    final mvp = bindings.mat4('FrameInfo', 'mvp');
+    final world = Vector3(
+      out[CpuMeshLayout.varyingWorld],
+      out[CpuMeshLayout.varyingWorld + 1],
+      out[CpuMeshLayout.varyingWorld + 2],
+    );
+    final normal = Vector3(
+      out[CpuMeshLayout.varyingNormal],
+      out[CpuMeshLayout.varyingNormal + 1],
+      out[CpuMeshLayout.varyingNormal + 2],
+    );
+    final toMesh = Matrix4.copy(model)..invert();
+    final position = toMesh.transformed3(world.clone());
+    final normalRotation = bindings
+        .mat4('FrameInfo', 'normal_matrix')
+        .getRotation();
+    final objectNormal = (normalRotation..invert()).transformed(normal.clone());
+    final origin = model.getTranslation();
+
+    final uniforms = <String, List<double>>{
+      for (final parameter in program.parameters)
+        if (parameter.uniform)
+          parameter.name: ?bindings.read(parameter.block!, parameter.name),
+    };
+    final written = evaluateMaterialVertex(
+      program,
+      MaterialSurfaceValues(
+        inputs: <String, List<double>>{
+          'position': <double>[position.x, position.y, position.z],
+          'objectNormal': <double>[
+            objectNormal.x,
+            objectNormal.y,
+            objectNormal.z,
+          ],
+          'world': <double>[world.x, world.y, world.z],
+          'normal': <double>[normal.x, normal.y, normal.z],
+          'uv': <double>[
+            a[CpuMeshLayout.texcoord],
+            a[CpuMeshLayout.texcoord + 1],
+          ],
+          'color': lightmapped
+              ? const <double>[1.0, 1.0, 1.0, 1.0]
+              : <double>[
+                  a[CpuMeshLayout.color],
+                  a[CpuMeshLayout.color + 1],
+                  a[CpuMeshLayout.color + 2],
+                  a[CpuMeshLayout.color + 3],
+                ],
+          'instance': instanced
+              ? <double>[
+                  for (var i = 0; i < 4; i++)
+                    out[CpuMeshLayout.varyingInstance + i],
+                ]
+              : const <double>[0.0, 0.0, 0.0, 0.0],
+          'origin': <double>[origin.x, origin.y, origin.z],
+        },
+        uniforms: uniforms,
+        sample: (_, _, _) =>
+            throw StateError('a vertex block samples no texture'),
+      ),
+    );
+
+    if (written['normal'] case final n?) {
+      out
+        ..[CpuMeshLayout.varyingNormal] = n[0]
+        ..[CpuMeshLayout.varyingNormal + 1] = n[1]
+        ..[CpuMeshLayout.varyingNormal + 2] = n[2];
+    }
+    if (written['position'] case final p?) {
+      final local = Vector4(p[0], p[1], p[2], 1.0);
+      final Vector4 moved = model * local;
+      out
+        ..[CpuMeshLayout.varyingWorld] = moved.x
+        ..[CpuMeshLayout.varyingWorld + 1] = moved.y
+        ..[CpuMeshLayout.varyingWorld + 2] = moved.z;
+      return mvp * local;
+    }
+    if (written['world'] case final w?) {
+      out
+        ..[CpuMeshLayout.varyingWorld] = w[0]
+        ..[CpuMeshLayout.varyingWorld + 1] = w[1]
+        ..[CpuMeshLayout.varyingWorld + 2] = w[2];
+      final viewProjection = bindings.mat4(
+        'MaterialVertexInfo',
+        'view_projection',
+      );
+      return viewProjection * Vector4(w[0], w[1], w[2], 1.0);
+    }
+    return clip;
+  }
+}
+
+/// A full-screen stage written in the language — version 2 — as the
+/// software backend's fragment stage, behind its `FullscreenVertex`.
+final class MaterialFullscreenStage extends CpuFragmentShader {
+  /// The full-screen stage of [program].
+  const MaterialFullscreenStage(this.program);
+
+  /// The compiled full-screen program, run once per pixel with its `uv`.
+  final MaterialProgram program;
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final u = v[0];
+    final w = v[1];
+    final inputs = <String, List<double>>{
+      'uv': <double>[u, w],
+      if (program.inputsUsed.contains('sceneDepth'))
+        'sceneDepth': <double>[
+          switch (bindings.textures['surface_texture']) {
+            null => _nothingBehind,
+            final surface => switch (surface.sample(u, w).w) {
+              final stored when stored > 0.0 => stored,
+              _ => _nothingBehind,
+            },
+          },
+        ],
+    };
+    final result = evaluateMaterial(
+      program,
+      MaterialSurfaceValues(
+        inputs: inputs,
+        uniforms: <String, List<double>>{
+          for (final parameter in program.parameters)
+            if (parameter.uniform)
+              parameter.name: ?bindings.read(parameter.block!, parameter.name),
+        },
+        sample: (slot, u, w) {
+          final texture = bindings.textures[slot.bindingName];
+          if (texture == null) return const <double>[0, 0, 0, 0];
+          final texel = texture.sample(u, w);
+          return <double>[texel.x, texel.y, texel.z, texel.w];
+        },
+      ),
+    );
+    return Vector4(result[0], result[1], result[2], result[3]);
+  }
+}
+
+/// A `CpuMaterialCompiler` for the engine's material language — `P8`: the
+/// source parsed and specialised at its declared defaults, as the build does
+/// for the GPU sections beside it, and run by [MaterialProgramStage].
+///
+/// Handed to `CpuDevice(materialCompiler: ...)`, a bundle the build made from
+/// a `.f3dmat` loads on the software backend with nothing registered by hand.
+/// A source that does not parse is refused with its line and column.
+///
+/// **Every stage a source becomes — version 2.** A bundle carries the source
+/// under each stage's name: the material's own, answered by
+/// [MaterialProgramStage] or, for a full-screen stage,
+/// [MaterialFullscreenStage]; and `<name>Vertex` and `<name>VertexSkinned`,
+/// answered by [MaterialVertexStage], which the library hands out as a
+/// vertex stage.
+CpuStage materialLanguageCompiler(String stage, String source) {
+  final program = parseMaterial(source);
+  final specialised = specializeMaterial(
+    program,
+    MaterialVariant(program.name),
+  );
+  final vertex = program.vertexStageName;
+  if (vertex != null && stage == vertex) {
+    return CpuStage.vertex(MaterialVertexStage(specialised));
+  }
+  if (vertex != null && stage == '${vertex}Skinned') {
+    return CpuStage.vertex(MaterialVertexStage(specialised, skinned: true));
+  }
+  // Version 3: the instanced and lightmapped halves.
+  for (final MapEntry(key: variant, value: name) in materialVertexVariantStages(
+    program,
+  ).entries) {
+    if (stage == name) {
+      return CpuStage.vertex(
+        MaterialVertexStage(
+          specialised,
+          instanced: variant == VertexStageVariant.instanced,
+          lightmapped: variant == VertexStageVariant.lightmapped,
+        ),
+      );
+    }
+  }
+  if (program.name != stage) {
+    throw MaterialBundleException(
+      'the source is material "${program.name}" and the bundle calls it '
+      '"$stage"',
+    );
+  }
+  return switch (program.kind) {
+    MaterialStageKind.fullscreen => CpuStage.fragment(
+      MaterialFullscreenStage(specialised),
+    ),
+    MaterialStageKind.compute => throw MaterialBundleException(
+      '"$stage" is a compute stage, which a bundle carries as its lowered '
+      'kernel in the kernel section, not as a material: build it again, or '
+      'load lowerMaterialCompute(program).kernel through kernelBundle',
+    ),
+    _ => CpuStage.fragment(MaterialProgramStage(specialised)),
+  };
+}

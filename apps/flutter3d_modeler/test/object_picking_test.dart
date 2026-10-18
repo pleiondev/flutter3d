@@ -93,14 +93,14 @@ void main() {
     final gizmo = SceneNode(name: 'gizmo');
     markService(gizmo);
     final eye = it.stage.camera.readWorldPosition();
-    final centre = it.stage.subjectBounds()!.center;
+    final center = it.stage.subjectBounds()!.center;
     gizmo.add(
       MeshNode(
           DeviceMesh.upload(it.device, EditMesh.cuboid().toMeshData()),
-          Material(name: 'arrow', lighting: LightingModel.unlit),
+          RenderMaterial(name: 'arrow', lighting: LightingModel.unlit),
           name: 'arrow-x',
         )
-        ..setPositionFrom(eye + (centre - eye) * 0.15)
+        ..setPositionFrom(eye + (center - eye) * 0.15)
         ..setUniformScale(0.06),
     );
     it.stage.scene.add(gizmo);

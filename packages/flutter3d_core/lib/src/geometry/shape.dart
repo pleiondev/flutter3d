@@ -15,6 +15,7 @@ import 'vertex_layout.dart';
 /// day a member is added here, which would make every addition to the shape
 /// contract a breaking change for a published engine.
 abstract base class Shape {
+  /// A const constructor for subclasses, which hold only parameters.
   const Shape();
 
   /// Name for diagnostics and UI labels.
@@ -34,6 +35,7 @@ abstract base class Shape {
 /// relationship is worth expressing in the type rather than duplicating the
 /// generation code.
 abstract base class DerivedShape extends Shape {
+  /// A const constructor for subclasses, which name their [delegate].
   const DerivedShape();
 
   /// The shape this one reduces to.

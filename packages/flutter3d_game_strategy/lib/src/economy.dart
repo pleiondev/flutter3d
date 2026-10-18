@@ -31,13 +31,14 @@ final class ResourceNode {
   final Vector3 at;
 
   /// What is left in it. Falls to nought and stays there.
+  /// In units of resource.
   double amount;
 
   /// Whether there is anything left to take.
   bool get isEmpty => amount <= 0.0;
 
   /// Takes up to [wanted] and answers what was actually there.
-  double take(double wanted) {
+  double harvest(double wanted) {
     final double got = wanted < amount ? wanted : amount;
     amount -= got;
     return got;
@@ -49,8 +50,10 @@ final class ResourceNode {
   /// restored into the map it was taken in finds it there again.
   Map<String, Object?> save() => <String, Object?>{'amount': amount};
 
+  /// Puts back the [amount] that [save] wrote, keeping the current one when
+  /// the document has none.
   void restore(Map<String, Object?> from) =>
-      amount = from.number('amount', amount);
+      amount = from.number('amount', orElse: amount);
 }
 
 /// What a unit is doing when nobody is giving it orders.
@@ -70,12 +73,14 @@ final class HarvestJob {
   final Building dropOff;
 
   /// How much it can carry at once.
+  /// In units of resource.
   final double capacity;
 
   /// How fast it fills, per second, while it is standing at the deposit.
   final double rate;
 
   /// What it is carrying now.
+  /// In units of resource.
   double carried = 0.0;
 
   /// Whether it is on its way home rather than out.
@@ -109,15 +114,15 @@ final class HarvestJob {
     required List<ResourceNode> nodes,
     required List<Building> buildings,
   }) {
-    final int node = from.integer('node', -1);
-    final int dropOff = from.integer('dropOff', -1);
+    final int node = from.integer('node', orElse: -1);
+    final int dropOff = from.integer('dropOff', orElse: -1);
     if (node < 0 || node >= nodes.length) return null;
     if (dropOff < 0 || dropOff >= buildings.length) return null;
     return HarvestJob(
       node: nodes[node],
       dropOff: buildings[dropOff],
-      capacity: from.number('capacity', 10.0),
-      rate: from.number('rate', 8.0),
+      capacity: from.number('capacity', orElse: 10.0),
+      rate: from.number('rate', orElse: 8.0),
     )..carried = from.number('carried');
   }
 }
@@ -128,6 +133,7 @@ final class Stockpile {
   Stockpile([this.amount = 0.0]);
 
   /// What is in it.
+  /// In units of resource.
   double amount;
 
   /// Whether [cost] can be paid, and pays it if so.
@@ -141,10 +147,13 @@ final class Stockpile {
     return true;
   }
 
+  /// What is in the pile, as a document [restore] reads back.
   Map<String, Object?> save() => <String, Object?>{'amount': amount};
 
+  /// Puts back the [amount] that [save] wrote, keeping the current one when
+  /// the document has none.
   void restore(Map<String, Object?> from) =>
-      amount = from.number('amount', amount);
+      amount = from.number('amount', orElse: amount);
 }
 
 /// A building that turns a stockpile into units.
@@ -164,9 +173,11 @@ final class Producer {
   final Building building;
 
   /// What each one costs its side.
+  /// In units of resource.
   final double cost;
 
   /// How long each one takes.
+  /// In seconds.
   final double seconds;
 
   /// How far through the current one it is, in seconds. Nought when nothing is
@@ -218,8 +229,12 @@ final class Producer {
     if (wanted case final UnitType type) 'wanted': type.toJson(),
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing [progress] keeps the current one; a missing order book reads
+  /// as nothing asked for, with [ordered] at nought and [wanted] null.
   void restore(Map<String, Object?> from) {
-    progress = from.number('progress', progress);
+    progress = from.number('progress', orElse: progress);
     ordered = from.integer('ordered');
     wanted = switch (from.object('wanted')) {
       final Map<String, Object?> row => UnitType.fromJson(row),

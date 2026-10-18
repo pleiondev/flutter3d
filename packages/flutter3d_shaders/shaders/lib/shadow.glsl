@@ -8,6 +8,7 @@
 #define SHADOW_GLSL_
 
 #include <lib/evsm.glsl>
+#include <lib/shadow_storage.glsl>
 #include <lib/surface.glsl>
 
 /// Linear depth from the light's point of view, in the red channel — or,
@@ -47,7 +48,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -78,7 +86,16 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // whole class of missing-shadow bug, and the last cascade is fitted to the
   // entire scene, so the fall-through always terminates somewhere real.
   int cascadeCount = int(frag_info.shadow_cascades.z + 0.5);
+  // `P7`: by depth along the view axis through an orthographic lens, whose
+  // cascades are slabs of the view's box rather than spheres about the eye.
+#ifdef F3D_NO_FOG
   float viewDistance = length(v_world_position - frag_info.camera_position.xyz);
+#else
+  float viewDistance =
+      Orthographic()
+          ? ViewDepth()
+          : length(v_world_position - frag_info.camera_position.xyz);
+#endif
   int cascade = 0;
   if (cascadeCount > 1 && viewDistance > frag_info.shadow_cascades.x) cascade = 1;
   if (cascadeCount > 2 && viewDistance > frag_info.shadow_cascades.y) cascade = 2;
@@ -172,6 +189,13 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float bias = cascade == 0
       ? frag_info.shadow_bias.x
       : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
+  // `A2.8`: how the map keeps its depth, and with half floats turned round
+  // the bias's floor at this fragment's own depth rather than at the
+  // coarsest step the map has — see `lib/shadow_storage.glsl`.
+  float storage = frag_info.shadow_params.y;
+  if (storage > 0.5 && storage < 1.5) {
+    bias = max(bias, ShadowStoredStep(projected.z));
+  }
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
@@ -219,6 +243,29 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // kernel, and how far under minus one the value sits is the light-bleeding
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
+  // **What the see-through casters let through** — before the filter, whose
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
+  if (frag_info.shadow_bias.w > 0.5) {
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
+    // Up to four: light a caster gathered, not only light it stopped.
+    vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
+    light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
+  }
+
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
   if (softness < 0.0) {
@@ -233,10 +280,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // steps.
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
-        float occluder = textureLod(
-            shadow_texture,
-            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
-            0.0).r;
+        float occluder = ShadowStored(
+            textureLod(
+                shadow_texture,
+                clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+                0.0).r,
+            storage);
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -283,10 +332,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       vec2 disc = VogelDisc(i, 16, turn);
       float tapBias =
           bias + max(length(disc) * searchRadius - 1.5, 0.0) * receiverSlope;
-      float occluder = textureLod(
-          shadow_texture,
-          clamp(uv + disc * texel * searchRadius, tileLo, tileHi),
-          0.0).r;
+      float occluder = ShadowStored(
+          textureLod(
+              shadow_texture,
+              clamp(uv + disc * texel * searchRadius, tileLo, tileHi),
+              0.0).r,
+          storage);
       if (projected.z - tapBias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -304,10 +355,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       vec2 disc = VogelDisc(i, 16, turn + 1.0);
       float tapBias =
           bias + max(length(disc) * radius - 1.5, 0.0) * receiverSlope;
-      float occluder = textureLod(
-          shadow_texture,
-          clamp(uv + disc * texel * radius, tileLo, tileHi),
-          0.0).r;
+      float occluder = ShadowStored(
+          textureLod(
+              shadow_texture,
+              clamp(uv + disc * texel * radius, tileLo, tileHi),
+              0.0).r,
+          storage);
       lit += projected.z - tapBias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 16.0;

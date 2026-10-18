@@ -12,17 +12,17 @@ wireframe. All thirty-nine of the engine's stages compile, a bundle handed over
 as bytes loads, a KTX2 texture in any family the adapter carries is sampled, and
 a float target reads back as a picture.
 
-    final device = await openWebGpu(width: 960, height: 540);
+    final device = await WebGpuDevice.open(width: 960, height: 540);
 
-A browser build does not open this backend unless it asks. `flutter3d_app`
-opens WebGL2 in a browser and tries WebGPU first only behind
-`--dart-define=FLUTTER3D_WEBGPU=true`. The engine's own example takes
-`?backend=webgpu` in the URL instead, because a golden stand that serves
-forty-three scenes from one build should not spend that saving on a define.
-The default is not a verdict on WebGPU. A probe able to call either
-opener keeps both backends reachable, and dart2js ships what it can reach:
-376,649 bytes of `main.dart.js`, 14.9%, measured on `apps/flutter3d_demo_strategy`.
-WebGL2 is also the browser backend three shipped games have been looked at on.
+A browser build tries this backend first. `flutter3d_app` asks the browser
+for a WebGPU adapter and opens WebGL2 where none is handed out. A build that
+wants WebGL2 alone passes `--dart-define=FLUTTER3D_WEBGPU=false`, and that is
+a decision about bytes rather than about WebGPU: a probe able to call either
+opener keeps both backends reachable, and dart2js ships what it can reach,
+376,649 bytes of `main.dart.js` (14.9%) measured on
+`apps/flutter3d_demo_strategy`. The engine's own example also takes
+`?backend=webgpu` in the URL, so a golden stand can pick the backend per scene
+from one build.
 
 The package has two barrels, and which one to import depends on whether the
 importer runs in a browser. `flutter3d_webgpu.dart` is pure Dart. It holds the
@@ -216,7 +216,7 @@ pipelines, which is a question about a map and not about a driver.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

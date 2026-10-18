@@ -23,9 +23,15 @@ const double sectionLength = 180.0;
 /// How far either side of the valley's middle the water may ever reach.
 const double riverReach = 17.0;
 
-/// How far either side the land is drawn: past what the camera sees at the
-/// far end of the view, so the valley has no edge on screen.
+/// How far either side of the middle the trees and houses stand.
 const double valleyReach = 46.0;
+
+/// How far either side the grass is drawn: as far as the camera sees at
+/// all. The stretches ahead reach a few hundred units up the river, and a
+/// wide window sees about as far across up there, so land that stopped at
+/// [valleyReach] left the sky showing in both top corners. Only the outer
+/// quads of each row get wider; the valley has no more vertices for it.
+const double landReach = 400.0;
 
 /// Half the water's width under a bridge, and where each stretch starts.
 const double narrowHalf = 4.5;
@@ -39,11 +45,17 @@ const int defaultSeed = 1982;
 /// How high the land stands above the water, and how deep the bed lies
 /// under it, out of sight.
 const double landHeight = 0.9;
+
+/// The river bed's height under the water's surface, in metres; negative,
+/// because it is below it.
 const double bedDepth = -0.4;
 
 /// A bank's slope: how far it reaches onto the land from the water line
 /// at the top, and out under the water at the foot.
 const double bankTop = 0.55;
+
+/// How far a bank's foot reaches out under the water from the water line,
+/// in metres. See [bankTop].
 const double bankUnder = 0.2;
 
 /// How wide an island is before it stands at full height. A narrower one
@@ -52,13 +64,22 @@ const double islandRise = 0.8;
 
 /// What can be shot, and what it is worth.
 enum TargetKind {
+  /// A tanker on the water: 30 points.
   tanker(30, 1.7),
+
+  /// A helicopter at the jet's height: 60 points, and some of them fire.
   helicopter(60, 1.3),
+
+  /// A fuel depot on the water: flown over, it fills the tank; shot, it is 80
+  /// points and goes up with whatever is near it.
   depot(80, 0.9),
+
+  /// An enemy jet at the jet's height: 100 points.
   jet(100, 1.1);
 
   const TargetKind(this.points, this.halfLength);
 
+  /// What shooting one is worth.
   final int points;
 
   /// Half its length across the river, the way it moves: what keeps it off
@@ -68,6 +89,7 @@ enum TargetKind {
 
 /// One target, as the course lays it out: before it is a component.
 final class TargetPlan {
+  /// A target of [kind], [distance] metres up the river and [x] across it.
   const TargetPlan({
     required this.kind,
     required this.distance,
@@ -77,8 +99,13 @@ final class TargetPlan {
     this.gunner = false,
   });
 
+  /// What the target is.
   final TargetKind kind;
+
+  /// How far up the river it lies, in metres from the start.
   final double distance;
+
+  /// Where it lies across the river, in metres from the middle line.
   final double x;
 
   /// `1` moving towards `+x`, `-1` towards `-x`. A still target still faces
@@ -92,10 +119,22 @@ final class TargetPlan {
   final bool gunner;
 }
 
-enum SceneryKind { tree, pine, house }
+/// What a piece of scenery is.
+enum SceneryKind {
+  /// A broadleaf tree.
+  tree,
+
+  /// A pine.
+  pine,
+
+  /// A house.
+  house,
+}
 
 /// A tree or a house on the land, baked into the terrain mesh.
 final class SceneryPlan {
+  /// A piece of scenery of [kind], [distance] metres up the river and [x]
+  /// across it, at [scale] and turned [turn] radians.
   const SceneryPlan({
     required this.kind,
     required this.distance,
@@ -104,9 +143,16 @@ final class SceneryPlan {
     required this.turn,
   });
 
+  /// What the piece is.
   final SceneryKind kind;
+
+  /// How far up the river it stands, in metres from the start.
   final double distance;
+
+  /// Where it stands across the river, in metres from the middle line.
   final double x;
+
+  /// How much bigger or smaller than its model it is drawn.
   final double scale;
 
   /// Radians about the vertical, so no two houses face the same way.
@@ -126,19 +172,34 @@ final class SceneryPlan {
 /// with. Testing against [island] itself crashed a jet flying straight up
 /// the middle into an island a few microns wide and still on the bed.
 final class RiverRow {
+  /// A row whose water runs [half] either side of [center], with an island
+  /// [island] wide either side of the middle.
   const RiverRow({
     required this.center,
     required this.half,
     required this.island,
   });
 
+  /// The river's middle at this row, in metres across.
   final double center;
+
+  /// Half the river's width at this row, in metres.
   final double half;
+
+  /// Half the island's width at the water's line, in metres; nought for no
+  /// island. See [dryIsland] for the part out of the water.
   final double island;
 
+  /// The left bank's water line, in metres across.
   double get left => center - half;
+
+  /// The right bank's water line, in metres across.
   double get right => center + half;
+
+  /// The island's left edge at the water line, in metres across.
   double get islandLeft => center - island;
+
+  /// The island's right edge at the water line, in metres across.
   double get islandRight => center + island;
 
   /// How far the island's slopes reach from its line, 0 to 1: it stands at
@@ -155,6 +216,7 @@ final class RiverRow {
     return foot + (shoulder - foot) * -bedDepth / (crest - bedDepth);
   }
 
+  /// Whether any of the island stands out of the water.
   bool get hasIsland => dryIsland > 0.0;
 
   /// The stretches of open water across this row, left to right.
@@ -217,13 +279,24 @@ final class Section {
     );
   }
 
+  /// The section's number along the river; the stretch before the first
+  /// flight is −1.
   final int index;
   final List<_Key> _keys;
+
+  /// What is on the water and over it, as the section's level mixes it.
   final List<TargetPlan> targets;
+
+  /// The trees and houses on the land either side.
   final List<SceneryPlan> scenery;
 
+  /// Where the section begins, in metres up the river.
   double get start => index * sectionLength;
+
+  /// Where it ends, in metres up the river.
   double get end => start + sectionLength;
+
+  /// Where its bridge stands, in metres up the river.
   double get bridgeAt => end - bridgeInset;
 
   /// The stretch before the first flight has no bridge to cross: the jet
@@ -301,15 +374,26 @@ final class Section {
     while (distance < section.end - 32.0) {
       final kind = mix.kindFor(random.nextDouble());
       final heading = random.nextBool() ? 1 : -1;
-      final moves = random.nextDouble() < mix.moving;
+      final rolledMoving = random.nextDouble() < mix.moving;
       final gunner =
           kind == TargetKind.helicopter && random.nextDouble() < mix.gunners;
+      final row = section.rowAt(distance);
       final double? x = switch (kind) {
         // A jet comes in from off the side and crosses the whole valley.
         TargetKind.jet => -heading * (riverReach + 6.0),
-        _ => _placeOnWater(section.rowAt(distance), kind.halfLength, random),
+        TargetKind.tanker ||
+        TargetKind.helicopter ||
+        TargetKind.depot => _placeOnWater(row, kind.halfLength, random),
       };
       if (x != null) {
+        // **A mover needs water to move across.** One put on a channel
+        // barely longer than itself turned at each bank several times a
+        // second and read as a craft shaking in place, not moving.
+        final room = switch (row.channelAt(x)) {
+          (final from, final to) => to - from - 2.0 * kind.halfLength,
+          null => 0.0,
+        };
+        final moves = rolledMoving && room >= _roomToMove;
         targets.add(
           TargetPlan(
             kind: kind,
@@ -332,6 +416,10 @@ final class Section {
     }
     return targets;
   }
+
+  /// How far a tanker or a helicopter must be able to travel across its
+  /// channel to be given a speed at all.
+  static const double _roomToMove = 3.0;
 
   /// Somewhere on one of the row's channels, clear of both banks, or null
   /// when the channel picked is too narrow for it.
@@ -395,16 +483,21 @@ final class Section {
 
 /// The whole river, generated a section at a time as the jet reaches it.
 final class Course {
+  /// The river [seed] lays out, the same every time for the same seed.
   Course({this.seed = defaultSeed});
 
+  /// The number the river is laid out from.
   final int seed;
   final Map<int, Section> _sections = <int, Section>{};
 
+  /// Section [index], generated the first time it is asked for and kept.
   Section section(int index) =>
       _sections.putIfAbsent(index, () => Section.generate(index, seed: seed));
 
+  /// The number of the section [distance] metres up the river falls in.
   int sectionIndexAt(double distance) => (distance / sectionLength).floor();
 
+  /// The river's row [distance] metres up it.
   RiverRow rowAt(double distance) =>
       section(sectionIndexAt(distance)).rowAt(distance);
 }

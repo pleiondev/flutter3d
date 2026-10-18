@@ -14,21 +14,23 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
-void main() => runApp(const ParityApp());
+void main() => runApp(const _ParityApp());
 
-class ParityApp extends StatefulWidget {
-  const ParityApp({super.key});
+class _ParityApp extends StatefulWidget {
+  const _ParityApp();
 
   @override
-  State<ParityApp> createState() => _ParityAppState();
+  State<_ParityApp> createState() => _ParityAppState();
 }
 
-class _ParityAppState extends State<ParityApp> {
+class _ParityAppState extends State<_ParityApp> {
   String _report = 'rendering…';
 
   @override
@@ -45,19 +47,22 @@ class _ParityAppState extends State<ParityApp> {
     GraphicsDevice? device;
     Renderer? renderer;
     try {
-      device = await GpuRenderBackend.create();
+      device = await GpuRenderBackend.open(
+        width: kParityWidth,
+        height: kParityHeight,
+      );
       final white = device.createTextureFromPixels(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: _texel(255, 255, 255),
-      )!;
+      );
       final flat = device.createTextureFromPixels(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: _texel(128, 128, 255),
-      )!;
+      );
       renderer = Renderer.create(
         device: device,
         fallbackAlbedo: white,
@@ -73,15 +78,11 @@ class _ParityAppState extends State<ParityApp> {
           width: kParityWidth,
           height: kParityHeight,
           scene: built.scene,
-          views: <RenderView>[RenderView(camera: built.camera)],
+          views: <CameraView>[CameraView(camera: built.camera)],
           settings: paritySettingsFor(which),
         );
 
-        final pixels = await device.readPixels(result.frame);
-        if (pixels == null) {
-          buffer.writeln('${which.name}: the frame could not be read back');
-          continue;
-        }
+        final pixels = await device.readback(result.frame);
         final grid = parityGrid(
           pixels.buffer.asUint8List(),
           kParityWidth,

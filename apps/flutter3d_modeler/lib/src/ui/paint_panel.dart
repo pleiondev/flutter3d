@@ -36,13 +36,15 @@ typedef PaintLayerRow = ({String name, String blend, bool visible});
 /// Screen 18's own panel: the flattened canvas, the layers, the palette and
 /// the masks.
 class PaintPanel extends StatelessWidget {
+  /// The panel for one paint session; every edit comes back through a
+  /// callback, and nothing here holds the stack.
   const PaintPanel({
     super.key,
     required this.layers,
     required this.selectedLayer,
     required this.onSelectLayer,
     required this.onAddLayer,
-    required this.colour,
+    required this.color,
     required this.onColour,
     required this.radius,
     required this.onRadius,
@@ -60,20 +62,30 @@ class PaintPanel extends StatelessWidget {
 
   /// Which layer a stroke lands on.
   final int selectedLayer;
+
+  /// A layer row was tapped: the index, bottom-first, that strokes should
+  /// land on from now on.
   final ValueChanged<int> onSelectLayer;
 
   /// Add an empty layer above the stack.
   final VoidCallback onAddLayer;
 
   /// The brush's own colour, straight-alpha RGBA `0..1`.
-  final List<double> colour;
+  final List<double> color;
+
+  /// A swatch was picked: the new brush colour, straight-alpha RGBA `0..1`.
   final ValueChanged<List<double>> onColour;
 
   /// In logical pixels, the cursor's own diameter.
   final double radius;
+
+  /// The cursor's diameter was dragged, in logical pixels.
   final ValueChanged<double> onRadius;
 
+  /// How much of the brush colour one stroke lays down, `0..1`.
   final double strength;
+
+  /// The strength slider moved, with the new value `0..1`.
   final ValueChanged<double> onStrength;
 
   /// The masks this project has, by the name their image carries — the
@@ -82,6 +94,8 @@ class PaintPanel extends StatelessWidget {
 
   /// Which one gates the stroke, or null for none.
   final String? mask;
+
+  /// A mask was picked by name, or null when the stroke should be ungated.
   final ValueChanged<String?> onMask;
 
   /// The flattened canvas as it stands, or null before anything is painted.
@@ -105,7 +119,7 @@ class PaintPanel extends StatelessWidget {
     <double>[0.25, 0.45, 0.85, 1],
   ];
 
-  static Color _colourOf(List<double> rgba) => Color.fromARGB(
+  static Color _colorOf(List<double> rgba) => Color.fromARGB(
     (rgba[3] * 255).round(),
     (rgba[0] * 255).round(),
     (rgba[1] * 255).round(),
@@ -186,13 +200,13 @@ class PaintPanel extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: _colourOf(swatches[i]),
+                      color: _colorOf(swatches[i]),
                       borderRadius: const BorderRadius.all(Radius.circular(6)),
                       border: Border.all(
-                        color: _sameColour(swatches[i], colour)
+                        color: _sameColour(swatches[i], color)
                             ? theme.colorScheme.primary
                             : theme.colorScheme.outlineVariant,
-                        width: _sameColour(swatches[i], colour) ? 2 : 1,
+                        width: _sameColour(swatches[i], color) ? 2 : 1,
                       ),
                     ),
                   ),

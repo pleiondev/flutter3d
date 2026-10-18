@@ -1,24 +1,32 @@
 /// The value types a trace carries, to JSON and back, and the blob the bytes
 /// live in.
 ///
-/// Enums go by name rather than by index: a trace written before a value was
-/// added to an enum still reads, and one that names a value this build does
-/// not have fails by name instead of meaning something else.
+/// Enums go by a word rather than by index: a trace written before a value
+/// was added to an enum still reads, and one that names a value this build
+/// does not have fails by name instead of meaning something else. The words
+/// are the tables in `trace_wire_names.dart`, not the Dart names, so a
+/// rename in the API does not change a file.
 library;
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../render_pass_descriptor.dart';
 import '../render_target_pool.dart';
+import '../resources.dart';
 import '../sampler.dart';
 import '../vertex_layout_spec.dart';
+import 'trace_format_exception.dart';
+import 'trace_wire_names.dart';
 
 /// Collects the byte payloads of a trace into one buffer, handing back where
 /// each landed.
+///
+/// A caller that writes trace events itself makes one with `TraceBlobWriter()`.
 final class TraceBlobWriter {
   final BytesBuilder _bytes = BytesBuilder(copy: false);
 
@@ -33,11 +41,13 @@ final class TraceBlobWriter {
     return <int>[offset, data.lengthInBytes];
   }
 
-  Uint8List take() => _bytes.takeBytes();
+  /// Returns every payload added so far as one block and empties the writer.
+  Uint8List drain() => _bytes.takeBytes();
 }
 
 /// Reads payloads back out of a trace's blob.
 final class TraceBlobReader {
+  /// Creates a reader over the blob a trace file carries.
   TraceBlobReader(this._blob);
 
   final Uint8List _blob;
@@ -52,16 +62,19 @@ final class TraceBlobReader {
   }
 }
 
-T byName<T extends Enum>(List<T> values, Object? name) =>
-    values.byName(name! as String);
-
+/// Returns [value] as a JSON object. Throws a [TypeError] for anything else.
 Map<String, Object?> asMap(Object? value) =>
     (value! as Map<Object?, Object?>).cast<String, Object?>();
 
+/// Returns the JSON number [value] as an integer, truncating a fraction. Throws
+/// a [TypeError] for anything else.
 int asInt(Object? value) => (value! as num).toInt();
 
+/// Returns the JSON number [value] as a double. Throws a [TypeError] for
+/// anything else.
 double asDouble(Object? value) => (value! as num).toDouble();
 
+/// Returns [r] as four numbers: x, y, width, height, in pixels.
 List<Object?> screenRectToJson(ScreenRect r) => <Object?>[
   r.x,
   r.y,
@@ -69,6 +82,7 @@ List<Object?> screenRectToJson(ScreenRect r) => <Object?>[
   r.height,
 ];
 
+/// Reads a rectangle written by [screenRectToJson].
 ScreenRect screenRectFromJson(Object? json) {
   final v = (json! as List<Object?>).cast<num>();
   return ScreenRect(
@@ -79,11 +93,82 @@ ScreenRect screenRectFromJson(Object? json) {
   );
 }
 
-List<Object?> vector4ToJson(Vector4 v) => <Object?>[v.x, v.y, v.z, v.w];
+/// A viewport on the wire: four whole numbers, as a `ScreenRect` was before
+/// 1.0.0-rc.1, when it covers whole pixels and the whole depth range — so
+/// a trace of such a pass is byte for byte what it was — and six numbers,
+/// the depth range last, otherwise.
+List<Object?> viewportToJson(PassViewport v) =>
+    v.isWholePixels && v.coversFullDepth
+    ? <Object?>[v.x.round(), v.y.round(), v.width.round(), v.height.round()]
+    : <Object?>[v.x, v.y, v.width, v.height, v.minDepth, v.maxDepth];
 
-Vector4 vector4FromJson(Object? json) {
+/// Reads a viewport written by [viewportToJson]; four numbers read as the full
+/// depth range, nought to one.
+PassViewport viewportFromJson(Object? json) {
   final v = (json! as List<Object?>).cast<num>();
-  return Vector4(
+  return PassViewport(
+    x: v[0].toDouble(),
+    y: v[1].toDouble(),
+    width: v[2].toDouble(),
+    height: v[3].toDouble(),
+    minDepth: v.length > 4 ? v[4].toDouble() : 0,
+    maxDepth: v.length > 5 ? v[5].toDouble() : 1,
+  );
+}
+
+/// A clear colour on the wire: four numbers for a float clear, as the
+/// `Vector4` it was before 1.0.0-rc.1 wrote them, and the kind's name
+/// first for an integer one.
+List<Object?> clearColorToJson(ClearColor c) => <Object?>[
+  if (c.kind != ClearColorKind.float) c.kind.name,
+  c.red,
+  c.green,
+  c.blue,
+  c.alpha,
+];
+
+/// Reads a clear colour written by [clearColorToJson]; four bare numbers are a
+/// float clear.
+ClearColor clearColorFromJson(Object? json) {
+  final list = json! as List<Object?>;
+  final kind = list.first is String
+      ? ClearColorKind.byName(list.first! as String)
+      : ClearColorKind.float;
+  final v = list.skip(list.first is String ? 1 : 0).cast<num>().toList();
+  return switch (kind) {
+    ClearColorKind.uint => ClearColor.uint(
+      v[0].toInt(),
+      v[1].toInt(),
+      v[2].toInt(),
+      v[3].toInt(),
+    ),
+    ClearColorKind.sint => ClearColor.sint(
+      v[0].toInt(),
+      v[1].toInt(),
+      v[2].toInt(),
+      v[3].toInt(),
+    ),
+    ClearColorKind.float => ClearColor(
+      v[0].toDouble(),
+      v[1].toDouble(),
+      v[2].toDouble(),
+      v[3].toDouble(),
+    ),
+    _ => throw TraceFormatException(
+      'a clear colour of kind ${list.first}, which this build does not know',
+    ),
+  };
+}
+
+/// A colour on the wire as a clear colour is, four numbers, red first: the
+/// blend constant was a `Vector4` before 1.0, and a trace written then
+/// reads the same.
+List<Object?> linearColorToJson(LinearColor c) => <Object?>[c.r, c.g, c.b, c.a];
+
+/// Reads a colour written by [linearColorToJson].
+LinearColor linearColorFromJson(Object? json) {
+  final v = (json! as List<Object?>).cast<num>();
+  return LinearColor(
     v[0].toDouble(),
     v[1].toDouble(),
     v[2].toDouble(),
@@ -91,128 +176,207 @@ Vector4 vector4FromJson(Object? json) {
   );
 }
 
+/// Returns [b] as an object with its six fields by name.
 Map<String, Object?> blendToJson(BlendState b) => <String, Object?>{
-  'colorOperation': b.colorOperation.name,
-  'sourceColorFactor': b.sourceColorFactor.name,
-  'destinationColorFactor': b.destinationColorFactor.name,
-  'alphaOperation': b.alphaOperation.name,
-  'sourceAlphaFactor': b.sourceAlphaFactor.name,
-  'destinationAlphaFactor': b.destinationAlphaFactor.name,
+  'colorOperation': blendOperationWire.write(b.colorOperation),
+  'sourceColorFactor': blendFactorWire.write(b.sourceColorFactor),
+  'destinationColorFactor': blendFactorWire.write(b.destinationColorFactor),
+  'alphaOperation': blendOperationWire.write(b.alphaOperation),
+  'sourceAlphaFactor': blendFactorWire.write(b.sourceAlphaFactor),
+  'destinationAlphaFactor': blendFactorWire.write(b.destinationAlphaFactor),
 };
 
+/// Reads a blend state written by [blendToJson].
 BlendState blendFromJson(Object? json) {
   final m = asMap(json);
   return BlendState(
-    colorOperation: byName(BlendOperation.values, m['colorOperation']),
-    sourceColorFactor: byName(BlendFactor.values, m['sourceColorFactor']),
-    destinationColorFactor: byName(
-      BlendFactor.values,
-      m['destinationColorFactor'],
-    ),
-    alphaOperation: byName(BlendOperation.values, m['alphaOperation']),
-    sourceAlphaFactor: byName(BlendFactor.values, m['sourceAlphaFactor']),
-    destinationAlphaFactor: byName(
-      BlendFactor.values,
-      m['destinationAlphaFactor'],
-    ),
+    colorOperation: blendOperationWire.read(m['colorOperation']),
+    sourceColorFactor: blendFactorWire.read(m['sourceColorFactor']),
+    destinationColorFactor: blendFactorWire.read(m['destinationColorFactor']),
+    alphaOperation: blendOperationWire.read(m['alphaOperation']),
+    sourceAlphaFactor: blendFactorWire.read(m['sourceAlphaFactor']),
+    destinationAlphaFactor: blendFactorWire.read(m['destinationAlphaFactor']),
   );
 }
 
+/// Returns [s] as an object with its compare, three operations and two masks by
+/// name.
 Map<String, Object?> stencilToJson(StencilState s) => <String, Object?>{
-  'compare': s.compare.name,
-  'failOp': s.failOp.name,
-  'depthFailOp': s.depthFailOp.name,
-  'passOp': s.passOp.name,
+  'compare': compareFunctionWire.write(s.compare),
+  'failOp': stencilOperationWire.write(s.failOp),
+  'depthFailOp': stencilOperationWire.write(s.depthFailOp),
+  'passOp': stencilOperationWire.write(s.passOp),
   'readMask': s.readMask,
   'writeMask': s.writeMask,
 };
 
+/// Reads a stencil state written by [stencilToJson].
 StencilState stencilFromJson(Object? json) {
   final m = asMap(json);
   return StencilState(
-    compare: byName(CompareFunction.values, m['compare']),
-    failOp: byName(StencilOperation.values, m['failOp']),
-    depthFailOp: byName(StencilOperation.values, m['depthFailOp']),
-    passOp: byName(StencilOperation.values, m['passOp']),
+    compare: compareFunctionWire.read(m['compare']),
+    failOp: stencilOperationWire.read(m['failOp']),
+    depthFailOp: stencilOperationWire.read(m['depthFailOp']),
+    passOp: stencilOperationWire.read(m['passOp']),
     readMask: asInt(m['readMask']),
     writeMask: asInt(m['writeMask']),
   );
 }
 
-Map<String, Object?> samplerToJson(SamplerOptions s) => <String, Object?>{
-  'minFilter': s.minFilter.name,
-  'magFilter': s.magFilter.name,
-  'mipFilter': s.mipFilter.name,
-  'widthAddressMode': s.widthAddressMode.name,
-  'heightAddressMode': s.heightAddressMode.name,
+/// Returns [s] as an object by field name. A field 1.0 added is written only
+/// when it is not its default, so a trace of an older sampler reads as it was.
+Map<String, Object?> samplerToJson(SamplerDescriptor s) => <String, Object?>{
+  'minFilter': minMagFilterWire.write(s.minFilter),
+  'magFilter': minMagFilterWire.write(s.magFilter),
+  'mipFilter': mipFilterWire.write(s.mipFilter),
+  'widthAddressMode': samplerAddressModeWire.write(s.widthAddressMode),
+  'heightAddressMode': samplerAddressModeWire.write(s.heightAddressMode),
   'anisotropy': s.anisotropy,
+  // Since 1.0, written only when set, so a trace of a pre-1.0 sampler is
+  // byte-for-byte what it was and an old reader still reads it.
+  if (s.depthAddressMode != SamplerAddressMode.clampToEdge)
+    'depthAddressMode': samplerAddressModeWire.write(s.depthAddressMode),
+  if (s.compare case final compare?)
+    'compare': compareFunctionWire.write(compare),
+  if (s.lodMinClamp != 0) 'lodMinClamp': s.lodMinClamp,
+  if (s.lodMaxClamp != 32) 'lodMaxClamp': s.lodMaxClamp,
+  if (s.borderColor case final border?)
+    'borderColor': samplerBorderColorWire.write(border),
 };
 
-SamplerOptions samplerFromJson(Object? json) {
+/// Reads a sampler written by [samplerToJson], with a missing newer field at
+/// its default.
+SamplerDescriptor samplerFromJson(Object? json) {
   final m = asMap(json);
-  return SamplerOptions(
-    minFilter: byName(MinMagFilter.values, m['minFilter']),
-    magFilter: byName(MinMagFilter.values, m['magFilter']),
-    mipFilter: byName(MipFilter.values, m['mipFilter']),
-    widthAddressMode: byName(SamplerAddressMode.values, m['widthAddressMode']),
-    heightAddressMode: byName(
-      SamplerAddressMode.values,
-      m['heightAddressMode'],
-    ),
+  return SamplerDescriptor(
+    minFilter: minMagFilterWire.read(m['minFilter']),
+    magFilter: minMagFilterWire.read(m['magFilter']),
+    mipFilter: mipFilterWire.read(m['mipFilter']),
+    widthAddressMode: samplerAddressModeWire.read(m['widthAddressMode']),
+    heightAddressMode: samplerAddressModeWire.read(m['heightAddressMode']),
     anisotropy: asInt(m['anisotropy']),
+    depthAddressMode: m['depthAddressMode'] == null
+        ? SamplerAddressMode.clampToEdge
+        : samplerAddressModeWire.read(m['depthAddressMode']),
+    compare: m['compare'] == null
+        ? null
+        : compareFunctionWire.read(m['compare']),
+    lodMinClamp: (m['lodMinClamp'] as num?)?.toDouble() ?? 0,
+    lodMaxClamp: (m['lodMaxClamp'] as num?)?.toDouble() ?? 32,
+    borderColor: m['borderColor'] == null
+        ? null
+        : samplerBorderColorWire.read(m['borderColor']),
   );
 }
 
-Map<String, Object?> specToJson(RenderTargetSpec s) => <String, Object?>{
+/// A texture's descriptor in a trace. A pool's target writes the five
+/// fields it has, as every trace before 1.0 did; any other descriptor adds
+/// `texture: true` and the rest of its fields, so a reader tells the two
+/// apart and a backend makes each its own way again.
+Map<String, Object?> specToJson(TextureDescriptor s) => <String, Object?>{
   'width': s.width,
   'height': s.height,
-  'format': s.format.name,
+  'format': textureFormatWire.write(s.format),
   'sampleCount': s.sampleCount,
-  'storageMode': s.storageMode.name,
+  'storageMode': storageModeWire.write(s.storageMode),
+  if (s is! RenderTargetDescriptor) ...<String, Object?>{
+    'texture': true,
+    'dimension': textureDimensionWire.write(s.dimension),
+    'depthOrArrayLayers': s.depthOrArrayLayers,
+    'mipLevelCount': s.mipLevelCount,
+    'usage': <String>[
+      for (final flag in _usageFlags)
+        if (s.usage.contains(flag)) textureUsageFlagWire.write(flag),
+    ],
+    'label': ?s.label,
+  },
 };
 
-RenderTargetSpec specFromJson(Object? json) {
+/// The single usage flags, in the order a trace lists them.
+final List<TextureUsage> _usageFlags = <TextureUsage>[
+  TextureUsage.sampled,
+  TextureUsage.renderTarget,
+  TextureUsage.storage,
+  TextureUsage.copySource,
+  TextureUsage.copyDestination,
+];
+
+/// Reads a descriptor written by [specToJson]: a pool's target when the object
+/// lacks `texture: true`, a general descriptor when it has it.
+///
+/// Throws a [TraceFormatException] for a general descriptor naming no usage.
+TextureDescriptor specFromJson(Object? json) {
   final m = asMap(json);
-  return RenderTargetSpec(
-    width: asInt(m['width']),
-    height: asInt(m['height']),
-    format: byName(TextureFormat.values, m['format']),
-    sampleCount: asInt(m['sampleCount']),
-    storageMode: byName(StorageMode.values, m['storageMode']),
+  final width = asInt(m['width']);
+  final height = asInt(m['height']);
+  final format = textureFormatWire.read(m['format']);
+  final sampleCount = asInt(m['sampleCount']);
+  final storageMode = storageModeWire.read(m['storageMode']);
+  if (m['texture'] != true) {
+    return RenderTargetDescriptor(
+      width: width,
+      height: height,
+      format: format,
+      sampleCount: sampleCount,
+      storageMode: storageMode,
+    );
+  }
+  final flags = (m['usage']! as List<Object?>)
+      .map(textureUsageFlagWire.read)
+      .toList();
+  if (flags.isEmpty) {
+    throw TraceFormatException('a created texture names no usage');
+  }
+  return TextureDescriptor(
+    width: width,
+    height: height,
+    format: format,
+    dimension: textureDimensionWire.read(m['dimension']),
+    depthOrArrayLayers: asInt(m['depthOrArrayLayers']),
+    mipLevelCount: asInt(m['mipLevelCount']),
+    sampleCount: sampleCount,
+    usage: flags.reduce((TextureUsage all, TextureUsage flag) => all | flag),
+    storageMode: storageMode,
+    label: m['label'] as String?,
   );
 }
 
-List<Object?> layoutToJson(VertexLayoutSpec layout) => <Object?>[
+/// Returns [layout] as a list of buffers, each with its stride, step mode and
+/// attributes.
+List<Object?> layoutToJson(VertexLayoutDescriptor layout) => <Object?>[
   for (final buffer in layout.buffers)
     <String, Object?>{
       'stride': buffer.strideInBytes,
-      'stepMode': buffer.stepMode.name,
+      'stepMode': vertexStepModeWire.write(buffer.stepMode),
       'attributes': <Object?>[
         for (final a in buffer.attributes)
           <String, Object?>{
             'name': a.name,
-            'format': a.format.name,
+            'format': vertexFormatWire.write(a.format),
             'offset': a.offsetInBytes,
           },
       ],
     },
 ];
 
-VertexLayoutSpec layoutFromJson(Object? json) =>
-    VertexLayoutSpec(<BufferLayout>[
+/// Reads a vertex layout written by [layoutToJson].
+VertexLayoutDescriptor layoutFromJson(Object? json) =>
+    VertexLayoutDescriptor(<BufferLayout>[
       for (final b in (json! as List<Object?>).map(asMap))
         BufferLayout(
           strideInBytes: asInt(b['stride']),
-          stepMode: byName(VertexStepMode.values, b['stepMode']),
+          stepMode: vertexStepModeWire.read(b['stepMode']),
           attributes: <InputAttribute>[
             for (final a in (b['attributes']! as List<Object?>).map(asMap))
               InputAttribute(
                 name: a['name']! as String,
-                format: byName(VertexFormat.values, a['format']),
+                format: vertexFormatWire.read(a['format']),
                 offsetInBytes: asInt(a['offset']),
               ),
           ],
         ),
     ]);
 
-GeometryUsage usageFromJson(Object? json) => byName(GeometryUsage.values, json);
+/// Reads a geometry usage by its word. Throws a [TraceFormatException] for a
+/// word this build does not know.
+GeometryUsage usageFromJson(Object? json) => geometryUsageWire.read(json);

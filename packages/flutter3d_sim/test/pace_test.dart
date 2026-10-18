@@ -35,7 +35,7 @@ void main() {
       final pace = Pace();
       _smooth(pace, 600);
 
-      expect(pace.behind, isFalse);
+      expect(pace.isBehind, isFalse);
       expect(pace.lost, 0.0);
     });
 
@@ -45,7 +45,7 @@ void main() {
       final pace = Pace();
       pace.note(dropped: 3, dt: 0.1, stepSeconds: _step);
 
-      expect(pace.behind, isFalse);
+      expect(pace.isBehind, isFalse);
       expect(pace.lost, closeTo(3 * _step, 1e-9));
     });
 
@@ -58,7 +58,7 @@ void main() {
         pace.note(dropped: dropped, dt: 0.1, stepSeconds: _step);
       }
 
-      expect(pace.behind, isTrue);
+      expect(pace.isBehind, isTrue);
       expect(pace.lost, closeTo(1.0, 1e-6));
     });
 
@@ -71,11 +71,15 @@ void main() {
         dropped += 5;
         pace.note(dropped: dropped, dt: 0.1, stepSeconds: _step);
       }
-      expect(pace.behind, isTrue);
+      expect(pace.isBehind, isTrue);
 
       _smooth(pace, 600, from: dropped);
 
-      expect(pace.behind, isFalse, reason: 'still complaining ten seconds on');
+      expect(
+        pace.isBehind,
+        isFalse,
+        reason: 'still complaining ten seconds on',
+      );
       expect(pace.lost, closeTo(1.0, 1e-6), reason: 'the run still lost it');
     });
 
@@ -87,7 +91,7 @@ void main() {
       pace.note(dropped: 120, dt: 2.0, stepSeconds: _step);
       pace.reset(120);
 
-      expect(pace.behind, isFalse);
+      expect(pace.isBehind, isFalse);
       expect(pace.lost, 0.0);
       // And the loop's total is not counted again on the next frame.
       pace.note(dropped: 120, dt: _frame, stepSeconds: _step);

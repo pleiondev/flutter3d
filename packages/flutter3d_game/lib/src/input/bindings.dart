@@ -13,6 +13,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// what devices exist, and adding one is a backend translating its own events
 /// into ids rather than an edit here.
 final class InputSource {
+  /// A source named by [id], such as `key:107` or `pad:a`.
   const InputSource(this.id);
 
   /// A keyboard key, by Flutter's stable `LogicalKeyboardKey.keyId`.
@@ -27,6 +28,68 @@ final class InputSource {
   /// A gamepad button, by a name the backend chooses and keeps.
   factory InputSource.pad(String button) => InputSource('$padPrefix$button');
 
+  /// One of a gamepad's analogue axes, by `PadAxis.name` — `leftStickX`,
+  /// `triggerRight` — for an axis bound straight to an [AxisAction].
+  factory InputSource.padAxis(String axis) =>
+      InputSource('${padPrefix}axis.$axis');
+
+  /// One direction of a gamepad's analogue axis, as a button with a
+  /// magnitude: `pad:axis.leftStickX-` is the stick pushed left. Bound in
+  /// the button table to a [GameAction], it presses the action past the
+  /// pad's threshold and gives it how far the axis is pushed — a stick that
+  /// steers through `steerLeft` and `steerRight`, half over for half the
+  /// steering.
+  factory InputSource.padHalfAxis(String axis, {required bool positive}) =>
+      InputSource('${padPrefix}axis.$axis${positive ? '+' : '-'}');
+
+  /// One of a gamepad's sticks as a pair, `left` or `right`, for a
+  /// [DualAxisAction].
+  factory InputSource.padStick(String side) =>
+      InputSource('${padPrefix}stick.$side');
+
+  /// A control drawn on a touch screen, by a name its widget chooses —
+  /// `stick`, `band`, `button.jump`.
+  factory InputSource.touch(String control) => InputSource('touch:$control');
+
+  /// A headset's controller or hand control, `xr:<hand>/<control>`, as an
+  /// XR session reports it (`XrActionSource.sourceId`): a button with a
+  /// travel, a trigger's pull, a stick as a pair. See
+  /// `ActionInput.xrControls`.
+  factory InputSource.xr(XrHand hand, XrControl control) =>
+      InputSource(XrActionSource.sourceId(hand, control));
+
+  /// The mouse's motion while it is captured: what turns a first-person
+  /// view, and the source a look binding's sensitivity and invert are on.
+  static const InputSource pointerMotion = InputSource('pointer:motion');
+
+  /// A composite's part that is bound to nothing, after a rebind took its
+  /// key away. Never produced by a device.
+  static const InputSource none = InputSource('');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<InputSource> values = <InputSource>[pointerMotion, none];
+
+  /// The value whose [id] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static InputSource? byName(String name) {
+    for (final value in values) {
+      if (value.id == name) return value;
+    }
+    return null;
+  }
+
+  /// The device family: what comes before the colon, `key`, `pad`,
+  /// `pointer`, `touch`.
+  ///
+  /// What a rebind replaces within: moving jump to `J` leaves the pad's jump
+  /// on the pad.
+  String get device {
+    final colon = id.indexOf(':');
+    return colon < 0 ? id : id.substring(0, colon);
+  }
+
   /// What a gamepad's ids start with.
   ///
   /// Named because two places have to agree on it: what [InputSource.pad]
@@ -34,6 +97,8 @@ final class InputSource {
   /// see `PadInput.knowsPad`. Spelling it twice is how one of them drifts.
   static const String padPrefix = 'pad:';
 
+  /// The stable, self-describing name a file keeps: the device family, a
+  /// colon, and the device's own name for the control.
   final String id;
 
   @override
@@ -65,6 +130,7 @@ final class InputSource {
 /// what it does not recognise is a reader that quietly destroys the file every
 /// time it loads it.
 final class Bindings {
+  /// A table holding the pairs of [initial], or an empty one.
   Bindings([Map<InputSource, GameAction>? initial]) {
     if (initial != null) _sources.addAll(initial);
   }
@@ -95,6 +161,7 @@ final class Bindings {
   /// Points [source] at [action], replacing whatever it did before.
   void bind(InputSource source, GameAction action) => _sources[source] = action;
 
+  /// Frees [source], so it does nothing; a source that was free stays free.
   void unbind(InputSource source) => _sources.remove(source);
 
   /// Every source bound to anything.
@@ -116,6 +183,7 @@ final class Bindings {
   void clearAction(GameAction action) =>
       _sources.removeWhere((_, GameAction bound) => bound == action);
 
+  /// The count of bound sources.
   int get length => _sources.length;
 
   /// Becomes a copy of [other], in place.
@@ -125,14 +193,17 @@ final class Bindings {
   /// that a rebind takes effect on the next key press rather than on the next
   /// launch. Replacing the object would leave each of them holding a different
   /// one, which is the failure this method exists to make unwriteable.
-  void takeFrom(Bindings other) {
+  void copyFrom(Bindings other) {
     _sources
       ..clear()
       ..addAll(other._sources);
   }
 
+  /// Returns an independent copy, for a screen that edits it before saving.
   Bindings copy() => Bindings(Map<InputSource, GameAction>.of(_sources));
 
+  /// The table as JSON, action name to a sorted list of source ids, which
+  /// [Bindings.fromJson] reads back.
   Map<String, Object?> toJson() {
     final byAction = <String, List<String>>{};
     for (final entry in _sources.entries) {
@@ -147,4 +218,24 @@ final class Bindings {
       for (final name in byAction.keys.toList()..sort()) name: byAction[name],
     };
   }
+}
+
+/// The actions that pick one of a game's numbered slots — a weapon, a
+/// hotbar's block — as [InputState.requestSlot] does.
+///
+/// **Plain actions, bound like any other.** A slot was a key or a pad button
+/// held in a table of its own beside the bindings, which a player could not
+/// rebind and a settings file did not keep. A slot action is in the button
+/// table: `DesktopInput` and `PadInput` request its slot on the press rather
+/// than holding it, and the rebinding screen moves it like jump.
+abstract final class SlotActions {
+  static const String _prefix = 'slot';
+
+  /// The action that picks slot [index], counted from nought.
+  static GameAction of(int index) => GameAction('$_prefix$index');
+
+  /// The slot [action] picks, or null when it picks none.
+  static int? indexOf(GameAction action) => action.name.startsWith(_prefix)
+      ? int.tryParse(action.name.substring(_prefix.length))
+      : null;
 }

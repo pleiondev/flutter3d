@@ -28,6 +28,8 @@ typedef BakeProgress = ({String label, double? fraction});
 
 /// Screen 10's own panel: retopology above, maps below.
 class BakePanel extends StatelessWidget {
+  /// The panel over the caller's settings; it starts nothing itself, only
+  /// reports through [onRetopologize] and [onBake].
   const BakePanel({
     super.key,
     required this.targetQuads,
@@ -45,6 +47,9 @@ class BakePanel extends StatelessWidget {
 
   /// How many quads a retopology should aim for.
   final int targetQuads;
+
+  /// Called with a new [targetQuads] as its slider moves, between 100 and
+  /// 20,000 in steps of 100.
   final ValueChanged<int> onTargetQuads;
 
   /// Start the retopology.
@@ -58,6 +63,9 @@ class BakePanel extends StatelessWidget {
 
   /// The side of the baked image, in texels.
   final int resolution;
+
+  /// Called with a new [resolution] as its slider moves, between 256 and
+  /// 4,096 texels in steps of 256.
   final ValueChanged<int> onResolution;
 
   /// Start the bake.

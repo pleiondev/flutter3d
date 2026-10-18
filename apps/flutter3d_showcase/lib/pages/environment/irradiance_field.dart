@@ -6,10 +6,17 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `irradiance-field` page: a floor between a red wall and a white one
+/// under a sun, lit a second time by a grid of probes. Its check is that the
+/// probe facing the red wall came out redder than the one facing away.
 final class IrradianceFieldDemo extends ShowcaseDemo {
+  /// Whether the scene reads the baked field; off leaves only the flat
+  /// ambient term.
   bool baked = true;
+
+  /// The scene's ambient intensity as a multiple of
+  /// `LightNode.defaultIntensity`, 0 to 2 on the "Ambient strength" slider.
   double ambient = 0.5;
 
   late final IrradianceField _field;
@@ -26,15 +33,15 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material floor = Material(
+    final RenderMaterial floor = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.55, 0.55, 0.55, 1.0),
+      baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.55, 1.0),
       roughness: 0.95,
       doubleSided: true,
     );
-    final Material wall = Material(
+    final RenderMaterial wall = RenderMaterial(
       name: 'red wall',
-      baseColor: Vector4(0.85, 0.08, 0.08, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.08, 0.08, 1.0),
       roughness: 0.95,
       doubleSided: true,
     );
@@ -64,7 +71,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
       )
       ..add(wallNode)
       ..add(
-        LightNode(name: 'sun', intensity: 4.0)
+        LightNode(name: 'sun', intensity: 4.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.6, -0.7, 0.15)),
       );
 
@@ -89,7 +96,7 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _scene.irradianceField = baked ? _field : null;
-    _scene.ambientIntensity = ambient;
+    _scene.ambientIntensity = ambient * LightNode.defaultIntensity;
   }
   // #endregion live
 
@@ -123,15 +130,15 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
 
   @override
   void verify(Scene scene, FrameResult frame) {
-    final Vector3 towardWall = _field.sample(
+    final LinearColor towardWall = _field.sample(
       Vector3(-0.5, 1.0, -0.5),
       Vector3(-1.0, 0.0, 0.0),
     );
-    final Vector3 awayFromWall = _field.sample(
+    final LinearColor awayFromWall = _field.sample(
       Vector3(-0.5, 1.0, -0.5),
       Vector3(1.0, 0.0, 0.0),
     );
-    if (towardWall.x < 0.01 || towardWall.x <= awayFromWall.x * 1.5) {
+    if (towardWall.r < 0.01 || towardWall.r <= awayFromWall.r * 1.5) {
       throw StateError(
         'the probe facing the red wall ($towardWall) is not redder than the '
         'one facing away from it ($awayFromWall); the bounce never arrived',

@@ -1,5 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
+import 'mixer.dart';
 import 'sound.dart';
 
 /// Everything one game can make a noise about, as one list.
@@ -40,6 +41,8 @@ import 'sound.dart';
 /// that swaps its hand-written list for a bank changes the declaration and not
 /// a single call site.
 final class SoundBank extends Iterable<SoundDef> {
+  /// A bank of [sounds], in order. Throws an [ArgumentError] when two of
+  /// them share a name.
   SoundBank(Iterable<SoundDef> sounds)
     : sounds = List<SoundDef>.unmodifiable(sounds) {
     final seen = <String>{};
@@ -62,6 +65,13 @@ final class SoundBank extends Iterable<SoundDef> {
 
   /// Every asset path in it, for a test that wants to look on disk.
   Iterable<String> get assets => sounds.map((SoundDef s) => s.asset);
+
+  /// Every bus its sounds play on, in the order they are first met: what a
+  /// game routes, gives effects or lists on its settings screen. A bank's
+  /// sounds play through the mixer's buses as any sound does — this is
+  /// only the list of which.
+  List<AudioBus> get buses =>
+      <AudioBus>{for (final sound in sounds) sound.bus}.toList(growable: false);
 }
 
 /// One sound, and where it happened.
@@ -76,8 +86,10 @@ final class SoundBank extends Iterable<SoundDef> {
 /// It arrived twice, identically, in two applications' `soundtrack.dart`. What
 /// each game keeps is the deciding; this is only the shape of an answer.
 final class Heard {
+  /// [sound], heard at [at].
   const Heard(this.sound, this.at);
 
+  /// The sound the step decided to make.
   final SoundDef sound;
 
   /// Where in the world it happened, for the panning. Not where the listener

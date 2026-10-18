@@ -12,10 +12,9 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const String _runner =
     '../flutter3d_demo_dungeon/assets_src/models/monster_runner.glb';
@@ -51,19 +50,17 @@ Future<({int width, int height, int pixels})> _shapeOf(
     final resting = clips.indexWhere(
       (String name) => name.toLowerCase().contains('idle'),
     );
-    player.play(resting < 0 ? 0 : resting);
+    player.play(index: resting < 0 ? 0 : resting);
   }
 
   scene.add(
-    LightNode(color: Vector3(1.0, 1.0, 1.0), intensity: 4.0)
-      ..lookAt(Vector3(-0.3, -0.6, -1.0)),
+    LightNode(
+      color: LinearColor(1.0, 1.0, 1.0),
+      intensity: 4.0 * LightNode.defaultIntensity,
+    )..lookAt(Vector3(-0.3, -0.6, -1.0)),
   );
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 0.9,
-      near: 0.05,
-      far: 40.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 0.9, near: 0.05, far: 40.0),
   )..setPosition(0.0, 1.0, 4.0);
   camera.lookAt(Vector3(0.0, 1.0, 0.0));
   scene.add(camera);
@@ -72,12 +69,15 @@ Future<({int width, int height, int pixels})> _shapeOf(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    views: <CameraView>[
+      CameraView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(result.frame)).buffer.asUint8List();
   if (save != null) {
     File(save).writeAsBytesSync(encodePng(pixels, _width, _height));
   }
@@ -121,7 +121,7 @@ void main() {
 
     final joint = _deepestJoint(instance.root);
     final before = joint.worldMatrix.getTranslation();
-    player.play(player.clipNames.indexOf('Idle'));
+    player.play(index: player.clipNames.indexOf('Idle'));
     final after = joint.worldMatrix.getTranslation();
 
     expect(

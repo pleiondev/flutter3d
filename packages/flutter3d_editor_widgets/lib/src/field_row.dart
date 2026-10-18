@@ -35,19 +35,34 @@ import 'texture_path_field.dart';
 /// One field: its name, and whatever editor a [MaterialHint] — or, failing
 /// that, the value itself — calls for.
 final class FieldRow extends StatelessWidget {
+  /// A row for [value] under [name]; unhinted, not faded and offering no
+  /// files unless said otherwise.
   const FieldRow({
     super.key,
     required this.name,
     required this.value,
     required this.onWrite,
+    this.onPreview,
     this.hint,
     this.faded = false,
     this.offers = nothingToOffer,
   });
 
+  /// The field's key in the document, shown when [hint] has no label.
   final String name;
+
+  /// What the document holds for it now; its type picks the control when
+  /// nothing is hinted, and a value that is neither a bool, a number, a
+  /// string nor a list of numbers is shown read-only.
   final Object? value;
+
+  /// Called with the new value when an edit is finished; null when a text
+  /// box was emptied, which removes the key.
   final void Function(Object? value) onWrite;
+
+  /// Every value a slider passes through while it is dragged, before
+  /// [onWrite] gets the one it stops on. See [RangeSliderField.onPreview].
+  final void Function(Object? value)? onPreview;
 
   /// What a control for this value should look like, when anything knows.
   ///
@@ -116,6 +131,7 @@ final class FieldRow extends StatelessWidget {
       step: it.step,
       editable: true,
       onChanged: onWrite,
+      onPreview: onPreview,
     ),
     (final ColorHint it, final List<Object?> at)
         when at.length >= 3 && at.every((Object? e) => e is num) =>

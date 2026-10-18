@@ -8,26 +8,21 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region decoder
 /// A made-up format this engine has never heard of: one line, three
 /// numbers, a box of that size. `ModelDecoder` is the whole plugin
 /// boundary — a project's own studio format arrives exactly this way.
-final class _BoxTextDecoder implements ModelDecoder {
+final class _BoxTextDecoder extends ModelDecoder {
   const _BoxTextDecoder();
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.box');
+  bool handles(ModelProbe probe) =>
+      probe.fileName.toLowerCase().endsWith('.box');
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async {
-    final parts = utf8.decode(bytes).trim().split(RegExp(r'\s+'));
+  Future<ModelDocument> decode(ModelDecodeContext context) async {
+    final parts = utf8.decode(context.bytes).trim().split(RegExp(r'\s+'));
     if (parts.length != 3) {
       throw const FormatException('a .box file is three numbers: w h d');
     }
@@ -61,13 +56,16 @@ final class _BytesSource extends AssetSource {
   String get fileName => _fileName;
 
   @override
-  Future<Uint8List> read() async => _bytes;
+  Future<Uint8List> read(AssetRead request) async => _bytes;
 
   @override
   AssetUriResolver get resolveUri =>
       (request) async => throw StateError('a .box file has no siblings');
 }
 
+/// The `custom-decoder` page: a crate read from a `.box` file by a decoder
+/// of the page's own. Its check is that the decoder made one surface the size
+/// the file named, and that it is drawn.
 final class CustomDecoderDemo extends ShowcaseDemo {
   late final ModelDocument _decoded;
 
@@ -100,12 +98,15 @@ final class CustomDecoderDemo extends ShowcaseDemo {
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _decoded.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.7, 0.55, 0.35, 1.0), roughness: 0.7),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.7, 0.55, 0.35, 1.0),
+          roughness: 0.7,
+        ),
         name: 'crate',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

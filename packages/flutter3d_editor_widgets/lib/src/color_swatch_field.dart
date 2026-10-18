@@ -23,6 +23,7 @@ import 'hint_text_box.dart';
 /// A colour: a swatch that opens [ColorPaletteDialog], and the numbers
 /// beside it.
 final class ColorSwatchField extends StatelessWidget {
+  /// A row for [values], read as [hint] says, writing through [onWrite].
   const ColorSwatchField({
     super.key,
     required this.hint,
@@ -30,8 +31,16 @@ final class ColorSwatchField extends StatelessWidget {
     required this.onWrite,
   });
 
+  /// The field's colour hint; its `channels` decides whether a picked
+  /// colour keeps the alpha already in [values].
   final ColorHint hint;
+
+  /// The colour as the document holds it: red, green, blue and maybe
+  /// alpha, each a fraction from nought to one; at least three of them.
   final List<num> values;
+
+  /// Called with the new list of numbers when a swatch is picked or a
+  /// number typed.
   final void Function(Object? value) onWrite;
 
   Color get _shown =>
@@ -87,6 +96,8 @@ final class ColorSwatchField extends StatelessWidget {
 /// and a row of greys — which is where most of a level's walls actually
 /// live.
 final class ColorPaletteDialog extends StatelessWidget {
+  /// A dialog that pops with the picked colour's red, green and blue, each
+  /// a fraction from nought to one, or with null when dismissed.
   const ColorPaletteDialog({super.key});
 
   static const List<double> _levels = <double>[1.0, 0.72, 0.45, 0.2];

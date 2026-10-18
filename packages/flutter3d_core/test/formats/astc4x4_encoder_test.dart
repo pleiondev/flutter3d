@@ -54,7 +54,9 @@ Rgba8Image _ramp() {
 void main() {
   test('a block is exactly 16 bytes', () {
     expect(
-      encodeAstc4x4Block(List.generate(16, (_) => (0, 0, 0, 255))),
+      encodeAstc4x4Block(
+        List.generate(16, (_) => const Rgba8Texel(r: 0, g: 0, b: 0, a: 255)),
+      ),
       hasLength(16),
     );
   });

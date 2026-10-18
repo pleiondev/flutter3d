@@ -24,6 +24,7 @@ import 'weapon_behaviour.dart';
 /// the counters this arsenal actually holds, not every kind of ammunition the
 /// package can name. [Arsenal.ammo] answers that.
 final class AmmoType {
+  /// The ammunition called [name]; any two of one name are equal.
   const AmmoType(this.name);
 
   /// What it is called. Identity: two [AmmoType]s with the same name are the
@@ -34,9 +35,33 @@ final class AmmoType {
   /// The starting weapon never runs out, so it is always something to fall back
   /// to. A player stranded with no weapon at all is a player reloading a save.
   static const AmmoType none = AmmoType('none');
+
+  /// Rounds for a gun such as the shipped pistol.
   static const AmmoType bullets = AmmoType('bullets');
+
+  /// Shells for a shotgun; one shell fires every pellet of a shot.
   static const AmmoType shells = AmmoType('shells');
+
+  /// Rockets for a launcher.
   static const AmmoType rockets = AmmoType('rockets');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<AmmoType> values = <AmmoType>[
+    none,
+    bullets,
+    shells,
+    rockets,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static AmmoType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   bool operator ==(Object other) => other is AmmoType && other.name == name;
@@ -55,9 +80,11 @@ final class AmmoType {
 /// pistol and a shotgun are entirely in the numbers — which is exactly the case
 /// where a subclass per weapon buys nothing and costs a rebuild per tweak.
 final class WeaponDef {
+  /// A weapon called [name], delivering by [behavior], spending [ammo];
+  /// every other field at the default its own doc gives.
   const WeaponDef({
     required this.name,
-    required this.behaviour,
+    required this.behavior,
     this.alternate,
     this.magazine,
     this.reloadSeconds = 1.5,
@@ -81,6 +108,8 @@ final class WeaponDef {
     this.splashMinimumFraction = 0.0,
   });
 
+  /// What the weapon is called, on screen and in a save: [Arsenal] saves
+  /// the weapons held by this name and looks them back up by it.
   final String name;
 
   /// The other trigger, or null for a weapon with one.
@@ -123,10 +152,12 @@ final class WeaponDef {
   /// be controlled.
   final double recoilRecovery;
 
-  /// How a shot is delivered. See [WeaponBehaviour] for why this is an object
+  /// How a shot is delivered. See [WeaponBehavior] for why this is an object
   /// and the numbers below are not.
-  final WeaponBehaviour behaviour;
+  final WeaponBehavior behavior;
 
+  /// What it spends when it fires; [AmmoType.none] for one that never runs
+  /// out.
   final AmmoType ammo;
 
   /// Damage of a single ray at point-blank range.
@@ -135,7 +166,11 @@ final class WeaponDef {
   /// that connect, which is what makes range matter to it and not to a pistol.
   final double damage;
 
+  /// How many shots it fires per second at most.
   final double shotsPerSecond;
+
+  /// How many rounds of [ammo] one trigger pull spends, from the magazine
+  /// when there is one; one by default. A weapon refuses to fire with fewer.
   final int ammoPerShot;
 
   /// How many shots the weapon holds before it has to be reloaded, or null for
@@ -162,20 +197,25 @@ final class WeaponDef {
   /// Half-angle of the cone the rays fall in, in radians.
   final double spread;
 
+  /// How far a ray reaches, in metres.
   final double range;
 
   /// Whether holding the trigger keeps firing.
   final bool automatic;
 
   /// Distance at which damage starts dropping. Zero disables falloff.
+  /// In metres.
   final double falloffStart;
 
   /// Distance at which damage has dropped to [minimumDamageFraction].
+  /// In metres.
   final double falloffEnd;
 
+  /// The fraction of [damage] still delivered past [falloffEnd], from 0 to 1.
   final double minimumDamageFraction;
 
   /// Impulse applied to what is hit, along the ray.
+  /// In newton-seconds.
   final double knockback;
 
   /// How far this is heard, in metres.
@@ -200,6 +240,7 @@ final class WeaponDef {
   final double projectileSpeed;
 
   /// How far the explosion reaches. Zero for anything that does not explode.
+  /// In metres.
   final double splashRadius;
 
   /// Fraction of the damage still delivered at the edge of the blast.
@@ -215,10 +256,8 @@ final class WeaponDef {
           knockback: knockback,
         );
 
-  /// Seconds between shots.
-  Duration get cooldown =>
-      Duration(microseconds: (1e6 / shotsPerSecond).round());
-
+  /// Seconds between shots: simulation time, so a `double` of seconds, not
+  /// a `Duration`.
   double get cooldownSeconds => 1.0 / shotsPerSecond;
 
   /// Damage a single ray does at [distance].

@@ -1,0 +1,692 @@
+/// `flutter3d doctor`: the toolchain a project builds with, against what
+/// SUPPORT.md promises, and the optional programs the build and the
+/// converter use when they are there.
+library;
+
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/compile.dart' show engineRevisionAt;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
+
+import 'cli_contract.dart';
+import 'convert/external.dart';
+import 'migrate/data.dart' show dataFilesBehind;
+import 'plugin_discovery.dart';
+
+/// The Dart every pubspec's floor names (SUPPORT.md, "The Flutter and Dart
+/// SDKs"). A structure test reads that section and holds these to it.
+const String dartFloor = '3.12.0';
+
+/// The Flutter floor of every package that names Flutter.
+const String flutterFloor = '3.44.0';
+
+/// The Flutter stable CI runs.
+const String flutterTested = '3.47.0';
+
+/// The Dart CI runs the plain Dart packages on.
+const String dartTested = '3.13.0';
+
+/// How a check came out.
+final class DoctorStatus {
+  const DoctorStatus._(this.mark, this.name);
+
+  /// What the terminal shows before the line.
+  final String mark;
+
+  /// The word `--json` writes as the check's `status`: `ok`, `note`,
+  /// `missing` or `problem`.
+  final String name;
+
+  /// Found, and new enough.
+  static const DoctorStatus ok = DoctorStatus._('[ok]', 'ok');
+
+  /// Found, and outside what is tested: works, probably.
+  static const DoctorStatus note = DoctorStatus._('[~~]', 'note');
+
+  /// Optional, and not found: one feature is unavailable.
+  static const DoctorStatus missing = DoctorStatus._('[--]', 'missing');
+
+  /// Required, and absent or too old. The command exits 1.
+  static const DoctorStatus problem = DoctorStatus._('[!!]', 'problem');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<DoctorStatus> values = <DoctorStatus>[
+    ok,
+    note,
+    missing,
+    problem,
+  ];
+
+  /// The value whose [mark] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static DoctorStatus? byName(String name) {
+    for (final value in values) {
+      if (value.mark == name) return value;
+    }
+    return null;
+  }
+}
+
+/// One line of the doctor's report.
+final class DoctorCheck {
+  /// The check of the tool [name], which came out [status], with [detail]
+  /// and, when something can be done, [fix].
+  const DoctorCheck(this.name, this.status, this.detail, {this.fix});
+
+  /// The tool checked, as the report's first column shows it: `Flutter`,
+  /// `impellerc`, `naga`.
+  final String name;
+
+  /// How the check came out; a [DoctorStatus.problem] makes the command
+  /// exit 1.
+  final DoctorStatus status;
+
+  /// What was found: a version, a path, or why nothing was.
+  final String detail;
+
+  /// What to do about it, when anything.
+  final String? fix;
+
+  /// The check as one entry of `--json`'s `checks`: `name`, `status`,
+  /// `detail`, and `fix` only when there is one.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'name': name,
+    'status': status.name,
+    'detail': detail,
+    'fix': ?fix,
+  };
+}
+
+/// Compares two dotted versions, ignoring anything after a space or `-`.
+/// Negative when [a] is older.
+int compareVersions(String a, String b) {
+  List<int> parts(String v) => v
+      .split(RegExp(r'[\s-]'))
+      .first
+      .split('.')
+      .map((String p) => int.tryParse(p) ?? 0)
+      .toList();
+  final x = parts(a), y = parts(b);
+  for (var i = 0; i < 3; i++) {
+    final d = (i < x.length ? x[i] : 0) - (i < y.length ? y[i] : 0);
+    if (d != 0) return d;
+  }
+  return 0;
+}
+
+/// Runs a program and returns its stdout, or null when it cannot start or
+/// fails.
+typedef ProcessProbe =
+    String? Function(String executable, List<String> arguments);
+
+String? _probe(String executable, List<String> arguments) {
+  try {
+    final result = Process.runSync(
+      executable,
+      arguments,
+      runInShell: Platform.isWindows,
+    );
+    if (result.exitCode != 0) return null;
+    return '${result.stdout}${result.stderr}';
+  } on ProcessException {
+    return null;
+  }
+}
+
+/// Every check, in the order the report prints them.
+///
+/// [probe] runs a program; [locate] finds an external tool. Both are
+/// parameters so a test can answer for a machine it is not running on.
+///
+/// [project], when it has a `pubspec.yaml`, adds one more line: its data
+/// files below the version this build writes, as a note, since the engine
+/// still reads them.
+List<DoctorCheck> runDoctorChecks({
+  ProcessProbe probe = _probe,
+  String? Function(ExternalTool tool)? locate,
+  String? dartVersion,
+  Directory? project,
+}) {
+  final find = locate ?? (ExternalTool t) => t.locate();
+  final checks = <DoctorCheck>[];
+
+  final dart = dartVersion ?? Platform.version.split(' ').first;
+  checks.add(
+    _versionCheck('Dart', dart, dartFloor, dartTested, required: true),
+  );
+
+  final machine = probe(
+    Platform.isWindows ? 'flutter.bat' : 'flutter',
+    const <String>['--version', '--machine'],
+  );
+  String? flutterRoot;
+  String? flutterDart;
+  if (machine == null) {
+    checks.add(
+      const DoctorCheck(
+        'Flutter',
+        DoctorStatus.missing,
+        'not found on PATH',
+        fix:
+            'a game needs Flutter $flutterFloor or later (https://docs.flutter.dev/get-started/install); '
+            'the plain Dart packages and this command do not',
+      ),
+    );
+  } else {
+    final start = machine.indexOf('{');
+    final Object? info = start < 0 ? null : _tryJson(machine.substring(start));
+    final map = info is Map ? info : const <String, Object?>{};
+    final version = '${map['frameworkVersion'] ?? '?'}';
+    flutterRoot = map['flutterRoot'] as String?;
+    final channel = map['channel'] as String?;
+    checks.add(
+      _versionCheck(
+        'Flutter',
+        version,
+        flutterFloor,
+        flutterTested,
+        required: true,
+        extra: channel == null ? '' : ', $channel channel',
+      ),
+    );
+    if (map['dartSdkVersion'] case final String bundled) {
+      flutterDart = bundled.split(' ').first;
+      checks.add(
+        _versionCheck(
+          "Flutter's Dart",
+          bundled,
+          dartFloor,
+          dartTested,
+          required: true,
+        ),
+      );
+    }
+  }
+
+  // impellerc: what builds the Impeller shader bundles from source.
+  final impellerc = flutterRoot == null ? null : _impellerc(flutterRoot);
+  checks.add(
+    impellerc == null
+        ? const DoctorCheck(
+            'impellerc',
+            DoctorStatus.missing,
+            'not found in the Flutter SDK\'s engine artifacts',
+            fix:
+                'run `flutter precache`; needed only to build shader bundles from a checkout',
+          )
+        : DoctorCheck('impellerc', DoctorStatus.ok, impellerc),
+  );
+
+  for (final (name, purpose, install) in const <(String, String, String)>[
+    (
+      'glslangValidator',
+      'the WebGPU section of a material bundle',
+      'install the Vulkan SDK or `brew install glslang`',
+    ),
+    (
+      'naga',
+      'the WebGPU section of a material bundle',
+      '`cargo install naga-cli`',
+    ),
+  ]) {
+    final path = findOnPath(name);
+    checks.add(
+      path == null
+          ? DoctorCheck(
+              name,
+              DoctorStatus.missing,
+              'not on PATH: materials build without $purpose',
+              fix: install,
+            )
+          : DoctorCheck(name, DoctorStatus.ok, path),
+    );
+  }
+
+  for (final tool in externalTools) {
+    final path = find(tool);
+    checks.add(
+      path == null
+          ? DoctorCheck(
+              tool.name,
+              DoctorStatus.missing,
+              'not found: flutter3d convert cannot use it (${tool.purpose})',
+              fix: tool.install,
+            )
+          : DoctorCheck(tool.name, DoctorStatus.ok, '$path (${tool.purpose})'),
+    );
+  }
+
+  if (project != null && File('${project.path}/pubspec.yaml').existsSync()) {
+    checks.addAll(
+      projectShaderChecks(
+        project,
+        dart: flutterDart ?? dart,
+        engineRevision: flutterRoot == null
+            ? null
+            : engineRevisionAt(flutterRoot),
+      ),
+    );
+    checks.addAll(projectPlatformChecks(project));
+    final behind = dataFilesBehind(project);
+    checks.add(
+      behind.isEmpty
+          ? const DoctorCheck(
+              'Data files',
+              DoctorStatus.ok,
+              'every one at the version this build writes',
+            )
+          : DoctorCheck(
+              'Data files',
+              DoctorStatus.note,
+              '${behind.length} below the version this build writes '
+                  '(the engine still reads them): ${behind.join(', ')}',
+              fix: 'run `flutter3d migrate --data .` to lift them on disk',
+            ),
+    );
+  }
+  return checks;
+}
+
+/// What `doctor` says about a project's shaders (D15, D19): whether its
+/// hook is there to write the engine's bundle, whether its pubspec ships
+/// what the hook writes, whether the bundle there was compiled on the SDK
+/// that builds it now — [dart] and [engineRevision], when known — and
+/// whether every installed plugin's material was compiled in.
+///
+/// A project no GPU backend is a dependency of gets no line; neither does a
+/// project whose packages cannot be resolved, which `flutter pub get` is the
+/// answer to before anything here is.
+List<DoctorCheck> projectShaderChecks(
+  Directory project, {
+  String? dart,
+  String? engineRevision,
+}) {
+  final PluginDiscovery discovery;
+  try {
+    discovery = discoverPlugins(project);
+  } on PluginDiscoveryException {
+    return const <DoctorCheck>[];
+  }
+  const backends = <String>{
+    'flutter3d_impeller',
+    'flutter3d_webgl',
+    'flutter3d_webgpu',
+  };
+  if (!discovery.dependencies.any(backends.contains)) {
+    return const <DoctorCheck>[];
+  }
+  final checks = <DoctorCheck>[];
+
+  final hook = File('${project.path}/hook/build.dart');
+  final hooked =
+      hook.existsSync() &&
+      RegExp(r'buildAssets').hasMatch(hook.readAsStringSync());
+  checks.add(
+    hooked
+        ? const DoctorCheck(
+            'Shader hook',
+            DoctorStatus.ok,
+            'hook/build.dart runs buildAssets, which writes the engine\'s '
+                'bundle for this SDK',
+          )
+        : const DoctorCheck(
+            'Shader hook',
+            DoctorStatus.note,
+            'no hook/build.dart calling buildAssets: the application loads '
+                'the bundle flutter3d_impeller ships, which carries every '
+                'stage and holds only on the SDK it was published with',
+            fix:
+                'run `flutter3d init`, which writes the hook, or add it by '
+                'hand (see the quickstart)',
+          ),
+  );
+
+  final pubspec = File('${project.path}/pubspec.yaml').readAsStringSync();
+  final listed = RegExp(
+    r'^\s*-\s*flutter3d_generated/shaders/\s*$',
+    multiLine: true,
+  ).hasMatch(pubspec);
+  if (hooked) {
+    checks.add(
+      listed
+          ? const DoctorCheck(
+              'Shader assets',
+              DoctorStatus.ok,
+              'pubspec.yaml ships flutter3d_generated/shaders/',
+            )
+          : const DoctorCheck(
+              'Shader assets',
+              DoctorStatus.problem,
+              'pubspec.yaml does not list flutter3d_generated/shaders/, so '
+                  'the bundle the hook writes is not in the application',
+              fix:
+                  'add `- flutter3d_generated/shaders/` under flutter: assets: '
+                  '(Flutter does not bundle a directory\'s subdirectories)',
+            ),
+    );
+  }
+
+  final bundle = File('${project.path}/${EngineBundleStamp.projectAsset}');
+  if (hooked && !bundle.existsSync()) {
+    checks.add(
+      const DoctorCheck(
+        'Shader bundle',
+        DoctorStatus.note,
+        'not built yet',
+        fix:
+            'build once (`flutter build` or `flutter run`); the hook writes it',
+      ),
+    );
+  } else if (bundle.existsSync()) {
+    checks.add(
+      _bundleCheck(bundle, dart: dart, engineRevision: engineRevision),
+    );
+  }
+
+  final missing = <String>[
+    for (final package in discovery.packages)
+      for (final source in _materialSources(package))
+        if (!_compiledFor(project, source)) '${package.name}: ${source.path}',
+  ];
+  if (hooked && missing.isNotEmpty) {
+    checks.add(
+      DoctorCheck(
+        'Plugin materials',
+        DoctorStatus.note,
+        '${missing.length} not compiled into the project yet: '
+            '${missing.take(3).join(', ')}${missing.length > 3 ? ', …' : ''}',
+        fix:
+            'build once; the hook compiles every installed plugin\'s materials',
+      ),
+    );
+  }
+  return checks;
+}
+
+/// What `doctor` says about the keys that turn Flutter GPU on for an
+/// application (decision 54): `FLTEnableFlutterGPU` and `FLTEnableImpeller`
+/// in `macos/Runner/Info.plist` and `ios/Runner/Info.plist`, and
+/// `io.flutter.embedding.android.EnableFlutterGPU` in Android's manifest.
+///
+/// **A missing key fails nothing, which is why it is a problem here.** The
+/// application opens, Impeller will not start, and `flutter3d_app` draws
+/// through the software rasteriser; the banner and the log line say so,
+/// but only after somebody has wondered why the frame rate is single
+/// figures. Only a project that reaches `flutter3d_impeller` gets a line,
+/// since a browser build reads none of these keys, and only for the
+/// platform folders it has.
+List<DoctorCheck> projectPlatformChecks(Directory project) {
+  final PluginDiscovery discovery;
+  try {
+    discovery = discoverPlugins(project);
+  } on PluginDiscoveryException {
+    return const <DoctorCheck>[];
+  }
+  if (!discovery.dependencies.contains('flutter3d_impeller')) {
+    return const <DoctorCheck>[];
+  }
+  return <DoctorCheck>[
+    for (final (platform, folder) in const <(String, String)>[
+      ('macOS', 'macos'),
+      ('iOS', 'ios'),
+    ])
+      if (File('${project.path}/$folder/Runner/Info.plist') case final plist
+          when plist.existsSync())
+        _plistCheck(platform, '$folder/Runner/Info.plist', plist),
+    if (File('${project.path}/$_androidManifest') case final manifest
+        when manifest.existsSync())
+      _manifestCheck(manifest),
+  ];
+}
+
+const String _androidManifest = 'android/app/src/main/AndroidManifest.xml';
+const String _androidGpuKey = 'io.flutter.embedding.android.EnableFlutterGPU';
+
+/// XML with its comments taken out, so a key a comment quotes is not read
+/// as set.
+String _uncommented(File file) =>
+    file.readAsStringSync().replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+
+DoctorCheck _plistCheck(String platform, String path, File plist) {
+  final text = _uncommented(plist);
+  final wrong = <String>[
+    for (final key in const <String>[
+      'FLTEnableFlutterGPU',
+      'FLTEnableImpeller',
+    ])
+      ?switch (RegExp(
+        '<key>\\s*$key\\s*</key>\\s*<(\\w+)\\s*/>',
+      ).firstMatch(text)?.group(1)) {
+        'true' => null,
+        null => '$key is missing',
+        final value => '$key is $value',
+      },
+  ];
+  final name = 'GPU keys, $platform';
+  if (wrong.isEmpty) {
+    return DoctorCheck(name, DoctorStatus.ok, '$path turns Flutter GPU on');
+  }
+  return DoctorCheck(
+    name,
+    DoctorStatus.problem,
+    '${wrong.join(', ')} in $path: the app draws through the software '
+    'rasteriser',
+    fix:
+        'add `<key>FLTEnableFlutterGPU</key><true/>` and '
+        '`<key>FLTEnableImpeller</key><true/>` inside the top-level <dict> '
+        'of $path',
+  );
+}
+
+DoctorCheck _manifestCheck(File manifest) {
+  final text = _uncommented(manifest);
+  final application = RegExp(
+    r'<application\b.*?</application>',
+    dotAll: true,
+  ).firstMatch(text)?.group(0);
+  // Either order of the two attributes, so match each tag, not a sequence.
+  final on = RegExp(r'<meta-data\b[^>]*>')
+      .allMatches(application ?? '')
+      .map((RegExpMatch tag) => tag.group(0)!)
+      .any(
+        (String tag) =>
+            tag.contains('android:name="$_androidGpuKey"') &&
+            tag.contains('android:value="true"'),
+      );
+  const name = 'GPU key, Android';
+  if (on) {
+    return const DoctorCheck(
+      name,
+      DoctorStatus.ok,
+      '$_androidManifest turns Flutter GPU on',
+    );
+  }
+  return const DoctorCheck(
+    name,
+    DoctorStatus.problem,
+    'EnableFlutterGPU is not set to true in $_androidManifest: the app '
+    'draws through the software rasteriser',
+    fix:
+        'add `<meta-data android:name="$_androidGpuKey" '
+        'android:value="true" />` inside <application> in $_androidManifest',
+  );
+}
+
+DoctorCheck _bundleCheck(
+  File bundle, {
+  required String? dart,
+  required String? engineRevision,
+}) {
+  final ShaderBundle decoded;
+  try {
+    decoded = ShaderBundle.decode(bundle.readAsBytesSync().buffer.asByteData());
+  } on ShaderBundleException catch (refused) {
+    return DoctorCheck(
+      'Shader bundle',
+      DoctorStatus.problem,
+      '${EngineBundleStamp.projectAsset} is refused: ${refused.reason}',
+      fix: 'build again; the hook writes it afresh',
+    );
+  }
+  final stamp = EngineBundleStamp.decode(
+    decoded.section(EngineBundleStamp.section),
+  );
+  final size = '${(bundle.lengthSync() / (1024 * 1024)).toStringAsFixed(1)} MB';
+  final stale = <String>[
+    if (dart != null && decoded.sdk != dart) 'Dart ${decoded.sdk}, not $dart',
+    if (engineRevision != null &&
+        engineRevision.isNotEmpty &&
+        stamp != null &&
+        stamp.engine.isNotEmpty &&
+        stamp.engine != engineRevision)
+      'engine ${stamp.engine}, not $engineRevision',
+  ];
+  if (stale.isNotEmpty) {
+    return DoctorCheck(
+      'Shader bundle',
+      DoctorStatus.problem,
+      'built on another SDK (${stale.join('; ')}): Impeller refuses it',
+      fix: 'build again; the hook compiles it for the SDK that runs it',
+    );
+  }
+  return DoctorCheck(
+    'Shader bundle',
+    DoctorStatus.ok,
+    '$size, ${stamp?.stages ?? decoded.stages.length} stages'
+        '${stamp == null
+            ? ''
+            : stamp.full
+            ? ' (every one)'
+            : stamp.needs.isEmpty
+            ? ''
+            : ' for ${stamp.needs.join(', ')}'}',
+  );
+}
+
+List<File> _materialSources(PluginPackage package) {
+  final root = Directory('${package.root}/assets_src');
+  if (!root.existsSync()) return const <File>[];
+  return <File>[
+    for (final file in root.listSync(recursive: true).whereType<File>())
+      if (file.path.endsWith('.f3dmat')) file,
+  ];
+}
+
+/// Whether [source]'s material has a bundle in [project], by the name its
+/// first `material` line gives it.
+bool _compiledFor(Directory project, File source) {
+  final name = RegExp(
+    r'^\s*material\s+([A-Za-z_][A-Za-z0-9_.]*)',
+    multiLine: true,
+  ).firstMatch(source.readAsStringSync())?.group(1);
+  return name != null &&
+      File(
+        '${project.path}/${EngineBundleStamp.projectMaterialAsset(name)}',
+      ).existsSync();
+}
+
+Object? _tryJson(String text) {
+  try {
+    return jsonDecode(text);
+  } on FormatException {
+    return null;
+  }
+}
+
+String? _impellerc(String flutterRoot) {
+  final engine = '$flutterRoot/bin/cache/artifacts/engine';
+  for (final platform in const <String>[
+    'darwin-x64',
+    'darwin-arm64',
+    'linux-x64',
+    'linux-arm64',
+    'windows-x64',
+    'windows-arm64',
+  ]) {
+    for (final name in const <String>['impellerc', 'impellerc.exe']) {
+      final path = '$engine/$platform/$name';
+      if (File(path).existsSync()) return path;
+    }
+  }
+  return null;
+}
+
+DoctorCheck _versionCheck(
+  String name,
+  String version,
+  String floor,
+  String tested, {
+  required bool required,
+  String extra = '',
+}) {
+  if (compareVersions(version, floor) < 0) {
+    return DoctorCheck(
+      name,
+      required ? DoctorStatus.problem : DoctorStatus.missing,
+      '$version$extra is older than the floor, $floor',
+      fix: 'upgrade to $tested, the version CI runs',
+    );
+  }
+  final major = version.split('.').first;
+  if (major != tested.split('.').first) {
+    return DoctorCheck(
+      name,
+      DoctorStatus.note,
+      '$version$extra: a major CI has not run ($tested)',
+    );
+  }
+  return DoctorCheck(
+    name,
+    DoctorStatus.ok,
+    '$version$extra (floor $floor, CI $tested)',
+  );
+}
+
+/// `flutter3d doctor`'s `main`. Returns 1 when a required check failed.
+int runDoctor(List<String> arguments, {IOSink? out}) {
+  final sink = out ?? stdout;
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    sink.writeln(doctorUsage);
+    return CliExit.ok;
+  }
+  // `doctor` takes nothing but `--json`: a path or a typo is refused, not
+  // read as a request for the plain report.
+  final unknown =
+      cliOptions['doctor']!.unknownIn(arguments) ??
+      arguments.where((String a) => !a.startsWith('-')).firstOrNull;
+  if (unknown != null) {
+    stderr.writeln(
+      '${unknown.startsWith('-') ? unknownOption(unknown) : 'doctor takes no argument "$unknown".'}'
+      '\n\n$doctorUsage',
+    );
+    return CliExit.usage;
+  }
+  final checks = runDoctorChecks(project: Directory.current);
+  if (arguments.contains('--json')) {
+    sink.writeln(
+      const JsonEncoder.withIndent('  ').convert(
+        cliJson('doctor', <String, Object?>{
+          'checks': <Object?>[for (final c in checks) c.toJson()],
+        }),
+      ),
+    );
+  } else {
+    for (final check in checks) {
+      sink.writeln(
+        '${check.status.mark} ${check.name.padRight(18)} ${check.detail}',
+      );
+      if (check.fix case final String fix
+          when check.status != DoctorStatus.ok) {
+        sink.writeln('     ${''.padRight(18)} $fix');
+      }
+    }
+  }
+  return checks.any((DoctorCheck c) => c.status == DoctorStatus.problem)
+      ? 1
+      : 0;
+}

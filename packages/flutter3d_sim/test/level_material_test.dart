@@ -12,6 +12,10 @@
 /// property every level already on disk depends on for its own keys.
 library;
 
+import 'dart:typed_data';
+
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, MaterialParameters;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -19,13 +23,13 @@ void main() {
   test('a material naming a .fmat keeps the name through a save', () {
     final read = LevelMaterial.fromJson(<String, Object?>{
       'fmat': 'assets/materials/steel.fmat',
-      'texelsPerMetre': 2.0,
+      'texelsPerMeter': 2.0,
     });
 
     expect(read.fmat, 'assets/materials/steel.fmat');
     expect(read.toJson()['fmat'], 'assets/materials/steel.fmat');
     expect(
-      read.texelsPerMetre,
+      read.texelsPerMeter,
       2.0,
       reason: 'tiling is geometry and belongs to the level either way',
     );
@@ -79,5 +83,84 @@ void main() {
       isFalse,
       reason: 'a material with nothing to say must go on saying nothing',
     );
+  });
+
+  test('a material instance keeps its values and the version they were '
+      'written for', () {
+    // The loader lifts the values through the material's updates; the level
+    // keeps the version as the document said it, so a level written for an
+    // older material is not read as if it were current.
+    //
+    // Mutation: drop `materialVersion` from `toJson`, and the save forgets
+    // which version the values belong to.
+    final document = <String, Object?>{
+      'fmat': 'assets/materials/hatch.fmat',
+      'parameters': <String, Object?>{
+        'ink': <num>[0.1, 0.2, 0.3],
+        'roughness': 0.5,
+      },
+      'materialVersion': 2,
+    };
+    final read = LevelMaterial.fromJson(document);
+    expect(read.parameters.uniforms, <String, List<double>>{
+      'ink': Float32List.fromList(<double>[0.1, 0.2, 0.3]),
+      'roughness': <double>[0.5],
+    });
+    expect(read.materialVersion, 2);
+    expect(read.toJson(), document);
+
+    final built = LevelMaterial(
+      parameters: MaterialParameters.of(const <String, List<double>>{
+        'inkColor': <double>[1, 0, 0],
+      }),
+      materialVersion: 3,
+    ).toJson();
+    expect(built['parameters'], <String, Object?>{
+      'inkColor': <double>[1, 0, 0],
+    });
+    expect(built['materialVersion'], 3);
+
+    final plain = LevelMaterial.fromJson(const <String, Object?>{});
+    expect(plain.parameters, isEmpty);
+    expect(plain.materialVersion, isNull);
+    expect(plain.toJson().containsKey('parameters'), isFalse);
+    expect(plain.toJson().containsKey('materialVersion'), isFalse);
+  });
+
+  test('a material instance that is not one is refused, saying why', () {
+    expect(
+      () => LevelMaterial.fromJson(const <String, Object?>{
+        'parameters': <String, Object?>{'ink': 'red'},
+      }),
+      throwsA(isA<LevelFormatException>()),
+    );
+    expect(
+      () =>
+          LevelMaterial.fromJson(const <String, Object?>{'materialVersion': 0}),
+      throwsA(isA<LevelFormatException>()),
+    );
+  });
+
+  test('a glow has a colour of its own, written only when it is set', () {
+    // The document's `emissive` stays the strength it always was, so a level
+    // reads and writes the number it did; the colour is a key of its own.
+    const document = <String, Object?>{'emissive': 0.5};
+    final plain = LevelMaterial.fromJson(document);
+    expect(plain.emissiveStrength, 0.5);
+    expect(plain.emissive, isNull);
+    expect(plain.toJson(), document);
+
+    final colored = LevelMaterial(
+      emissive: const LinearColor(0.0, 0.5, 1.0),
+      emissiveStrength: 2,
+    );
+    final written = colored.toJson();
+    // Mutation: write the colour under `emissive` and every older reader
+    // takes a list where it reads a strength.
+    expect(written['emissive'], 2);
+    expect(written['emissiveColor'], <double>[0.0, 0.5, 1.0]);
+    final read = LevelMaterial.fromJson(written);
+    expect(read.emissive, const LinearColor(0.0, 0.5, 1.0));
+    expect(read.emissiveStrength, 2);
   });
 }

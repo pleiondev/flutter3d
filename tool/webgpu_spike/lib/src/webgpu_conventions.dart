@@ -17,6 +17,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The texture format WebGPU calls [format], or null where it has none.
@@ -60,6 +62,29 @@ String? gpuTextureFormat(TextureFormat format) => switch (format) {
   TextureFormat.astc8x8LDRSRGB => 'astc-8x8-unorm-srgb',
   TextureFormat.astc4x4HDR => null,
   TextureFormat.astc8x8HDR => null,
+  // The 1.0 tail, every one of which WebGPU spells. Named here so the table
+  // stays the whole answer; the spike allocates none of them — its
+  // `textureFormatSupport` answers none for each.
+  TextureFormat.r8g8b8a8SNormInt => 'rgba8snorm',
+  TextureFormat.r8g8b8a8UInt => 'rgba8uint',
+  TextureFormat.r8g8b8a8SInt => 'rgba8sint',
+  TextureFormat.r16Float => 'r16float',
+  TextureFormat.r16g16Float => 'rg16float',
+  TextureFormat.r16g16b16a16UInt => 'rgba16uint',
+  TextureFormat.r16g16b16a16SInt => 'rgba16sint',
+  TextureFormat.r32UInt => 'r32uint',
+  TextureFormat.r32SInt => 'r32sint',
+  TextureFormat.r32g32Float => 'rg32float',
+  TextureFormat.r32g32UInt => 'rg32uint',
+  TextureFormat.r32g32SInt => 'rg32sint',
+  TextureFormat.r32g32b32a32UInt => 'rgba32uint',
+  TextureFormat.r32g32b32a32SInt => 'rgba32sint',
+  TextureFormat.r10g10b10a2UNormInt => 'rgb10a2unorm',
+  TextureFormat.r11g11b10UFloat => 'rg11b10ufloat',
+  TextureFormat.r9g9b9e5UFloat => 'rgb9e5ufloat',
+  TextureFormat.d16UNormInt => 'depth16unorm',
+  TextureFormat.d32Float => 'depth32float',
+  _ => null,
 };
 
 /// The blend factor WebGPU calls [factor], or null where it has none.
@@ -97,14 +122,29 @@ String? gpuBlendFactor(BlendFactor factor) => switch (factor) {
   BlendFactor.oneMinusBlendColor => 'one-minus-constant',
   BlendFactor.blendAlpha => null,
   BlendFactor.oneMinusBlendAlpha => null,
+  // WebGPU's `dual-source-blending` spellings. The spike reports no such
+  // feature and its `setBlend` refuses them first; the names are here so the
+  // table is the whole answer.
+  BlendFactor.source1Color => 'src1',
+  BlendFactor.oneMinusSource1Color => 'one-minus-src1',
+  BlendFactor.source1Alpha => 'src1-alpha',
+  BlendFactor.oneMinusSource1Alpha => 'one-minus-src1-alpha',
+  _ => null,
 };
 
+/// Every operation has a spelling; [BlendOperation.min] and
+/// [BlendOperation.max] are core in WebGPU, and refused by the spike's
+/// `setBlend` only because the spike lists no `minMaxBlend`.
 String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   BlendOperation.add => 'add',
   BlendOperation.subtract => 'subtract',
   BlendOperation.reverseSubtract => 'reverse-subtract',
+  BlendOperation.min => 'min',
+  BlendOperation.max => 'max',
+  _ => throw UnsupportedError('WebGPU has no blend operation for $operation'),
 };
 
+/// WebGPU's `GPUCompareFunction` spelling of [compare].
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
   CompareFunction.never => 'never',
   CompareFunction.always => 'always',
@@ -127,20 +167,26 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   StencilOperation.invert => 'invert',
   StencilOperation.incrementWrap => 'increment-wrap',
   StencilOperation.decrementWrap => 'decrement-wrap',
+  _ => throw UnsupportedError('WebGPU has no stencil operation for $operation'),
 };
 
+/// WebGPU's `GPUPrimitiveTopology` for [type]; throws [UnsupportedError] for
+/// a value it has no spelling of.
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.triangle => 'triangle-list',
   PrimitiveType.triangleStrip => 'triangle-strip',
   PrimitiveType.line => 'line-list',
   PrimitiveType.lineStrip => 'line-strip',
   PrimitiveType.point => 'point-list',
+  _ => throw UnsupportedError('WebGPU has no primitive topology for $type'),
 };
 
+/// WebGPU's `GPUCullMode` for [mode].
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
   CullMode.backFace => 'back',
+  _ => throw UnsupportedError('WebGPU has no cull mode for $mode'),
 };
 
 /// **Straight through — and it was written crossed first, on an argument that
@@ -186,6 +232,7 @@ String gpuLoadOp(LoadAction action) => switch (action) {
   LoadAction.dontCare => 'clear',
   LoadAction.load => 'load',
   LoadAction.clear => 'clear',
+  _ => throw UnsupportedError('WebGPU has no load op for $action'),
 };
 
 /// The store operation, which in WebGPU says nothing about resolving: a resolve
@@ -200,6 +247,7 @@ String gpuStoreOp(StoreAction action) => switch (action) {
   StoreAction.store => 'store',
   StoreAction.multisampleResolve => 'discard',
   StoreAction.storeAndMultisampleResolve => 'store',
+  _ => throw UnsupportedError('WebGPU has no store op for $action'),
 };
 
 /// Whether [action] asks for a resolve, which WebGPU takes as an attachment
@@ -208,27 +256,46 @@ bool gpuResolves(StoreAction action) =>
     action == StoreAction.multisampleResolve ||
     action == StoreAction.storeAndMultisampleResolve;
 
+/// WebGPU's `GPUAddressMode` for [mode]; throws [UnsupportedError] for one
+/// it has no spelling of.
 String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.mirror => 'mirror-repeat',
+  // WebGPU has no border: refused by the feature that names it.
+  SamplerAddressMode.clampToBorder =>
+    throw const UnsupportedCapabilityException(
+      DeviceFeature.samplerBorderColor,
+      backend: 'WebGPU',
+      reason: 'WebGPU has no "clamp-to-border" address mode',
+    ),
+  _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
 };
 
+/// WebGPU's `GPUFilterMode` for [filter].
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
+  _ => throw UnsupportedError('WebGPU has no filter mode for $filter'),
 };
 
+/// WebGPU's `GPUMipmapFilterMode` for [filter]; throws [UnsupportedError]
+/// for a value it has no spelling of.
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
+  _ => throw UnsupportedError('WebGPU has no mipmap filter mode for $filter'),
 };
 
+/// WebGPU's `GPUIndexFormat` for [type]: `uint16` or `uint32`.
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
+  _ => throw UnsupportedError('WebGPU has no index format for $type'),
 };
 
+/// WebGPU's `GPUVertexFormat` for [format]; throws [UnsupportedError] for
+/// one it has no spelling of.
 String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.float32 => 'float32',
   VertexFormat.float32x2 => 'float32x2',
@@ -242,11 +309,14 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.sint32x2 => 'sint32x2',
   VertexFormat.sint32x3 => 'sint32x3',
   VertexFormat.sint32x4 => 'sint32x4',
+  _ => throw UnsupportedError('WebGPU has no vertex format for $format'),
 };
 
+/// WebGPU's `GPUVertexStepMode` for [mode]: per vertex or per instance.
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
+  _ => throw UnsupportedError('WebGPU has no vertex step mode for $mode'),
 };
 
 /// The row stride `copyTextureToBuffer` demands for a [width]-pixel region of
@@ -311,6 +381,7 @@ Uint8List gpuWritableBytes(ByteData bytes) {
 /// scene with opaque and transparent materials and a mirrored prop is already
 /// four keys before anything else moves.
 final class WebGpuPipelineKey {
+  /// The key for one pipeline the draw needs.
   const WebGpuPipelineKey({
     required this.pipeline,
     required this.topology,
@@ -327,10 +398,19 @@ final class WebGpuPipelineKey {
   /// The stage pair, by the name `PipelineHandle` carries.
   final String pipeline;
 
+  /// The `GPUPrimitiveTopology`, as [gpuPrimitiveTopology] spells it.
   final String topology;
+
+  /// The `GPUCullMode`, as [gpuCullMode] spells it.
   final String cullMode;
+
+  /// The `GPUFrontFace`, `ccw` or `cw`, as `gpuFrontFace` spells it.
   final String frontFace;
+
+  /// The depth test's `GPUCompareFunction`, as [gpuCompareFunction] spells it.
   final String depthCompare;
+
+  /// Whether a fragment that passes the depth test writes its depth.
   final bool depthWrite;
 
   /// The blend equation of attachment zero, or null for blending off. One
@@ -344,7 +424,10 @@ final class WebGpuPipelineKey {
   /// into the HDR target and into the eight-bit one is two pipelines.
   final List<String> colorFormats;
 
+  /// The depth attachment's format, or null for a pass without one.
   final String? depthFormat;
+
+  /// Samples per pixel, as the pass's first colour attachment has them.
   final int sampleCount;
 
   @override

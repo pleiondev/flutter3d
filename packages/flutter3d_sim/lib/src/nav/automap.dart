@@ -47,11 +47,15 @@ import 'nav_grid.dart';
 /// everything in a step: the flood's order is the grid's order, so a replay
 /// reveals what the run revealed.
 final class Automap {
+  /// An empty map of [grid], revealing [revealRadius] metres (six by
+  /// default) around the player. Asserts the radius is above nought.
   Automap(this.grid, {this.revealRadius = 6.0})
     : assert(revealRadius > 0.0),
       _floor = Uint8List((grid.cellCount + 7) >> 3),
       _wall = Uint8List((grid.cellCount + 7) >> 3);
 
+  /// The level's walk grid, whose cells the map marks and whose step rules
+  /// decide what is a wall.
   final NavGrid grid;
 
   /// How far the flood reaches from the player, in metres along the walk.
@@ -88,7 +92,7 @@ final class Automap {
       Iterable<int>.generate(grid.cellCount).where(isRevealed).length;
 
   /// Whether a map pickup has shown the whole level.
-  bool get everythingRevealed => _all;
+  bool get isEverythingRevealed => _all;
 
   /// Reveals what a player standing at [at] can have seen.
   ///
@@ -164,6 +168,8 @@ final class Automap {
     }
   }
 
+  /// What was seen, as runs of floor and wall cells and whether a pickup
+  /// showed everything.
   Map<String, Object?> save() => <String, Object?>{
     'floor': _runs(_floor, grid.cellCount),
     'wall': _runs(_wall, grid.cellCount),

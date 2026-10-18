@@ -20,12 +20,16 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show CapabilityException, LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_sync.dart';
 import 'panorama_sync.dart';
 import 'project.dart';
 import 'scene_from_project.dart';
+import 'selection_tint.dart';
 
 /// The six axis views plus a three-quarter angle.
 ///
@@ -47,45 +51,73 @@ import 'scene_from_project.dart';
 final class RenderProjectView {
   const RenderProjectView._(this.name, this.yaw, this.pitch);
 
+  /// What the view is called in a request and in a tool's arguments.
   final String name;
 
   /// Camera placement, in the same `yaw`/`pitch` vocabulary
   /// `OrbitController.apply` turns into a position — see [_frame].
+  /// In radians.
   final double yaw;
+
+  /// In radians.
   final double pitch;
 
+  /// Square on to the model's front.
   static const RenderProjectView front = RenderProjectView._('front', 0.0, 0.0);
+
+  /// Square on to the model's back, turned half a circle from [front].
   static const RenderProjectView back = RenderProjectView._(
     'back',
     math.pi,
     0.0,
   );
+
+  /// From the model's right, turned a quarter circle from [front].
   static const RenderProjectView right = RenderProjectView._(
     'right',
     math.pi / 2,
     0.0,
   );
+
+  /// From the model's left, turned a quarter circle the other way.
   static const RenderProjectView left = RenderProjectView._(
     'left',
     -math.pi / 2,
     0.0,
   );
+
+  /// From above, just short of straight down so the up vector stays defined.
   static const RenderProjectView top = RenderProjectView._(
     'top',
     0.0,
     _maxPitch,
   );
+
+  /// From below, just short of straight up.
   static const RenderProjectView bottom = RenderProjectView._(
     'bottom',
     0.0,
     -_maxPitch,
   );
+
+  /// Three-quarter view from above: an eighth of a circle round and thirty
+  /// degrees up, so no face is square-on. The default.
   static const RenderProjectView iso = RenderProjectView._(
     'iso',
     math.pi / 4,
     math.pi / 6,
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RenderProjectView? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every view, in the order a tool lists them.
   static const List<RenderProjectView> values = <RenderProjectView>[
     front,
     back,
@@ -119,9 +151,13 @@ const double _maxPitch = math.pi / 2 - 0.01;
 final class RenderShading {
   const RenderShading._(this.name);
 
+  /// What the shading is called in a request and in a tool's arguments.
   final String name;
 
+  /// The project's own materials, lit. The default.
   static const RenderShading material = RenderShading._('material');
+
+  /// Each surface coloured by its normal, unlit, to show which way faces point.
   static const RenderShading normals = RenderShading._('normals');
 
   /// The weight-paint gradient — `tut-11`'s own row. Every object with an
@@ -156,6 +192,16 @@ final class RenderShading {
   /// a bug, it is a mesh with no topology behind it.
   static const RenderShading wireframe = RenderShading._('wireframe');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RenderShading? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every shading, in declaration order.
   static const List<RenderShading> values = <RenderShading>[
     material,
     normals,
@@ -169,6 +215,9 @@ final class RenderShading {
 
 /// What [renderProject] draws, and how.
 final class RenderRequest {
+  /// A request to draw [project] from [view] at [width] by [height] pixels with
+  /// [shading]: iso, 512 by 512 and the materials unless given, with nothing
+  /// tinted and no weights joint.
   RenderRequest({
     required this.project,
     this.view = RenderProjectView.iso,
@@ -179,10 +228,21 @@ final class RenderRequest {
     this.weightsJoint,
   });
 
+  /// The project drawn, as it was when the request was built.
   final ModelProject project;
+
+  /// Where the camera sits, [RenderProjectView.iso] by default.
   final RenderProjectView view;
+
+  /// Width of the picture in pixels, 512 by default. [renderProject] refuses
+  /// anything outside 1 to 1024.
   final int width;
+
+  /// Height of the picture in pixels, 512 by default. [renderProject] refuses
+  /// anything outside 1 to 1024.
   final int height;
+
+  /// How surfaces are drawn, [RenderShading.material] by default.
   final RenderShading shading;
 
   /// Object ids drawn tinted towards orange — an agent's own "this is the
@@ -204,13 +264,15 @@ final class RenderRequest {
 /// Named rather than left as a bare [ArgumentError]: the acceptance text asks
 /// for "a refusal that names the limit," which a caller reads out of
 /// [message] without parsing an arbitrary error string.
-final class RenderRefusal implements Exception {
-  RenderRefusal(this.message);
+final class RenderRefusalException extends CapabilityException {
+  /// A refusal saying [message].
+  RenderRefusalException(this.message);
 
+  @override
   final String message;
 
   @override
-  String toString() => 'RenderRefusal: $message';
+  String toString() => 'RenderRefusalException: $message';
 }
 
 /// Above this, a tile grid is the right answer — `RenderSnapshotJob` — and a
@@ -253,7 +315,7 @@ const int _maxRenderDimension = 1024;
 /// such case's reference pictures need regenerating, not only the ones a
 /// commit happens to check by eye.
 ///
-/// Throws [RenderRefusal] for a size outside 1×1..1024×1024, before
+/// Throws [RenderRefusalException] for a size outside 1×1..1024×1024, before
 /// [deviceFactory] is ever called.
 Future<Uint8List> renderProject(
   RenderRequest request, {
@@ -265,7 +327,7 @@ Future<Uint8List> renderProject(
       height < 1 ||
       width > _maxRenderDimension ||
       height > _maxRenderDimension) {
-    throw RenderRefusal(
+    throw RenderRefusalException(
       'renderProject draws from 1×1 up to '
       '$_maxRenderDimension×$_maxRenderDimension; asked for $width×$height.',
     );
@@ -277,7 +339,7 @@ Future<Uint8List> renderProject(
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(<int>[128, 128, 255, 255])),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackNormal: fallbackNormal,
@@ -286,7 +348,7 @@ Future<Uint8List> renderProject(
   final scene = sceneFromProject(
     request.project,
     device,
-    restyle: (ModelObject object, Material material) =>
+    restyle: (ModelObject object, RenderMaterial material) =>
         _restyle(request, object, material),
     weightsJoint: request.shading == RenderShading.weights
         ? request.weightsJoint
@@ -311,7 +373,7 @@ Future<Uint8List> renderProject(
   // lights.
   final RenderSettings lit = LightingSync()
       .apply(const RenderSettings(), request.project.lighting)
-      .copyWith(debug: const DebugDrawOptions());
+      .copyWith(debug: const DebugDrawSettings());
   // `tut-11`'s own fix: a vertex colour named by hex is not scene-referred
   // light, and only reads back as that hex with tonemapping and exposure
   // out of the way. The wireframe wants the same for the same reason: both
@@ -336,10 +398,10 @@ Future<Uint8List> renderProject(
     width: width,
     height: height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: settings,
   );
-  final pixels = (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(frame.frame)).buffer.asUint8List();
   return encodeCompressedPng(width, height, pixels);
 }
 
@@ -376,7 +438,7 @@ void _frame(
       : math.max(box.min.distanceTo(box.max) / 2, 1e-5);
 
   final fovY = switch (camera.projection) {
-    PerspectiveProjection(:final fovYRadians) => fovYRadians,
+    PerspectiveProjection(:final fovY) => fovY,
     _ => math.pi / 4,
   };
   // A margin over the tight fit, so an object's silhouette does not touch
@@ -387,7 +449,7 @@ void _frame(
   // precision on empty space for a small model and clips it outright once the
   // camera is closer than a tenth of a metre.
   camera.projection = PerspectiveProjection(
-    fovYRadians: fovY,
+    fovY: fovY,
     near: math.max(distance * 0.01, 1e-6),
     far: distance * 10.0 + 10.0,
   );
@@ -405,13 +467,13 @@ void _frame(
 
 /// [material], shaded the way [request] asks and tinted when [object] is in
 /// its selection.
-Material _restyle(
+RenderMaterial _restyle(
   RenderRequest request,
   ModelObject object,
-  Material material,
+  RenderMaterial material,
 ) {
   final shaded = switch (request.shading) {
-    RenderShading.normals => Material(
+    RenderShading.normals => RenderMaterial(
       name: material.name,
       lighting: LightingModel.normals,
       baseColor: material.baseColor,
@@ -424,31 +486,25 @@ Material _restyle(
     // be. `baseColor` is dropped with the lighting — the model's own greys
     // and browns are not information here, and one ground makes every wire
     // read the same against every object.
-    RenderShading.wireframe => Material(
+    RenderShading.wireframe => RenderMaterial(
       name: material.name,
       lighting: LightingModel.unlit,
-      baseColor: Vector4(0.82, 0.83, 0.85, material.baseColor.a),
+      baseColor: LinearColor.fromSrgb(0.82, 0.83, 0.85, material.baseColor.a),
       doubleSided: material.doubleSided,
     ),
     _ => material,
   };
   if (!request.selection.contains(object.id)) return shaded;
   // Blended into `baseColor` itself, not left to `emissive`: the CPU backend
-  // only ever reads `Material.emissive` behind a bound `emissiveTexture`
+  // only ever reads `RenderMaterial.emissive` behind a bound `emissiveTexture`
   // (`applyEmissiveMap` in `flutter3d_cpu/lib/src/cpu_shaders_surface.dart`
   // returns before touching it otherwise), so a highlight with no texture of
   // its own would be set and never drawn. A colour every lighting model
   // already samples has no such gate.
-  final highlight = Vector4(1.0, 0.55, 0.0, shaded.baseColor.a);
-  return Material(
+  return RenderMaterial(
     name: shaded.name,
     lighting: shaded.lighting,
-    baseColor: Vector4(
-      shaded.baseColor.r * 0.4 + highlight.r * 0.6,
-      shaded.baseColor.g * 0.4 + highlight.g * 0.6,
-      shaded.baseColor.b * 0.4 + highlight.b * 0.6,
-      shaded.baseColor.a,
-    ),
+    baseColor: selectionTint(shaded.baseColor),
     metallic: shaded.metallic,
     roughness: shaded.roughness,
     doubleSided: shaded.doubleSided,

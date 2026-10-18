@@ -21,25 +21,27 @@ import 'package:vector_math/vector_math.dart';
 
 /// A building standing on the map.
 final class Building {
-  /// Builds one centred at [centre], [width] by [depth] metres.
+  /// Builds one centred at [center], [width] by [depth] metres.
   Building({
-    required Vector3 centre,
+    required Vector3 center,
     required this.width,
     required this.depth,
     this.name = 'building',
     this.side = 0,
     this.sight = 30.0,
-  }) : centre = centre.clone(),
+  }) : center = center.clone(),
        assert(
          width > 0.0 && depth > 0.0,
          'a building of no size takes no ground',
        );
 
   /// Where it stands. The Y is the ground it was placed on.
-  final Vector3 centre;
+  final Vector3 center;
 
   /// How far it reaches along X and Z, in metres.
   final double width;
+
+  /// The reach along Z, in metres.
   final double depth;
 
   /// What it is, for a game that has more than one kind.
@@ -57,8 +59,8 @@ final class Building {
 
   /// Whether `(x, z)` is under this building.
   bool covers(double x, double z) =>
-      (x - centre.x).abs() <= width / 2.0 &&
-      (z - centre.z).abs() <= depth / 2.0;
+      (x - center.x).abs() <= width / 2.0 &&
+      (z - center.z).abs() <= depth / 2.0;
 
   /// How far `(x, z)` is from the nearest part of the footprint, in metres.
   ///
@@ -70,8 +72,8 @@ final class Building {
   /// there holding its load for ever. Against the edge it is a metre and a half
   /// away and home.
   double distanceTo(double x, double z) {
-    final double dx = (x - centre.x).abs() - width / 2.0;
-    final double dz = (z - centre.z).abs() - depth / 2.0;
+    final double dx = (x - center.x).abs() - width / 2.0;
+    final double dz = (z - center.z).abs() - depth / 2.0;
     final double outX = dx > 0.0 ? dx : 0.0;
     final double outZ = dz > 0.0 ? dz : 0.0;
     return math.sqrt(outX * outX + outZ * outZ);

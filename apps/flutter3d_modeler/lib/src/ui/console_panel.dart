@@ -20,8 +20,11 @@ import 'theme.dart';
 /// "all" is the absence of a filter, and `ConsoleLog.by` already takes null
 /// to mean it.
 class ConsolePanel extends StatefulWidget {
+  /// A panel over [log].
   const ConsolePanel({super.key, required this.log, this.onClose});
 
+  /// The application's log; the panel lists its entries and filters them by
+  /// level.
   final ConsoleLog log;
 
   /// Closes the panel. Null draws no close button, for a caller that shows
@@ -121,7 +124,7 @@ class _Line extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     // The same three levels the status line paints, for the same reason: a
     // refusal has to be the one line somebody notices.
-    final Color colour = switch (entry.kind) {
+    final Color color = switch (entry.kind) {
       ConsoleKind.report => theme.colorScheme.onSurface,
       ConsoleKind.warning => theme.colorScheme.tertiary,
       ConsoleKind.refusal => theme.colorScheme.error,
@@ -156,7 +159,7 @@ class _Line extends StatelessWidget {
             child: Text(
               entry.tool == null ? entry.text : '${entry.tool}: ${entry.text}',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colour,
+                color: color,
                 fontWeight: entry.kind == ConsoleKind.refusal
                     ? FontWeight.w600
                     : FontWeight.w400,

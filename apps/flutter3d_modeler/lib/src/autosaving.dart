@@ -35,6 +35,12 @@ import 'modeler_cubit.dart';
 /// handful of `DateTime` comparisons, and the write itself only happens when
 /// it answers yes.
 final class AutosaveController {
+  /// Starts watching [cubit] at once: the subscription and the poll timer both
+  /// begin here, and run until [dispose].
+  ///
+  /// [pollEvery] is how often `shouldSave` is asked; it should stay shorter
+  /// than the policy's debounce, or a save waits for the poll rather than for
+  /// the policy.
   AutosaveController({
     required this.cubit,
     required this.storage,
@@ -50,22 +56,29 @@ final class AutosaveController {
     _timer = Timer.periodic(pollEvery, (_) => _check());
   }
 
+  /// The editor whose open document is copied, and whose edits restart the
+  /// debounce.
   final ModelerCubit cubit;
+
+  /// Where the recovery copies are written, one slot per [sessionId].
   final BinaryStorage storage;
 
   /// Minted once per ununsaved session — see the library doc comment on why
   /// there is no path to key this on instead.
   final String sessionId;
 
+  /// When a write is due: how long the document must sit unedited, and the
+  /// shortest gap allowed between two writes.
   final AutosavePolicy policy;
 
   /// Where [storage] reports *why* a write failed.
   ///
-  /// [BinaryStorage.write] answers `false` and nothing else — "no such
-  /// directory" and "the disk is full" are different days, and a person told
-  /// only that autosave is not working has nowhere to go. Handing the same
-  /// [IssueLog] to the storage and to this controller is what lets [onIssue]
-  /// carry the sentence the storage actually wrote.
+  /// [BinaryStorage.write] throws a `StorageException` whose message is a
+  /// short "could not write" — "no such directory" and "the disk is full"
+  /// are different days, and a person told only that autosave is not working
+  /// has nowhere to go. Handing the same [IssueLog] to the storage and to
+  /// this controller is what lets [onIssue] carry the sentence the storage
+  /// actually wrote.
   final IssueLog? issues;
 
   /// Told once per failure, not once per failed attempt — see [_check].
@@ -125,7 +138,7 @@ final class AutosaveController {
     try {
       final Uint8List bytes = writeProject(state.history.project);
       final key = recoveryPathFor(null, sessionId: sessionId);
-      final wrote = await storage.write(key, bytes);
+      final bool wrote = await _written(key, bytes);
       _lastSavedAt = clock.now();
       if (!wrote) {
         if (!_lastAttemptFailed) onIssue?.call(_reason());
@@ -136,6 +149,17 @@ final class AutosaveController {
       }
     } finally {
       _writing = false;
+    }
+  }
+
+  /// Whether [storage] took [bytes] under [key]: a refusal is a status line
+  /// and the next autosave, not a crash.
+  Future<bool> _written(String key, Uint8List bytes) async {
+    try {
+      await storage.write(key, bytes);
+      return true;
+    } on StorageException {
+      return false;
     }
   }
 
@@ -150,6 +174,8 @@ final class AutosaveController {
     return last.startsWith(prefix) ? last.substring(prefix.length) : last;
   }
 
+  /// Stops the poll and the subscription. Nothing is written on the way out;
+  /// a save wanted at close is the caller's to make first.
   void dispose() {
     _timer.cancel();
     unawaited(_subscription.cancel());
@@ -182,5 +208,10 @@ Future<bool> emergencyAutosave(
   final ModelerState state = cubit.state;
   if (state is! ModelerReady) return false;
   final Uint8List bytes = writeProject(state.history.project);
-  return storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
+  try {
+    await storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
+    return true;
+  } on StorageException {
+    return false;
+  }
 }

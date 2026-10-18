@@ -32,13 +32,23 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'collector.dart';
 import 'inventory.dart';
 
-final class Player with KeyHolder implements Collector, Damageable, Rider {
+/// The player's pawn: a body, what it carries, and where its eye is and
+/// which way it looks.
+///
+/// The body's collider names this as its owner, so a pickup, a door, a lift
+/// and a blast all reach the player through it.
+final class Player with KeyHolder, Collector, Damageable, Rider {
+  /// A pawn driving [body], carrying [inventory] (an empty one when null).
+  ///
+  /// Puts [body]'s collider on the player layer and points it back here.
   Player({
     required this.body,
     Inventory? inventory,
@@ -49,8 +59,8 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   }) : inventory = inventory ?? Inventory() {
     _standing = body.collider.shape;
     _crouching = CollisionCapsule(
-      radius: body.halfExtents.x,
-      halfHeight: math.max(0.01, crouchHeight - body.halfExtents.x),
+      radius: body.shape.boundsHalfExtents.x,
+      halfHeight: math.max(0.01, crouchHeight - body.shape.boundsHalfExtents.x),
     );
     // The one line that makes this worth having: from here on, "who is this
     // collider" has one answer for every collider in the world.
@@ -82,8 +92,12 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   Collider? get carriedBy => body.groundBody;
 
   @override
-  bool applyDamage(double amount, {Object? from}) => inventory.damage(amount);
+  bool applyDamage(Damage damage) {
+    final amount = damage.amount;
+    return inventory.damage(amount);
+  }
 
+  /// Whether the player has health left.
   bool get isAlive => inventory.health.isAlive;
 
   /// How far the eye sits above the centre of the body.
@@ -93,6 +107,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   final double crouchHeight;
 
   /// How fast it walks while crouched.
+  /// In metres per second.
   final double crouchSpeed;
 
   /// Whether the body is down.
@@ -143,7 +158,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// **Through the length of the wish rather than by swapping the tuning**, and
   /// the controller already says why it works: "the length of the request
   /// scales the target speed, so half a stick deflection means half speed". A
-  /// second `MovementTuning` would be a second set of numbers to keep true, and
+  /// second `MovementSettings` would be a second set of numbers to keep true, and
   /// the floor's own surface already swaps that one.
   ///
   /// There is no crouch-sprint: a player holding both gets the slow one,
@@ -173,8 +188,11 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// product that builds the view basis is zero, and the camera's orientation
   /// stops being defined. Which is why the limit is on the pawn and not left to
   /// each caller to remember.
+  /// In radians.
   static const double pitchLimit = math.pi / 2.0 - 0.01;
 
+  /// The body, the inventory, the view's yaw and pitch, whether crouching,
+  /// and the recoil still in the sight, as a document [restore] reads back.
   Map<String, Object?> save() => <String, Object?>{
     'body': body.save(),
     'inventory': inventory.save(),
@@ -194,6 +212,12 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
     'recoil': recoilPitch,
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing body, inventory, yaw or pitch is left as it is, and a
+  /// missing recoil reads as nought. The crouch is asked for again, so a
+  /// body that no longer fits crouched stays standing; the pitch is clamped
+  /// to [pitchLimit].
   void restore(Map<String, Object?> from) {
     final body = from['body'];
     if (body is Map) this.body.restore(body.cast<String, Object?>());
@@ -245,7 +269,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
     // than leaving the eye floating where the head used to be. The offset is
     // authored against the standing body, which is what `eyeOffset` means.
     out.y += _crouched
-        ? eyeOffset * (body.halfExtents.y / _standingHalfHeight)
+        ? eyeOffset * (body.shape.boundsHalfExtents.y / _standingHalfHeight)
         : eyeOffset;
   }
 

@@ -5,6 +5,7 @@
 /// because they were written twice, as two constants at the top of `main.dart`,
 /// and a game with one track can afford that exactly until it has two.
 final class Circuit {
+  /// A circuit whose two asset files are named after [name].
   const Circuit({required this.name, required this.title});
 
   /// What the generator calls it, and what the files are named after.
@@ -13,8 +14,11 @@ final class Circuit {
   /// What a player is told they are driving.
   final String title;
 
+  /// The asset holding the spline the cars drive, as the generator wrote it.
   String get track => 'assets/tracks/$name.json';
 
+  /// The asset holding the scenery around [track]: the level document the
+  /// generator split off the same circuit.
   String get level => 'assets/tracks/${name}_level.json';
 }
 
@@ -47,6 +51,7 @@ final class Circuit {
 /// argues against above; a bespoke, three-transition class answering only what
 /// a season actually asks is not that.
 abstract final class Season {
+  /// Every circuit of a season, first raced first; the last is the hardest.
   static const List<Circuit> circuits = <Circuit>[
     Circuit(name: 'ring', title: 'The Ring'),
     Circuit(name: 'gorge', title: 'The Gorge'),
@@ -55,6 +60,8 @@ abstract final class Season {
     Circuit(name: 'ridge', title: 'The Ridge'),
   ];
 
+  /// Where every launch starts the season: which circuit was reached is not
+  /// kept between launches.
   static Circuit get first => circuits.first;
 
   /// What is raced after [circuit], or null when the season is over.

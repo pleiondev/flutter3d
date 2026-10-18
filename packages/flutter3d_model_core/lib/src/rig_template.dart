@@ -1,6 +1,6 @@
 /// A skeleton built from a template and a handful of marker positions,
 /// rather than one joint at a time through [AddJoint] — `anim-21`'s own
-/// row, extended by `anim-33d` (`RigBuildOptions`) to compose fingers,
+/// row, extended by `anim-33d` (`RigBuildSettings`) to compose fingers,
 /// toes, an extra spine, a face, IK and a rig controller onto the same
 /// template rather than shipping a deeper fixed table for each.
 ///
@@ -18,7 +18,7 @@
 /// markers alone ([_BoneSpec.derive]), from [markers]/its own already-built
 /// neighbours; every right-side joint's own position is the mirror of its
 /// left counterpart's own already-*computed* position, reflected across
-/// [RigBuildOptions.mirrorAxis], and every centerline joint is snapped
+/// [RigBuildSettings.mirrorAxis], and every centerline joint is snapped
 /// exactly onto that same plane. A caller cannot hand this function an
 /// asymmetric rig by accident, and `anim-33d`'s own derived bones (finger
 /// phalanges, extra spine segments, jaw and eyes) do not weaken that: the
@@ -61,10 +61,24 @@ import 'project_animation.dart';
 final class RigTemplate {
   const RigTemplate._(this.name);
 
+  /// What the template is called in a command's arguments.
   final String name;
 
+  /// A standing biped: spine through wrists and ankles, with fingers, toes and
+  /// a face added only when [RigBuildSettings] asks for them.
   static const RigTemplate humanoid = RigTemplate._('humanoid');
+
+  /// A four-legged animal: spine, tail and four legs.
   static const RigTemplate quadruped = RigTemplate._('quadruped');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RigTemplate? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The templates [buildSkeleton] knows today.
   static const List<RigTemplate> values = <RigTemplate>[humanoid, quadruped];
@@ -81,12 +95,28 @@ final class RigTemplate {
 final class RigMirrorAxis {
   const RigMirrorAxis._(this.name);
 
+  /// What the axis is called in a command's arguments.
   final String name;
 
+  /// Mirrors left and right across the plane `x = 0`, the default.
   static const RigMirrorAxis x = RigMirrorAxis._('x');
+
+  /// Mirrors left and right across the plane `y = 0`.
   static const RigMirrorAxis y = RigMirrorAxis._('y');
+
+  /// Mirrors left and right across the plane `z = 0`.
   static const RigMirrorAxis z = RigMirrorAxis._('z');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RigMirrorAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every axis, in declaration order.
   static const List<RigMirrorAxis> values = <RigMirrorAxis>[x, y, z];
 
   @override
@@ -96,8 +126,10 @@ final class RigMirrorAxis {
 /// Knobs [buildSkeleton] reads beyond the template and the markers
 /// themselves — `anim-33d`'s own row, screen 16's rig-composition switches
 /// given a backend.
-class RigBuildOptions {
-  const RigBuildOptions({
+final class RigBuildSettings {
+  /// Settings building a plain rig mirrored across X: one spine segment and no
+  /// fingers, toes, face bones, IK chains or controller unless asked for.
+  const RigBuildSettings({
     this.mirrorAxis = RigMirrorAxis.x,
     this.spineCount = 1,
     this.fingers = false,
@@ -107,6 +139,27 @@ class RigBuildOptions {
     this.controllers = false,
   });
 
+  /// A copy with the given fields replaced.
+  RigBuildSettings copyWith({
+    RigMirrorAxis? mirrorAxis,
+    int? spineCount,
+    bool? fingers,
+    bool? toes,
+    bool? faceBones,
+    bool? ikChains,
+    bool? controllers,
+  }) => RigBuildSettings(
+    mirrorAxis: mirrorAxis ?? this.mirrorAxis,
+    spineCount: spineCount ?? this.spineCount,
+    fingers: fingers ?? this.fingers,
+    toes: toes ?? this.toes,
+    faceBones: faceBones ?? this.faceBones,
+    ikChains: ikChains ?? this.ikChains,
+    controllers: controllers ?? this.controllers,
+  );
+
+  /// The axis whose zero plane separates left from right, [RigMirrorAxis.x] by
+  /// default.
   final RigMirrorAxis mirrorAxis;
 
   /// How many segments the spine chain between `hips`/`pelvis` and `chest`
@@ -149,6 +202,29 @@ class RigBuildOptions {
   /// toward [previewRig]'s own `deformingCount` or the skinning shader's
   /// budget. See [BuiltRig] for where the extra object ends up.
   final bool controllers;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RigBuildSettings &&
+          other.mirrorAxis == mirrorAxis &&
+          other.spineCount == spineCount &&
+          other.fingers == fingers &&
+          other.toes == toes &&
+          other.faceBones == faceBones &&
+          other.ikChains == ikChains &&
+          other.controllers == controllers;
+
+  @override
+  int get hashCode => Object.hash(
+    mirrorAxis,
+    spineCount,
+    fingers,
+    toes,
+    faceBones,
+    ikChains,
+    controllers,
+  );
 }
 
 /// What [buildSkeleton] hands back: the joints as freshly-made socket
@@ -163,29 +239,70 @@ class RigBuildOptions {
 /// project holds [skeleton]'s own claims about them.
 ///
 /// **[objects] can hold one more object than [skeleton.jointCount]
-/// accounts for**: [RigBuildOptions.controllers]' own socket parent, when
+/// accounts for**: [RigBuildSettings.controllers]' own socket parent, when
 /// asked for. It is a perfectly ordinary [ModelObject] — the first one in
 /// [objects], so every joint's own [ModelObject.parent] that names it is
 /// still naming an earlier list entry — it is simply never one of
 /// [skeleton]'s own [ProjectSkeleton.joints].
-class BuiltRig {
+final class BuiltRig {
+  /// A rig of [objects] making up [skeleton].
   const BuiltRig({required this.objects, required this.skeleton});
 
+  /// Every object built: the controller first when one was asked for, then the
+  /// joints, each parent ahead of its children.
   final List<ModelObject> objects;
+
+  /// The skeleton the joints form, ready to append to [ModelProject.skeletons].
   final ProjectSkeleton skeleton;
 }
 
 /// [buildSkeleton]'s own preview — [previewRig] — of what a [template] and
-/// [RigBuildOptions] combination would build, without building it: how many
+/// [RigBuildSettings] combination would build, without building it: how many
 /// joints, how many of them actually deform a mesh, how many rig
 /// controllers, how many IK chains. `anim-33d`'s own row, for the
 /// composition-card UI screen 16 draws ("N bones · M deforming").
-typedef RigPreview = ({
-  int jointCount,
-  int deformingCount,
-  int controllerCount,
-  int ikChainCount,
-});
+///
+/// A class rather than a record, so a preview can later count more without
+/// breaking a reader.
+final class RigPreview {
+  /// A preview of [jointCount] joints, [deformingCount] of them deforming,
+  /// with [controllerCount] controllers and [ikChainCount] IK chains.
+  const RigPreview({
+    required this.jointCount,
+    required this.deformingCount,
+    required this.controllerCount,
+    required this.ikChainCount,
+  });
+
+  /// How many joints.
+  final int jointCount;
+
+  /// How many of them deform a mesh.
+  final int deformingCount;
+
+  /// How many rig controllers.
+  final int controllerCount;
+
+  /// How many IK chains.
+  final int ikChainCount;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RigPreview &&
+      other.jointCount == jointCount &&
+      other.deformingCount == deformingCount &&
+      other.controllerCount == controllerCount &&
+      other.ikChainCount == ikChainCount;
+
+  @override
+  int get hashCode =>
+      Object.hash(jointCount, deformingCount, controllerCount, ikChainCount);
+
+  @override
+  String toString() =>
+      'RigPreview(joints: $jointCount, deforming: $deformingCount, '
+      'controllers: $controllerCount, ik chains: $ikChainCount)';
+}
 
 /// One row of a rig's own bone table: a joint's name, its parent's name (or
 /// none, for the root), and where its rest position comes from.
@@ -243,7 +360,7 @@ class _BoneSpec {
   final bool centerline;
 
   /// False for a joint that exists to be aimed or posed but never skins a
-  /// mesh — today, only a [RigBuildOptions.faceBones] eye. Everything else
+  /// mesh — today, only a [RigBuildSettings.faceBones] eye. Everything else
   /// this file builds deforms. [buildSkeleton]'s own `deformingCount > 64`
   /// refusal counts only these; [previewRig]'s own `jointCount` counts
   /// every joint regardless.
@@ -373,7 +490,7 @@ List<_BoneSpec> _leftToeBones() => <_BoneSpec>[
 /// The face: a centerline `jaw` between `neck` and `head`, and a mirrored
 /// `leftEye`/`rightEye` offset sideways from `head` by a fraction of the
 /// shoulder line (`leftShoulder − chest`, the same empirical "which way is
-/// sideways" this file otherwise only knows through [RigBuildOptions
+/// sideways" this file otherwise only knows through [RigBuildSettings
 /// .mirrorAxis]) — both `derive`d from markers alone. The eyes are not
 /// [_BoneSpec.deforming]: they aim, they do not skin.
 List<_BoneSpec> _faceBones() => <_BoneSpec>[
@@ -396,13 +513,13 @@ List<_BoneSpec> _faceBones() => <_BoneSpec>[
   ]),
 ];
 
-/// **Humanoid, 17 joints at [RigBuildOptions]' own defaults**: hips/spine
-/// (×[RigBuildOptions.spineCount])/chest/neck/head on the centerline,
+/// **Humanoid, 17 joints at [RigBuildSettings]' own defaults**: hips/spine
+/// (×[RigBuildSettings.spineCount])/chest/neck/head on the centerline,
 /// shoulder/elbow/wrist mirrored, hip/knee/ankle mirrored — plus, per
 /// option, five-fingered hands (+30), extra spine segments (+`spineCount
 /// − 1`), toes (+2) and a face (+3). See this file's own class comment for
 /// the acceptance table `anim-33d` builds these against.
-List<_BoneSpec> _humanoidBones(RigBuildOptions options) {
+List<_BoneSpec> _humanoidBones(RigBuildSettings options) {
   final spineChain = _spineChain(math.max(1, options.spineCount));
 
   final arm = <_BoneSpec>[
@@ -440,7 +557,7 @@ List<_BoneSpec> _humanoidBones(RigBuildOptions options) {
 /// mirrored (4). One spine segment and no separate elbow/knee joint on
 /// either pair of legs — the same "base case, not the deepest rig
 /// possible" choice the humanoid table makes. `anim-33d`'s own new
-/// [RigBuildOptions] fields (fingers, toes, an extra spine, a face, IK) are
+/// [RigBuildSettings] fields (fingers, toes, an extra spine, a face, IK) are
 /// humanoid-only — this table's own bone names have no elbow/knee/wrist to
 /// hang any of them from — so this generator takes no options at all;
 /// [buildSkeleton]'s own `mirrorAxis` and `controllers` still apply, since
@@ -463,7 +580,7 @@ List<_BoneSpec> _quadrupedBones() => const <_BoneSpec>[
   _BoneSpec('rightBackPaw', 'rightBackHip', mirrorOf: 'leftBackPaw'),
 ];
 
-List<_BoneSpec> _tableFor(RigTemplate template, RigBuildOptions options) {
+List<_BoneSpec> _tableFor(RigTemplate template, RigBuildSettings options) {
   if (template == RigTemplate.humanoid) return _humanoidBones(options);
   if (template == RigTemplate.quadruped) return _quadrupedBones();
   throw ArgumentError('unknown rig template: ${template.name}');
@@ -474,7 +591,7 @@ List<_BoneSpec> _tableFor(RigTemplate template, RigBuildOptions options) {
 /// caller (or a test) can ask what a template needs without hand-copying
 /// the table.
 ///
-/// **Independent of [RigBuildOptions] on purpose** — `anim-33d`'s own
+/// **Independent of [RigBuildSettings] on purpose** — `anim-33d`'s own
 /// row states it plainly: "this option set only adds derived bones, it
 /// never asks for new input markers." Every [_BoneSpec.derive] in this
 /// file reads only markers already in this list, so the set is the same
@@ -483,7 +600,7 @@ List<_BoneSpec> _tableFor(RigTemplate template, RigBuildOptions options) {
 /// needs, so the promise is true by construction and not just by
 /// convention.
 List<String> requiredMarkers(RigTemplate template) => <String>[
-  for (final bone in _tableFor(template, const RigBuildOptions()))
+  for (final bone in _tableFor(template, const RigBuildSettings()))
     if (bone.markerKey != null) bone.markerKey!,
 ];
 
@@ -514,7 +631,7 @@ Vector3 _onPlane(Vector3 v, RigMirrorAxis axis) {
 Vector3 _forwardFor(RigMirrorAxis axis) =>
     axis == RigMirrorAxis.z ? Vector3(1, 0, 0) : Vector3(0, 0, 1);
 
-/// The four two-bone [IkConstraint]s [RigBuildOptions.ikChains] asks for on
+/// The four two-bone [IkConstraint]s [RigBuildSettings.ikChains] asks for on
 /// a humanoid — both arms, both legs — targets set to each chain's own
 /// effector's own *rest* position (so solving one right after
 /// [buildSkeleton] moves nothing) and poles planted [_forwardFor] of the
@@ -549,7 +666,7 @@ List<IkConstraint> _humanoidIkConstraints(
 /// How many [IkConstraint]s [buildSkeleton] would add for [template] under
 /// [options] — shared between [previewRig] and [buildSkeleton] itself so
 /// the two can never disagree.
-int _ikChainCountFor(RigTemplate template, RigBuildOptions options) {
+int _ikChainCountFor(RigTemplate template, RigBuildSettings options) {
   if (!options.ikChains) return 0;
   // The quadruped template has no elbow/knee joint — no middle joint for a
   // two-bone chain to bend around — so there is nothing to build there.
@@ -562,10 +679,10 @@ int _ikChainCountFor(RigTemplate template, RigBuildOptions options) {
 /// nothing but counting [_BoneSpec]s.
 RigPreview previewRig(
   RigTemplate template, {
-  RigBuildOptions options = const RigBuildOptions(),
+  RigBuildSettings options = const RigBuildSettings(),
 }) {
   final table = _tableFor(template, options);
-  return (
+  return RigPreview(
     jointCount: table.length,
     deformingCount: table.where((bone) => bone.deforming).length,
     controllerCount: options.controllers ? 1 : 0,
@@ -621,7 +738,7 @@ BuiltRig buildSkeleton(
   RigTemplate template,
   Map<String, Vector3> markers, {
   required Aabb3 bounds,
-  RigBuildOptions options = const RigBuildOptions(),
+  RigBuildSettings options = const RigBuildSettings(),
   required int firstObjectId,
   String? skeletonName,
   Matrix4? meshWorld,
@@ -659,7 +776,7 @@ BuiltRig buildSkeleton(
   final objects = <ModelObject>[];
   var nextId = firstObjectId;
 
-  // `RigBuildOptions.controllers`: a socket parent above the template's
+  // `RigBuildSettings.controllers`: a socket parent above the template's
   // own root joint, built first so every joint below it (starting with the
   // root itself) already has somewhere valid to point `parent` at. Its own
   // world position is the root's own (`_onPlane`-snapped, matching what

@@ -6,10 +6,16 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `rough-surfaces` page: gold spheres from polished to rough and clay
+/// ones from half rough to rough. Its check is that every sphere is drawn.
 final class RoughSurfacesDemo extends ShowcaseDemo {
+  /// Whether the frame compensates rough metal for the energy a single bounce
+  /// loses.
   bool compensate = true;
+
+  /// Whether diffuse uses the energy-preserving model, `DiffuseModel.eon`,
+  /// rather than Lambert.
   bool orenNayar = true;
 
   static const List<double> _metalRoughness = <double>[0.1, 0.3, 0.5, 0.7, 0.9];
@@ -29,17 +35,18 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
       context.device,
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
-    final Scene scene = Scene()..ambientIntensity = 0.1;
+    final Scene scene = Scene()
+      ..ambientIntensity = 0.1 * LightNode.defaultIntensity;
 
     // #region metals
     for (var i = 0; i < _metalRoughness.length; i++) {
       scene.add(
         MeshNode(
           ball,
-          Material(
+          RenderMaterial(
             name: 'gold ${_metalRoughness[i]}',
             lighting: LightingModel.pbr,
-            baseColor: Vector4(1.0, 0.78, 0.34, 1.0),
+            baseColor: LinearColor.fromSrgb(1.0, 0.78, 0.34, 1.0),
             metallic: 1.0,
             roughness: _metalRoughness[i],
           ),
@@ -54,10 +61,10 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
       scene.add(
         MeshNode(
           ball,
-          Material(
+          RenderMaterial(
             name: 'clay ${_clayRoughness[i]}',
             lighting: LightingModel.pbr,
-            baseColor: Vector4(0.42, 0.42, 0.42, 1.0),
+            baseColor: LinearColor.fromSrgb(0.42, 0.42, 0.42, 1.0),
             roughness: _clayRoughness[i],
           ),
           name: 'clay',
@@ -68,7 +75,7 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
 
     // #region light
     return scene..add(
-      LightNode(name: 'key', intensity: 3.0)
+      LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.4, -1.0).normalized()),
     );
     // #endregion light

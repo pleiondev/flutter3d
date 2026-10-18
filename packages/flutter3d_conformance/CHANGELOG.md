@@ -1,3 +1,276 @@
+## 1.0.0-rc.1
+
+- **Breaking: a plugin that draws earns its badge with the render checks.**
+  `plugin.render`, the eighth of `pluginCheckNames`, finds whether the
+  plugin places nodes in the frame; one that does earns `conformant@1.0`
+  only with `render.nodes` passed on `cpu`, which
+  `runPluginRenderConformance` records into the same report
+  (`recordRenderOutcomes`), and keeps it only while no render check it ran
+  failed on any backend.
+- **Breaking: `PluginCheckOutcome.fromJson` refuses what it cannot read.**
+  A factory that throws a `FormatException` for an entry without a string
+  `check`, a bool `passed` and a string `says`, where it answered null;
+  `mergedOutcomes` still leaves such an entry of an old report out.
+- **An engine package's own event is not the plugin's.** The Wasm
+  runtime declares its trap the first time a plugin's Wasm system is
+  installed and keeps it for the engine; `plugin.names` and
+  `plugin.switch` counted it as the plugin's, failing every correct Wasm
+  plugin. A declaration made under one of the engine's namespaces by no
+  plugin of the loop is now left out of both.
+- **The inexact operations against their declared tolerance.**
+  `kernelToleranceChecks` (new, in `computeChecks`) run `/`, `sqrt`, `sin`,
+  `cos` and `pow` in a kernel on the device and in its Dart translation,
+  and hold every result to the tolerance `kernelTolerances` declares, over
+  the inputs it is declared for. `toleranceKernels` (new) is their source.
+- **Every feature the HAL gained in 1.0 is held by what it draws or
+  writes, not by whether its call returns.** A probe that only made the call
+  passed every backend that had it, whichever way round it applied it: a
+  depth bias with its sign flipped, a write mask on the wrong channel, a
+  query in another unit. Thirty-seven checks compare pixels, bytes or query
+  results with the software rasteriser's arithmetic and decline on a device
+  without their feature: depth bias and its clamp, depth clamp, the write
+  mask, min and max blending, fractional and oversized viewports, reversed
+  depth, non-indexed, based, multi- and indirect draws, bundles, 32-bit
+  indices, uniform bytes and buffers, the three queries, buffers written,
+  copied and mapped, texture writes, cube arrays, 3D and 1D textures, the
+  samplers' clamps, the float and packed targets, zero-copy sharing and an
+  indirect dispatch. `featureOutputChecks` (new) is the shader-free half,
+  in `conformanceChecks`; `drawnOutputChecks` (new) the half that draws,
+  in `shaderChecks`. `outputChecks` (new) names the check that holds each
+  1.0 feature, and `unmeasuredFeatures` (new) the seven no stage in the
+  engine's bundle can draw yet, each with its reason; `tool/structure.dart`
+  holds the table to the HAL's feature list.
+- **The lifetime every device owes is checked**: its own dispose told on
+  `lost` as `destroyed` and `isLost` after it, a second dispose that
+  throws nothing and tells no second loss, and sRGB decoded when sampled
+  and encoded when drawn. The software rasteriser failed the last, and is
+  fixed.
+- **The compressed check asks by family feature and draws ASTC HDR too**:
+  a family a device lists is one a caller was told it may upload, so it is
+  the one that has to sample; the HDR family gets a void-extent block of
+  half floats.
+- **Strips and points are drawn exactly where they are listed**, and
+  refused exactly where they are not: the primitive check held the pixels
+  and not the feature report.
+- **`runPluginConformance` writes the plugin's report.** Once its checks
+  have run, `<package>.conformance.json` (`f3d.conformance` version 1, the
+  `conformanceReport` of what ran) is written beside the pubspec of the
+  package the suite runs in, with the badge `earnsBadge` gave. It is the one
+  record of the badge: `flutter3d_build`'s `plugin.report` and the plugin
+  catalogue read it rather than judging again. A suite that calls it twice
+  writes one file with every outcome; a run filtered with `--name` earns
+  nothing; in a browser nothing is written.
+- **Breaking: the plugin checks carry their area.** `pluginCheckNames`
+  says `plugin.manifest`, `plugin.switch`, `plugin.names`,
+  `plugin.determinism`, `plugin.backends`, `plugin.budget` and
+  `plugin.materials` where it said the bare words, and a backend's test is
+  `plugin.backends on cpu`. A check name is data in a report and a badge,
+  and the render checks already said `render.<word>`; a bare word was the
+  one name a reader could not place. The structure rule now holds every
+  check name to `ToolName.pattern` whole, with no one-word exception.
+- **The honesty check asks the features named before the freeze**:
+  `primitiveStrips`, `pointPrimitives`, `indexUint32`, `blendConstantAlpha`,
+  `fractionalViewport` and, refusal only, `uniformBuffers`.
+- **A strip restarts at an all-ones index**: the primitive check draws two
+  triangles as a list and as one strip broken by `0xFFFF`, and holds the
+  two to the same pixels.
+- **The blend constant's alpha pair** reaches the blend where it is listed
+  and is refused by its own feature where it is not.
+- **The honesty check asks two more questions**: cubes are probed (a
+  device without `cubeTextures` refuses `createCubeTextureFromPixels` by
+  name since 1.0), and a `preferredSampleCount` above one without
+  `offscreenMultisample` is reported. The border probe clamps an axis to
+  the border, which is what `samplerBorderColor` gates now.
+- **Every check builds its pipelines through the descriptor forms**,
+  `createPipelineFrom` and `createComputePipelineFrom`, and names
+  features rather than the `supportsX` getters in its messages.
+- **A check and a backend's own section are classes.**
+  `ConformanceCheck({name, run})` and `OwnShaderSection({id, bytes, sdk})`
+  are final classes with value equality where they were records, so either
+  can carry more in a minor. A record literal becomes a constructor call.
+- **The honesty check runs in the shader-free tier.** Its five probes that
+  bind to a stage are skipped on a device without `DebugLine`, and the check
+  declines naming them once every other feature has answered honestly. It
+  probes `texture1D` and `depthBiasClamp`. `decline` names the device by
+  `backendName`.
+- **The check that compared each capability getter with itself is gone.**
+- **A backend runs the tier it has reached.** `runDeviceConformance(checks:)`
+  takes the checks to run, `conformanceChecks` when left out: a backend
+  that does not draw yet runs every check but `shaderChecks`, and adds them
+  once it does.
+- **A check a device cannot be asked is a skip, never a pass.** Every check
+  declines through `decline(device, why)`, which names the backend: the
+  stencil, cube, mip-viewport, reflection and compressed-format checks no
+  longer return early and report green on a device without the feature,
+  and the compute, kernel, field, sharing, multiview and float-filter
+  checks no longer build the exception by hand without the backend's name.
+  A backend's suite shows these as skipped with the reason where it showed
+  them passed.
+- **A headset's two views reach their own layers.** `xrChecks`, part of
+  `conformanceChecks`: two views drawn a pass each land in their own layers
+  of an array image, two views copied in as the projection layer copies
+  them land in theirs, and one multiview pass reaches both layers on a
+  device that has multiview (declined on every backend today).
+- **A field on a device, held to the contract.** `fieldResidenceChecks`,
+  part of `conformanceChecks`: a 3D texture of a field's shape is made and
+  written, or refused with `DeviceFeature.texture3D` named; a field in a
+  storage buffer reads back bit for bit after it is made and after it is
+  written over.
+- **A plugin's fields and subsystems are held like its systems.** The
+  `switch` check finds the fields and subsystems a plugin declared gone when
+  it is switched off and back when it is switched on; the `names` check holds
+  their ids to the plugin's namespace. `PluginHarness.profile` runs every
+  loop of the suite under a profile, so a solver a profile switches on is
+  checked where it runs.
+- **The render checks are a package of their own,
+  `flutter3d_conformance_render`**, and this one no longer depends on
+  `flutter3d_core`: a backend that runs the contract as a dev dependency
+  does not pull the engine in.
+- **`viewport-beyond-target` is named among the features no call refuses**:
+  a device without it is never handed such a viewport.
+- **`a pipeline the backend refuses skips its draws and is told once`.** A
+  shader check that refuses a pipeline through
+  `GraphicsDevice.pipelineRefusals` and holds the backend to it over four
+  passes: the refused pipeline's draws are skipped, the draw before them in
+  the same pass still lands, and the refusal is drained once. `a stage pair
+  the engine links does link` asks the record as well as the call, since a
+  refused link is reported rather than thrown.
+- **Every compute placement gives the same bytes.** `kernelChecks` runs
+  four `.f3dmat compute` kernels (`conformanceKernels`: a prefix sum, a
+  particle step, a skinning pass, a blur from a texture into a storage
+  texture) loaded from a kernel bundle, and holds each to an answer worked
+  out independently, byte for byte; they are part of `computeChecks`.
+- **Multiview and sharing, refused and fallen back from.**
+  `multiviewChecks` holds a device without `DeviceFeature.multiview` to
+  refusing a masked pass by name and drawing the views one pass each
+  through `ViewPasses`; `sharingChecks` carries a texture by copy through
+  `SharedTexture` and holds zero copy demanded where it is missing to a
+  `SharingException`. The honesty check probes `multiview` and the three
+  sharing features. The suite has 52 checks.
+- **The `names` plugin check.** Every phase, system and event a plugin adds
+  to the loop is in its namespace (`<namespace>.<name>`); one outside it
+  fails the check with its name. It joins suite 1.0, which no badge was
+  earned against yet.
+- **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
+  transform a later minor adds to the fuzzer breaks no `switch` over them.
+- **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,
+  the refusal the capability checks hold every backend to, lives now.
+
+- **The readback check asks for the HDR target whole.** A backend has to
+  hand back the whole of its `hdrColorFormat` texture as eight-bit RGBA
+  through its converting path, cleared green and still green, and refuse a
+  region of it with an `ArgumentError`; it used to have to refuse the whole
+  texture.
+- **The cube-face check draws with ten floats a vertex**, the depth after
+  the corner, as `sky_cube.vert` takes it.
+
+- **Breaking: a sixth plugin check, `materials`.** `pluginCheckNames` names
+  it: every physical material a plugin declares has a source for each group,
+  plausible SI numbers and an id in the plugin's namespace, and goes when the
+  plugin does.
+- **Breaking: `ConformanceFailure` is `ConformanceFailureException` and
+  `ConformanceDeclined` is `ConformanceDeclinedException`** (decision H),
+  with the same members; `dart fix` renames them.
+
+- **Breaking: the plugin harness checks the loop's own snapshots.**
+  `PluginHarness` lost `capture`, `restore` and `digest`: the world a plugin
+  acts on is the loop's, so `setUp` puts the application's state in
+  `loop.world` or adds a `SnapshotPart` for it (`loop.snapshots.add`), and
+  determinism runs each step twice through the default `DeterminismCheck`,
+  compares two runs by `loop.digest()`, and starts every check's loop from
+  the first one's capture. A check of a loop whose snapshots hold nothing is
+  declined, as a harness with no world was. A rollback restores what the
+  check checked, because they take the same path. `hasWorld` is gone with
+  the functions it asked about.
+
+- **The badge names its suite: `conformant@1.0`.** `conformanceSuiteVersion`
+  is `'1.0'`, `conformanceSuites` lists each suite with its checks, and
+  `badgeFor` answers the badge a run earns, written with the suite. A check
+  added later joins a new suite version and never an old one, so a plugin
+  that earned `conformant@1.0` keeps it when this package grows.
+  `earnsBadge` takes an optional `suite:` and answers for 1.0 by default.
+
+- **`conformanceReport` writes a run as a versioned document**:
+  `{"format": "f3d.conformance", "version": 1, ...}` with the plugin, the
+  suite, the badge and each outcome, for a catalogue or a CI job to read.
+
+- **The `tools` permission is one the manifest check knows**, so a plugin
+  that offers MCP tools and declares it passes.
+
+- **Breaking:** `ConformanceDeclinedException`, `ConformanceFailureException` extend
+  `CapabilityException` instead of implementing `Exception` directly. The
+  names and members are unchanged and every `on` clause that caught them still
+  does; every exception the engine throws now hangs from `Flutter3dException`
+  in `flutter3d_plugin_api`, in one of four families: format, capability,
+  plugin and resource. A caller who reports anything the engine refused
+  catches the root; one who acts on a kind catches its family. The migration
+  table marks them as nothing to do. `ConformanceDeclinedException` gains `message`,
+  which is its `reason`.
+- **The blend, wireframe and primitive checks accept `UnsupportedCapabilityException`**
+  as the refusal, now that it is no longer an `UnsupportedError`. A bare
+  `UnsupportedError` still counts, for a backend written before the type
+  existed.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **`reversed-depth` is listed among the features no call exercises**: it
+  describes the depth range and the depth format, and a device without it
+  draws a reversed projection all the same.
+
+- **A conformance suite for plugins, and a badge.**
+  `package:flutter3d_conformance/plugins.dart` holds a plugin to what
+  `flutter3d_plugin_api` cannot say in a signature, in five checks: its
+  manifest reads, writes back and installs; switching it off at a step
+  boundary leaves exactly the loop it found; every step run twice from one
+  state agrees, and the system that does not is named with its plugin; it
+  steps on every backend it declares and is switched off on one it does not;
+  and it keeps the budget its manifest declares. `runPluginConformance`
+  registers them as tests, `checkPluginConformance` returns them as a list,
+  and `earnsBadge` says whether they earn "flutter3d conformant": every check
+  passed on every declared backend, with a world and a budget given. The
+  package now depends on `flutter3d_plugin_api` and `flutter3d_sim`, both
+  plain Dart, and stays so.
+
+**Every capability a device reports is held true, both ways.**
+`capabilityChecks` walks each `DeviceFeature`: one the device lists has to
+work through a minimal call — a buffer written comes back, a copy lands, a
+query set resolves, a pass state is accepted — and one it does not list has
+to refuse that call with `UnsupportedCapabilityException` naming it. Reserved
+features may never be listed, the compression and float families must agree
+with `textureFormatSupport`, and a second check holds the pre-1.0 getters to
+the set they now forward to. What cannot be probed without a purpose-built
+stage is named in `unprobedFeatures` with the reason. Thirty-two shader
+checks, forty-four in all.
+
+- Links `HighContrast` through the full-screen stage and `OutlineMask`
+  through the three velocity vertex stages.
+- Links the caustic stages: `MeshVertex` with `CausticSurface`, and
+  `CausticPhotonVertex` with `CausticPhoton`.
+- Links every mesh vertex stage with `ShadowTransmittance`.
+**The linking check names `Decal`**, so a backend whose bundle lacks it
+fails the check rather than the first frame with a decal in it.
+**The linking check names `PlanarReflection` and `RenderTextureEncode`**:
+the first through the three mesh vertex stages it is drawn over a
+reflector's surfaces with, the second through the full-screen one, so a
+backend whose bundle lacks either fails the check rather than the first
+frame with a reflector or a render texture in it.
+**The linking check pairs `SkyPhysicalVertex` with `SkyPhysical`**, whose
+seven varyings are new on both sides.
+**A window of the index buffer draws that window.** A new shader check draws
+a window over the second of two triangles in one index buffer, then over the
+first, then with no count, and asks that a window past the end of the binding
+is refused with a `RangeError`. Thirty-two shader checks, forty-two in all.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.1
 
 **The linking check names `ContactShadowResolve`**, the stage

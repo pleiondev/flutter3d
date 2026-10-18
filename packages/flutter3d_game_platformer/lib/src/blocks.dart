@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -16,10 +18,12 @@ import 'package:vector_math/vector_math.dart';
 /// countdown is dispatched from inside the collision step and taking a collider
 /// out of the world there is how a broadphase gets corrupted.
 final class Crumbling extends Mechanism with CollisionListener {
+  /// A platform over [collider], holding [delaySeconds] seconds of weight and gone
+  /// for [gone] seconds; [collider] is made static and pointed back here.
   Crumbling({
     super.name,
     required this.collider,
-    this.delay = 0.5,
+    this.delaySeconds = 0.5,
     this.gone = 2.5,
   }) {
     collider
@@ -28,15 +32,18 @@ final class Crumbling extends Mechanism with CollisionListener {
     _restingAt.setFrom(collider.position);
   }
 
+  /// The platform's static collider, taken out of the world when it gives
+  /// way and put back when it returns.
   final Collider collider;
 
   /// How long it holds after somebody steps on it.
-  final double delay;
+  final double delaySeconds;
 
   /// How long it stays away before coming back.
   ///
   /// Zero or less means it never returns, which is a one-shot bridge — a fine
   /// thing to author and a terrible default.
+  /// In seconds.
   final double gone;
 
   final Vector3 _restingAt = Vector3.zero();
@@ -53,7 +60,7 @@ final class Crumbling extends Mechanism with CollisionListener {
   bool crumbledThisStep = false;
 
   @override
-  Vector3 get origin => _restingAt;
+  Vector3 get origin => _restingAt.clone();
 
   @override
   void step(double dt) {
@@ -72,14 +79,14 @@ final class Crumbling extends Mechanism with CollisionListener {
 
     if (sinceTouched.isInfinite) return;
     sinceTouched += dt;
-    if (sinceTouched < delay) return;
+    if (sinceTouched < delaySeconds) return;
 
     _fallen = true;
     crumbledThisStep = true;
     world.collisions.removeLater(collider);
   }
 
-  /// Nothing activates it: weight does, through [takeWeight].
+  /// Nothing activates it: weight does, through [bearWeight].
   @override
   ActivationOutcome activate(Activation by) => const NothingToDo();
 
@@ -88,7 +95,7 @@ final class Crumbling extends Mechanism with CollisionListener {
   /// Read from the ground rather than from an overlap: a runner brushing the
   /// side of a crumbling platform on the way past has not stepped on it, and a
   /// trigger volume cannot tell the difference.
-  void takeWeight() {
+  void bearWeight() {
     if (_fallen) return;
     if (sinceTouched.isInfinite) sinceTouched = 0.0;
   }
@@ -137,6 +144,7 @@ final class Crumbling extends Mechanism with CollisionListener {
 /// door. Deliberately not damageable by anything else — a block that also
 /// breaks when a crate falls on it is a block a level cannot rely on.
 final class Breakable extends Mechanism {
+  /// A block over [collider], made static and pointed back here.
   Breakable({super.name, required this.collider}) {
     collider
       ..kind = ColliderKind.static
@@ -144,9 +152,11 @@ final class Breakable extends Mechanism {
     _at.setFrom(collider.position);
   }
 
+  /// The block's static collider, taken out of the world when it breaks.
   final Collider collider;
   final Vector3 _at = Vector3.zero();
 
+  /// Whether a pound has broken it; nothing un-breaks it but a restore.
   bool get isBroken => _broken;
   bool _broken = false;
 
@@ -154,7 +164,7 @@ final class Breakable extends Mechanism {
   bool brokeThisStep = false;
 
   @override
-  Vector3 get origin => _at;
+  Vector3 get origin => _at.clone();
 
   /// Nothing activates a block. A pound breaks it, and a pound is a body
   /// arriving rather than a hand reaching out.
@@ -203,12 +213,15 @@ final class Breakable extends Mechanism {
 /// whole of rope physics a platformer needs and none of the pendulum it does
 /// not.
 final class Climbable extends Mechanism {
+  /// A ladder over [collider], or a rope when [swing] is above nought;
+  /// [phase] is the seconds into its swing it starts at. [collider] is made
+  /// a trigger and pointed back here.
   Climbable({
     super.name,
     required this.collider,
     this.climbSpeed = 4.0,
     this.swing = 0.0,
-    this.period = 2.4,
+    this.periodSeconds = 2.4,
     double phase = 0.0,
   }) : _time = phase {
     collider
@@ -217,16 +230,18 @@ final class Climbable extends Mechanism {
     _restingAt.setFrom(collider.position);
   }
 
+  /// The trigger volume a body climbs inside; it moves as the rope swings.
   final Collider collider;
 
   /// How fast a body climbs it.
+  /// In metres per second.
   final double climbSpeed;
 
   /// How far it swings from rest, in metres. Zero for a ladder.
   final double swing;
 
   /// Seconds for a full swing there and back.
-  final double period;
+  final double periodSeconds;
 
   final Vector3 _restingAt = Vector3.zero();
   final Vector3 _at = Vector3.zero();
@@ -234,10 +249,11 @@ final class Climbable extends Mechanism {
 
   /// Where it is now, which is where a climber is.
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// How fast the volume itself is moving sideways, so a climber who lets go
   /// leaves with it.
+  /// In metres per second.
   double get swingVelocity => _swingVelocity;
   double _swingVelocity = 0.0;
 
@@ -265,9 +281,9 @@ final class Climbable extends Mechanism {
 
   @override
   void step(double dt) {
-    if (swing <= 0.0 || period <= 0.0) return;
+    if (swing <= 0.0 || periodSeconds <= 0.0) return;
     _time += dt;
-    final rate = 2.0 * math.pi / period;
+    final rate = 2.0 * math.pi / periodSeconds;
     final phase = Portable.sinCos(rate * _time);
     _at
       ..setFrom(_restingAt)

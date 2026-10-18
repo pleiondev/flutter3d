@@ -1,4 +1,4 @@
-/// The mesh each of an object's own [LodSpec]s actually produces, cached
+/// The mesh each of an object's own [LodSettings]s actually produces, cached
 /// across calls — `pro-lod-03`'s own row.
 ///
 /// **The same bargain [ReadinessCache] strikes, for the same reason.**
@@ -38,6 +38,8 @@ final class _CachedLod {
 
 /// The simplified mesh each `(objectId, lodIndex)` pair produces, kept until
 /// the object's own version moves past the one it was generated at.
+///
+/// An application keeps one, `LodMeshCache()`, across edits of a project.
 final class LodMeshCache {
   final Map<int, Map<int, _CachedLod>> _byObjectId =
       <int, Map<int, _CachedLod>>{};
@@ -57,7 +59,7 @@ final class LodMeshCache {
       return cached.mesh;
     }
 
-    final LodSpec spec = object.lods[lodIndex];
+    final LodSettings spec = object.lods[lodIndex];
     final int target = (base.triangleCount * spec.ratio).round().clamp(
       1,
       base.triangleCount,

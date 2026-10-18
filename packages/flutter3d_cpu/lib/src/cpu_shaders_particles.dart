@@ -42,8 +42,51 @@ double softParticleFade(
   return stored > 0.0 ? fade : 1.0;
 }
 
+/// `FogDistance` of `contributor_eye.glsl`: the air between a point and the
+/// eye — the distance to it, or the depth from its plane through an
+/// orthographic lens.
+double fogDistance(ShaderBindings b, double x, double y, double z) {
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final dx = x - eye.x;
+  final dy = y - eye.y;
+  final dz = z - eye.z;
+  if (!orthographic(b)) return math.sqrt(dx * dx + dy * dy + dz * dz);
+  final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+  return math.max(dx * forward.x + dy * forward.y + dz * forward.z, 0.0);
+}
+
+/// `FogTransmittance` of `contributor_eye.glsl`: how much of a point the fog
+/// leaves, from nought to one — `ApplyFog`'s share in `color.glsl`, the
+/// height fog integrated along the ray, so a spark high over the eye fogs as
+/// the thinner air up there does. One with no fog.
+double fogTransmittance(ShaderBindings b, double x, double y, double z) {
+  final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+  if (fog.w <= 0.0) return 1.0;
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final falloff = eye.w;
+  final k = falloff * (y - eye.y);
+  final density = falloff <= 0.0
+      ? fog.w
+      : fog.w * (k.abs() > 1e-3 ? (1.0 - math.exp(-k)) / k : 1.0 - 0.5 * k);
+  return math.exp(-density * fogDistance(b, x, y, z)).clamp(0.0, 1.0);
+}
+
+/// `TowardsEyeFrom` of `contributor_eye.glsl`: the unit direction back along
+/// the ray that reached a point, nought at the eye.
+Vector3 towardsEyeFrom(ShaderBindings b, double x, double y, double z) {
+  if (orthographic(b)) {
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    return Vector3(-forward.x, -forward.y, -forward.z);
+  }
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final to = Vector3(eye.x - x, eye.y - y, eye.z - z);
+  return to.length2 > 0.0 ? (to..normalize()) : to;
+}
+
 /// `particle.vert`: a billboard corner, and the world position for the fog.
-final class ParticleVertexShader implements CpuVertexShader {
+final class ParticleVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ParticleVertex`.
   const ParticleVertexShader();
 
   @override
@@ -71,7 +114,10 @@ final class ParticleVertexShader implements CpuVertexShader {
 /// texture coordinate — `ParticleVertexShader` puts them there — and nothing
 /// but this stage could know that, which is why the derivative is passed in
 /// rather than read off the texture.
-final class ParticleTexturedShader implements CpuFragmentShader {
+final class ParticleTexturedShader extends CpuFragmentShader {
+  /// True [soft] fades the sprite where it nears the depth behind it;
+  /// `builtinCpuShaders` files the hard stage under `ParticleTextured` and the
+  /// soft one under `ParticleTexturedSoft`.
   const ParticleTexturedShader({this.soft = false});
 
   /// `particle_textured_soft.frag`: the same, faded by [softParticleFade].
@@ -97,14 +143,7 @@ final class ParticleTexturedShader implements CpuFragmentShader {
       texel = texture.sample(v[4], v[5], du: du, dv: dv);
     }
 
-    var fogged = 1.0;
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
-      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-    }
+    final fogged = fogTransmittance(b, v[6], v[7], v[8]);
 
     // The texture's alpha is coverage and the particle's is brightness, so the
     // two multiply.
@@ -127,7 +166,10 @@ final class ParticleTexturedShader implements CpuFragmentShader {
 ///
 /// The same varyings as the sprite stage: colour in 0..3, the cell's texture
 /// coordinate in 4..5, the world position in 6..8.
-final class ParticleSixWayShader implements CpuFragmentShader {
+final class ParticleSixWayShader extends CpuFragmentShader {
+  /// True [soft] fades the sprite where it nears the depth behind it;
+  /// `builtinCpuShaders` files the hard stage under `ParticleSixWay` and the
+  /// soft one under `ParticleSixWaySoft`.
   const ParticleSixWayShader({this.soft = false});
 
   /// `particle_six_way_soft.frag`: the same, its coverage faded by
@@ -182,7 +224,7 @@ final class ParticleSixWayShader implements CpuFragmentShader {
         6.0;
     final ambient = b.vec4(_block, 'ambient', Vector4.zero());
     final emission = b.vec4(_block, 'emission', Vector4.zero());
-    final colour = Vector3(
+    final color = Vector3(
       v[0] * (lit.x + ambient.x * mean) + emission.x * negative.w,
       v[1] * (lit.y + ambient.y * mean) + emission.y * negative.w,
       v[2] * (lit.z + ambient.z * mean) + emission.z * negative.w,
@@ -192,13 +234,11 @@ final class ParticleSixWayShader implements CpuFragmentShader {
     // covers what is behind it.
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d = (world - Vector3(eye.x, eye.y, eye.z)).length;
-      final fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-      colour
-        ..x = fog.x + (colour.x - fog.x) * fogged
-        ..y = fog.y + (colour.y - fog.y) * fogged
-        ..z = fog.z + (colour.z - fog.z) * fogged;
+      final fogged = fogTransmittance(b, world.x, world.y, world.z);
+      color
+        ..x = fog.x + (color.x - fog.x) * fogged
+        ..y = fog.y + (color.y - fog.y) * fogged
+        ..z = fog.z + (color.z - fog.z) * fogged;
     }
 
     // Coverage, not colour: the blend is premultiplied, so a fading puff has
@@ -207,9 +247,9 @@ final class ParticleSixWayShader implements CpuFragmentShader {
         (v[3] * positive.w).clamp(0.0, 1.0) *
         (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
     return Vector4(
-      colour.x * coverage,
-      colour.y * coverage,
-      colour.z * coverage,
+      color.x * coverage,
+      color.y * coverage,
+      color.z * coverage,
       coverage,
     );
   }
@@ -224,7 +264,9 @@ final class ParticleSixWayShader implements CpuFragmentShader {
 /// are the mesh's buffer, and the placement follows because it is the instance
 /// buffer — see `MeshParticleContributor.layout`, which is the one place that
 /// order is decided.
-final class ParticleMeshVertexShader implements CpuVertexShader {
+final class ParticleMeshVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ParticleMeshVertex`.
   const ParticleMeshVertexShader();
 
   @override
@@ -255,37 +297,32 @@ final class ParticleMeshVertexShader implements CpuVertexShader {
 }
 
 /// `particle_mesh.frag`: additive, fogged, shaded by which way a face points.
-final class ParticleMeshShader implements CpuFragmentShader {
+final class ParticleMeshShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ParticleMesh`.
   const ParticleMeshShader();
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-
-    final tx = eye.x - v[4];
-    final ty = eye.y - v[5];
-    final tz = eye.z - v[6];
-    final distance = math.sqrt(tx * tx + ty * ty + tz * tz);
+    // `TowardsEyeFrom`: to the eye, or against the view axis through an
+    // orthographic lens — `P7`.
+    final towards = towardsEyeFrom(b, v[4], v[5], v[6]);
 
     var facing = 1.0;
-    if (distance > 0.0) {
+    if (towards.length2 > 0.0) {
       final n = Vector3(v[7], v[8], v[9]);
       final length = n.length;
       if (length > 0.0) {
         // `abs`, because nothing here is culled and a back face is as visible
         // as a front one.
-        facing = ((n.x * tx + n.y * ty + n.z * tz) / (length * distance)).abs();
+        facing = (n.dot(towards) / length).abs();
       }
     }
     // Never to zero: a silhouette edge is exactly perpendicular to the eye, and
     // a face that vanished there would carve a dark seam along it.
     final intensity = 0.35 + 0.65 * facing;
 
-    var fogged = 1.0;
-    if (fog.w > 0.0) {
-      fogged = math.exp(-fog.w * distance).clamp(0.0, 1.0);
-    }
+    final fogged = fogTransmittance(b, v[4], v[5], v[6]);
 
     final scale = v[3] * intensity * fogged;
     return Vector4(v[0] * scale, v[1] * scale, v[2] * scale, 1.0);
@@ -293,7 +330,10 @@ final class ParticleMeshShader implements CpuFragmentShader {
 }
 
 /// `particle.frag`: a radial falloff, premultiplied, fogged.
-final class ParticleShader implements CpuFragmentShader {
+final class ParticleShader extends CpuFragmentShader {
+  /// True [soft] fades the sprite where it nears the depth behind it;
+  /// `builtinCpuShaders` files the hard stage under `Particle` and the soft one
+  /// under `ParticleSoft`.
   const ParticleShader({this.soft = false});
 
   /// `particle_soft.frag`: the same, faded by [softParticleFade].
@@ -310,14 +350,7 @@ final class ParticleShader implements CpuFragmentShader {
         falloff *
         (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
 
-    var fogged = 1.0;
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
-      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-    }
+    final fogged = fogTransmittance(b, v[6], v[7], v[8]);
 
     final scale = v[3] * intensity * fogged;
     // Alpha one with the colour premultiplied: these draw additively, so the
@@ -333,7 +366,9 @@ final class ParticleShader implements CpuFragmentShader {
 /// world position in 6..8. What differs is that `v_uv` here is not a texture
 /// coordinate but the fragment's position in the Gaussian's own frame, in
 /// standard deviations, already centred — so there is no `* 2 - 1`.
-final class SplatShader implements CpuFragmentShader {
+final class SplatShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Splat`.
   const SplatShader();
 
   @override
@@ -352,10 +387,7 @@ final class SplatShader implements CpuFragmentShader {
     var bl = v[2];
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
-      final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      final visibility = fogTransmittance(b, v[6], v[7], v[8]);
       // A mix rather than an attenuation, which is the opposite of the particle
       // stage and for the opposite reason: this is blended, so a splat that
       // faded toward black would put black into the wall behind it.
@@ -375,7 +407,9 @@ final class SplatShader implements CpuFragmentShader {
 /// The identity hash is whole-number arithmetic under 2^24, exact in doubles
 /// and in a GPU's floats alike, so a splat reads the same cell of the noise
 /// here as on a GPU — see [splatNoiseOffset].
-final class SplatHashedShader implements CpuFragmentShader {
+final class SplatHashedShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SplatHashed`.
   const SplatHashedShader();
 
   @override
@@ -403,7 +437,9 @@ final class SplatHashedShader implements CpuFragmentShader {
                     v[3] * 255.0 * 127.0)
                 .floorToDouble()) %
         4096.0;
-    final (offsetX, offsetY) = splatNoiseOffset(identity);
+    final NoiseTileCell(column: offsetX, row: offsetY) = splatNoiseOffset(
+      identity,
+    );
 
     // This frame's slice of the blue noise, at the pixel moved by the offset.
     final table = b.textures['blue_noise_texture'];
@@ -429,11 +465,7 @@ final class SplatHashedShader implements CpuFragmentShader {
 
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w <= 0.0) return Vector4(v[0], v[1], v[2], 1.0);
-    final fogEye = b.vec4('FogInfo', 'eye', Vector4.zero());
-    final d =
-        (Vector3(v[6], v[7], v[8]) - Vector3(fogEye.x, fogEye.y, fogEye.z))
-            .length;
-    final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+    final visibility = fogTransmittance(b, v[6], v[7], v[8]);
     return Vector4(
       fog.x + (v[0] - fog.x) * visibility,
       fog.y + (v[1] - fog.y) * visibility,
@@ -450,9 +482,32 @@ final class SplatHashedShader implements CpuFragmentShader {
 /// affine step and `2a² + a` modulo 4096, then the high six bits stirred into
 /// the low six. Every product stays under 2^24 and every divisor is a power
 /// of two, so a GPU's 32-bit floats and these doubles give the same answer.
-(double, double) splatNoiseOffset(double identity) {
+NoiseTileCell splatNoiseOffset(double identity) {
   final affine = (identity * 1597.0 + 2531.0) % 4096.0;
   final mixed = (affine * ((2.0 * affine + 1.0) % 4096.0)) % 4096.0;
   final row = (mixed / 64.0).floorToDouble();
-  return ((mixed + row * 37.0) % 64.0, row);
+  return NoiseTileCell(column: (mixed + row * 37.0) % 64.0, row: row);
+}
+
+/// One cell of the 64 × 64 noise tile, as [splatNoiseOffset] answers it.
+final class NoiseTileCell {
+  /// The cell at [column] and [row].
+  const NoiseTileCell({required this.column, required this.row});
+
+  /// Across the tile, in texels: a whole number in `[0, 64)`, held as a
+  /// double because the shader adds it to a pixel coordinate.
+  final double column;
+
+  /// Down the tile, in texels: a whole number in `[0, 64)`.
+  final double row;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NoiseTileCell && other.column == column && other.row == row;
+
+  @override
+  int get hashCode => Object.hash(column, row);
+
+  @override
+  String toString() => 'NoiseTileCell($column, $row)';
 }

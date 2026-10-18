@@ -1,5 +1,5 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 /// A model's animations played on Flame's clock: a runner running, a frog
 /// crouching to hop, a door swinging.
@@ -13,7 +13,10 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 /// [play] changes the clip by name, crossfading over [crossFade] seconds
 /// unless told otherwise; asking for the clip already playing does nothing,
 /// so a game can ask every frame for the clip its state wants.
-class ModelAnimationComponent extends Component {
+base class ModelAnimationComponent extends Component {
+  /// A component advancing [player], blending changes of clip over
+  /// [crossFade] seconds (0.15 by default), and playing the clip [start]
+  /// names at once when it is given.
   ModelAnimationComponent(this.player, {this.crossFade = 0.15, String? start})
     : _current = start {
     if (start != null) player.playNamed(start);
@@ -51,7 +54,7 @@ class ModelAnimationComponent extends Component {
     }
     final found = _current == null
         ? player.playNamed(name)
-        : player.crossFadeToNamed(name, duration: fade ?? crossFade);
+        : player.crossFadeToNamed(name, durationSeconds: fade ?? crossFade);
     if (found) _current = name;
     return found;
   }
@@ -69,7 +72,9 @@ class ModelAnimationComponent extends Component {
 /// For animation that is a handful of shapes rather than a skeleton, which
 /// is how most of the cartridge era moved. The meshes are shared; only the
 /// one [node] draws changes, and only when the frame does.
-class MeshFlipbookComponent extends Component {
+base class MeshFlipbookComponent extends Component {
+  /// A flipbook swapping [node]'s mesh through [frames], two a second by
+  /// default. Asserts at least one frame.
   MeshFlipbookComponent({
     required this.node,
     required this.frames,

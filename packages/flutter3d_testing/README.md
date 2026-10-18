@@ -21,6 +21,33 @@ test('the crypt still looks like the crypt', () async {
 
 The first run records the reference and says so. Later runs fail when the
 picture changes, and the message says by how much and how to re-record.
+On CI, a missing reference fails instead of being recorded: the helper reads
+the `CI` variable every runner sets in the environment, so a mistyped or
+gitignored golden cannot write its own answer and agree with it. Pass
+`recordMissing:` to decide it yourself.
+
+## Replaying a recorded run
+
+A `.f3drun` your game recorded is a test too:
+
+```dart fragment
+// `Ascent` is the game's own.
+void main() {
+  testReplay(
+    'test/tapes/ascent.f3drun',
+    start: Ascent.open, // builds a ReplaySubject on the device it is given
+    goldensAt: <int>[120, 600],
+  );
+}
+```
+
+The replay runs on the software backend. At every checkpoint the tape holds
+(or only those you name in `digestAt`) the simulation's digest has to match the
+recorded one, and the frames at `goldensAt` are compared with
+`test/goldens/ascent-120.png` and `ascent-600.png`. If the level changed since
+the tape was recorded, the test says that before stepping, because a
+divergence at step 25 would send you looking in the wrong place.
+`apps/flutter3d_demo_platformer/test/replay_test.dart` is a complete example.
 
 ## Why this can exist here and nowhere else
 
@@ -64,6 +91,38 @@ same bytes twice. There is no driver, clock or thread to disagree, which means
 any difference is a change and not noise. Raise `tolerance` only when something
 has been measured to move, and say why in the call.
 
+## How long a picture holds
+
+What the software rasteriser draws for a scene is not frozen for all of 1.x.
+A minor release may change it, and when one does, its CHANGELOG says so
+under a `**Picture:**` label naming the cause (a fixed rounding, a filter
+that now matches the GPU backends). A patch release never changes it. The
+`channel: 8` default is frozen for 1.x, so a reference that passes today is
+judged by the same rule after an upgrade, and a minor that moves the picture
+by less than that does not fail it.
+
+## On another device
+
+`renderFrame`, `testReplay` and `expectReplayMatches` take `device:`, the
+function that opens a device at a size, in the shape every backend's `open`
+has. The frame is drawn there instead of on the software rasteriser:
+
+```dart
+import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+
+final frame = await renderFrame(
+  width: 320,
+  height: 180,
+  device: WebGpuDevice.open,
+  build: buildCrypt,
+);
+```
+
+A frame's device is disposed once its pixels are read; a replay opens one
+for the whole run. A test that keeps its own device calls `drawOnce` with a
+`Renderer` made on it. This is also how a backend written outside this
+repository draws the engine's frames in its own suite.
+
 ## What it does not do
 
 It does not compare a software frame against a GPU one. This repository keeps
@@ -74,13 +133,14 @@ tolerance. See the note at the top of
 
 References a game records here show what the software backend draws. That is
 still the right thing to regress against, because a change that alters the
-picture alters it on both.
+picture alters it on both. Goldens drawn with `device:` are that backend's:
+keep each backend's set in a directory of its own.
 
 ---
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

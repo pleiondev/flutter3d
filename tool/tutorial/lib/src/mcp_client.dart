@@ -15,8 +15,11 @@ import 'mcp_session.dart';
 /// before the first [callTool] — the same handshake every MCP client owes
 /// a server before it answers anything else.
 final class McpClient {
+  /// A client for [session], with its own [HttpClient]; nothing is sent
+  /// until [initialize].
   McpClient(this.session) : _http = HttpClient();
 
+  /// Where every request goes and the token it carries.
   final McpSession session;
   final HttpClient _http;
   int _nextId = 1;
@@ -24,6 +27,9 @@ final class McpClient {
   Future<Map<String, Object?>> _post(Object? body) async {
     final request = await _http.postUrl(session.endpoint);
     request.headers.contentType = ContentType.json;
+    // The server reads the token from this header only; a query parameter
+    // would sit in logs and proxies' histories.
+    request.headers.set(HttpHeaders.authorizationHeader, session.authorization);
     request.write(json.encode(body));
     final response = await request.close();
     // A notification gets `202 Accepted` and no body; a request gets `200`

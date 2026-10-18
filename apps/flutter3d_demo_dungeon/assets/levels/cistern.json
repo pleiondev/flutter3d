@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "The Cistern",
   "generatedBy": "apps/flutter3d_demo_dungeon/tool/make_cistern.py",
   "fogColor": [0.024, 0.036, 0.034],
@@ -8,7 +11,7 @@
     "floor": {
       "baseColor": [0.62, 0.6, 0.56, 1.0],
       "roughness": 0.9,
-      "texelsPerMetre": 0.5,
+      "texelsPerMeter": 0.5,
       "albedo": "assets/textures/floor_albedo.jpg",
       "normal": "assets/textures/floor_normal.png",
       "orm": "assets/textures/floor_orm.png"
@@ -16,7 +19,7 @@
     "wall": {
       "baseColor": [0.7, 0.66, 0.6, 1.0],
       "roughness": 0.85,
-      "texelsPerMetre": 0.4,
+      "texelsPerMeter": 0.4,
       "albedo": "assets/textures/wall_albedo.jpg",
       "normal": "assets/textures/wall_normal.png",
       "orm": "assets/textures/wall_orm.png"
@@ -24,7 +27,7 @@
     "ceiling": {
       "baseColor": [0.34, 0.32, 0.3, 1.0],
       "roughness": 0.95,
-      "texelsPerMetre": 0.35,
+      "texelsPerMeter": 0.35,
       "albedo": "assets/textures/ceiling_albedo.jpg",
       "normal": "assets/textures/ceiling_normal.png",
       "orm": "assets/textures/ceiling_orm.png"
@@ -32,7 +35,7 @@
     "stone": {
       "baseColor": [0.68, 0.65, 0.6, 1.0],
       "roughness": 0.8,
-      "texelsPerMetre": 0.7,
+      "texelsPerMeter": 0.7,
       "albedo": "assets/textures/stone_albedo.jpg",
       "normal": "assets/textures/stone_normal.png",
       "orm": "assets/textures/stone_orm.png"
@@ -40,7 +43,7 @@
     "iron": {
       "baseColor": [0.72, 0.7, 0.68, 1.0],
       "roughness": 0.6,
-      "texelsPerMetre": 1.2,
+      "texelsPerMeter": 1.2,
       "albedo": "assets/textures/metal_albedo.jpg",
       "normal": "assets/textures/metal_normal.png",
       "orm": "assets/textures/metal_orm.png"
@@ -49,385 +52,968 @@
     "water": {"baseColor": [0.08, 0.16, 0.15, 1.0], "roughness": 0.12, "metallic": 0.0}
   },
   "brushes": [
-    {"at": [0.0, -0.5, 14.0], "size": [12.0, 1.0, 10.0], "material": "floor"},
-    {"at": [0.0, 4.5, 14.0], "size": [12.0, 1.0, 10.0], "material": "ceiling"},
-    {"at": [-4.0, 2.0, 9.5], "size": [4.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [4.0, 2.0, 9.5], "size": [4.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 2.0, 18.5], "size": [12.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [5.5, 2.0, 14.0], "size": [1.0, 4.0, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-5.5, 2.0, 14.0], "size": [1.0, 4.0, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, 7.0], "size": [6.0, 1.0, 6.0], "material": "floor"},
-    {"at": [0.0, 4.5, 7.0], "size": [6.0, 1.0, 6.0], "material": "ceiling"},
-    {"at": [-2.5, 2.0, 4.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.5, 2.0, 4.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.5, 2.0, 9.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.5, 2.0, 9.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.5, 2.0, 7.0], "size": [1.0, 4.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.5, 2.0, 7.0], "size": [1.0, 4.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -1.7, -6.0], "size": [26.0, 1.0, 22.0], "material": "floor"},
-    {"at": [0.0, 5.5, -6.0], "size": [26.0, 1.0, 22.0], "material": "ceiling"},
-    {"at": [-8.0, 1.9, -16.5], "size": [10.0, 6.2, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.6, -16.5], "size": [6.0, 1.2, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 4.5, -16.5], "size": [6.0, 1.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [8.0, 1.9, -16.5], "size": [10.0, 6.2, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-7.5, 1.9, 4.5], "size": [11.0, 6.2, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.6, 4.5], "size": [4.0, 1.2, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 4.5, 4.5], "size": [4.0, 1.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [7.5, 1.9, 4.5], "size": [11.0, 6.2, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, 1.9, -12.0], "size": [1.0, 6.2, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, -0.6, -6.0], "size": [1.0, 1.2, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, 4.5, -6.0], "size": [1.0, 1.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, 1.9, 0.0], "size": [1.0, 6.2, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 1.9, -12.0], "size": [1.0, 6.2, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, -0.6, -6.0], "size": [1.0, 1.2, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 4.5, -6.0], "size": [1.0, 1.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 1.9, -1.3], "size": [1.0, 6.2, 5.4], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 3.1, 2.0], "size": [1.0, 3.8, 1.2], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 1.9, 3.3], "size": [1.0, 6.2, 1.4], "material": "wall", "shadowCasting": "doubleSided"},
+    {"at": [0.0, -0.5, 14.0], "size": [12.0, 1.0, 10.0], "material": "floor", "id": "9582ad66"},
+    {"at": [0.0, 4.5, 14.0], "size": [12.0, 1.0, 10.0], "material": "ceiling", "id": "9424d980"},
+    {
+      "at": [-4.0, 2.0, 9.5],
+      "size": [4.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "1715b77d"
+    },
+    {
+      "at": [4.0, 2.0, 9.5],
+      "size": [4.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "80f364fd"
+    },
+    {
+      "at": [0.0, 2.0, 18.5],
+      "size": [12.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "234bbaea"
+    },
+    {
+      "at": [5.5, 2.0, 14.0],
+      "size": [1.0, 4.0, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5c301f22"
+    },
+    {
+      "at": [-5.5, 2.0, 14.0],
+      "size": [1.0, 4.0, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "f9b79ba2"
+    },
+    {"at": [0.0, -0.5, 7.0], "size": [6.0, 1.0, 6.0], "material": "floor", "id": "12e041ca"},
+    {"at": [0.0, 4.5, 7.0], "size": [6.0, 1.0, 6.0], "material": "ceiling", "id": "7c61147c"},
+    {
+      "at": [-2.5, 2.0, 4.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "6d5893d7"
+    },
+    {
+      "at": [2.5, 2.0, 4.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "744ed657"
+    },
+    {
+      "at": [-2.5, 2.0, 9.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "891554dc"
+    },
+    {
+      "at": [2.5, 2.0, 9.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "e7d1695c"
+    },
+    {
+      "at": [2.5, 2.0, 7.0],
+      "size": [1.0, 4.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "9e6b935c"
+    },
+    {
+      "at": [-2.5, 2.0, 7.0],
+      "size": [1.0, 4.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "e42d3ddc"
+    },
+    {"at": [0.0, -1.7, -6.0], "size": [26.0, 1.0, 22.0], "material": "floor", "id": "187b6801"},
+    {"at": [0.0, 5.5, -6.0], "size": [26.0, 1.0, 22.0], "material": "ceiling", "id": "8a28735c"},
+    {
+      "at": [-8.0, 1.9, -16.5],
+      "size": [10.0, 6.2, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d70c05df"
+    },
+    {
+      "at": [0.0, -0.6, -16.5],
+      "size": [6.0, 1.2, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "3d13ba88"
+    },
+    {
+      "at": [0.0, 4.5, -16.5],
+      "size": [6.0, 1.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "eb5f8a41"
+    },
+    {
+      "at": [8.0, 1.9, -16.5],
+      "size": [10.0, 6.2, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "3a0aad5f"
+    },
+    {
+      "at": [-7.5, 1.9, 4.5],
+      "size": [11.0, 6.2, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "1cdc5e59"
+    },
+    {
+      "at": [0.0, -0.6, 4.5],
+      "size": [4.0, 1.2, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "c83fecf2"
+    },
+    {
+      "at": [0.0, 4.5, 4.5],
+      "size": [4.0, 1.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "ea8228a3"
+    },
+    {
+      "at": [7.5, 1.9, 4.5],
+      "size": [11.0, 6.2, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "2fcb49d9"
+    },
+    {
+      "at": [12.5, 1.9, -12.0],
+      "size": [1.0, 6.2, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "4a3dc6b4"
+    },
+    {
+      "at": [12.5, -0.6, -6.0],
+      "size": [1.0, 1.2, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7ab3ca8f"
+    },
+    {
+      "at": [12.5, 4.5, -6.0],
+      "size": [1.0, 1.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "eafd77d2"
+    },
+    {
+      "at": [12.5, 1.9, 0.0],
+      "size": [1.0, 6.2, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d63e5f4c"
+    },
+    {
+      "at": [-12.5, 1.9, -12.0],
+      "size": [1.0, 6.2, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "8310b634"
+    },
+    {
+      "at": [-12.5, -0.6, -6.0],
+      "size": [1.0, 1.2, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "20a01d0f"
+    },
+    {
+      "at": [-12.5, 4.5, -6.0],
+      "size": [1.0, 1.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "6ec49052"
+    },
+    {
+      "at": [-12.5, 1.9, -1.3],
+      "size": [1.0, 6.2, 5.4],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "726f6a7c"
+    },
+    {
+      "at": [-12.5, 3.1, 2.0],
+      "size": [1.0, 3.8, 1.2],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "17f155fd"
+    },
+    {
+      "at": [-12.5, 1.9, 3.3],
+      "size": [1.0, 6.2, 1.4],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "1b3fcddd"
+    },
     {
       "at": [0.0, -0.875, -6.0],
       "size": [24.0, 0.05, 20.0],
       "material": "water",
       "castsShadow": false,
-      "solid": false
+      "solid": false,
+      "id": "3efc327c"
     },
-    {"at": [0.0, -0.6, 1.5], "size": [4.0, 1.2, 5.0], "material": "stone"},
-    {"at": [0.0, -0.75, -1.5], "size": [3.0, 0.9, 1.0], "material": "stone"},
-    {"at": [0.0, -0.9, -2.5], "size": [3.0, 0.6, 1.0], "material": "stone"},
-    {"at": [0.0, -1.05, -3.5], "size": [3.0, 0.3, 1.0], "material": "stone"},
-    {"at": [-10.0, -0.6, -6.0], "size": [4.0, 1.2, 4.0], "material": "stone"},
-    {"at": [-7.5, -0.75, -6.0], "size": [1.0, 0.9, 3.0], "material": "stone"},
-    {"at": [-6.5, -0.9, -6.0], "size": [1.0, 0.6, 3.0], "material": "stone"},
-    {"at": [-5.5, -1.05, -6.0], "size": [1.0, 0.3, 3.0], "material": "stone"},
-    {"at": [10.0, -0.6, -6.0], "size": [4.0, 1.2, 4.0], "material": "stone"},
-    {"at": [7.5, -0.75, -6.0], "size": [1.0, 0.9, 3.0], "material": "stone"},
-    {"at": [6.5, -0.9, -6.0], "size": [1.0, 0.6, 3.0], "material": "stone"},
-    {"at": [5.5, -1.05, -6.0], "size": [1.0, 0.3, 3.0], "material": "stone"},
-    {"at": [0.0, -0.6, -14.0], "size": [6.0, 1.2, 4.0], "material": "stone"},
-    {"at": [0.0, -0.75, -11.5], "size": [3.0, 0.9, 1.0], "material": "stone"},
-    {"at": [0.0, -0.9, -10.5], "size": [3.0, 0.6, 1.0], "material": "stone"},
-    {"at": [0.0, -1.05, -9.5], "size": [3.0, 0.3, 1.0], "material": "stone"},
-    {"at": [-6.0, 1.9, -2.0], "size": [1.4, 6.2, 1.4], "material": "stone"},
-    {"at": [6.0, 1.9, -2.0], "size": [1.4, 6.2, 1.4], "material": "stone"},
-    {"at": [-6.0, 1.9, -10.0], "size": [1.4, 6.2, 1.4], "material": "stone"},
-    {"at": [6.0, 1.9, -10.0], "size": [1.4, 6.2, 1.4], "material": "stone"},
-    {"at": [-10.0, 1.9, 2.0], "size": [1.4, 6.2, 1.4], "material": "stone"},
-    {"at": [-15.0, -1.7, 2.0], "size": [6.0, 1.0, 6.0], "material": "floor"},
-    {"at": [-15.0, 2.3, 2.0], "size": [6.0, 1.0, 6.0], "material": "ceiling"},
-    {"at": [-15.0, 0.3, -0.5], "size": [6.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-15.0, 0.3, 4.5], "size": [6.0, 3.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 0.3, 0.7], "size": [1.0, 3.0, 1.4], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 1.5, 2.0], "size": [1.0, 0.6, 1.2], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 0.3, 3.3], "size": [1.0, 3.0, 1.4], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-17.5, 0.3, 2.0], "size": [1.0, 3.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-19.0, -0.5, -6.0], "size": [14.0, 1.0, 12.0], "material": "floor"},
-    {"at": [-19.0, 4.5, -6.0], "size": [14.0, 1.0, 12.0], "material": "ceiling"},
-    {"at": [-19.0, 2.0, -11.5], "size": [14.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-19.0, 2.0, -0.5], "size": [14.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 2.0, -9.5], "size": [1.0, 4.0, 3.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-12.5, 2.0, -2.5], "size": [1.0, 4.0, 3.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-25.5, 2.0, -6.0], "size": [1.0, 4.0, 10.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-17.0, 2.0, -9.0], "size": [1.2, 4.0, 1.2], "material": "stone"},
-    {"at": [-21.0, 2.0, -6.0], "size": [1.2, 4.0, 1.2], "material": "stone"},
-    {"at": [19.0, -0.5, -6.0], "size": [14.0, 1.0, 14.0], "material": "floor"},
-    {"at": [19.0, 5.5, -6.0], "size": [14.0, 1.0, 14.0], "material": "ceiling"},
-    {"at": [19.0, 2.5, -12.5], "size": [14.0, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [19.0, 2.5, 0.5], "size": [14.0, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [25.5, 2.5, -6.0], "size": [1.0, 5.0, 12.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, 2.5, -10.0], "size": [1.0, 5.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, 4.5, -6.0], "size": [1.0, 1.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [12.5, 2.5, -2.0], "size": [1.0, 5.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [16.0, 2.5, -3.0], "size": [1.2, 5.0, 1.2], "material": "stone"},
-    {"at": [16.0, 2.5, -9.0], "size": [1.2, 5.0, 1.2], "material": "stone"},
-    {"at": [22.0, 0.15, -6.0], "size": [4.0, 0.3, 4.0], "material": "stone"},
-    {"at": [0.0, -0.5, -19.5], "size": [8.0, 1.0, 7.0], "material": "floor"},
-    {"at": [0.0, 4.5, -19.5], "size": [8.0, 1.0, 7.0], "material": "ceiling"},
-    {"at": [-3.5, 2.0, -22.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [3.5, 2.0, -22.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-3.5, 2.0, -16.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [3.5, 2.0, -16.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [3.5, 2.0, -19.5], "size": [1.0, 4.0, 5.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-3.5, 2.0, -19.5], "size": [1.0, 4.0, 5.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, -28.0], "size": [14.0, 1.0, 12.0], "material": "floor"},
-    {"at": [0.0, 4.5, -28.0], "size": [14.0, 1.0, 12.0], "material": "ceiling"},
-    {"at": [-4.5, 2.0, -33.5], "size": [5.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [4.5, 2.0, -33.5], "size": [5.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-5.0, 2.0, -22.5], "size": [4.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [5.0, 2.0, -22.5], "size": [4.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [6.5, 2.0, -28.0], "size": [1.0, 4.0, 10.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-6.5, 2.0, -28.0], "size": [1.0, 4.0, 10.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-3.0, 2.0, -28.0], "size": [1.2, 4.0, 1.2], "material": "stone"},
-    {"at": [3.0, 2.0, -28.0], "size": [1.2, 4.0, 1.2], "material": "stone"},
-    {"at": [0.0, -0.5, -36.0], "size": [6.0, 1.0, 6.0], "material": "floor"},
-    {"at": [0.0, 4.5, -36.0], "size": [6.0, 1.0, 6.0], "material": "ceiling"},
-    {"at": [-2.5, 2.0, -38.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.5, 2.0, -38.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.5, 2.0, -33.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.5, 2.0, -33.5], "size": [1.0, 4.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [2.5, 2.0, -36.0], "size": [1.0, 4.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-2.5, 2.0, -36.0], "size": [1.0, 4.0, 4.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, -0.5, -43.0], "size": [12.0, 1.0, 10.0], "material": "floor"},
-    {"at": [0.0, 5.5, -43.0], "size": [12.0, 1.0, 10.0], "material": "ceiling"},
-    {"at": [0.0, 2.5, -47.5], "size": [12.0, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-4.0, 2.5, -38.5], "size": [4.0, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [0.0, 4.5, -38.5], "size": [4.0, 1.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [4.0, 2.5, -38.5], "size": [4.0, 5.0, 1.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [5.5, 2.5, -43.0], "size": [1.0, 5.0, 8.0], "material": "wall", "shadowCasting": "doubleSided"},
-    {"at": [-5.5, 2.5, -43.0], "size": [1.0, 5.0, 8.0], "material": "wall", "shadowCasting": "doubleSided"}
+    {"at": [0.0, -0.6, 1.5], "size": [4.0, 1.2, 5.0], "material": "stone", "id": "7d9a90a6"},
+    {"at": [0.0, -0.75, -1.5], "size": [3.0, 0.9, 1.0], "material": "stone", "id": "4bed7a83"},
+    {"at": [0.0, -0.9, -2.5], "size": [3.0, 0.6, 1.0], "material": "stone", "id": "db785183"},
+    {"at": [0.0, -1.05, -3.5], "size": [3.0, 0.3, 1.0], "material": "stone", "id": "d2f215ef"},
+    {"at": [-10.0, -0.6, -6.0], "size": [4.0, 1.2, 4.0], "material": "stone", "id": "884f66b7"},
+    {"at": [-7.5, -0.75, -6.0], "size": [1.0, 0.9, 3.0], "material": "stone", "id": "b36b399c"},
+    {"at": [-6.5, -0.9, -6.0], "size": [1.0, 0.6, 3.0], "material": "stone", "id": "94b72e59"},
+    {"at": [-5.5, -1.05, -6.0], "size": [1.0, 0.3, 3.0], "material": "stone", "id": "b7b7afa9"},
+    {"at": [10.0, -0.6, -6.0], "size": [4.0, 1.2, 4.0], "material": "stone", "id": "a4dbea37"},
+    {"at": [7.5, -0.75, -6.0], "size": [1.0, 0.9, 3.0], "material": "stone", "id": "7770211c"},
+    {"at": [6.5, -0.9, -6.0], "size": [1.0, 0.6, 3.0], "material": "stone", "id": "cad7ddd9"},
+    {"at": [5.5, -1.05, -6.0], "size": [1.0, 0.3, 3.0], "material": "stone", "id": "7e738529"},
+    {"at": [0.0, -0.6, -14.0], "size": [6.0, 1.2, 4.0], "material": "stone", "id": "c96571ef"},
+    {"at": [0.0, -0.75, -11.5], "size": [3.0, 0.9, 1.0], "material": "stone", "id": "0561b6dd"},
+    {"at": [0.0, -0.9, -10.5], "size": [3.0, 0.6, 1.0], "material": "stone", "id": "09441136"},
+    {"at": [0.0, -1.05, -9.5], "size": [3.0, 0.3, 1.0], "material": "stone", "id": "55741420"},
+    {"at": [-6.0, 1.9, -2.0], "size": [1.4, 6.2, 1.4], "material": "stone", "id": "73855fae"},
+    {"at": [6.0, 1.9, -2.0], "size": [1.4, 6.2, 1.4], "material": "stone", "id": "cbb7a62e"},
+    {"at": [-6.0, 1.9, -10.0], "size": [1.4, 6.2, 1.4], "material": "stone", "id": "48ee52ba"},
+    {"at": [6.0, 1.9, -10.0], "size": [1.4, 6.2, 1.4], "material": "stone", "id": "16a26b3a"},
+    {"at": [-10.0, 1.9, 2.0], "size": [1.4, 6.2, 1.4], "material": "stone", "id": "85bab99a"},
+    {"at": [-15.0, -1.7, 2.0], "size": [6.0, 1.0, 6.0], "material": "floor", "id": "7df35873"},
+    {"at": [-15.0, 2.3, 2.0], "size": [6.0, 1.0, 6.0], "material": "ceiling", "id": "4f60349e"},
+    {
+      "at": [-15.0, 0.3, -0.5],
+      "size": [6.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "85b8025d"
+    },
+    {
+      "at": [-15.0, 0.3, 4.5],
+      "size": [6.0, 3.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "6dcfb240"
+    },
+    {
+      "at": [-12.5, 0.3, 0.7],
+      "size": [1.0, 3.0, 1.4],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d320a71d"
+    },
+    {
+      "at": [-12.5, 1.5, 2.0],
+      "size": [1.0, 0.6, 1.2],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "509a0b7a"
+    },
+    {
+      "at": [-12.5, 0.3, 3.3],
+      "size": [1.0, 3.0, 1.4],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d119de76"
+    },
+    {
+      "at": [-17.5, 0.3, 2.0],
+      "size": [1.0, 3.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "2bf78faf"
+    },
+    {"at": [-19.0, -0.5, -6.0], "size": [14.0, 1.0, 12.0], "material": "floor", "id": "7de1908d"},
+    {"at": [-19.0, 4.5, -6.0], "size": [14.0, 1.0, 12.0], "material": "ceiling", "id": "6effe933"},
+    {
+      "at": [-19.0, 2.0, -11.5],
+      "size": [14.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "1eb6f86c"
+    },
+    {
+      "at": [-19.0, 2.0, -0.5],
+      "size": [14.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5eea43fa"
+    },
+    {
+      "at": [-12.5, 2.0, -9.5],
+      "size": [1.0, 4.0, 3.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d058e516"
+    },
+    {
+      "at": [-12.5, 2.0, -2.5],
+      "size": [1.0, 4.0, 3.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "b37809ab"
+    },
+    {
+      "at": [-25.5, 2.0, -6.0],
+      "size": [1.0, 4.0, 10.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "a8ede983"
+    },
+    {"at": [-17.0, 2.0, -9.0], "size": [1.2, 4.0, 1.2], "material": "stone", "id": "ca746000"},
+    {"at": [-21.0, 2.0, -6.0], "size": [1.2, 4.0, 1.2], "material": "stone", "id": "b99f20ea"},
+    {"at": [19.0, -0.5, -6.0], "size": [14.0, 1.0, 14.0], "material": "floor", "id": "e1c0f7a9"},
+    {"at": [19.0, 5.5, -6.0], "size": [14.0, 1.0, 14.0], "material": "ceiling", "id": "9434de9b"},
+    {
+      "at": [19.0, 2.5, -12.5],
+      "size": [14.0, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "8689c7ba"
+    },
+    {
+      "at": [19.0, 2.5, 0.5],
+      "size": [14.0, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "fe9758a2"
+    },
+    {
+      "at": [25.5, 2.5, -6.0],
+      "size": [1.0, 5.0, 12.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "9a8a613f"
+    },
+    {
+      "at": [12.5, 2.5, -10.0],
+      "size": [1.0, 5.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "f7bb1643"
+    },
+    {
+      "at": [12.5, 4.5, -6.0],
+      "size": [1.0, 1.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "a72ba48d"
+    },
+    {
+      "at": [12.5, 2.5, -2.0],
+      "size": [1.0, 5.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "95e4d45f"
+    },
+    {"at": [16.0, 2.5, -3.0], "size": [1.2, 5.0, 1.2], "material": "stone", "id": "bec495fb"},
+    {"at": [16.0, 2.5, -9.0], "size": [1.2, 5.0, 1.2], "material": "stone", "id": "ba52344d"},
+    {"at": [22.0, 0.15, -6.0], "size": [4.0, 0.3, 4.0], "material": "stone", "id": "8cc37d9d"},
+    {"at": [0.0, -0.5, -19.5], "size": [8.0, 1.0, 7.0], "material": "floor", "id": "33b35fd9"},
+    {"at": [0.0, 4.5, -19.5], "size": [8.0, 1.0, 7.0], "material": "ceiling", "id": "a06378b3"},
+    {
+      "at": [-3.5, 2.0, -22.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "380c5033"
+    },
+    {
+      "at": [3.5, 2.0, -22.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "57616cb3"
+    },
+    {
+      "at": [-3.5, 2.0, -16.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "00692ec1"
+    },
+    {
+      "at": [3.5, 2.0, -16.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d4503941"
+    },
+    {
+      "at": [3.5, 2.0, -19.5],
+      "size": [1.0, 4.0, 5.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "2bc6a021"
+    },
+    {
+      "at": [-3.5, 2.0, -19.5],
+      "size": [1.0, 4.0, 5.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "102df2a1"
+    },
+    {"at": [0.0, -0.5, -28.0], "size": [14.0, 1.0, 12.0], "material": "floor", "id": "4263e956"},
+    {"at": [0.0, 4.5, -28.0], "size": [14.0, 1.0, 12.0], "material": "ceiling", "id": "75ec5138"},
+    {
+      "at": [-4.5, 2.0, -33.5],
+      "size": [5.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "a1ff8fd2"
+    },
+    {
+      "at": [4.5, 2.0, -33.5],
+      "size": [5.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "f5f0f752"
+    },
+    {
+      "at": [-5.0, 2.0, -22.5],
+      "size": [4.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "0f2974da"
+    },
+    {
+      "at": [5.0, 2.0, -22.5],
+      "size": [4.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "d7eee65a"
+    },
+    {
+      "at": [6.5, 2.0, -28.0],
+      "size": [1.0, 4.0, 10.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "672937ba"
+    },
+    {
+      "at": [-6.5, 2.0, -28.0],
+      "size": [1.0, 4.0, 10.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "f147933a"
+    },
+    {"at": [-3.0, 2.0, -28.0], "size": [1.2, 4.0, 1.2], "material": "stone", "id": "0bfa5d4f"},
+    {"at": [3.0, 2.0, -28.0], "size": [1.2, 4.0, 1.2], "material": "stone", "id": "4bf945cf"},
+    {"at": [0.0, -0.5, -36.0], "size": [6.0, 1.0, 6.0], "material": "floor", "id": "82f384f4"},
+    {"at": [0.0, 4.5, -36.0], "size": [6.0, 1.0, 6.0], "material": "ceiling", "id": "cab7f8d6"},
+    {
+      "at": [-2.5, 2.0, -38.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "b39b667c"
+    },
+    {
+      "at": [2.5, 2.0, -38.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "84ff4bfc"
+    },
+    {
+      "at": [-2.5, 2.0, -33.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7fe2ceb9"
+    },
+    {
+      "at": [2.5, 2.0, -33.5],
+      "size": [1.0, 4.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "e8336939"
+    },
+    {
+      "at": [2.5, 2.0, -36.0],
+      "size": [1.0, 4.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "5149ca52"
+    },
+    {
+      "at": [-2.5, 2.0, -36.0],
+      "size": [1.0, 4.0, 4.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "332df7d2"
+    },
+    {"at": [0.0, -0.5, -43.0], "size": [12.0, 1.0, 10.0], "material": "floor", "id": "a4ce38b7"},
+    {"at": [0.0, 5.5, -43.0], "size": [12.0, 1.0, 10.0], "material": "ceiling", "id": "55a4dc75"},
+    {
+      "at": [0.0, 2.5, -47.5],
+      "size": [12.0, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "257cdeb9"
+    },
+    {
+      "at": [-4.0, 2.5, -38.5],
+      "size": [4.0, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "7341014d"
+    },
+    {
+      "at": [0.0, 4.5, -38.5],
+      "size": [4.0, 1.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "57c94a60"
+    },
+    {
+      "at": [4.0, 2.5, -38.5],
+      "size": [4.0, 5.0, 1.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "217b5fcd"
+    },
+    {
+      "at": [5.5, 2.5, -43.0],
+      "size": [1.0, 5.0, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "9166ebfd"
+    },
+    {
+      "at": [-5.5, 2.5, -43.0],
+      "size": [1.0, 5.0, 8.0],
+      "material": "wall",
+      "shadowCasting": "doubleSided",
+      "id": "1902227d"
+    }
   ],
   "lights": [
     {
       "type": "point",
       "at": [-4.4, 2.8, 14.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "landing_west"
+      "name": "landing_west",
+      "id": "2af19739"
     },
     {
       "type": "point",
       "at": [4.4, 2.8, 14.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "landing_east"
+      "name": "landing_east",
+      "id": "af5ab92b"
     },
     {
       "type": "point",
       "at": [0.0, 4.0, -6.0],
       "color": [0.5, 0.85, 0.8],
-      "intensity": 6.0,
+      "intensity": 34743.501468,
       "range": 18.0,
       "castsShadow": true,
-      "name": "basin_lamp"
+      "name": "basin_lamp",
+      "id": "6adb22c9"
     },
     {
       "type": "point",
       "at": [-11.4, 2.0, -12.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "basin_northwest"
+      "name": "basin_northwest",
+      "id": "e11b6b2e"
     },
     {
       "type": "point",
       "at": [11.4, 2.0, -12.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "basin_northeast"
+      "name": "basin_northeast",
+      "id": "310e7974"
     },
     {
       "type": "point",
       "at": [-11.4, 2.0, 0.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 5.0,
+      "intensity": 28952.917889999997,
       "range": 13.0,
       "castsShadow": true,
-      "name": "basin_southwest"
+      "name": "basin_southwest",
+      "id": "eeaad0bc"
     },
     {
       "type": "point",
       "at": [11.4, 2.0, 0.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 5.0,
+      "intensity": 28952.917889999997,
       "range": 13.0,
       "castsShadow": true,
-      "name": "basin_southeast"
+      "name": "basin_southeast",
+      "id": "61240336"
     },
     {
       "type": "point",
       "at": [-16.4, 1.0, 2.0],
       "color": [0.5, 0.85, 0.8],
-      "intensity": 3.0,
+      "intensity": 17371.750734,
       "range": 8.0,
       "castsShadow": true,
-      "name": "alcove"
+      "name": "alcove",
+      "id": "bfea126a"
     },
     {
       "type": "point",
       "at": [-24.4, 2.8, -6.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "sluice_west"
+      "name": "sluice_west",
+      "id": "e61a59db"
     },
     {
       "type": "point",
       "at": [-19.0, 2.8, -10.4],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "sluice_north"
+      "name": "sluice_north",
+      "id": "8e410f0b"
     },
     {
       "type": "point",
       "at": [19.0, 4.2, -6.0],
       "color": [1.0, 0.78, 0.42],
-      "intensity": 5.0,
+      "intensity": 28952.917889999997,
       "range": 14.0,
       "castsShadow": true,
-      "name": "pump_lamp"
+      "name": "pump_lamp",
+      "id": "8854d02e"
     },
     {
       "type": "point",
       "at": [24.4, 3.0, -9.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "pump_northeast"
+      "name": "pump_northeast",
+      "id": "bfe2c5be"
     },
     {
       "type": "point",
       "at": [24.4, 3.0, -3.0],
       "color": [1.0, 0.68, 0.34],
-      "intensity": 6.5,
+      "intensity": 37638.793257,
       "range": 13.0,
       "castsShadow": true,
-      "name": "pump_southeast"
+      "name": "pump_southeast",
+      "id": "d94fe45a"
     },
     {
       "type": "point",
       "at": [-5.4, 2.8, -25.0],
       "color": [0.5, 0.85, 0.8],
-      "intensity": 5.0,
+      "intensity": 28952.917889999997,
       "range": 13.0,
       "castsShadow": true,
-      "name": "drain_west"
+      "name": "drain_west",
+      "id": "d2c5d111"
     },
     {
       "type": "point",
       "at": [5.4, 2.8, -31.0],
       "color": [0.5, 0.85, 0.8],
-      "intensity": 5.0,
+      "intensity": 28952.917889999997,
       "range": 13.0,
       "castsShadow": true,
-      "name": "drain_east"
+      "name": "drain_east",
+      "id": "bc05a5fd"
     },
     {
       "type": "point",
       "at": [-4.4, 3.0, -43.0],
       "color": [0.55, 0.78, 1.0],
-      "intensity": 5.0,
+      "intensity": 28952.917889999997,
       "range": 13.0,
       "castsShadow": true,
-      "name": "outflow_west"
+      "name": "outflow_west",
+      "id": "16c41cf3"
     }
   ],
   "entities": [
-    {"type": "reflection_probe", "at": [0.0, 2.0, 14.0]},
-    {"type": "player_spawn", "at": [0.0, 0.0, 16.0], "yaw": 0.0},
-    {"type": "torch", "at": [-4.75, 2.8, 14.0], "yaw": 1.5708, "light": "landing_west"},
-    {"type": "torch", "at": [4.75, 2.8, 14.0], "yaw": -1.5708, "light": "landing_east"},
+    {"type": "reflection_probe", "at": [0.0, 2.0, 14.0], "id": "93c3e5ea"},
+    {"type": "player_spawn", "at": [0.0, 0.0, 16.0], "yaw": 0.0, "id": "465c1c59"},
+    {
+      "type": "torch",
+      "at": [-4.75, 2.8, 14.0],
+      "yaw": 1.5708,
+      "props": {"light": "landing_west"},
+      "id": "97255325"
+    },
+    {
+      "type": "torch",
+      "at": [4.75, 2.8, 14.0],
+      "yaw": -1.5708,
+      "props": {"light": "landing_east"},
+      "id": "92ef4925"
+    },
     {
       "type": "note",
       "at": [-3.5, 1.6, 10.03],
       "yaw": 0.0,
-      "text": "The wardens flooded the cistern to keep what is in it from climbing out. It did not work."
+      "props": {"text": "The wardens flooded the cistern to keep what is in it from climbing out. It did not work."},
+      "id": "535f3cc5"
     },
-    {"type": "pickup", "at": [3.0, 0.8, 12.0], "gives": "shells", "amount": 8},
-    {"type": "reflection_probe", "at": [-6.0, 1.9, -6.0]},
-    {"type": "reflection_probe", "at": [6.0, 1.9, -6.0]},
-    {"type": "lamp", "at": [0.0, 4.0, -6.0], "light": "basin_lamp", "color": [0.5, 0.85, 0.8]},
-    {"type": "torch", "at": [-11.75, 2.0, -12.0], "yaw": 1.5708, "light": "basin_northwest"},
-    {"type": "torch", "at": [11.75, 2.0, -12.0], "yaw": -1.5708, "light": "basin_northeast"},
-    {"type": "torch", "at": [-11.75, 2.0, 0.0], "yaw": 1.5708, "light": "basin_southwest"},
-    {"type": "torch", "at": [11.75, 2.0, 0.0], "yaw": -1.5708, "light": "basin_southeast"},
-    {"type": "monster", "at": [0.0, -1.2, -6.0], "kind": "tank"},
-    {"type": "monster", "at": [-4.0, -1.2, -12.0], "kind": "tank"},
-    {"type": "monster", "at": [-2.0, 0.0, -14.0], "kind": "shooter"},
-    {"type": "monster", "at": [10.0, 0.0, -7.0], "kind": "shooter"},
-    {"type": "monster", "at": [8.0, -1.2, -1.0], "kind": "runner"},
-    {"type": "monster", "at": [-8.0, -1.2, -11.0], "kind": "runner"},
-    {"type": "pickup", "at": [4.0, -0.4, 2.0], "gives": "health", "amount": 25},
-    {"type": "pickup", "at": [-4.0, -0.4, -13.0], "gives": "shells", "amount": 8},
+    {"type": "pickup", "at": [3.0, 0.8, 12.0], "props": {"gives": "shells", "amount": 8}, "id": "4207d85e"},
+    {"type": "reflection_probe", "at": [-6.0, 1.9, -6.0], "id": "f7a15abf"},
+    {"type": "reflection_probe", "at": [6.0, 1.9, -6.0], "id": "262bc63f"},
+    {
+      "type": "reflector",
+      "name": "basin_mirror",
+      "at": [0.0, -0.85, -6.0],
+      "props": {"material": "water", "reflectance": 0.35, "strength": 0.8},
+      "id": "b0242144"
+    },
+    {
+      "type": "decal",
+      "name": "landing_wet",
+      "at": [0.0, 0.0, 1.0],
+      "props": {"size": [3.0, 0.6, 2.0], "material": "water"},
+      "id": "0f6ae094"
+    },
+    {
+      "type": "lamp",
+      "at": [0.0, 4.0, -6.0],
+      "props": {"light": "basin_lamp", "color": [0.5, 0.85, 0.8]},
+      "id": "784c9674"
+    },
+    {
+      "type": "torch",
+      "at": [-11.75, 2.0, -12.0],
+      "yaw": 1.5708,
+      "props": {"light": "basin_northwest"},
+      "id": "3414452b"
+    },
+    {
+      "type": "torch",
+      "at": [11.75, 2.0, -12.0],
+      "yaw": -1.5708,
+      "props": {"light": "basin_northeast"},
+      "id": "9231a12b"
+    },
+    {
+      "type": "torch",
+      "at": [-11.75, 2.0, 0.0],
+      "yaw": 1.5708,
+      "props": {"light": "basin_southwest"},
+      "id": "7b2e3d93"
+    },
+    {
+      "type": "torch",
+      "at": [11.75, 2.0, 0.0],
+      "yaw": -1.5708,
+      "props": {"light": "basin_southeast"},
+      "id": "69e02593"
+    },
+    {"type": "monster", "at": [0.0, -1.2, -6.0], "props": {"kind": "tank"}, "id": "c5337895"},
+    {"type": "monster", "at": [-4.0, -1.2, -12.0], "props": {"kind": "tank"}, "id": "798b7eb5"},
+    {"type": "monster", "at": [-2.0, 0.0, -14.0], "props": {"kind": "shooter"}, "id": "e2880439"},
+    {"type": "monster", "at": [10.0, 0.0, -7.0], "props": {"kind": "shooter"}, "id": "6d1f13a5"},
+    {"type": "monster", "at": [8.0, -1.2, -1.0], "props": {"kind": "runner"}, "id": "75ae16c0"},
+    {"type": "monster", "at": [-8.0, -1.2, -11.0], "props": {"kind": "runner"}, "id": "1d05526f"},
+    {"type": "pickup", "at": [4.0, -0.4, 2.0], "props": {"gives": "health", "amount": 25}, "id": "ee1716fe"},
+    {"type": "pickup", "at": [-4.0, -0.4, -13.0], "props": {"gives": "shells", "amount": 8}, "id": "25e403c8"},
     {
       "type": "door",
       "at": [0.0, 2.0, -16.0],
       "name": "sluice_gate",
-      "size": [6.0, 4.0, 1.0],
-      "travel": [0.0, 4.1, 0.0],
-      "speed": 2.2,
-      "wait": 4.0,
-      "material": "iron",
-      "key": "brass"
+      "props": {
+        "size": [6.0, 4.0, 1.0],
+        "travel": [0.0, 4.1, 0.0],
+        "speed": 2.2,
+        "wait": 4.0,
+        "material": "iron",
+        "key": "brass"
+      },
+      "id": "776378d4"
     },
-    {"type": "trigger", "at": [0.0, 1.5, -14.4], "size": [6.0, 3.0, 2.0], "target": "sluice_gate", "once": false},
-    {"type": "reflection_probe", "at": [-15.0, 0.3, 2.0]},
-    {"type": "torch", "at": [-16.75, 1.0, 2.0], "yaw": 1.5708, "light": "alcove"},
-    {"type": "secret", "at": [-15.0, 0.05, 2.0], "size": [2.0, 2.5, 2.0]},
-    {"type": "pickup", "at": [-15.0, -0.4, 2.0], "gives": "rockets", "amount": 4},
-    {"type": "pickup", "at": [-16.0, -0.4, 1.0], "gives": "armour", "amount": 25},
-    {"type": "reflection_probe", "at": [-19.0, 2.0, -6.0]},
-    {"type": "torch", "at": [-24.75, 2.8, -6.0], "yaw": 1.5708, "light": "sluice_west"},
-    {"type": "torch", "at": [-19.0, 2.8, -10.75], "yaw": 0.0, "light": "sluice_north"},
-    {"type": "monster", "at": [-22.0, 0.0, -9.0], "kind": "shooter"},
-    {"type": "monster", "at": [-22.0, 0.0, -3.0], "kind": "shooter"},
-    {"type": "monster", "at": [-16.0, 0.0, -2.0], "kind": "runner"},
-    {"type": "pickup", "at": [-15.0, 0.8, -9.0], "gives": "shells", "amount": 8},
-    {"type": "pickup", "at": [-23.0, 0.8, -2.0], "gives": "health", "amount": 25},
+    {
+      "type": "trigger",
+      "at": [0.0, 1.5, -14.4],
+      "props": {"size": [6.0, 3.0, 2.0], "target": "sluice_gate", "once": false},
+      "id": "0214c79c"
+    },
+    {"type": "reflection_probe", "at": [-15.0, 0.3, 2.0], "id": "6aa4b4b0"},
+    {"type": "torch", "at": [-16.75, 1.0, 2.0], "yaw": 1.5708, "props": {"light": "alcove"}, "id": "a317ef6f"},
+    {"type": "secret", "at": [-15.0, 0.05, 2.0], "props": {"size": [2.0, 2.5, 2.0]}, "id": "8b8f0f68"},
+    {"type": "pickup", "at": [-15.0, -0.4, 2.0], "props": {"gives": "rockets", "amount": 4}, "id": "28fc4ea8"},
+    {"type": "pickup", "at": [-16.0, -0.4, 1.0], "props": {"gives": "armour", "amount": 25}, "id": "8bd49a3f"},
+    {"type": "reflection_probe", "at": [-19.0, 2.0, -6.0], "id": "3f6e6085"},
+    {
+      "type": "torch",
+      "at": [-24.75, 2.8, -6.0],
+      "yaw": 1.5708,
+      "props": {"light": "sluice_west"},
+      "id": "21b9e5aa"
+    },
+    {
+      "type": "torch",
+      "at": [-19.0, 2.8, -10.75],
+      "yaw": 0.0,
+      "props": {"light": "sluice_north"},
+      "id": "16312b57"
+    },
+    {"type": "monster", "at": [-22.0, 0.0, -9.0], "props": {"kind": "shooter"}, "id": "4fed3fd5"},
+    {"type": "monster", "at": [-22.0, 0.0, -3.0], "props": {"kind": "shooter"}, "id": "0534e663"},
+    {"type": "monster", "at": [-16.0, 0.0, -2.0], "props": {"kind": "runner"}, "id": "d7a9d215"},
+    {"type": "pickup", "at": [-15.0, 0.8, -9.0], "props": {"gives": "shells", "amount": 8}, "id": "fa6f85a6"},
+    {"type": "pickup", "at": [-23.0, 0.8, -2.0], "props": {"gives": "health", "amount": 25}, "id": "a6320861"},
     {
       "type": "key",
       "at": [-23.0, 0.9, -6.0],
-      "color": "brass",
       "name": "brass_key",
-      "model": "assets_src/models/key.glb",
-      "material": "keymetal",
-      "size": [0.7, 0.7, 0.7],
-      "tint": [0.95, 0.6, 0.2]
+      "props": {
+        "color": "brass",
+        "model": "assets_src/models/key.glb",
+        "material": "keymetal",
+        "size": [0.7, 0.7, 0.7],
+        "tint": [0.95, 0.6, 0.2]
+      },
+      "id": "80fb6196"
     },
-    {"type": "reflection_probe", "at": [19.0, 2.5, -6.0]},
-    {"type": "lamp", "at": [19.0, 4.2, -6.0], "light": "pump_lamp", "color": [1.0, 0.78, 0.42]},
-    {"type": "torch", "at": [24.75, 3.0, -9.0], "yaw": -1.5708, "light": "pump_northeast"},
-    {"type": "torch", "at": [24.75, 3.0, -3.0], "yaw": -1.5708, "light": "pump_southeast"},
-    {"type": "monster", "at": [22.0, 0.0, -10.0], "kind": "tank"},
-    {"type": "monster", "at": [22.0, 0.0, -2.0], "kind": "tank"},
-    {"type": "monster", "at": [16.0, 0.0, -10.0], "kind": "shooter"},
-    {"type": "pickup", "at": [15.0, 0.8, -1.0], "gives": "bullets", "amount": 20},
-    {"type": "pickup", "at": [24.0, 0.8, -11.0], "gives": "rockets", "amount": 2},
-    {"type": "pickup", "at": [24.0, 0.8, -1.0], "gives": "health", "amount": 25},
+    {"type": "reflection_probe", "at": [19.0, 2.5, -6.0], "id": "70eb5b49"},
+    {
+      "type": "lamp",
+      "at": [19.0, 4.2, -6.0],
+      "props": {"light": "pump_lamp", "color": [1.0, 0.78, 0.42]},
+      "id": "6f0ce39f"
+    },
+    {
+      "type": "torch",
+      "at": [24.75, 3.0, -9.0],
+      "yaw": -1.5708,
+      "props": {"light": "pump_northeast"},
+      "id": "fb6c0e3e"
+    },
+    {
+      "type": "torch",
+      "at": [24.75, 3.0, -3.0],
+      "yaw": -1.5708,
+      "props": {"light": "pump_southeast"},
+      "id": "4607696c"
+    },
+    {"type": "monster", "at": [22.0, 0.0, -10.0], "props": {"kind": "tank"}, "id": "25052507"},
+    {"type": "monster", "at": [22.0, 0.0, -2.0], "props": {"kind": "tank"}, "id": "6b02e5eb"},
+    {"type": "monster", "at": [16.0, 0.0, -10.0], "props": {"kind": "shooter"}, "id": "3dbd6e71"},
+    {"type": "pickup", "at": [15.0, 0.8, -1.0], "props": {"gives": "bullets", "amount": 20}, "id": "5aaa1245"},
+    {"type": "pickup", "at": [24.0, 0.8, -11.0], "props": {"gives": "rockets", "amount": 2}, "id": "feceb49c"},
+    {"type": "pickup", "at": [24.0, 0.8, -1.0], "props": {"gives": "health", "amount": 25}, "id": "ce2b61b7"},
     {
       "type": "key",
       "at": [22.0, 1.2, -6.0],
-      "color": "iron",
       "name": "iron_key",
-      "model": "assets_src/models/key.glb",
-      "material": "keymetal",
-      "size": [0.7, 0.7, 0.7],
-      "tint": [0.95, 0.6, 0.2]
+      "props": {
+        "color": "iron",
+        "model": "assets_src/models/key.glb",
+        "material": "keymetal",
+        "size": [0.7, 0.7, 0.7],
+        "tint": [0.95, 0.6, 0.2]
+      },
+      "id": "6fa6fa0e"
     },
-    {"type": "reflection_probe", "at": [0.0, 2.0, -28.0]},
-    {"type": "torch", "at": [-5.75, 2.8, -25.0], "yaw": 1.5708, "light": "drain_west"},
-    {"type": "torch", "at": [5.75, 2.8, -31.0], "yaw": -1.5708, "light": "drain_east"},
-    {"type": "monster", "at": [0.0, 0.0, -30.0], "kind": "tank"},
-    {"type": "monster", "at": [-4.0, 0.0, -25.0], "kind": "runner"},
-    {"type": "monster", "at": [4.0, 0.0, -31.0], "kind": "runner"},
-    {"type": "pickup", "at": [-4.0, 0.8, -24.0], "gives": "health", "amount": 25},
-    {"type": "pickup", "at": [4.0, 0.8, -24.0], "gives": "shells", "amount": 8},
-    {"type": "pickup", "at": [-4.0, 0.8, -31.0], "gives": "armour", "amount": 25},
+    {"type": "reflection_probe", "at": [0.0, 2.0, -28.0], "id": "d511eb5a"},
+    {
+      "type": "torch",
+      "at": [-5.75, 2.8, -25.0],
+      "yaw": 1.5708,
+      "props": {"light": "drain_west"},
+      "id": "a3a1b710"
+    },
+    {
+      "type": "torch",
+      "at": [5.75, 2.8, -31.0],
+      "yaw": -1.5708,
+      "props": {"light": "drain_east"},
+      "id": "f21d5a7e"
+    },
+    {"type": "monster", "at": [0.0, 0.0, -30.0], "props": {"kind": "tank"}, "id": "6d4d1fbf"},
+    {
+      "type": "monster",
+      "name": "drain_guard",
+      "at": [-4.0, 0.0, -25.0],
+      "props": {
+        "kind": "runner",
+        "behavior": "drain_watch",
+        "board": {"west": [-4.5, 0.9, -24.5], "east": [4.5, 0.9, -24.5]}
+      },
+      "id": "fa45960d"
+    },
+    {"type": "monster", "at": [4.0, 0.0, -31.0], "props": {"kind": "runner"}, "id": "35010116"},
+    {"type": "pickup", "at": [-4.0, 0.8, -24.0], "props": {"gives": "health", "amount": 25}, "id": "cc74c396"},
+    {"type": "pickup", "at": [4.0, 0.8, -24.0], "props": {"gives": "shells", "amount": 8}, "id": "7a870316"},
+    {"type": "pickup", "at": [-4.0, 0.8, -31.0], "props": {"gives": "armour", "amount": 25}, "id": "4361c7bd"},
     {
       "type": "door",
       "at": [0.0, 2.0, -33.0],
       "name": "outflow_gate",
-      "size": [4.0, 4.0, 1.0],
-      "travel": [0.0, 4.1, 0.0],
-      "speed": 2.2,
-      "wait": 4.0,
-      "material": "iron",
-      "key": "iron"
+      "props": {
+        "size": [4.0, 4.0, 1.0],
+        "travel": [0.0, 4.1, 0.0],
+        "speed": 2.2,
+        "wait": 4.0,
+        "material": "iron",
+        "key": "iron"
+      },
+      "id": "bfcba2f8"
     },
-    {"type": "trigger", "at": [0.0, 1.5, -31.4], "size": [4.0, 3.0, 2.0], "target": "outflow_gate", "once": false},
-    {"type": "reflection_probe", "at": [0.0, 2.5, -43.0]},
-    {"type": "torch", "at": [-4.75, 3.0, -43.0], "yaw": 1.5708, "light": "outflow_west"},
-    {"type": "pickup", "at": [3.0, 0.8, -41.0], "gives": "armour", "amount": 25},
-    {"type": "exit", "name": "the_sanctum", "at": [0.0, 1.3, -45.0]}
+    {
+      "type": "trigger",
+      "at": [0.0, 1.5, -31.4],
+      "props": {"size": [4.0, 3.0, 2.0], "target": "outflow_gate", "once": false},
+      "id": "b2750bff"
+    },
+    {"type": "reflection_probe", "at": [0.0, 2.5, -43.0], "id": "0444c12f"},
+    {
+      "type": "torch",
+      "at": [-4.75, 3.0, -43.0],
+      "yaw": 1.5708,
+      "props": {"light": "outflow_west"},
+      "id": "a0860f2e"
+    },
+    {"type": "pickup", "at": [3.0, 0.8, -41.0], "props": {"gives": "armour", "amount": 25}, "id": "347f937a"},
+    {"type": "exit", "name": "the_sanctum", "at": [0.0, 1.3, -45.0], "id": "23ed9697"}
   ],
-  "next": "assets/levels/sanctum.json"
+  "next": "assets/levels/sanctum.json",
+  "behaviors": {
+    "drain_watch": {
+      "kind": "sequence",
+      "children": [
+        {"kind": "goTo", "key": "west", "within": 0.6},
+        {"kind": "wait", "seconds": 1.5},
+        {"kind": "goTo", "key": "east", "within": 0.6},
+        {"kind": "wait", "seconds": 1.5}
+      ]
+    }
+  }
 }

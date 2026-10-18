@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -6,7 +7,11 @@ import 'package:vector_math/vector_math.dart';
 /// The same shape as [Gatherer] and [KeyTaker]: a collider says who it is, and
 /// whether that someone can be launched is a question they answer. A crate
 /// could implement this too and would then need no change here.
-abstract interface class Launchable {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class Launchable {
   /// Throws this upward at [speed] metres a second.
   ///
   /// A speed rather than an impulse, because a spring is a promise about height
@@ -22,6 +27,8 @@ abstract interface class Launchable {
 /// its edge — and every platformer that has tried has produced the bug where a
 /// player bounces sideways into a pit.
 final class Spring extends Mechanism with CollisionListener {
+  /// A pad over [collider], throwing at [speed] metres a second; [collider]
+  /// is made a trigger that reports here.
   Spring({super.name, required this.collider, this.speed = 15.0}) {
     collider
       ..kind = ColliderKind.trigger
@@ -29,6 +36,7 @@ final class Spring extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger pad whoever stands on is thrown from.
   final Collider collider;
 
   /// How fast it throws. 15 m/s clears about 4.7 m against the runner's
@@ -48,7 +56,7 @@ final class Spring extends Mechanism with CollisionListener {
   bool firedThisStep = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   void step(double dt) => firedThisStep = false;
@@ -63,7 +71,8 @@ final class Spring extends Mechanism with CollisionListener {
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 
@@ -71,7 +80,8 @@ final class Spring extends Mechanism with CollisionListener {
   /// is thrown may come back down onto it before the overlap ever ends, and a
   /// spring that only answers on entry would quietly stop working.
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final other = context.other;
     if (!firedThisStep) activate(world.activationBy(other));
   }
 }

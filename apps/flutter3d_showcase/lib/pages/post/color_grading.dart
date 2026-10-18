@@ -7,16 +7,34 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `color-grading` page: the post stage through a grade and the marks of
+/// a lens. Its check is that the composite pass, which grades, ran.
 final class ColorGradingDemo extends ShowcaseDemo {
+  /// The grade's contrast, 0.5 to 1.8; 1 leaves it as drawn.
   double contrast = 1.15;
+
+  /// The grade's saturation, 0 to 2; 0 is grey and 1 leaves it as drawn.
   double saturation = 1.2;
+
+  /// The grade's warmth, -1 (cooler) to 1 (warmer).
   double temperature = 0.15;
+
+  /// How much blue is lifted into the shadows, 0 to 0.15.
   double coolShadows = 0.03;
+
+  /// How much the highlights' gain is pushed to red, and less to green, 0 to
+  /// 0.5.
   double warmHighlights = 0.15;
+
+  /// How dark the corners go, 0 to 1.
   double vignette = 0.45;
+
+  /// How strong the film grain is, 0 to 0.1.
   double grain = 0.03;
+
+  /// How far the colours fringe apart towards the edges, 0 to 0.015; the
+  /// grade's `chromaticAberration`.
   double aberration = 0.004;
 
   @override
@@ -34,8 +52,8 @@ final class ColorGradingDemo extends ShowcaseDemo {
       temperature: temperature,
       // #endregion whole
       // #region ranges
-      lift: Vector3(0.0, 0.0, coolShadows),
-      gain: Vector3(1.0 + warmHighlights, 1.0 + warmHighlights * 0.4, 1.0),
+      lift: LinearColor(0.0, 0.0, coolShadows),
+      gain: LinearColor(1.0 + warmHighlights, 1.0 + warmHighlights * 0.4, 1.0),
       // #endregion ranges
       // #region lens
       vignette: vignette,

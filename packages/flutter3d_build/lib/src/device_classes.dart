@@ -3,7 +3,7 @@
 ///
 /// **A budget is four levers the pipeline already had.** The level-of-detail
 /// chain (`C5`), the impostor at its end (`C4`), the largest side a texture
-/// may keep (the same `TextureBudget` numbers `makeGameReady` fits a project
+/// may keep (the same `TextureBudget` numbers `prepareForGame` fits a project
 /// to) and, for a level, how far the light optimizer (`N1`) may move the
 /// picture to drop a light. Nothing new is computed per class; the same
 /// conversion runs once per class with different numbers.
@@ -22,15 +22,15 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     show ResizeFilter, TextureBudget, resizeRgba;
 import 'package:image/image.dart' as img;
 
-export 'package:flutter3d_core/flutter3d_core.dart'
-    show DeviceClass, deviceClassPath;
-
 /// One device class's budget.
 ///
 /// A null [lods] or [impostor] leaves the matched rule's own (or the
 /// command line's) in place: the desktop preset does, so a desktop file is
 /// what the project built before classes existed.
 final class DeviceClassBudget {
+  /// The budget of [deviceClass]: 64-texel impostor views and a light-set
+  /// drift of 0.01 unless given, the rule's own chain and impostor while
+  /// [lods] and [impostor] are null.
   const DeviceClassBudget({
     required this.deviceClass,
     required this.textures,
@@ -40,6 +40,8 @@ final class DeviceClassBudget {
     this.lightDifference = 0.01,
   });
 
+  /// The class this budget cuts for; its `.f3d` lands at the class's path
+  /// beside the default one.
   final DeviceClass deviceClass;
 
   /// The triangle ratios of the chain every model of this class carries, or
@@ -54,7 +56,7 @@ final class DeviceClassBudget {
   final int impostorCell;
 
   /// How large a texture may stay: its `maxSide` clamps each image axis by
-  /// axis, the way `FitTexturesToProfile` does for `makeGameReady`.
+  /// axis, the way `FitTexturesToProfile` does for `prepareForGame`.
   final TextureBudget textures;
 
   /// The largest mean picture difference, and share of under-lit pixels, a
@@ -101,28 +103,34 @@ final class DeviceClassBudget {
       };
 
   /// This budget with the given fields replaced — what a manifest's own
-  /// numbers for a class do to its preset.
+  /// numbers for a class do to its preset. [maxTextureSide] replaces only
+  /// the side of [textures]; [textures] replaces the whole of it.
   DeviceClassBudget copyWith({
+    DeviceClass? deviceClass,
     List<double>? lods,
     bool? impostor,
     int? impostorCell,
+    TextureBudget? textures,
     int? maxTextureSide,
     double? lightDifference,
-  }) => DeviceClassBudget(
-    deviceClass: deviceClass,
-    lods: lods ?? this.lods,
-    impostor: impostor ?? this.impostor,
-    impostorCell: impostorCell ?? this.impostorCell,
-    textures: maxTextureSide == null
-        ? textures
-        : TextureBudget(
-            maxSide: maxTextureSide,
-            maxBytesOnDevice: textures.maxBytesOnDevice,
-            targetFormat: textures.targetFormat,
-            requirePowerOfTwo: textures.requirePowerOfTwo,
-          ),
-    lightDifference: lightDifference ?? this.lightDifference,
-  );
+  }) {
+    final base = textures ?? this.textures;
+    return DeviceClassBudget(
+      deviceClass: deviceClass ?? this.deviceClass,
+      lods: lods ?? this.lods,
+      impostor: impostor ?? this.impostor,
+      impostorCell: impostorCell ?? this.impostorCell,
+      textures: maxTextureSide == null
+          ? base
+          : TextureBudget(
+              maxSide: maxTextureSide,
+              maxBytesOnDevice: base.maxBytesOnDevice,
+              targetFormat: base.targetFormat,
+              requirePowerOfTwo: base.requirePowerOfTwo,
+            ),
+      lightDifference: lightDifference ?? this.lightDifference,
+    );
+  }
 
   /// What goes into the build cache, so a budget that changes converts again.
   String get stamp =>
@@ -156,7 +164,7 @@ List<DeviceClass>? parseDeviceClasses(Object? value) {
   if (words == null) return null;
   final classes = <DeviceClass>[];
   for (final word in words) {
-    final parsed = DeviceClass.parse(word.trim());
+    final parsed = DeviceClass.tryParse(word.trim());
     if (parsed == null) return null;
     if (!classes.contains(parsed)) classes.add(parsed);
   }
@@ -170,7 +178,7 @@ String deviceClassDestination(String destination, DeviceClass deviceClass) =>
 /// Every image in [document] no larger than [maxSide] on either axis.
 ///
 /// An image over it is clamped axis by axis and box-filtered down, which is
-/// what `FitTexturesToProfile` does for `makeGameReady`, so a texture comes
+/// what `FitTexturesToProfile` does for `prepareForGame`, so a texture comes
 /// out of the build at the size the editor would have fitted it to. An image
 /// already inside, one already block-compressed and one this cannot decode
 /// are carried over as they arrived, and [report] hears about each resize.

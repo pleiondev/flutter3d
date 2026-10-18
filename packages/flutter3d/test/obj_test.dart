@@ -375,8 +375,8 @@ f 1 2 3
       final material = document.materials.single;
       // The same SurfaceMaterial type the glTF decoder produces.
       expect(material.name, 'red');
-      expect(material.baseColor.x, closeTo(0.8, 1e-6));
-      expect(material.baseColor.w, closeTo(0.5, 1e-6));
+      expect(material.baseColor.toSrgb().r, closeTo(0.8, 1e-6));
+      expect(material.baseColor.a, closeTo(0.5, 1e-6));
       // Ns 250 of 1000 maps to a fairly smooth surface.
       expect(material.roughness, closeTo(0.75, 1e-6));
       expect(material.alphaMode, SurfaceAlphaMode.blend);
@@ -535,7 +535,7 @@ f 1 \\
     late ObjDocument teapot;
 
     setUpAll(() async {
-      final bytes = File('$kSamplesPath/teapot.obj').readAsBytesSync();
+      final bytes = File('$samplesPath/teapot.obj').readAsBytesSync();
       teapot = await ObjLoader().load(bytes);
     });
 
@@ -546,7 +546,7 @@ f 1 \\
     });
 
     test('is split by its g groups', () {
-      // Four `g` records, though the first may precede any face.
+      // One `o` record since the file is generated; the old one had four `g`.
       expect(teapot.surfaces.length, inInclusiveRange(1, 4));
     });
 

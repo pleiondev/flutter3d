@@ -9,8 +9,8 @@
 /// below are what a panel free to write to the document actually looks like.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show EditMesh, ElementLevel, MeshChecks, Modifier;
@@ -30,6 +30,7 @@ import '../material_preview_panel.dart';
 import '../mesh_health_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../morphs_panel.dart';
+import '../no_mesh_banner.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
 import '../retarget_panel.dart';
@@ -51,6 +52,8 @@ import 'transform_rows.dart';
 /// The right-hand panel: the object list, transform grid and modifier stack,
 /// plus what the viewport knows about display and camera.
 class PropertiesPanel extends StatelessWidget {
+  /// A panel over [project] as [stage] shows it, in [mode]; every change goes
+  /// out through a callback and comes back as a new [project].
   const PropertiesPanel({
     super.key,
     required this.mode,
@@ -112,6 +115,8 @@ class PropertiesPanel extends StatelessWidget {
     this.selectedConstraint,
     required this.onSelectConstraint,
     this.onRemoveConstraint,
+    this.onSetAnimationGraph,
+    this.onRemoveAnimationGraph,
     this.weightBrushMode = PaintWeightsMode.paint,
     required this.onWeightBrushModeChanged,
     this.weightBrushRadius = 48.0,
@@ -178,9 +183,20 @@ class PropertiesPanel extends StatelessWidget {
   /// has.
   final AnimationSubmode animationSubmode;
 
+  /// The live scene the viewport draws; the outliner reads which objects its
+  /// sync could not show from it.
   final ModelerStage stage;
+
+  /// The document: objects, materials, lights, clips and the rest every section
+  /// reads.
   final ModelProject project;
+
+  /// What is selected; the first selected object is the one the transform,
+  /// modifier and material sections edit.
   final ProjectSelection selection;
+
+  /// An object was picked by id with nothing held: the outliner's fallback when
+  /// [onPickObject] is null.
   final ValueChanged<int> onSelect;
 
   /// A number field was committed: the whole transform, as nine numbers.
@@ -189,11 +205,15 @@ class PropertiesPanel extends StatelessWidget {
   /// Where a rotation or a scale from [onTransform] is centred, and the chip
   /// that changes it.
   final PivotChip pivot;
+
+  /// A pivot chip was tapped.
   final ValueChanged<PivotChip> onPivot;
 
   /// Whose axes a rotation from [onTransform] is given in, and the chip that
   /// changes it.
   final TransformSpace space;
+
+  /// A space chip was tapped.
   final ValueChanged<TransformSpace> onSpace;
 
   /// The name box was committed.
@@ -212,6 +232,9 @@ class PropertiesPanel extends StatelessWidget {
   /// `ux-13`'s own two: the export switch, and the cross that drops a slot.
   /// Null in a caller with no commands behind it.
   final void Function(int id, int index)? onToggleModifierExport;
+
+  /// The cross on modifier [index] of object [id] was pressed. Null leaves the
+  /// cross out.
   final void Function(int id, int index)? onRemoveModifier;
 
   /// A modifier's own field was committed — `mat-20`'s own array `count`,
@@ -237,6 +260,9 @@ class PropertiesPanel extends StatelessWidget {
   /// and takes one off again. Null where there is no filesystem to pick from,
   /// and the row does not appear.
   final VoidCallback? onChoosePanorama;
+
+  /// The panorama row's clear button was pressed. Null where [onChoosePanorama]
+  /// is.
   final VoidCallback? onClearPanorama;
 
   /// `ux-48`: reads the held object's own source file again, keeping its
@@ -273,7 +299,7 @@ class PropertiesPanel extends StatelessWidget {
     int materialIndex,
     String kind,
     Map<String, Object?> fields,
-    (double x, double y) position,
+    NodePosition position,
   )
   onAddTextureNode;
 
@@ -317,12 +343,17 @@ class PropertiesPanel extends StatelessWidget {
   /// lifted out of that panel's own local state so the timeline in
   /// `ModelerShell.bottom` reads and drives the same selection.
   final int? selectedAnimationClip;
+
+  /// A clip row was tapped, by its index in the project's clips.
   final ValueChanged<int> onSelectAnimationClip;
 
   /// `S7`'s own [RetargetPanel]: every joint name on the imported source's
   /// own skeleton, resolved to text — empty before `retarget.import` has
   /// run.
   final List<String> retargetSourceNames;
+
+  /// Which target joint each source joint is mapped to, as the retarget table
+  /// shows it.
   final BoneMap retargetBoneMap;
 
   /// `retarget.autoMap`'s own rail button, reachable a second way from
@@ -333,20 +364,43 @@ class PropertiesPanel extends StatelessWidget {
   /// when a bone-map row is pointed somewhere else. Empty/null leaves the
   /// table read-only, which is what it was before this row.
   final List<String> retargetTargetNames;
+
+  /// A table row was changed: [source] now maps to target, or to nothing when
+  /// null. Null leaves the table read-only.
   final void Function(String source, String? target)? onMapBone;
 
+  /// Whether the retargeted clip keeps its root motion baked in or hands it to
+  /// code.
   final RetargetRootMotion retargetRootMotion;
+
+  /// A root-motion segment was picked.
   final ValueChanged<RetargetRootMotion> onRetargetRootMotionChanged;
+
+  /// Whether each foot is snapped back to [retargetGroundY] after retargeting.
   final bool retargetLockFeet;
+
+  /// The foot-lock box was ticked or cleared.
   final ValueChanged<bool> onRetargetLockFeetChanged;
+
+  /// The height of the floor the feet are locked to, in metres.
   final double retargetGroundY;
+
+  /// A new floor height was typed, in metres.
   final ValueChanged<double> onRetargetGroundYChanged;
+
+  /// How far an ankle may sit off [retargetGroundY] before the foot lock moves
+  /// it, in metres.
   final double retargetFootTolerance;
+
+  /// A new foot tolerance was typed, in metres.
   final ValueChanged<double> onRetargetFootToleranceChanged;
 
   /// Whether `retarget.apply`/[onApplyRetarget] has a source clip and a
   /// rigged target to run against.
   final bool canApplyRetarget;
+
+  /// The apply button was pressed; it is enabled only when [canApplyRetarget]
+  /// is true. Null leaves it disabled.
   final VoidCallback? onApplyRetarget;
 
   /// `S2`'s own row: which joint [SkeletonTree] highlights, and which
@@ -356,22 +410,63 @@ class PropertiesPanel extends StatelessWidget {
   /// which joint a stroke paints onto is the same fact whichever animation
   /// sub-mode is showing it.
   final int? selectedJoint;
+
+  /// A joint was picked in the skeleton tree or the weight panel, by its index
+  /// in the held skeleton.
   final ValueChanged<int> onSelectJoint;
+
+  /// Which of the held object's constraints the animation panel highlights, by
+  /// index; null when none is.
   final int? selectedConstraint;
+
+  /// A constraint row was tapped, by its index.
   final ValueChanged<int> onSelectConstraint;
+
+  /// The cross on a constraint row was pressed, by its index. Null leaves the
+  /// cross out.
   final ValueChanged<int>? onRemoveConstraint;
+
+  /// The animation panel's graphs: sets one, answering with the refusal
+  /// or null; and removes one.
+  final String? Function(String name, Map<String, Object?> graph)?
+  onSetAnimationGraph;
+
+  /// The cross on an animation graph was pressed, by the graph's name. Null
+  /// leaves the cross out.
+  final ValueChanged<String>? onRemoveAnimationGraph;
 
   /// `S5`'s own [WeightPaintPanel]: the brush's own radius/strength/mirror/
   /// normalize, and which of `weights.paint`/`weights.assign` is armed.
   final PaintWeightsMode weightBrushMode;
+
+  /// The weight brush was switched between accumulating (`paint`) and
+  /// overwriting (`assign`).
   final ValueChanged<PaintWeightsMode> onWeightBrushModeChanged;
+
+  /// The weight brush's radius, in logical pixels.
   final double weightBrushRadius;
+
+  /// The radius slider moved, in logical pixels.
   final ValueChanged<double> onWeightBrushRadiusChanged;
+
+  /// How much one dab of the weight brush moves a weight, from 0 to 1.
   final double weightBrushStrength;
+
+  /// The strength slider moved, from 0 to 1.
   final ValueChanged<double> onWeightBrushStrengthChanged;
+
+  /// Whether a weight stroke is also painted mirrored across the model's
+  /// symmetry plane, onto the mirrored joints.
   final bool weightMirror;
+
+  /// The mirror switch was flipped.
   final ValueChanged<bool> onWeightMirrorChanged;
+
+  /// Whether every vertex a stroke touched is pruned to the profile's
+  /// influence budget and renormalized once the stroke is done.
   final bool weightNormalize;
+
+  /// The normalise switch was flipped.
   final ValueChanged<bool> onWeightNormalizeChanged;
 
   /// The vertex nearest the weight brush's last hit — [WeightPaintPanel]'s
@@ -392,6 +487,8 @@ class PropertiesPanel extends StatelessWidget {
   /// Which shape [MorphsPanel] highlights, and the marker the viewport's own
   /// overlay draws `secondary` for — lifted the same way [selectedJoint] is.
   final int? selectedShape;
+
+  /// A shape key row was tapped, by its index on the held object.
   final ValueChanged<int> onSelectShape;
 
   /// "Add driver" was pressed under a shape's own row — [id], then the
@@ -413,21 +510,45 @@ class PropertiesPanel extends StatelessWidget {
   /// rather than document state, because undoing to before a light was
   /// selected does not put the selection back either.
   final int? selectedLight;
+
+  /// A light row was tapped, by its index in the project's lights.
   final ValueChanged<int> onSelectLight;
+
+  /// Add a light at the end of the list.
   final VoidCallback onAddLight;
+
+  /// The light at this index should be removed.
   final ValueChanged<int> onRemoveLight;
-  final void Function(int index, ProjectLightType type) onLightTypeChanged;
+
+  /// The light at [index] was switched to another type.
+  final void Function(int index, LightType type) onLightTypeChanged;
+
+  /// The light at [index] has a new intensity.
   final void Function(int index, double value) onLightIntensityChanged;
+
+  /// The light at [index] has a new range, in metres.
   final void Function(int index, double value) onLightRangeChanged;
+
+  /// The light at [index] was told to cast shadows, or not to.
   final void Function(int index, bool value) onLightShadowChanged;
+
+  /// The spot light at [index] has a new outer cone half-angle, in radians.
   final void Function(int index, double outerConeAngle) onLightConeChanged;
 
   /// The scene-wide shadow request — [SceneLighting.shadows] — as opposed to
   /// [onLightShadowChanged], which is one light's own `castsShadow`.
   final ValueChanged<bool> onSceneShadowsChanged;
+
+  /// A different sky preset was picked.
   final ValueChanged<SceneEnvironmentPreset> onEnvironmentChanged;
+
+  /// A new ambient level was typed, for `SceneLighting.ambientIntensity`.
   final ValueChanged<double> onAmbientChanged;
+
+  /// Bloom was switched on or off.
   final ValueChanged<bool> onBloomChanged;
+
+  /// A new exposure was typed, for `SceneLighting.exposure`.
   final ValueChanged<double> onExposureChanged;
 
   /// What the operation card is showing, and where an adjustment goes.
@@ -435,7 +556,13 @@ class PropertiesPanel extends StatelessWidget {
   /// fixes it, and build topology for an imported object. Null in a caller
   /// with no document behind it.
   final void Function(ElementLevel level, List<int> ids)? onSelectElements;
+
+  /// A mesh health row's fix was pressed, with the id of the rail tool that
+  /// fixes it. Null makes the fix do nothing.
   final ValueChanged<String>? onFixMesh;
+
+  /// Builds editable topology for the object with this id, pressed from the
+  /// row an imported object shows. Null draws no such row.
   final ValueChanged<int>? onBuildTopology;
 
   /// `ux-14`'s own four. Null falls back to what the flat list did — a
@@ -443,17 +570,40 @@ class PropertiesPanel extends StatelessWidget {
   /// caller with no document behind it (a test, a preview) wants rather
   /// than a required argument it has nothing to pass.
   final void Function(int id, OutlinerPick how)? onPickObject;
+
+  /// An outliner row's eye was toggled: object [id] is now shown when `to` is
+  /// true. Null makes the toggle do nothing.
   final void Function(int id, bool to)? onObjectVisible;
+
+  /// An outliner row's lock was toggled: object [id] is now locked when `to`
+  /// is true. Null makes the toggle do nothing.
   final void Function(int id, bool to)? onObjectLocked;
+
+  /// An outliner row was dropped onto another: object [id] now has parent `to`,
+  /// or none when null. Null makes the drop do nothing.
   final void Function(int id, int? to)? onReparent;
 
+  /// The command at the top of the history, shown on the operation card; null
+  /// before anything has been done.
   final ModelCommand? lastCommand;
+
+  /// The operation card's numbers were changed: the command as it should now
+  /// be, for `ModelHistory.amend`.
   final ValueChanged<ModelCommand> onAmend;
 
+  /// How the viewport shades: material, normals or wireframe.
   final ShadingMode shading;
+
+  /// A shading segment was picked.
   final ValueChanged<ShadingMode> onShading;
+
+  /// Whether the viewport camera is perspective or orthographic.
   final ViewLens lens;
+
+  /// A lens segment was picked.
   final ValueChanged<ViewLens> onLens;
+
+  /// One of the six standard view buttons was pressed.
   final ValueChanged<StandardView> onView;
 
   @override
@@ -634,6 +784,27 @@ class PropertiesPanel extends StatelessWidget {
             ],
           ),
         ],
+        // An import has no topology until it is welded, and the import
+        // screen that chose the weld cannot be got back to for a file
+        // already open — so the object offers it again, in any mode, with
+        // the same words as mesh mode's banner.
+        if (held != null &&
+            held.geometry is ImportedGeometry &&
+            onBuildTopology != null)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  NoMeshBanner.says(held).said,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              TextButton(
+                onPressed: () => onBuildTopology!(held.id),
+                child: Text(NoMeshBanner.says(held).button!),
+              ),
+            ],
+          ),
         if (held != null &&
             sections.contains(PropertiesSection.modifiers)) ...<Widget>[
           SectionLabel(l.propModifiers),
@@ -780,7 +951,7 @@ class PropertiesPanel extends StatelessWidget {
                   (
                     String kind,
                     Map<String, Object?> fields,
-                    (double, double) position,
+                    NodePosition position,
                   ) => onAddTextureNode(activeMaterial, kind, fields, position),
               onLink: (int nodeId, String input, int from) =>
                   onLinkTextureNode(activeMaterial, nodeId, input, from),
@@ -859,6 +1030,9 @@ class PropertiesPanel extends StatelessWidget {
             selectedConstraint: selectedConstraint,
             onSelectConstraint: onSelectConstraint,
             onRemoveConstraint: onRemoveConstraint,
+            animationGraphs: project.animationGraphs,
+            onSetAnimationGraph: onSetAnimationGraph,
+            onRemoveAnimationGraph: onRemoveAnimationGraph,
           ),
         if (sections.contains(PropertiesSection.weightPaint))
           WeightPaintPanel(

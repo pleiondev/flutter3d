@@ -22,8 +22,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh, ShapeKey;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -81,6 +81,8 @@ final class _Tracked {
 
 /// The scene, following a project.
 final class SceneSync {
+  /// A sync that builds the project's objects under [root] in [scene], on
+  /// [device]. Nothing is built until the first [apply].
   SceneSync({
     required this.device,
     required this.scene,
@@ -88,7 +90,10 @@ final class SceneSync {
     this.materials,
   });
 
+  /// The device every mesh and texture of the project is uploaded to.
   final GraphicsDevice device;
+
+  /// The scene the objects are drawn in; they hang under [root] inside it.
   final Scene scene;
 
   /// The project's materials, uploaded. Null for the measurement stands, which
@@ -257,7 +262,7 @@ final class SceneSync {
     // walk is a handful of parent lookups per object and runs when a command
     // lands rather than per frame.
     for (final MapEntry<int, _Tracked> each in _tracked.entries) {
-      each.value.node.visible = project.isVisible(each.key);
+      each.value.node.isVisible = project.isVisible(each.key);
     }
 
     // Anything the project no longer holds. Removed after the pass rather than
@@ -414,7 +419,7 @@ final class SceneSync {
   }
 
   /// What [object] is painted with: its slot's material, or clay.
-  engine.Material _paintFor(ModelObject object) =>
+  engine.RenderMaterial _paintFor(ModelObject object) =>
       materials?.forObject(object) ?? clay();
 
   /// The buffers [object] draws as, in [layout] — [object.geometry] run
@@ -467,6 +472,7 @@ final class SceneSync {
         ImportedGeometry(:final data) => data,
         // A socket draws nothing — see `SocketGeometry`'s own doc comment.
         SocketGeometry() => _empty,
+        _ => throw UnsupportedError('no mesh data for $geometry'),
       };
 
   /// What a socket uploads as: no vertices, no indices. One instance for all

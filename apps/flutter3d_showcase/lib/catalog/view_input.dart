@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `view_input` category's pages, cameras, projections, picking and input, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> viewInputFeatures = <Feature>[
   Feature(
     id: 'projections',
@@ -22,6 +24,15 @@ const List<Feature> viewInputFeatures = <Feature>[
     keywords: <String>['orthographic', 'perspective'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/projection.dart',
+    ],
+    changes: <Change>[
+      Change(
+        version: '1.0.0-rc.1',
+        note:
+            'Through the orthographic lens the box\'s highlight stays put as the camera pans: light is measured against the view axis rather than from the eye\'s position.',
+        evidence:
+            'An orthographic camera no longer reads its eye as a point the light travels to.',
+      ),
     ],
   ),
   Feature(
@@ -120,5 +131,16 @@ const List<Feature> viewInputFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/screen_bounds.dart',
     ],
+  ),
+  Feature(
+    id: 'photo-mode',
+    title: 'Photo mode',
+    category: Category.viewInput,
+    summary:
+        'The world paused, a free camera that cannot leave the level, filters over the game\'s look, and a picture of any size drawn in tiles.',
+    since: '1.0.0-rc.1',
+    evidence: 'A photo of any size.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    packages: <String>['flutter3d', 'flutter3d_sim'],
   ),
 ];

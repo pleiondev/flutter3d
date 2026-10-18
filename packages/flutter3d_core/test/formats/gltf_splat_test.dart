@@ -24,7 +24,7 @@ List<SplatAttribute> _one({
   double opacity = 1.0,
   List<double> scale = const <double>[0.1, 0.2, 0.3],
   List<double> rotation = const <double>[0.0, 0.0, 0.0, 1.0],
-  List<double> colour = const <double>[0.5, 0.5, 0.5],
+  List<double> color = const <double>[0.5, 0.5, 0.5],
   List<SplatAttribute> extra = const <SplatAttribute>[],
 }) => <SplatAttribute>[
   floats('POSITION', 'VEC3', <double>[1.0, 2.0, 3.0]),
@@ -32,7 +32,7 @@ List<SplatAttribute> _one({
   floats('$_k:SCALE', 'VEC3', scale),
   floats('$_k:OPACITY', 'SCALAR', <double>[opacity]),
   floats('$_k:SH_DEGREE_0_COEF_0', 'VEC3', <double>[
-    for (final c in colour) coefficientFor(c),
+    for (final c in color) coefficientFor(c),
   ]),
   ...extra,
 ];
@@ -54,7 +54,7 @@ void main() {
       final splat = asset.splats.single;
       expect(splat.node, 0);
       expect(splat.cloud.count, 9);
-      expect(splat.colourSpace, SplatColourSpace.srgb);
+      expect(splat.colorSpace, SplatColorSpace.srgb);
       expect(asset.surfaces, isEmpty);
       expect(
         asset.warnings,
@@ -70,17 +70,17 @@ void main() {
     });
 
     test('colours by column, red, green, blue', () {
-      final colours = asset.splats.single.cloud.colours;
+      final colors = asset.splats.single.cloud.colors;
       for (var i = 0; i < 9; i++) {
         final column = i % 3;
         for (var c = 0; c < 3; c++) {
           expect(
-            colours[i * 4 + c],
+            colors[i * 4 + c],
             closeTo(c == column ? 1.0 : 0.0, 1e-5),
             reason: 'splat $i channel $c',
           );
         }
-        expect(colours[i * 4 + 3], closeTo(1.0, 1e-6), reason: 'opacity');
+        expect(colors[i * 4 + 3], closeTo(1.0, 1e-6), reason: 'opacity');
       }
     });
 
@@ -114,7 +114,7 @@ void main() {
     // Mutation: pass the opacity through `splatOpacity` as the PLY reader
     // does — 0.25 becomes 0.56.
     final asset = await _load(splatGlb(attributes: _one(opacity: 0.25)));
-    expect(asset.splats.single.cloud.colours[3], closeTo(0.25, 1e-6));
+    expect(asset.splats.single.cloud.colors[3], closeTo(0.25, 1e-6));
   });
 
   test('scale is linear, not a logarithm', () async {
@@ -127,7 +127,7 @@ void main() {
   test('an sRGB cloud is decoded to linear, a linear one is not', () async {
     // Mutation: skip `srgbToLinear` — the sRGB grey stays at 0.5.
     final srgb = await _load(splatGlb(attributes: _one()));
-    expect(srgb.splats.single.cloud.colours[0], closeTo(0.2140, 1e-4));
+    expect(srgb.splats.single.cloud.colors[0], closeTo(0.2140, 1e-4));
 
     final linear = await _load(
       splatGlb(
@@ -138,21 +138,21 @@ void main() {
         },
       ),
     );
-    expect(linear.splats.single.colourSpace, SplatColourSpace.linear);
-    expect(linear.splats.single.cloud.colours[0], closeTo(0.5, 1e-6));
+    expect(linear.splats.single.colorSpace, SplatColorSpace.linear);
+    expect(linear.splats.single.cloud.colors[0], closeTo(0.5, 1e-6));
   });
 
   test('a negative colour clamps to nought', () async {
     final asset = await _load(
       splatGlb(
-        attributes: _one(colour: const <double>[-0.4, 0.5, 0.5]),
+        attributes: _one(color: const <double>[-0.4, 0.5, 0.5]),
         extension: const <String, Object?>{
           'kernel': 'ellipse',
           'colorSpace': 'lin_rec709_display',
         },
       ),
     );
-    expect(asset.splats.single.cloud.colours[0], 0.0);
+    expect(asset.splats.single.cloud.colors[0], 0.0);
   });
 
   test('a file that requires the extension loads', () async {

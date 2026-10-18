@@ -22,9 +22,14 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/demo_run.dart';
 import 'package:flutter3d_showcase/src/demo/device_holder.dart';
 
+/// The page's Demo tab: starts a fresh demo on the app's device, draws it
+/// every frame, and puts the controls panel beside it.
 class DemoStage extends StatefulWidget {
+  /// A stage running what [build] makes and reporting into [declined].
   const DemoStage({super.key, required this.build, required this.declined});
 
+  /// Makes the demo; called once when the stage starts, so each visit starts
+  /// from a fresh one.
   final DemoBuilder build;
 
   /// What the last frame declined. Set from here, read by the page's chrome.
@@ -44,6 +49,7 @@ class _DemoStageState extends State<DemoStage>
   @override
   void initState() {
     super.initState();
+    // ignore: avoid-inherited-widget-in-initstate, of() only reads
     _start(DeviceScope.of(context));
   }
 
@@ -68,7 +74,7 @@ class _DemoStageState extends State<DemoStage>
     // A frame that took long (a tab left in the background) is played as a
     // tenth of a second: a page that steps by `dt` is then never flung a
     // minute's worth in one go.
-    run.update(math.min(_clock.tick(), 0.1));
+    run.update(math.min(_clock.nextFrameSeconds(), 0.1));
     setState(() {});
   }
 
@@ -145,10 +151,10 @@ class _DemoStageState extends State<DemoStage>
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints box) {
           final double ratio = MediaQuery.devicePixelRatioOf(context);
-          final int width = kFixedResolution
+          final int width = fixedResolution
               ? 1280
               : (box.maxWidth * ratio).round().clamp(1, 8192);
-          final int height = kFixedResolution
+          final int height = fixedResolution
               ? 720
               : (box.maxHeight * ratio).round().clamp(1, 8192);
           final FrameResult frame = run.render(width, height);
@@ -157,7 +163,7 @@ class _DemoStageState extends State<DemoStage>
         },
       ),
     );
-    return kFixedResolution
+    return fixedResolution
         ? Center(
             child: AspectRatio(aspectRatio: 16 / 9, child: surface),
           )

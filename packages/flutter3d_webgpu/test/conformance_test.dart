@@ -61,30 +61,34 @@ library;
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   runDeviceConformance(
     backend: 'webgpu',
     makeDevice: ({required int width, required int height}) async {
-      final device = await WebGpuDevice.create(
-        width: width,
-        height: height,
-        stages: engineShaders,
-      );
+      final WebGpuDevice device;
+      try {
+        device = await WebGpuDevice.open(
+          width: width,
+          height: height,
+          stages: webGpuEngineShaders,
+        );
+      } on DeviceUnavailableException catch (refused, stack) {
+        Error.throwWithStackTrace(
+          ConformanceDeclinedException(
+            'WebGpuDevice found no adapter in this browser: ${refused.message}',
+          ),
+          stack,
+        );
+      }
       // A decline rather than a failure, and the distinction is a CI runner:
       // headless Chrome there carries `navigator.gpu` and returns null from
       // `requestAdapter`, so a browser that looks like it has WebGPU hands out
       // no device. Nothing was asked of the backend on such a machine, and a
       // suite that failed thirty-three times over it was reporting the runner.
-      if (device == null) {
-        throw const ConformanceDeclined(
-          'WebGpuDevice found no adapter in this browser: navigator.gpu is '
-          'there and requestAdapter answered null',
-        );
-      }
       return device;
     },
     // The same stages the device was built with, as the section a packed bundle
@@ -92,11 +96,11 @@ void main() {
     // there is no ahead-of-time artefact for a Flutter version to have moved —
     // which is what `ShaderBundle.webgpuSection` says, and why
     // `webgpu_loaded_shaders.dart` versions the document instead.
-    ownShaders: () async => (
+    ownShaders: () async => OwnShaderSection(
       id: ShaderBundle.webgpuSection,
       bytes: encodeWebGpuSection(
-        vertex: engineShaders.vertex,
-        fragment: engineShaders.fragment,
+        vertex: webGpuEngineShaders.vertex,
+        fragment: webGpuEngineShaders.fragment,
       ),
       sdk: '',
     ),

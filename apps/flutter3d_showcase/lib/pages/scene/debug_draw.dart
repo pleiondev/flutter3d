@@ -3,8 +3,10 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `debug-draw` page: a body, a capsule, a three-joint rig and a light
+/// with the renderer's debug overlays switched on for them. Its check is that
+/// the overlays asked for were drawn.
 final class DebugDrawDemo extends ShowcaseDemo {
   bool _bounds = true;
   bool _normals = true;
@@ -33,9 +35,9 @@ final class DebugDrawDemo extends ShowcaseDemo {
     ).build(layout: VertexLayout.skinned);
     final MeshNode body = MeshNode(
       DeviceMesh.upload(context.device, bodyData),
-      Material(
+      RenderMaterial(
         name: 'blue body',
-        baseColor: Vector4(0.12, 0.42, 0.78, 1.0),
+        baseColor: LinearColor.fromSrgb(0.12, 0.42, 0.78, 1.0),
         roughness: 0.48,
       ),
       name: 'inspected capsule',
@@ -64,14 +66,14 @@ final class DebugDrawDemo extends ShowcaseDemo {
 
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.38, 0.46, 0.62)
-      ..ambientIntensity = 0.14
+      ..ambientColor = LinearColor(0.38, 0.46, 0.62)
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity
       ..add(hip)
       ..add(body)
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 14.0,
+          intensity: 14.0 * LightNode.defaultIntensity,
           range: 8.0,
           name: 'debugged light',
         )..setPosition(-2.2, 3.2, 2.0),
@@ -81,7 +83,7 @@ final class DebugDrawDemo extends ShowcaseDemo {
   }
 
   // #region options
-  DebugDrawOptions get _debug => DebugDrawOptions(
+  DebugDrawSettings get _debug => DebugDrawSettings(
     bounds: _bounds,
     normals: _normals,
     axes: _axes,

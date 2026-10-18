@@ -17,6 +17,7 @@ sealed class CabinetSaveOutcome {
 
 /// The server accepted the bytes as the model's new current source.
 final class CabinetSaveWritten extends CabinetSaveOutcome {
+  /// The one answer that carries nothing: the save is the model's source now.
   const CabinetSaveWritten();
 }
 
@@ -25,8 +26,10 @@ final class CabinetSaveWritten extends CabinetSaveOutcome {
 /// there was one, or a sentence built from whatever went wrong before a
 /// response came back at all.
 final class CabinetSaveFailed extends CabinetSaveOutcome {
+  /// A refusal saying [said].
   const CabinetSaveFailed(this.said);
 
+  /// The sentence for the status line, shown as it is.
   final String said;
 }
 

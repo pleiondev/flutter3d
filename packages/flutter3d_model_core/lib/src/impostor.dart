@@ -33,7 +33,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart'
     show PerspectiveProjection, RenderSettings;
-import 'package:flutter3d_core/formats.dart' show DecodedImage, decodePng;
+import 'package:flutter3d_core/formats.dart'
+    show DecodedImage, ImageFormatException, decodePng;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'project.dart';
@@ -50,8 +53,45 @@ typedef ImpostorView = ({int index, double yaw, AtlasCell cell});
 /// exactly what it was before this comment.
 typedef AtlasCell = ({double x, double y, double width, double height});
 
+/// The two baked views a camera stands between, and how far it has turned
+/// from the first toward the second: what [ImpostorAtlas.pick] answers.
+final class ImpostorPick {
+  /// The pick of [view], cross-fading toward [next] by [blend].
+  const ImpostorPick({
+    required this.view,
+    required this.next,
+    required this.blend,
+  });
+
+  /// The index of the view the camera has most recently turned past.
+  final int view;
+
+  /// The index of the view after [view], the one the camera turns toward.
+  final int next;
+
+  /// How far between [view] and [next] the camera stands, a fraction 0..1.
+  final double blend;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ImpostorPick &&
+      other.view == view &&
+      other.next == next &&
+      other.blend == blend;
+
+  @override
+  int get hashCode => Object.hash(view, next, blend);
+
+  @override
+  String toString() => 'ImpostorPick($view -> $next at $blend)';
+}
+
 /// The angles an impostor holds and where each of them lives in its atlas.
 final class ImpostorAtlas {
+  /// An atlas of [angles] views, eight by default, on a square of [size]
+  /// texels, 1024 by default.
+  ///
+  /// Asserts that [angles] is positive.
   ImpostorAtlas({this.angles = 8, this.size = 1024})
     : assert(angles > 0, 'an impostor of no angles is a blank card'),
       columns = _columnsFor(angles);
@@ -69,6 +109,7 @@ final class ImpostorAtlas {
   /// not fill.
   final int columns;
 
+  /// How many cells down, enough rows of [columns] cells to hold every angle.
   int get rows => (angles / columns).ceil();
 
   /// The side of one cell, in texels.
@@ -100,34 +141,34 @@ final class ImpostorAtlas {
   /// handing back how far between them the camera stands lets a shader cross-
   /// fade, which is what turns eight pictures into something that reads as
   /// turning rather than as flicking.
-  ({int view, int next, double blend}) pick(double cameraYaw) {
+  ImpostorPick pick(double cameraYaw) {
     final double step = 2 * math.pi / angles;
     final double turns = (cameraYaw % (2 * math.pi)) / step;
     final int view = turns.floor() % angles;
-    return (
+    return ImpostorPick(
       view: view,
       next: (view + 1) % angles,
       blend: turns - turns.floor(),
     );
   }
 
-  /// The camera that takes view [index], looking at [centre] from [distance].
+  /// The camera that takes view [index], looking at [center] from [distance].
   ///
   /// **Level with the model, always.** The pitch an impostor is baked at is
   /// the pitch it is honest at; baking from above and showing at eye level
   /// is the one mistake that makes an impostor look like a sticker.
   SnapshotCamera cameraFor(
     int index, {
-    required Vector3 centre,
+    required Vector3 center,
     required double distance,
-    double fovYRadians = math.pi / 8,
+    double fovY = math.pi / 8,
   }) {
     final double yaw = viewAt(index).yaw;
     return SnapshotCamera(
-      position: centre + Vector3(math.sin(yaw), 0, math.cos(yaw)) * distance,
-      target: centre,
+      position: center + Vector3(math.sin(yaw), 0, math.cos(yaw)) * distance,
+      target: center,
       projection: PerspectiveProjection(
-        fovYRadians: fovYRadians,
+        fovY: fovY,
         near: math.max(distance * 0.01, 1e-6),
         far: distance * 10 + 10,
       ),
@@ -152,9 +193,10 @@ final class ImpostorAtlas {
 /// them from the model's own bounds, so the card covers the silhouette it
 /// replaced.
 final class ImpostorCard {
+  /// A card [width] by [height] metres.
   const ImpostorCard({required this.width, required this.height});
 
-  /// The card a bake at [distance] through [fovYRadians] actually fills.
+  /// The card a bake at [distance] through [fovY] actually fills.
   ///
   /// **Not the model's own bounds, and this is the mistake worth naming.** A
   /// cell holds a picture of the model taken from [distance] through a fixed
@@ -163,34 +205,37 @@ final class ImpostorCard {
   /// card the size of the model shrinks the model by exactly that fraction,
   /// which reads as an impostor that is slightly too small and pops on the
   /// swap. What the cell covers at the subject's own distance is
-  /// `2 · distance · tan(fov / 2)`, and a card that size puts the picture
+  /// `2 · distance · tan(fovY / 2)`, and a card that size puts the picture
   /// back at the size it was taken at.
   factory ImpostorCard.framing({
     required double distance,
-    double fovYRadians = math.pi / 8,
+    double fovY = math.pi / 8,
   }) {
-    final double side = 2 * distance * math.tan(fovYRadians / 2);
+    final double side = 2 * distance * math.tan(fovY / 2);
     return ImpostorCard(width: side, height: side);
   }
 
+  /// In metres.
   final double width;
+
+  /// In metres.
   final double height;
 
   /// The four corners, bottom-left first, turned to face a camera at
-  /// [cameraYaw] and standing at [centre].
+  /// [cameraYaw] and standing at [center].
   ///
   /// **About the up axis only.** A card that also tilted toward a camera
   /// looking down would swing its own baked horizon into view, and the trick
   /// only works while the picture and the view agree about where level is.
-  List<Vector3> cornersAt(Vector3 centre, double cameraYaw) {
+  List<Vector3> cornersAt(Vector3 center, double cameraYaw) {
     final Vector3 right = Vector3(math.cos(cameraYaw), 0, -math.sin(cameraYaw))
       ..scale(width / 2);
     final Vector3 up = Vector3(0, height / 2, 0);
     return <Vector3>[
-      centre - right - up,
-      centre + right - up,
-      centre + right + up,
-      centre - right + up,
+      center - right - up,
+      center + right - up,
+      center + right + up,
+      center - right + up,
     ];
   }
 }
@@ -199,7 +244,26 @@ final class ImpostorCard {
 ///
 /// RGBA rather than a PNG, because what a caller does next is put it on a
 /// texture, and the one that wants a file already has an encoder.
-typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
+///
+/// A class rather than a record, so a bake can later carry more maps
+/// without breaking a reader.
+final class ImpostorBake {
+  /// A bake of [atlas] laid out on [size] by [size] pixels held in [rgba].
+  const ImpostorBake({
+    required this.atlas,
+    required this.size,
+    required this.rgba,
+  });
+
+  /// The atlas that laid the views out.
+  final ImpostorAtlas atlas;
+
+  /// The image's side, in pixels.
+  final int size;
+
+  /// The image's pixels, RGBA, row by row.
+  final Uint8List rgba;
+}
 
 /// [project] rendered from every one of [atlas]'s angles, composited into one
 /// atlas image.
@@ -216,7 +280,7 @@ typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
 /// than inside a job that has no idea it is filling an atlas.
 ///
 /// **Bake from the distance the impostor will be shown at, through whatever
-/// [fovYRadians] frames the subject there.** The perspective is baked into
+/// [fovY] frames the subject there.** The perspective is baked into
 /// the picture: a card baked from eight metres and shown from three hundred
 /// carries eight metres' worth of convergence into a view that has almost
 /// none, and the silhouette is visibly the wrong shape rather than merely
@@ -227,12 +291,16 @@ typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
 Future<ImpostorBake> bakeImpostor({
   required ModelProject project,
   required ImpostorAtlas atlas,
-  required Vector3 centre,
+  required Vector3 center,
   required double distance,
   required TileDevice tileDevice,
-  double fovYRadians = math.pi / 8,
+
+  /// In radians.
+  double fovY = math.pi / 8,
   RenderSettings settings = const RenderSettings(),
-  Vector4? clearColor,
+
+  /// The background, linear as `CameraView.clearColor` is.
+  LinearColor? clearColor,
 }) async {
   final int cell = atlas.cellSize;
   final rgba = Uint8List(atlas.size * atlas.size * 4);
@@ -244,22 +312,28 @@ Future<ImpostorBake> bakeImpostor({
         height: cell,
         camera: atlas.cameraFor(
           i,
-          centre: centre,
+          center: center,
           distance: distance,
-          fovYRadians: fovYRadians,
+          fovY: fovY,
         ),
         settings: settings,
-        clearColor: clearColor ?? Vector4.zero(),
+        clearColor: clearColor ?? LinearColor.transparent,
       ),
       tileDevice: tileDevice,
     ).run();
     // The bytes came straight out of the encoder this repository wrote, so a
     // null here is not a file somebody chose badly — it is the writer and the
     // reader disagreeing, which is a bug rather than a case to handle.
-    final DecodedImage? view = decodePng(png);
-    if (view == null) {
-      throw StateError(
-        'the snapshot of impostor view $i did not decode as a PNG',
+    final DecodedImage view;
+    try {
+      view = decodePng(png);
+    } on ImageFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        StateError(
+          'the snapshot of impostor view $i did not decode as a PNG: '
+          '${error.message}',
+        ),
+        stackTrace,
       );
     }
     final ImpostorView where = atlas.viewAt(i);
@@ -276,5 +350,5 @@ Future<ImpostorBake> bakeImpostor({
       );
     }
   }
-  return (atlas: atlas, size: atlas.size, rgba: rgba);
+  return ImpostorBake(atlas: atlas, size: atlas.size, rgba: rgba);
 }

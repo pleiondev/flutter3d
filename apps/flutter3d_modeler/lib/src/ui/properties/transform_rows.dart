@@ -21,13 +21,18 @@ import '../../transform_fields.dart';
 /// The 3x3 transform grid: `Position`/`Rotation`/`Scale` down the rows,
 /// `X`/`Y`/`Z` across the columns.
 class TransformRows extends StatelessWidget {
+  /// A grid showing [fields].
   const TransformRows({
     super.key,
     required this.fields,
     required this.onChanged,
   });
 
+  /// The held object's position in metres, rotation in degrees and scale, as
+  /// the nine fields show them.
   final TransformFields fields;
+
+  /// A field was committed: all nine numbers, the edited one changed.
   final ValueChanged<TransformFields> onChanged;
 
   static const List<String> _axisLabels = <String>['X', 'Y', 'Z'];
@@ -116,12 +121,13 @@ class TransformRows extends StatelessWidget {
                     // an arrow key or a scrub moves by something the size of
                     // what the row measures.
                     unit: switch (row) {
-                      0 => NumberUnit.metres,
+                      0 => NumberUnit.meters,
                       1 => NumberUnit.degrees,
                       _ => NumberUnit.plain,
                     },
+                    // Degrees step by one; metres and scale factors by a
+                    // hundredth.
                     step: switch (row) {
-                      0 => 0.01,
                       1 => 1,
                       _ => 0.01,
                     },

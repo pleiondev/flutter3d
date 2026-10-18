@@ -43,7 +43,10 @@ String mirrorBoneName(String name) {
 /// A source bone name → target bone name mapping, used by [retargetClip] to
 /// find, for each animated source bone, which bone (if any) on the target
 /// skeleton it drives.
-class BoneMap {
+final class BoneMap {
+  /// A map from source bone names to target bone names, taken as given. Keep
+  /// the map unchanged afterwards, since the [BoneMap] holds it rather than a
+  /// copy.
   const BoneMap(Map<String, String> map) : _map = map;
 
   final Map<String, String> _map;
@@ -63,8 +66,10 @@ class BoneMap {
   /// two `BoneMap`s share one, and a "change one row" that edited both.
   Map<String, String> get pairs => Map<String, String>.unmodifiable(_map);
 
+  /// Number of source bones mapped.
   int get length => _map.length;
 
+  /// Whether no source bone maps to anything, so a retarget drives nothing.
   bool get isEmpty => _map.isEmpty;
 
   @override
@@ -244,10 +249,8 @@ bool _isUpperLetter(String char) => RegExp('[A-Z]').hasMatch(char);
   final List<String> tokens = _looseTokens(afterPrefix);
   for (int i = 0; i < tokens.length; i++) {
     final bool? left = switch (tokens[i].toLowerCase()) {
-      'left' => true,
-      'right' => false,
-      'l' => true,
-      'r' => false,
+      'left' || 'l' => true,
+      'right' || 'r' => false,
       _ => null,
     };
     if (left == null) continue;
@@ -331,10 +334,8 @@ String? _chainCanonicalOf(String rawName) {
   bool? left;
   for (final String token in tokens.sublist(1, tokens.length - 1)) {
     left = switch (token.toLowerCase()) {
-      'left' => true,
-      'right' => false,
-      'l' => true,
-      'r' => false,
+      'left' || 'l' => true,
+      'right' || 'r' => false,
       _ => null,
     };
     if (left != null) break;

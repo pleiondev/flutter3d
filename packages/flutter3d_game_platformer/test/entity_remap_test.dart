@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -44,7 +45,7 @@ List<EntityDef> _enemies(List<String> names) => <EntityDef>[
   );
   final kind = EnemyKind();
   for (final def in defs) {
-    kind.spawn(def, context);
+    kind.spawn(EntitySpawn(entity: def, context: context));
   }
   return (actors: actors, world: world);
 }
@@ -76,8 +77,8 @@ void main() {
       saved,
       oldNames: oldNames,
       newNames: after.actors.nameList(),
-      newGenerations: newSave['generations']! as List<int>,
-      newFree: newSave['free']! as List<int>,
+      newGenerations: (newSave['generations']! as List<Object?>).cast<int>(),
+      newFree: (newSave['free']! as List<Object?>).cast<int>(),
     );
 
     expect(remap.dropped, <String>['archer']);

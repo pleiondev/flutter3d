@@ -41,6 +41,7 @@ import 'draco_traversal.dart';
 
 /// What a decoded primitive carries.
 final class DracoMesh {
+  /// A decoded primitive of [indices] over [pointCount] points.
   const DracoMesh({
     required this.indices,
     required this.pointCount,
@@ -64,6 +65,8 @@ final class DracoMesh {
 
 /// One decoded attribute.
 final class DracoAttribute {
+  /// An attribute of [type] with [components] floats a point in [values],
+  /// and the stored integers when it was stored as integers.
   const DracoAttribute({
     required this.type,
     required this.components,
@@ -75,6 +78,8 @@ final class DracoAttribute {
   /// 4 generic.
   final int type;
 
+  /// Count of components in one point's value: three for a position, two
+  /// for a texture coordinate.
   final int components;
 
   /// `count * components` floats, one run per point: dequantised where the
@@ -95,10 +100,19 @@ final class DracoAttribute {
 
 /// Draco's `GeometryAttribute::Type`.
 abstract final class DracoAttributeType {
+  /// A vertex position.
   static const int position = 0;
+
+  /// A vertex normal, which may be stored octahedrally.
   static const int normal = 1;
+
+  /// A vertex colour.
   static const int color = 2;
+
+  /// A texture coordinate.
   static const int texCoord = 3;
+
+  /// Anything else: joints, weights, a tool's own data.
   static const int generic = 4;
 }
 
@@ -109,13 +123,16 @@ Never _fail(String message) => throw DracoException(message);
 DracoMesh decodeDraco(Uint8List bytes) {
   try {
     return _decode(bytes);
-  } on RangeError {
+  } on RangeError catch (_, stack) {
     // The cursor's multi-byte reads and every table lookup are bounds-checked
     // by the language rather than by hand. A stream that runs one off the end
     // is truncated or lying about a count, and the caller was promised one
     // kind of exception.
-    throw const DracoException(
-      'the stream ends, or names something out of range, part way through',
+    Error.throwWithStackTrace(
+      const DracoException(
+        'the stream ends, or names something out of range, part way through',
+      ),
+      stack,
     );
   }
 }
@@ -349,6 +366,8 @@ final class _Attribute {
   /// Quantisation, read after every attribute's integers — the stream puts
   /// all the values first and all the parameters after.
   late final Float32List minValues;
+
+  /// The quantization box's side, in the unit of the attribute it quantizes.
   late final double range;
   late final int quantizationBits;
 

@@ -21,6 +21,8 @@ abstract final class Sounds {
     maximum: 220.0,
   );
 
+  /// The jet's engine, looped under everything; its pitch follows the
+  /// throttle.
   static const SoundDef engine = SoundDef(
     name: 'engine',
     asset: 'assets/sounds/engine.wav',
@@ -31,6 +33,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// The tone while the jet fills over a depot.
   static const SoundDef refuel = SoundDef(
     name: 'refuel',
     asset: 'assets/sounds/refuel.wav',
@@ -41,6 +44,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// The alarm while the gauge warns.
   static const SoundDef lowFuel = SoundDef(
     name: 'low-fuel',
     asset: 'assets/sounds/low_fuel.wav',
@@ -51,6 +55,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// A shot from the jet.
   static const SoundDef shot = SoundDef(
     name: 'shot',
     asset: 'assets/sounds/shot.wav',
@@ -60,6 +65,7 @@ abstract final class Sounds {
     rateVariance: 0.04,
   );
 
+  /// A target going up, heard from where it was.
   static const SoundDef boom = SoundDef(
     name: 'boom',
     asset: 'assets/sounds/boom.wav',
@@ -70,6 +76,7 @@ abstract final class Sounds {
     rateVariance: 0.08,
   );
 
+  /// A depot or a bridge going up, heard from where it was.
   static const SoundDef bigBoom = SoundDef(
     name: 'big-boom',
     asset: 'assets/sounds/big_boom.wav',
@@ -79,6 +86,7 @@ abstract final class Sounds {
     maxInstances: 2,
   );
 
+  /// The jet going down.
   static const SoundDef crash = SoundDef(
     name: 'crash',
     asset: 'assets/sounds/crash.wav',
@@ -88,6 +96,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// A shot bouncing off a shielded bridge, heard from where it struck.
   static const SoundDef spark = SoundDef(
     name: 'spark',
     asset: 'assets/sounds/spark.wav',
@@ -96,6 +105,7 @@ abstract final class Sounds {
     maxInstances: 2,
   );
 
+  /// A gunner's burst, heard from the helicopter.
   static const SoundDef tracer = SoundDef(
     name: 'tracer',
     asset: 'assets/sounds/tracer.wav',
@@ -104,6 +114,7 @@ abstract final class Sounds {
     maxInstances: 3,
   );
 
+  /// A level finished, its last bridge down.
   static const SoundDef level = SoundDef(
     name: 'level',
     asset: 'assets/sounds/level.wav',
@@ -113,6 +124,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// Another jet won into reserve.
   static const SoundDef extraJet = SoundDef(
     name: 'extra-jet',
     asset: 'assets/sounds/extra_jet.wav',
@@ -122,6 +134,7 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// Every sound the game plays, the bank they are loaded from.
   static final SoundBank all = SoundBank(<SoundDef>[
     engine,
     refuel,
@@ -156,9 +169,9 @@ extension RiverGameSound on RiverGame {
   /// the throttle, and hails an extra jet.
   void _listen() {
     final flying = phase == Phase.flying;
-    _engineLoop.playing = flying;
-    _refuelLoop.playing = flying && refuelling;
-    _alarmLoop.playing = flying && run.fuelLow && !refuelling;
+    _engineLoop.isPlaying = flying;
+    _refuelLoop.isPlaying = flying && refuelling;
+    _alarmLoop.isPlaying = flying && run.fuelLow && !refuelling;
     final throttle =
         ((speed - RiverGame.slowSpeed) /
                 (RiverGame.fastSpeed - RiverGame.slowSpeed))

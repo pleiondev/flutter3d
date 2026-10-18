@@ -17,7 +17,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Magenta implements CpuFragmentShader {
+final class _Magenta extends CpuFragmentShader {
   const _Magenta();
 
   @override
@@ -78,7 +78,7 @@ void main() {
       await expectLater(
         device.loadShaders(_bundle(<String>['MeshVertex', 'Stripes', 'Waves'])),
         throwsA(
-          isA<ShaderBundleRefused>()
+          isA<ShaderBundleException>()
               .having((r) => r.name, 'name', 'effects')
               .having((r) => r.reason, 'reason', contains('Stripes, Waves')),
         ),
@@ -119,7 +119,7 @@ void main() {
       () => loaded.refresh(
         _bundle(<String>['MeshVertex', 'Unlit', 'Nothing'], name: 'v2'),
       ),
-      throwsA(isA<ShaderBundleRefused>().having((r) => r.name, 'name', 'v2')),
+      throwsA(isA<ShaderBundleException>().having((r) => r.name, 'name', 'v2')),
     );
     expect(loaded.name, 'effects');
     expect(loaded['Unlit'], isNotNull);
@@ -146,7 +146,7 @@ void main() {
     expect(
       () => loaded.refresh(_bundle(<String>['Unlit', 'Pbr'], name: 'v2')),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'v2')
             .having((r) => r.reason, 'reason', contains('"MeshVertex"')),
       ),
@@ -166,7 +166,7 @@ void main() {
       final device = _device();
       await expectLater(
         device.loadShaders(ByteData(32)),
-        throwsA(isA<ShaderBundleRefused>()),
+        throwsA(isA<ShaderBundleException>()),
       );
     },
   );

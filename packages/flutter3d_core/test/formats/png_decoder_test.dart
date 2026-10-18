@@ -77,8 +77,7 @@ void main() {
         ],
       );
       final decoded = decodePng(png);
-      expect(decoded, isNotNull);
-      expect(decoded!.width, 2);
+      expect(decoded.width, 2);
       expect(decoded.height, 2);
       expect(decoded.rgba, <int>[
         ..._rgba(255, 0, 0, 255),
@@ -97,7 +96,7 @@ void main() {
         scanlines: <int>[0, 10, 20, 30, 128, 200, 210, 220, 0],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, <int>[
+      expect(decoded.rgba, <int>[
         ..._rgba(10, 20, 30, 128),
         ..._rgba(200, 210, 220, 0),
       ]);
@@ -112,7 +111,7 @@ void main() {
         scanlines: <int>[0, 10, 128, 250],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, <int>[
+      expect(decoded.rgba, <int>[
         ..._rgba(10, 10, 10, 255),
         ..._rgba(128, 128, 128, 255),
         ..._rgba(250, 250, 250, 255),
@@ -128,7 +127,7 @@ void main() {
         scanlines: <int>[0, 100, 50, 200, 150],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, <int>[
+      expect(decoded.rgba, <int>[
         ..._rgba(100, 100, 100, 50),
         ..._rgba(200, 200, 200, 150),
       ]);
@@ -146,7 +145,7 @@ void main() {
         scanlines: <int>[0, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, _rgba(0x12, 0x56, 0x9A, 255));
+      expect(decoded.rgba, _rgba(0x12, 0x56, 0x9A, 255));
     });
   });
 
@@ -165,7 +164,7 @@ void main() {
         scanlines: <int>[0, 2, 0, 1],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, <int>[
+      expect(decoded.rgba, <int>[
         ..._rgba(70, 80, 90, 255),
         ..._rgba(10, 20, 30, 255),
         ..._rgba(40, 50, 60, 255),
@@ -190,7 +189,7 @@ void main() {
         scanlines: <int>[0, (5 << 4) | 10],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, <int>[
+      expect(decoded.rgba, <int>[
         ..._rgba(100, 150, 200, 255),
         ..._rgba(50, 60, 70, 255),
       ]);
@@ -212,7 +211,7 @@ void main() {
       for (var i = 0; i < 8; i++) {
         final bit = <int>[1, 0, 1, 1, 0, 0, 1, 0][i];
         expect(
-          decoded!.rgba.sublist(i * 4, i * 4 + 4),
+          decoded.rgba.sublist(i * 4, i * 4 + 4),
           bit == 1 ? _rgba(255, 255, 255, 255) : _rgba(0, 0, 0, 255),
           reason: 'pixel $i',
         );
@@ -234,7 +233,7 @@ void main() {
         scanlines: <int>[1, 10, 10, 10],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba, <int>[
+      expect(decoded.rgba, <int>[
         ..._rgba(10, 10, 10, 255),
         ..._rgba(20, 20, 20, 255),
         ..._rgba(30, 30, 30, 255),
@@ -252,7 +251,7 @@ void main() {
         scanlines: <int>[0, 5, 15, 25, 2, 3, (10 - 15) & 0xFF, 5],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba.sublist(12), <int>[
+      expect(decoded.rgba.sublist(12), <int>[
         ..._rgba(8, 8, 8, 255),
         ..._rgba(10, 10, 10, 255),
         ..._rgba(30, 30, 30, 255),
@@ -271,7 +270,7 @@ void main() {
         scanlines: <int>[0, 4, 8, 12, 3, 8, 11, 14],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba.sublist(12), <int>[
+      expect(decoded.rgba.sublist(12), <int>[
         ..._rgba(10, 10, 10, 255),
         ..._rgba(20, 20, 20, 255),
         ..._rgba(30, 30, 30, 255),
@@ -290,7 +289,7 @@ void main() {
         scanlines: <int>[0, 6, 9, 20, 4, 1, 16, 249],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba.sublist(12), <int>[
+      expect(decoded.rgba.sublist(12), <int>[
         ..._rgba(7, 7, 7, 255),
         ..._rgba(25, 25, 25, 255),
         ..._rgba(18, 18, 18, 255),
@@ -321,7 +320,7 @@ void main() {
         ],
       );
       final decoded = decodePng(png);
-      expect(decoded!.rgba.sublist(8), <int>[
+      expect(decoded.rgba.sublist(8), <int>[
         ..._rgba(0, 0, 0, 255),
         ..._rgba(50, 50, 50, 255),
       ]);
@@ -330,7 +329,10 @@ void main() {
 
   group('refused, by value', () {
     test('not a PNG at all', () {
-      expect(decodePng(Uint8List.fromList(<int>[1, 2, 3, 4])), isNull);
+      expect(
+        () => decodePng(Uint8List.fromList(<int>[1, 2, 3, 4])),
+        throwsA(isA<ImageFormatException>()),
+      );
     });
 
     test('a file cut off partway through the IDAT chunk', () {
@@ -344,7 +346,7 @@ void main() {
         ],
       );
       final cut = Uint8List.sublistView(whole, 0, whole.length - 10);
-      expect(decodePng(cut), isNull);
+      expect(() => decodePng(cut), throwsA(isA<ImageFormatException>()));
     });
 
     test('interlaced — refused rather than drawn wrong', () {
@@ -359,7 +361,7 @@ void main() {
         interlace: true,
         scanlines: <int>[0, 1, 2, 0, 3, 4],
       );
-      expect(decodePng(png), isNull);
+      expect(() => decodePng(png), throwsA(isA<ImageFormatException>()));
     });
 
     test('a bit depth colour type 2 never allows', () {
@@ -371,7 +373,7 @@ void main() {
         colorType: 2,
         scanlines: <int>[0, 0],
       );
-      expect(decodePng(png), isNull);
+      expect(() => decodePng(png), throwsA(isA<ImageFormatException>()));
     });
 
     test('a palette image with no PLTE chunk', () {
@@ -382,7 +384,7 @@ void main() {
         colorType: 3,
         scanlines: <int>[0, 0],
       );
-      expect(decodePng(png), isNull);
+      expect(() => decodePng(png), throwsA(isA<ImageFormatException>()));
     });
   });
 }

@@ -56,11 +56,18 @@ final class FogOfWar {
   final int sides;
 
   /// The corner the lattice starts at.
+  /// Both in metres of world X and Z.
   final double originX;
+
+  /// The corner's Z, in metres.
   final double originZ;
 
-  /// How many cells across and down.
+  /// How many cells across, along X: enough to cover the ground's width, plus
+  /// one.
   final int columns;
+
+  /// How many cells down, along Z: enough to cover the ground's depth, plus
+  /// one.
   final int rows;
 
   /// One byte a cell a side: bit one is explored, bit two is visible.
@@ -85,9 +92,11 @@ final class FogOfWar {
     return cz * columns + cx;
   }
 
-  /// Where a cell's middle is, along X and Z.
-  double centreX(int cell) => originX + (cell % columns + 0.5) * cellSize;
-  double centreZ(int cell) => originZ + (cell ~/ columns + 0.5) * cellSize;
+  /// Where a cell's middle is along world X, in metres.
+  double centerX(int cell) => originX + (cell % columns + 0.5) * cellSize;
+
+  /// Where a cell's middle is along world Z, in metres.
+  double centerZ(int cell) => originZ + (cell ~/ columns + 0.5) * cellSize;
 
   /// Whether [side] can see [cell] at this moment.
   bool isVisible(int side, int cell) =>
@@ -171,8 +180,8 @@ final class FogOfWar {
     final int base = side * cellCount;
     for (var cell = 0; cell < cellCount; cell++) {
       if (_state[base + cell] & _explored != 0) continue;
-      final double cellX = centreX(cell);
-      final double cellZ = centreZ(cell);
+      final double cellX = centerX(cell);
+      final double cellZ = centerZ(cell);
       final double dx = cellX - x;
       final double dz = cellZ - z;
       final double at = dx * dx + dz * dz;
@@ -185,7 +194,7 @@ final class FogOfWar {
   }
 
   /// A cell's middle as a point, for a caller that wants somewhere to walk.
-  Vector3 centreOf(int cell) => Vector3(centreX(cell), 0.0, centreZ(cell));
+  Vector3 centerOf(int cell) => Vector3(centerX(cell), 0.0, centerZ(cell));
 
   /// What every side knows, as one string, plus the shape of the lattice it
   /// was written on.
@@ -218,9 +227,9 @@ final class FogOfWar {
   /// documents from other builds — and a fog that stays as it is, is a fog the
   /// next refresh corrects.
   void restore(Map<String, Object?> from) {
-    if (from.integer('columns', -1) != columns) return;
-    if (from.integer('rows', -1) != rows) return;
-    if (from.integer('sides', -1) != sides) return;
+    if (from.integer('columns', orElse: -1) != columns) return;
+    if (from.integer('rows', orElse: -1) != rows) return;
+    if (from.integer('sides', orElse: -1) != sides) return;
     final String? written = from.text('state');
     if (written == null) return;
     final Uint8List bytes;

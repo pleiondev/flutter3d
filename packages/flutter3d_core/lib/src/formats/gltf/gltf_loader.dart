@@ -2,20 +2,26 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
 import '../draco/draco.dart';
+import '../format_exceptions.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
 import '../splat/splat_cloud.dart';
-import '../srgb.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
 import 'gltf_primitive_mode.dart';
+import 'gltf_xmp.dart';
 
 export 'gltf_primitive_mode.dart';
 
@@ -59,7 +65,10 @@ part 'gltf_loader_splats.dart';
 /// through [GltfAsset.warnings] with the decoder's reason rather than thrown,
 /// so one bad primitive — or a file that merely *offers* a compressed variant
 /// beside an uncompressed one — still loads.
-final class GltfLoader implements ModelDecoder {
+final class GltfLoader extends ModelDecoder {
+  /// A loader decoding into [layout], or [skinnedLayout] for a skinned
+  /// primitive, generating flat normals where a primitive has none unless
+  /// told not to.
   GltfLoader({
     this.layout = VertexLayout.standard,
     this.skinnedLayout = VertexLayout.skinned,
@@ -90,7 +99,9 @@ final class GltfLoader implements ModelDecoder {
   /// Not a JSON brace with no name: a `.fmat` and a level are JSON too, and a
   /// decoder in an application's own list is asked before anything is sniffed.
   @override
-  bool handles(String fileName, Uint8List bytes) {
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
     final name = fileName.toLowerCase();
     return name.endsWith('.gltf') ||
         name.endsWith('.glb') ||
@@ -102,12 +113,18 @@ final class GltfLoader implements ModelDecoder {
   }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => load(bytes, resolveUri: resolveUri);
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    final resolveUri = context.resolveUri;
+    return load(bytes, resolveUri: resolveUri);
+  }
 
+  /// Decodes [bytes], a `.glb` or `.gltf`, into a [GltfAsset], fetching
+  /// external buffers and images through [resolveUri].
+  ///
+  /// Throws a [GltfFormatException] for a container that does not parse or
+  /// a required extension this loader does not support; a gap it can load
+  /// past goes into [GltfAsset.warnings] instead.
   Future<GltfAsset> load(
     Uint8List bytes, {
     AssetUriResolver? resolveUri,
@@ -152,6 +169,15 @@ final class GltfLoader implements ModelDecoder {
     // is this one: the top-level object every other key in `json` is a
     // sibling of.
     final documentExtras = _extrasOf(json);
+    // Who made it and on what terms: `asset.copyright`, and the author and
+    // licence of the packet the root `asset` points at, kept whole.
+    final copyright = assetBlock is Map ? assetBlock['copyright'] : null;
+    final xmp = documentXmpPacket(json);
+    final said =
+        generator is String ||
+        copyright is String ||
+        documentExtras != null ||
+        xmp != null;
 
     return GltfAsset(
       surfaces: graph.surfaces,
@@ -166,10 +192,14 @@ final class GltfLoader implements ModelDecoder {
       lights: lights,
       cameras: cameras,
       variants: variants,
-      asset: generator is String || documentExtras != null
+      asset: said
           ? DocumentAsset(
               generator: generator is String ? generator : null,
               extras: documentExtras,
+              copyright: copyright is String ? copyright : null,
+              author: authorOf(xmp),
+              license: licenseOf(xmp),
+              xmp: xmp,
             )
           : null,
     );
@@ -268,7 +298,7 @@ final class GltfLoader implements ModelDecoder {
       (e) => !supported.contains(e),
     );
     if (unsupported.isNotEmpty) {
-      throw FormatException(
+      throw GltfFormatException(
         'This file requires extensions that are not implemented: '
         '${unsupported.join(', ')}. extensionsRequired means the asset cannot '
         'be rendered correctly without them.',
@@ -351,17 +381,11 @@ Vector3? _vec3(Object? value) {
   );
 }
 
-/// glTF's `baseColorFactor`, which is linear, as the authored tint
-/// [SurfaceMaterial.baseColor] holds — see `srgb.dart`. Alpha is not a colour
-/// and passes through.
-Vector4? _authoredTint(Vector4? linear) => linear == null
-    ? null
-    : Vector4(
-        linearToSrgb(linear.x),
-        linearToSrgb(linear.y),
-        linearToSrgb(linear.z),
-        linear.w,
-      );
+/// glTF's `baseColorFactor`, which is linear, as the [LinearColor]
+/// [SurfaceMaterial.baseColor] holds; white where the file has none.
+LinearColor _linearTint(Vector4? linear) => linear == null
+    ? LinearColor.white
+    : LinearColor(linear.x, linear.y, linear.z, linear.w);
 
 Vector4? _vec4(Object? value) {
   if (value is! List || value.length < 4) return null;

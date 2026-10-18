@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../../l10n/app_localizations.dart';
 import 'status_line.dart' show grouped;
@@ -34,8 +34,12 @@ String _bytes(int n) {
 /// Screen 19's own budget bars — four rows over a single
 /// `ProfileBudgetReport`.
 class BudgetBars extends StatelessWidget {
+  /// Bars for [report], one per budget it checks.
   const BudgetBars({super.key, required this.report});
 
+  /// The held model's usage against the export profile's limits:
+  /// triangles, joints, texture memory and influences per vertex, each a
+  /// used and a limit.
   final ProfileBudgetReport report;
 
   @override
@@ -94,10 +98,10 @@ class _BudgetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ModelerColors colours = theme.extension<ModelerColors>()!;
-    final Color fill = usage.over
+    final ModelerColors colors = theme.extension<ModelerColors>()!;
+    final Color fill = usage.isOver
         ? theme.colorScheme.tertiary
-        : colours.success;
+        : colors.success;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

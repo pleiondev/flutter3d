@@ -15,6 +15,8 @@ import 'theme.dart';
 /// [onSelectClip]; the "Add" link, always present, reports through
 /// [onAddClip].
 class ActionsList extends StatelessWidget {
+  /// A list of [clips] with the row at [selectedClip] highlighted; it holds
+  /// no state of its own, so the caller rebuilds it after either callback.
   const ActionsList({
     super.key,
     required this.clips,
@@ -23,9 +25,17 @@ class ActionsList extends StatelessWidget {
     required this.onAddClip,
   });
 
+  /// The project's clips, in [ModelProject.clips] order; a row's index is
+  /// the clip's index there. Empty shows a single "no actions" line.
   final List<ProjectClip> clips;
+
+  /// The index into [clips] of the highlighted row, or null for none.
   final int? selectedClip;
+
+  /// Called with the index of the row a person tapped.
   final ValueChanged<int> onSelectClip;
+
+  /// Called when the "Add" link is pressed; adding the clip is the caller's.
   final VoidCallback onAddClip;
 
   static String _labelOf(ProjectClip clip, int index) =>

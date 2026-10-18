@@ -15,11 +15,11 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
 /// Records the calls rather than performing them.
-final class _Recorder implements PassEncoder {
+final class _Recorder extends PassEncoder {
   final List<String> calls = <String>[];
 
   @override
-  void setViewport(ScreenRect rect) => calls.add('viewport');
+  void setViewport(PassViewport viewport) => calls.add('viewport');
   @override
   void setScissor(ScreenRect rect) => calls.add('scissor');
   @override
@@ -33,7 +33,8 @@ final class _Recorder implements PassEncoder {
   void setWindingOrder(WindingOrder order) =>
       calls.add('winding ${order.name}');
   @override
-  void setDepthWrite(bool enabled) => calls.add('depthWrite $enabled');
+  void setDepthWrite({required bool enabled}) =>
+      calls.add('depthWrite $enabled');
   @override
   void setDepthCompare(CompareFunction compare) =>
       calls.add('depthCompare ${compare.name}');
@@ -47,6 +48,17 @@ final class _Recorder implements PassEncoder {
   );
   @override
   void setStencilReference(int value) => calls.add('stencilReference $value');
+  @override
+  void setAlphaToCoverage({required bool enabled}) =>
+      calls.add('alphaToCoverage $enabled');
+  @override
+  void setDepthBias(DepthBias bias) => calls.add('depthBias ${bias.constant}');
+  @override
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) =>
+      calls.add('colorWriteMask@$attachment');
+  @override
+  void setDepthClamp({required bool enabled}) =>
+      calls.add('depthClamp $enabled');
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -153,6 +165,47 @@ void main() {
       'stencilReference 1',
     ]);
   });
+
+  test(
+    'the four 1.0 setters are state too, emitted last and only when set',
+    () {
+      // Mutation: drop `depthBias` from `setState`, or from `==`. The pass a
+      // Vulkan-shaped backend accumulates would then lose the shadow caster's
+      // bias, or cache two biased states as one pipeline.
+      const bias = DepthBias(constant: 2, slopeScale: 1.5);
+      final encoder = _Recorder()
+        ..setState(
+          const PassState(
+            depthClamp: true,
+            colorWriteMask: ColorWriteMask.none,
+            colorWriteMaskAttachment: 1,
+            depthBias: bias,
+            alphaToCoverage: true,
+            depthWrite: true,
+          ),
+        );
+      expect(encoder.calls, <String>[
+        'depthWrite true',
+        'alphaToCoverage true',
+        'depthBias 2',
+        'colorWriteMask@1',
+        'depthClamp true',
+      ]);
+      expect(
+        const PassState(depthBias: bias),
+        isNot(const PassState(depthBias: DepthBias.none)),
+      );
+      expect(
+        const PassState().copyWith(depthClamp: true).depthClamp,
+        isTrue,
+        reason: 'copyWith carries the new fields as it carries the old',
+      );
+      expect(
+        const PassState(viewport: PassViewport(width: 4, height: 2)).viewport,
+        PassViewport.ofRect(const ScreenRect(width: 4, height: 2)),
+      );
+    },
+  );
 
   test('a back face rides on the same call as the front', () {
     final encoder = _Recorder()

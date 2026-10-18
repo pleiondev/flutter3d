@@ -28,18 +28,68 @@
 library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, FormatMigration, FormatSpec;
 import 'package:vector_math/vector_math.dart';
 
 /// Thrown when a snapshot cannot be read at all.
-final class SnapshotFormatException implements Exception {
+final class SnapshotFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the snapshot.
   const SnapshotFormatException(this.message);
+  @override
   final String message;
   @override
   String toString() => 'SnapshotFormatException: $message';
 }
 
+/// A saved state: the game's own fields in [data], and the plugins it
+/// [requires], written in the `f3d.save` envelope.
 final class Snapshot {
-  const Snapshot(this.data);
+  /// A snapshot of [data], requiring no plugin unless [requires] names
+  /// some.
+  const Snapshot(this.data, {this.requires = const <String>[]});
+
+  /// Reads what [toJson] wrote, lifting an older envelope and taking the
+  /// envelope's keys off [data].
+  ///
+  /// Throws a [SnapshotFormatException] for a missing or impossible
+  /// version, a newer one, or a `requires` that is not a list of names.
+  factory Snapshot.fromJson(Map<String, Object?> json) {
+    final version = json[versionKey];
+    if (version is! num) {
+      throw const SnapshotFormatException(
+        'no version, so this is not a '
+        'snapshot',
+      );
+    }
+    if (version < 1) {
+      throw SnapshotFormatException(
+        'snapshot format version $version is not one any build has written',
+      );
+    }
+    // Every envelope version up to this one, lifted step by step; the game's
+    // own fields are `SaveSchema`'s and pass through untouched, unknown ones
+    // included. A newer version or another format's document is refused by
+    // the spec, with the reason. `requires` names plugins, which only the
+    // engine restoring it knows it has: it is kept and answered there.
+    final requires = switch (json['requires']) {
+      null => const <String>[],
+      final List<Object?> list when list.every((Object? e) => e is String) =>
+        List<String>.unmodifiable(list),
+      final other => throw SnapshotFormatException(
+        '"requires" must be a list of names, not $other',
+      ),
+    };
+    final lifted = format.open(<String, Object?>{
+      for (final entry in json.entries)
+        if (entry.key != 'requires') entry.key: entry.value,
+    }, refuse: SnapshotFormatException.new);
+    return Snapshot(<String, Object?>{
+      for (final entry in lifted.entries)
+        if (!FormatSpec.envelopeKeys.contains(entry.key))
+          entry.key: entry.value,
+    }, requires: requires);
+  }
 
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
@@ -54,33 +104,62 @@ final class Snapshot {
   /// carry a field belonging to the envelope.
   final Map<String, Object?> data;
 
+  /// The namespaces of the plugins whose state [data] holds, a snapshot
+  /// part or a component each registered: what an engine has to have
+  /// installed to restore it whole.
+  ///
+  /// **Refused, never dropped.** An engine restoring a snapshot that
+  /// requires a plugin it does not have refuses it, naming the plugin
+  /// (`Snapshots.restore`), where it would otherwise skip that plugin's
+  /// state and write the next save without it. Written in the envelope's
+  /// `requires` (`docs/CONTRACTS.md`); empty for a snapshot holding only the
+  /// engine's and the application's own state.
+  final List<String> requires;
+
   /// The name the version is written under, which is therefore a name a game
-  /// cannot use for a field of its own.
+  /// cannot use for a field of its own. The envelope's other keys —
+  /// `format`, `requires`, `generator` ([FormatSpec.envelopeKeys]) — are
+  /// reserved the same way.
   static const String versionKey = 'version';
 
-  Map<String, Object?> toJson() => <String, Object?>{
-    versionKey: formatVersion,
-    ...data,
-  };
+  /// The save format in the registry: `f3d.save`.
+  ///
+  /// **The envelope is additive at version 1.** A build from before it reads
+  /// `format`, `requires` and `generator` as three fields no system asked
+  /// for, and ignores them, so the version did not move.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.save',
+    version: formatVersion,
+    suffixes: <String>['.save.json'],
+    fixture: 'test/fixtures/v<N>/save.json',
+    migrations: _migrations,
+  );
 
-  factory Snapshot.fromJson(Map<String, Object?> json) {
-    final version = json[versionKey];
-    if (version is! num) {
-      throw const SnapshotFormatException(
-        'no version, so this is not a '
-        'snapshot',
+  /// Entry `i` lifts an envelope from version `i + 1` to `i + 2`. Empty while
+  /// version 1 is the only one, which makes reading it the identity; a bump
+  /// adds its step here and a fixture under `test/fixtures/v<N>/`.
+  static const List<FormatMigration> _migrations = <FormatMigration>[];
+
+  /// The envelope, then [data] beside it.
+  ///
+  /// **Beside it rather than under a key of its own**, because every save's
+  /// digest and every recorded run's checkpoints are taken over this map: a
+  /// nested shape would be version 2 and move every digest a released run
+  /// was recorded with. What nesting would have prevented — a field of the
+  /// game's overwriting `version` or `format` — is refused here instead:
+  /// [data] holding an envelope key throws an [ArgumentError] naming it,
+  /// a mistake in the game's snapshot parts rather than in a file.
+  Map<String, Object?> toJson() {
+    final taken = data.keys.where(FormatSpec.envelopeKeys.contains);
+    if (taken.isNotEmpty) {
+      throw ArgumentError.value(
+        taken.join(', '),
+        'data',
+        'a snapshot field may not be named like the envelope\'s keys '
+            '(${FormatSpec.envelopeKeys.join(', ')})',
       );
     }
-    if (version > formatVersion) {
-      throw SnapshotFormatException(
-        'snapshot format version $version is newer than this build '
-        'understands ($formatVersion)',
-      );
-    }
-    return Snapshot(<String, Object?>{
-      for (final entry in json.entries)
-        if (entry.key != versionKey) entry.key: entry.value,
-    });
+    return <String, Object?>{...format.envelope(requires: requires), ...data};
   }
 }
 
@@ -89,26 +168,34 @@ final class Snapshot {
 /// Free functions rather than an encoder object: every one of them is two
 /// lines, and the systems that call them have nothing else in common.
 extension SnapshotFields on Map<String, Object?> {
-  double number(String key, [double orElse = 0.0]) {
+  /// The number under [key] as a double, or [orElse] when it is not a
+  /// number.
+  double number(String key, {double orElse = 0.0}) {
     final value = this[key];
     return value is num ? value.toDouble() : orElse;
   }
 
-  int integer(String key, [int orElse = 0]) {
+  /// The number under [key] truncated to an int, or [orElse] when it is
+  /// not a finite number.
+  int integer(String key, {int orElse = 0}) {
     final value = this[key];
-    return value is num ? value.toInt() : orElse;
+    return value is num && value.isFinite ? value.toInt() : orElse;
   }
 
-  bool flag(String key, [bool orElse = false]) {
+  /// The bool under [key], or [orElse] when it is not a bool.
+  bool flag(String key, {bool orElse = false}) {
     final value = this[key];
     return value is bool ? value : orElse;
   }
 
+  /// The string under [key], or null when it is not a string.
   String? text(String key) {
     final value = this[key];
     return value is String ? value : null;
   }
 
+  /// Every map in the list under [key], cast to string keys; entries that
+  /// are not maps are skipped, and anything but a list gives none.
   List<Map<String, Object?>> rows(String key) {
     final value = this[key];
     if (value is! List) return const <Map<String, Object?>>[];
@@ -151,6 +238,11 @@ extension SnapshotFields on Map<String, Object?> {
   /// An enum saved by name rather than by index, which is what this repository
   /// does everywhere: an index is a promise never to reorder a declaration,
   /// and nobody keeps that promise.
+  ///
+  /// For a game's own enums in its snapshot part. The genres' run states
+  /// stopped being enums in 1.0 and read themselves with their own `byName`,
+  /// so nothing in this repository calls it now; a game written against 0.8
+  /// that saves an enum of its own does.
   T enumOf<T extends Enum>(String key, List<T> values, T orElse) {
     final name = this[key];
     if (name is! String) return orElse;

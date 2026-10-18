@@ -33,7 +33,11 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+/// A shader bundle kept reading, so an edited shader shows without a
+/// restart; see the library's doc.
 final class ShaderWatch {
+  /// A watch over [library], polling [modifiedAt] every [every] and reading
+  /// [readBytes] when it moves.
   ShaderWatch({
     required this.library,
     required this._seen,
@@ -58,7 +62,7 @@ final class ShaderWatch {
 
   /// Called with what the device said when it refused the new bytes — or,
   /// with the same shape, that the bytes could not be read at all.
-  final void Function(ShaderBundleRefused refused) onRefused;
+  final void Function(ShaderBundleException refused) onRefused;
 
   /// How often to look.
   final Duration every;
@@ -102,7 +106,7 @@ final class ShaderWatch {
         // be an error out of `Timer.periodic` with nothing to catch it.
         _seen = now;
         onRefused(
-          ShaderBundleRefused(
+          ShaderBundleException(
             name: library.name,
             reason: 'the file could not be read: ${error.message}',
           ),
@@ -113,7 +117,7 @@ final class ShaderWatch {
       _seen = now;
       try {
         library.refresh(bytes);
-      } on ShaderBundleRefused catch (refused) {
+      } on ShaderBundleException catch (refused) {
         onRefused(refused);
         return false;
       }
@@ -124,6 +128,7 @@ final class ShaderWatch {
     }
   }
 
+  /// Stops polling.
   void dispose() {
     _timer?.cancel();
     _timer = null;

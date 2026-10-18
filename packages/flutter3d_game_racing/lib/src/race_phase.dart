@@ -12,8 +12,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 ///
 /// The three questions are the whole contract. A mode that wants something
 /// none of them can express — points for overtaking, a car removed each lap —
-/// is a rule the game writes over this, in a step system; see `StepSystems`.
+/// is a rule the game writes over this, in a step system; see
+/// `RacingSimulation.addSystem`.
 final class RaceMode {
+  /// A mode called [name], with its answers to the three questions.
   const RaceMode(
     this.name, {
     required this.startsBehindLights,
@@ -64,6 +66,19 @@ final class RaceMode {
     endsAfterLaps: true,
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<RaceMode> values = <RaceMode>[freeRoam, timeTrial, race];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RaceMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   bool operator ==(Object other) => other is RaceMode && other.name == name;
 
@@ -75,24 +90,49 @@ final class RaceMode {
 }
 
 /// Where a race has got to.
-enum RacePhase {
+///
+/// **A class with constants, not an enum** (1.0): the phase [outcome]'s note
+/// expects — a losing one for a race against the clock — arrives in a minor
+/// release as a new constant, not as a break in every exhaustive `switch` over
+/// the old three. A `switch` over it keeps a default case.
+final class RacePhase {
+  const RacePhase._(this.name, this.outcome);
+
   /// On the grid, lights on. Cars may rev and may not move.
-  countdown,
+  static const RacePhase countdown = RacePhase._(
+    'countdown',
+    RunOutcome.playing,
+  );
 
   /// Being raced.
-  running,
+  static const RacePhase running = RacePhase._('running', RunOutcome.playing);
 
   /// Everyone who is going to finish has finished.
-  finished;
+  static const RacePhase finished = RacePhase._('finished', RunOutcome.won);
+
+  /// Every phase, in the order a race goes through them.
+  static const List<RacePhase> values = <RacePhase>[
+    countdown,
+    running,
+    finished,
+  ];
+
+  /// The phase called [name] in a snapshot, or null for one this build does
+  /// not know.
+  static RacePhase? byName(Object? name) =>
+      values.where((RacePhase it) => it.name == name).firstOrNull;
+
+  /// The word a snapshot writes for it.
+  final String name;
 
   /// The same answer in the words every game shares.
   ///
   /// **A race has no [RunOutcome.lost]**, and that is the genre rather than an
   /// omission: everybody who starts crosses the line eventually, and coming
   /// last is a position rather than a defeat. A game that wants a time limit
-  /// grows the losing phase then, and this switch is where it is noticed.
-  RunOutcome get outcome => switch (this) {
-    RacePhase.countdown || RacePhase.running => RunOutcome.playing,
-    RacePhase.finished => RunOutcome.won,
-  };
+  /// grows the losing phase then, and this is where it is noticed.
+  final RunOutcome outcome;
+
+  @override
+  String toString() => 'RacePhase.$name';
 }

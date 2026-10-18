@@ -24,6 +24,7 @@ import 'theme.dart';
 /// the joint's own [ModelObject.id] through [onSelectJoint]; the disclosure
 /// arrow expands or collapses a branch without selecting it.
 class SkeletonTree extends StatefulWidget {
+  /// The tree over [skeleton], with [selectedJoint] highlighted.
   const SkeletonTree({
     super.key,
     required this.objects,
@@ -39,10 +40,14 @@ class SkeletonTree extends StatefulWidget {
   /// widget's business.
   final List<ModelObject> objects;
 
+  /// The skeleton whose joints the tree lists.
   final ProjectSkeleton skeleton;
 
+  /// The joint highlighted as selected, by its [ModelObject.id], or null
+  /// when none is.
   final int? selectedJoint;
 
+  /// A row was tapped, with its joint's [ModelObject.id].
   final ValueChanged<int> onSelectJoint;
 
   @override

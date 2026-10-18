@@ -4,11 +4,15 @@
 /// Quoted by `particle_modifiers.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `particle-modifiers` page: one burst under gravity, drag, wind,
+/// turbulence and spin. Its check is that gravity and drag slowed the climb
+/// and spin turned the particles.
 final class ParticleModifiersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _debrisEffect;
@@ -36,7 +40,7 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
 
     // #region affectors
     _affectors = <ParticleAffector>[
-      const ParticleGravity(-4.0),
+      const ParticleGravity(acceleration: -4.0),
       const ParticleDrag(0.4),
       ParticleWind(Vector3(0.6, 0.0, 0.0)),
       const ParticleTurbulence(strength: 1.5, scale: 0.8),
@@ -47,10 +51,13 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // #region effect
     _debrisEffect = ParticleEffect(
       count: _count,
-      emitter: const ConeEmitter(speed: Range(1.5, 3.0), halfAngleDegrees: 30),
+      emitter: const ConeEmitter(
+        speed: Range(1.5, 3.0),
+        halfAngle: 30.0 * math.pi / 180.0,
+      ),
       lifetime: const Range(1.5, 2.5),
       size: const Range(0.06, 0.1),
-      color: Vector4(0.9, 0.6, 0.3, 1.0),
+      color: LinearColor(0.9, 0.6, 0.3, 1.0),
       affectors: _affectors,
     );
     // #endregion effect
@@ -61,13 +68,13 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
       Vector3.zero(),
       direction: Vector3(0.0, 1.0, 0.0),
     );
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles),
     );
     // #endregion burst
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }
@@ -106,11 +113,11 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // against a particle of our own and read what changed.
     final Particle sample = Particle()
       ..velocity.setValues(0.0, 2.0, 0.0)
-      ..age = 0.4
-      ..lifetime = 2.0
+      ..ageSeconds = 0.4
+      ..lifetimeSeconds = 2.0
       ..seed = 0.5;
     for (final ParticleAffector affector in _affectors) {
-      affector.apply(sample, 1 / 60);
+      affector.apply(ParticleStep(particle: sample, dt: 1 / 60));
     }
     if (sample.velocity.y >= 2.0) {
       throw StateError('gravity and drag should have slowed the climb');

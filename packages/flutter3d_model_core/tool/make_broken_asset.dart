@@ -21,8 +21,10 @@ import '../test/broken_asset.dart';
 void main() {
   const path = 'test/fixtures/broken_asset.glb';
   final written = const GlbModelWriter().write(
-    toModelDocument(brokenAsset()),
-    baseName: 'broken_asset',
+    ModelWriteContext(
+      document: toModelDocument(brokenAsset()),
+      baseName: 'broken_asset',
+    ),
   );
   File(path)
     ..parent.createSync(recursive: true)

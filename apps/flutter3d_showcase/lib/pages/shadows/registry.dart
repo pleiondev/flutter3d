@@ -15,6 +15,8 @@ import 'package:flutter3d_showcase/pages/shadows/static_cascades.dart';
 import 'package:flutter3d_showcase/pages/shadows/static_shadow_cache.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> shadowsDemos = <String, DemoBuilder>{
   'shadow-settings': ShadowSettingsDemo.new,
   'cascaded-shadows': CascadedShadowsDemo.new,

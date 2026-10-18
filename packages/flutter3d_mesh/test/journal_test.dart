@@ -14,8 +14,7 @@ import 'package:test/test.dart';
 void main() {
   group('a step of floats', () {
     test('undo puts back what was there, redo puts back the edit', () {
-      final floats = JournalledFloats(4)
-        ..values.setAll(0, <double>[1, 2, 3, 4]);
+      final floats = JournaledFloats(4)..values.setAll(0, <double>[1, 2, 3, 4]);
 
       floats
         ..beginStep()
@@ -32,7 +31,7 @@ void main() {
     });
 
     test('a slot written twice in one step comes back to what it began as', () {
-      final floats = JournalledFloats(2)..values.setAll(0, <double>[1, 2]);
+      final floats = JournaledFloats(2)..values.setAll(0, <double>[1, 2]);
 
       floats
         ..beginStep()
@@ -54,7 +53,7 @@ void main() {
     });
 
     test('a new step drops what was undone', () {
-      final floats = JournalledFloats(2);
+      final floats = JournaledFloats(2);
 
       floats
         ..beginStep()
@@ -76,14 +75,14 @@ void main() {
     });
 
     test('a step that wrote nothing is not a step', () {
-      final floats = JournalledFloats(2)..beginStep();
+      final floats = JournaledFloats(2)..beginStep();
 
       expect(floats.endStep(), isFalse);
       expect(floats.undoDepth, 0);
     });
 
     test('undo with nothing to undo says so rather than throwing', () {
-      final floats = JournalledFloats(2);
+      final floats = JournaledFloats(2);
 
       expect(floats.undo(), isFalse);
       expect(floats.redo(), isFalse);
@@ -92,19 +91,19 @@ void main() {
 
   group('what it refuses', () {
     test('writing with no step open', () {
-      final floats = JournalledFloats(2);
+      final floats = JournaledFloats(2);
 
       expect(() => floats.write(0, 1), throwsStateError);
     });
 
     test('opening a step inside a step', () {
-      final floats = JournalledFloats(2)..beginStep();
+      final floats = JournaledFloats(2)..beginStep();
 
       expect(floats.beginStep, throwsStateError);
     });
 
     test('undoing while a step is open', () {
-      final floats = JournalledFloats(2)
+      final floats = JournaledFloats(2)
         ..beginStep()
         ..write(0, 1);
 
@@ -114,7 +113,7 @@ void main() {
 
   group('the limits a history is held to', () {
     test('trim drops the oldest steps and reports how many', () {
-      final floats = JournalledFloats(100);
+      final floats = JournaledFloats(100);
       for (var i = 0; i < 10; i++) {
         floats
           ..beginStep()
@@ -136,7 +135,7 @@ void main() {
     });
 
     test('trim by bytes leaves the journal under the bound', () {
-      final floats = JournalledFloats(1000);
+      final floats = JournaledFloats(1000);
       for (var step = 0; step < 20; step++) {
         floats.beginStep();
         for (var i = 0; i < 50; i++) {
@@ -153,7 +152,7 @@ void main() {
     });
 
     test('a step knows what it costs', () {
-      final floats = JournalledFloats(10)
+      final floats = JournaledFloats(10)
         ..beginStep()
         ..write(0, 1)
         ..write(1, 2)
@@ -167,7 +166,7 @@ void main() {
 
   group('growth', () {
     test('keeps what was there and is not itself a step', () {
-      final floats = JournalledFloats(2)..values.setAll(0, <double>[1, 2]);
+      final floats = JournaledFloats(2)..values.setAll(0, <double>[1, 2]);
 
       floats.grow(5);
 
@@ -178,7 +177,7 @@ void main() {
     });
 
     test('writes after growth journal against the new array', () {
-      final floats = JournalledFloats(2)..grow(8);
+      final floats = JournaledFloats(2)..grow(8);
 
       floats
         ..beginStep()
@@ -193,7 +192,7 @@ void main() {
 
   group('the integer half', () {
     test('undo and redo behave the way the float half does', () {
-      final ints = JournalledInts(3)..values.setAll(0, <int>[1, 2, 3]);
+      final ints = JournaledInts(3)..values.setAll(0, <int>[1, 2, 3]);
 
       ints
         ..beginStep()
@@ -212,7 +211,7 @@ void main() {
     test('grow fills the new room with what a caller asked for', () {
       // −1 is what a half-edge array means by "no twin", so a topology growing
       // into fresh slots must not read them as half-edge zero.
-      final ints = JournalledInts(2)
+      final ints = JournaledInts(2)
         ..values.setAll(0, <int>[7, 8])
         ..grow(6, fill: -1);
 
@@ -222,7 +221,7 @@ void main() {
     });
 
     test('a step carries the ints it replaced, as ints', () {
-      final ints = JournalledInts(2)
+      final ints = JournaledInts(2)
         ..beginStep()
         ..write(0, 5)
         ..endStep();

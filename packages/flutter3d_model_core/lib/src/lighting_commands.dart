@@ -9,9 +9,13 @@ part of 'command.dart';
 /// Adds a light to the project's own lighting, with nothing lit in
 /// particular.
 final class AddLight extends ModelCommand {
-  const AddLight({this.type = ProjectLightType.directional, this.at});
+  /// A step adding a light of [type], directional unless given, at [at] or at
+  /// the origin when [at] is null.
+  const AddLight({this.type = LightType.directional, this.at});
 
-  final ProjectLightType type;
+  /// Whether the new light is directional, a point or a spot. It starts with
+  /// every other field at [ProjectLight]'s defaults.
+  final LightType type;
 
   /// Where to put it, in the scene's own space — `ux-23`.
   ///
@@ -64,8 +68,11 @@ final class AddLight extends ModelCommand {
 /// touches a scene graph, the same way every command in this package
 /// leaves the engine to whatever reads the document next.
 final class RemoveLight extends ModelCommand {
+  /// A step removing light [index]; every later light moves down one index.
   const RemoveLight(this.index);
 
+  /// Index of the light in [SceneLighting.lights]. [apply] refuses an index
+  /// with no light.
   final int index;
 
   @override
@@ -100,13 +107,19 @@ final class RemoveLight extends ModelCommand {
 /// **The same "reject rather than crash or silently drop" shape
 /// [SetMaterialField] already gives its own fields** — see `_lightFieldSet`.
 final class SetLightField extends ModelCommand {
+  /// A step setting [field] of light [index] to [value].
   const SetLightField({
     required this.index,
     required this.field,
     required this.value,
   });
 
+  /// Index of the light in [SceneLighting.lights]. [apply] refuses an index
+  /// with no light.
   final int index;
+
+  /// Name of the light's field, as [ProjectLight] spells it. [apply] refuses a
+  /// name that is not a light field, or a [value] of the wrong shape for it.
   final String field;
 
   /// A number, a string (`type`), a bool, or a list of three numbers
@@ -165,9 +178,14 @@ final class SetLightField extends ModelCommand {
 /// place it already exists rather than teaching `_lightFieldSet` a second
 /// one.
 final class SetLightTransform extends ModelCommand {
+  /// A step putting transform [to] on light [index].
   const SetLightTransform({required this.index, required this.to});
 
+  /// Index of the light in [SceneLighting.lights]. [apply] refuses an index
+  /// with no light.
   final int index;
+
+  /// The new transform in the scene's own space, copied in whole.
   final Matrix4 to;
 
   @override
@@ -219,8 +237,13 @@ final class SetLightTransform extends ModelCommand {
 /// machine. Null clears it, and the scene falls back to whatever
 /// [SceneLighting.environment] names.
 final class SetPanorama extends ModelCommand {
+  /// A step lighting the scene with image [index], or clearing the panorama
+  /// when [index] is null.
   const SetPanorama({this.index});
 
+  /// Index of the image in [ModelProject.images], or null to clear. [apply]
+  /// refuses an index with no image, an image that is not a Radiance `.hdr` and
+  /// one that is not twice as wide as it is tall.
   final int? index;
 
   @override
@@ -245,7 +268,7 @@ final class SetPanorama extends ModelCommand {
     if (at < 0 || at >= project.images.length) {
       return Outcome.refused('there is no image $at in this project');
     }
-    final ({int width, int height})? size = hdrSizeOf(project.images[at].bytes);
+    final PixelExtent? size = hdrSizeOf(project.images[at].bytes);
     if (size == null) {
       return Outcome.refused(
         'image $at is not a Radiance .hdr this build can read',
@@ -265,8 +288,10 @@ final class SetPanorama extends ModelCommand {
 
 /// Sets the project's own built-in sky.
 final class SetEnvironment extends ModelCommand {
+  /// A step setting the built-in sky to [preset].
   const SetEnvironment(this.preset);
 
+  /// The sky the scene falls back to while no panorama is set.
   final SceneEnvironmentPreset preset;
 
   @override
@@ -297,9 +322,16 @@ final class SetEnvironment extends ModelCommand {
 /// one command every other scene-wide field already goes through, rather
 /// than a `SetPostField` this row would be the only command left needing.
 final class SetSceneLightingField extends ModelCommand {
+  /// A step setting scene-wide [field] to [value].
   const SetSceneLightingField({required this.field, required this.value});
 
+  /// Name of the field: `ambientIntensity`, `shadows`, `exposure` or
+  /// `bloomEnabled`. [apply] refuses any other name, or a [value] of the wrong
+  /// shape for it.
   final String field;
+
+  /// A number for `ambientIntensity` and `exposure`, a bool for `shadows` and
+  /// `bloomEnabled`.
   final Object? value;
 
   @override
@@ -335,13 +367,15 @@ ProjectLight? _lightFieldSet(ProjectLight l, String field, Object? value) {
   switch (field) {
     case 'type':
       if (value is! String) return null;
-      for (final ProjectLightType t in ProjectLightType.values) {
+      for (final LightType t in LightType.values) {
         if (t.name == value) return l.copyWith(type: t);
       }
       return null;
     case 'color':
       return switch (_doubles(value, 3)) {
-        final List<double> c => l.copyWith(color: Vector3(c[0], c[1], c[2])),
+        final List<double> c => l.copyWith(
+          color: LinearColor(c[0], c[1], c[2]),
+        ),
         _ => null,
       };
     case 'intensity':

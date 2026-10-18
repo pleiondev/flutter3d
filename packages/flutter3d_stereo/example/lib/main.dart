@@ -16,26 +16,25 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Landscape and nothing else on screen: a phone in a holder has no room for
   // a status bar, and a picture that reflows halfway through a turn of the head
   // is worse than one that never rotates.
-  unawaitedChrome();
-  runApp(const StereoExampleApp());
+  _unawaitedChrome();
+  runApp(const _StereoExampleApp());
 }
 
-void unawaitedChrome() {
+void _unawaitedChrome() {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.landscapeLeft,
@@ -43,30 +42,32 @@ void unawaitedChrome() {
   ]);
 }
 
-class StereoExampleApp extends StatelessWidget {
-  const StereoExampleApp({super.key});
+class _StereoExampleApp extends StatelessWidget {
+  const _StereoExampleApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'flutter3d in stereo',
     debugShowCheckedModeBanner: false,
-    home: StereoScreen(),
+    home: _StereoScreen(),
   );
 }
 
-class StereoScreen extends StatefulWidget {
-  const StereoScreen({super.key});
+class _StereoScreen extends StatefulWidget {
+  const _StereoScreen();
 
   @override
-  State<StereoScreen> createState() => _StereoScreenState();
+  State<_StereoScreen> createState() => _StereoScreenState();
 }
 
-class _StereoScreenState extends State<StereoScreen>
+class _StereoScreenState extends State<_StereoScreen>
     with SingleTickerProviderStateMixin {
   final StereoRig _rig = StereoRig();
   final SensorHeadTracker _tracker = SensorHeadTracker();
+  final Stopwatch _clock = Stopwatch();
   Scene? _scene;
   Renderer? _renderer;
+
   Object? _error;
 
   @override
@@ -113,10 +114,6 @@ class _StereoScreenState extends State<StereoScreen>
     }
   }
 
-  Ticker? _ticker;
-  final Stopwatch _clock = Stopwatch();
-  int _frames = 0;
-
   void _onTick(Duration _) {
     if (!mounted) return;
     if (!_clock.isRunning) _clock.start();
@@ -132,8 +129,13 @@ class _StereoScreenState extends State<StereoScreen>
         ..reset()
         ..start();
     }
+    // Nothing to set: the frame was drawn outside the widget.
     setState(() {});
   }
+
+  Ticker? _ticker;
+
+  int _frames = 0;
 
   @override
   void dispose() {
@@ -181,7 +183,7 @@ class _StereoScreenState extends State<StereoScreen>
               width: width,
               height: height,
               scene: scene,
-              views: <RenderView>[RenderView(camera: _rig.camera(Eye.left))],
+              views: <CameraView>[CameraView(camera: _rig.camera(Eye.left))],
               settings: const RenderSettings(exposure: 1.2).forStereo(),
             );
             return presentFrame(renderer.device, frame.frame);
@@ -229,11 +231,11 @@ Scene _room(GraphicsDevice device) {
       scene.add(
         MeshNode(
           tile,
-          engine.Material(
+          engine.RenderMaterial(
             name: 'tile',
             baseColor: light
-                ? Vector4(0.42, 0.44, 0.50, 1.0)
-                : Vector4(0.24, 0.26, 0.32, 1.0),
+                ? LinearColor.fromSrgb(0.42, 0.44, 0.50, 1.0)
+                : LinearColor.fromSrgb(0.24, 0.26, 0.32, 1.0),
             lighting: LightingModel.unlit,
           ),
           name: 'tile.$x.$z',
@@ -242,21 +244,20 @@ Scene _room(GraphicsDevice device) {
     }
   }
 
-  const colours = <(double, double, double)>[
+  const colors = <(double, double, double)>[
     (0.92, 0.35, 0.28),
     (0.35, 0.78, 0.45),
     (0.36, 0.55, 0.95),
     (0.95, 0.78, 0.30),
   ];
-  for (var i = 0; i < 4; i++) {
+  for (final (i, color) in colors.indexed) {
     final angle = i * math.pi / 2.0;
-    final colour = colours[i % colours.length];
     scene.add(
       MeshNode(
         pillar,
-        engine.Material(
+        engine.RenderMaterial(
           name: 'pillar',
-          baseColor: Vector4(colour.$1, colour.$2, colour.$3, 1.0),
+          baseColor: LinearColor.fromSrgb(color.$1, color.$2, color.$3, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'pillar.$i',
@@ -270,9 +271,9 @@ Scene _room(GraphicsDevice device) {
     scene.add(
       MeshNode(
         crate,
-        engine.Material(
+        engine.RenderMaterial(
           name: 'crate',
-          baseColor: Vector4(0.85, 0.85, 0.88, 1.0),
+          baseColor: LinearColor.fromSrgb(0.85, 0.85, 0.88, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'crate.$i',

@@ -445,7 +445,10 @@
   "sunDisc": 26.0
  },
  "level": {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "flats",
   "generatedBy": "tool/make_track.py",
   "fogColor": [
@@ -487,7 +490,8 @@
      706.8
     ],
     "material": "grass",
-    "surface": "grass"
+    "surface": "grass",
+    "id": "54046e89"
    },
    {
     "at": [
@@ -500,7 +504,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "67b3e03a"
    },
    {
     "at": [
@@ -513,7 +518,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "8031d83c"
    },
    {
     "at": [
@@ -526,7 +532,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "7317c987"
    },
    {
     "at": [
@@ -539,7 +546,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "d9b66c84"
    },
    {
     "at": [
@@ -552,7 +560,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "8a94d7f7"
    },
    {
     "at": [
@@ -565,7 +574,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "2f73b4ec"
    },
    {
     "at": [
@@ -578,7 +588,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "451d21e2"
    },
    {
     "at": [
@@ -591,7 +602,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "8fccd36c"
    },
    {
     "at": [
@@ -604,7 +616,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "c84f3c77"
    },
    {
     "at": [
@@ -617,7 +630,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "c2f00004"
    },
    {
     "at": [
@@ -630,7 +644,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "63861607"
    },
    {
     "at": [
@@ -643,7 +658,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "3452bcbc"
    },
    {
     "at": [
@@ -656,7 +672,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "9bd8e9ba"
    },
    {
     "at": [
@@ -669,7 +686,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "33ee703c"
    },
    {
     "at": [
@@ -682,7 +700,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "b27b6787"
    },
    {
     "at": [
@@ -695,7 +714,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "f1087c84"
    },
    {
     "at": [
@@ -708,7 +728,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "d3a2e1f7"
    },
    {
     "at": [
@@ -721,7 +742,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "b10df4ec"
    },
    {
     "at": [
@@ -734,7 +756,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "f627d062"
    },
    {
     "at": [
@@ -747,7 +770,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "0e32936c"
    },
    {
     "at": [
@@ -760,7 +784,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "7f413277"
    },
    {
     "at": [
@@ -773,7 +798,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "ab9df004"
    },
    {
     "at": [
@@ -786,7 +812,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "24227807"
    },
    {
     "at": [
@@ -799,7 +826,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "809624bc"
    }
   ],
   "lights": [
@@ -815,8 +843,9 @@
      0.62,
      0.38
     ],
-    "intensity": 2.1,
-    "castsShadow": true
+    "intensity": 12160.2255138,
+    "castsShadow": true,
+    "id": "f32061bf"
    }
   ],
   "entities": []

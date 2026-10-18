@@ -9,14 +9,19 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `tiled-render` page: a scene drawn as a grid of tiles, each into its
+/// own cell. Its check is that every tile drew and that one tile reproduces
+/// the whole frustum.
 final class TiledRenderDemo extends ShowcaseDemo {
+  /// How many tiles across, and down, the grid has, 1 to 4.
   int tilesAcross = 3;
+
+  /// How far the cells are pulled apart, as a share of a cell, 0 to 0.4.
   double gap = 0.0;
 
   // #region base
-  final Projection _base = const PerspectiveProjection(fovYRadians: 0.9);
+  final Projection _base = const PerspectiveProjection(fovY: 0.9);
   // #endregion base
 
   static const int _largestGrid = 4;
@@ -36,10 +41,10 @@ final class TiledRenderDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
 
@@ -51,7 +56,10 @@ final class TiledRenderDemo extends ShowcaseDemo {
           context.device,
           const PlaneShape(width: 16.0, depth: 10.0).build(),
         ),
-        Material(name: 'floor', baseColor: Vector4(0.4, 0.45, 0.42, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.4, 0.45, 0.42, 1.0),
+        ),
         name: 'floor',
       )..setPosition(0.0, -0.6, 0.0),
     );
@@ -67,19 +75,23 @@ final class TiledRenderDemo extends ShowcaseDemo {
       context.device,
       TorusShape(radius: 0.7, tubeRadius: 0.25).build(),
     );
-    Material colour(String name, double r, double g, double b) =>
-        Material(name: name, baseColor: Vector4(r, g, b, 1.0), roughness: 0.6);
+    RenderMaterial color(String name, double r, double g, double b) =>
+        RenderMaterial(
+          name: name,
+          baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
+          roughness: 0.6,
+        );
     scene
       ..add(
-        MeshNode(ball, colour('ball', 0.9, 0.4, 0.3), name: 'ball')
+        MeshNode(ball, color('ball', 0.9, 0.4, 0.3), name: 'ball')
           ..setPosition(-2.6, 0.0, 0.0),
       )
       ..add(
-        MeshNode(box, colour('box', 0.3, 0.6, 0.9), name: 'box')
+        MeshNode(box, color('box', 0.3, 0.6, 0.9), name: 'box')
           ..setPosition(0.0, 0.0, 0.0),
       )
       ..add(
-        MeshNode(ring, colour('ring', 0.4, 0.8, 0.5), name: 'ring')
+        MeshNode(ring, color('ring', 0.4, 0.8, 0.5), name: 'ring')
           ..setPosition(2.6, 0.0, 0.0),
       );
 
@@ -93,7 +105,7 @@ final class TiledRenderDemo extends ShowcaseDemo {
 
   // #region tile
   @override
-  List<RenderView> views(DemoContext context) {
+  List<CameraView> views(DemoContext context) {
     final int n = tilesAcross;
     final double cell = 1.0 / n;
     final double inset = cell * gap / 2;
@@ -104,10 +116,10 @@ final class TiledRenderDemo extends ShowcaseDemo {
     final double reach = gap == 0.0 ? 0.002 : 0.0;
     final Vector3 eye = context.camera.readPosition();
     final Quaternion facing = context.camera.readRotation();
-    return <RenderView>[
+    return <CameraView>[
       for (var row = 0; row < n; row++)
         for (var column = 0; column < n; column++)
-          RenderView(
+          CameraView(
             // The same eye every tile looks from: what differs is which
             // square of the picture it keeps.
             camera: _cameras[row * n + column]

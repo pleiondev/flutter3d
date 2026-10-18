@@ -9,6 +9,8 @@
 /// answer to that is a file both can import rather than a third transcription.
 library;
 
+import 'rgba8_image.dart';
+
 /// The dominant direction sixteen `(r, g, b)` points vary along, found by
 /// power iteration on their covariance matrix rather than an eigenvalue
 /// solver — a 3×3 matrix converges in a handful of iterations and needs no
@@ -66,10 +68,10 @@ library;
 /// land on the same pixel; any endpoint works, and the block decodes solid
 /// either way.
 ({(double, double, double) high, (double, double, double) low}) blockEndpoints(
-  List<(int, int, int, int)> pixels,
+  List<Rgba8Texel> pixels,
 ) {
   final rgb = <(double, double, double)>[
-    for (final (r, g, b, _) in pixels)
+    for (final Rgba8Texel(:r, :g, :b) in pixels)
       (r.toDouble(), g.toDouble(), b.toDouble()),
   ];
 
@@ -123,9 +125,9 @@ double _sqrt(double x) {
 /// The alpha range of one block, brightest first — the endpoint pair the
 /// alpha half of a block format starts from, and a straight min/max because
 /// alpha is one channel and has no axis to find.
-({int high, int low}) blockAlphaRange(List<(int, int, int, int)> pixels) {
+({int high, int low}) blockAlphaRange(List<Rgba8Texel> pixels) {
   var lo = 255, hi = 0;
-  for (final (_, _, _, a) in pixels) {
+  for (final Rgba8Texel(:a) in pixels) {
     if (a < lo) lo = a;
     if (a > hi) hi = a;
   }

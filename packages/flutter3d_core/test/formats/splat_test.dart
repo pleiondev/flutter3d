@@ -126,11 +126,11 @@ void main() {
       // passed the number through would draw a cloud of invisible splats
       // wherever the trainer converged on a negative logit.
       final cloud = parseSplatPly(_ply(<_Row>[_row(opacity: 0.0)]));
-      expect(cloud.colours[3], closeTo(0.5, 1e-6));
+      expect(cloud.colors[3], closeTo(0.5, 1e-6));
 
       final opaque = parseSplatPly(_ply(<_Row>[_row(opacity: 4.0)]));
-      expect(opaque.colours[3], closeTo(1.0 / (1.0 + math.exp(-4.0)), 1e-6));
-      expect(opaque.colours[3], greaterThan(0.98));
+      expect(opaque.colors[3], closeTo(1.0 / (1.0 + math.exp(-4.0)), 1e-6));
+      expect(opaque.colors[3], greaterThan(0.98));
     });
 
     test('scale is a logarithm, not an extent', () {
@@ -153,21 +153,21 @@ void main() {
       // leaves the offset alone to check.
       final cloud = parseSplatPly(
         _ply(<_Row>[_row(dc0: 0.0, dc1: 1.0)]),
-        colourSpace: SplatColourSpace.linear,
+        colorSpace: SplatColorSpace.linear,
       );
-      expect(cloud.colours[0], closeTo(0.5, 1e-6));
-      expect(cloud.colours[1], closeTo(0.5 + kSplatShC0, 1e-6));
+      expect(cloud.colors[0], closeTo(0.5, 1e-6));
+      expect(cloud.colors[1], closeTo(0.5 + splatShC0, 1e-6));
     });
 
     test('colour is sRGB-encoded, and decoded to linear by default', () {
       // A trainer fits band 0 to sRGB photographs, so a stored grey of a half
       // is a displayed grey of a half. Taken as linear it is encoded again on
       // the way out and shows as about 0.735: the capture washed out.
-      // Mutation: drop the decode in `splatColour` and this reads 0.5.
+      // Mutation: drop the decode in `splatColor` and this reads 0.5.
       final cloud = parseSplatPly(_ply(<_Row>[_row(dc0: 0.0, dc1: 1.0)]));
-      expect(cloud.colours[0], closeTo(_srgbToLinear(0.5), 1e-6));
-      expect(cloud.colours[1], closeTo(_srgbToLinear(0.5 + kSplatShC0), 1e-6));
-      expect(cloud.colours[0], closeTo(0.2140, 1e-4));
+      expect(cloud.colors[0], closeTo(_srgbToLinear(0.5), 1e-6));
+      expect(cloud.colors[1], closeTo(_srgbToLinear(0.5 + splatShC0), 1e-6));
+      expect(cloud.colors[0], closeTo(0.2140, 1e-4));
     });
 
     test('a colour below nought clamps, as the fit did', () {
@@ -176,13 +176,13 @@ void main() {
       // of them. Left negative, the splat subtracts light under the
       // premultiplied blend: a dark speck. Mutation: drop the `max` and these
       // come out negative.
-      for (final space in SplatColourSpace.values) {
+      for (final space in SplatColorSpace.values) {
         final cloud = parseSplatPly(
           _ply(<_Row>[_row(dc0: -3.0, dc1: -1.7724538509055159 - 0.5)]),
-          colourSpace: space,
+          colorSpace: space,
         );
-        expect(cloud.colours[0], 0.0, reason: '$space');
-        expect(cloud.colours[1], 0.0, reason: '$space');
+        expect(cloud.colors[0], 0.0, reason: '$space');
+        expect(cloud.colors[1], 0.0, reason: '$space');
       }
     });
 
@@ -190,12 +190,12 @@ void main() {
       // The sRGB curve is defined on [0, 1]; a linear channel above one is a
       // highlight, which the tone curve and not the reader deals with.
       final srgb = parseSplatPly(_ply(<_Row>[_row(dc0: 4.0)]));
-      expect(srgb.colours[0], closeTo(1.0, 1e-6));
+      expect(srgb.colors[0], closeTo(1.0, 1e-6));
       final linear = parseSplatPly(
         _ply(<_Row>[_row(dc0: 4.0)]),
-        colourSpace: SplatColourSpace.linear,
+        colorSpace: SplatColorSpace.linear,
       );
-      expect(linear.colours[0], closeTo(0.5 + 4.0 * kSplatShC0, 1e-6));
+      expect(linear.colors[0], closeTo(0.5 + 4.0 * splatShC0, 1e-6));
     });
   });
 
@@ -364,8 +364,8 @@ void main() {
     // object is made rather than where it is drawn.
     expect(
       () => SplatCloud(
-        centres: Float32List(6),
-        colours: Float32List(4),
+        centers: Float32List(6),
+        colors: Float32List(4),
         scales: Float32List(6),
         rotations: Float32List(8),
       ),

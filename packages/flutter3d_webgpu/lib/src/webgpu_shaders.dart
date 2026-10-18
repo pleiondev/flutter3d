@@ -48,26 +48,34 @@
 /// the device implements over `GPUDevice.createShaderModule`.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
+import 'package:flutter3d_shaders/backend.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
 
-import '../engine_compute_shaders.dart';
+import 'engine_compute_shaders.dart';
 import 'webgpu_bundle_section.dart';
 import 'webgpu_compute_stage.dart';
+import 'webgpu_pipeline_cache.dart' show webgpuVertexLayoutFingerprint;
 
 /// Turns WGSL text into whatever the backend's module object is.
 ///
 /// **One method, because one method is the whole of what a shader library
 /// cannot do without a device.** Everything else here — looking a name up,
-/// merging two stages' reflection, turning a [VertexLayoutSpec] into buffers
+/// merging two stages' reflection, turning a [VertexLayoutDescriptor] into buffers
 /// and locations — is arithmetic over the sidecar and belongs on the VM.
 /// Declaring the seam as an interface is what keeps it there, and it is what
 /// lets a test compile a "module" that is a `String` and still exercise the
 /// caching, the refusals and the reload.
 ///
 /// Implemented by the device, which is the only holder of a `GPUDevice`.
-abstract interface class WgslModuleCompiler {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class WgslModuleCompiler {
   /// The module for [wgsl], or a throw naming [name] and quoting the compiler.
   ///
   /// **A throw is allowed and cannot be required, and the difference is a fact
@@ -110,6 +118,8 @@ typedef WebGpuCode = ({WebGpuStage stage, Object module});
 
 /// What a [ShaderHandle] carries here: one compiled stage, and which kind.
 final class WebGpuShader {
+  /// A stage called [name], a vertex stage where [isVertex], currently
+  /// [code].
   WebGpuShader({
     required this.name,
     required this.isVertex,
@@ -178,6 +188,9 @@ final class WebGpuShader {
 /// Shared by the engine's library and a loaded one, because a stage that failed
 /// to compile and came back null would look exactly like a stage the sidecar
 /// never had, and the two need different fixes.
+///
+/// The stage's own blocks of a material are packed into one binding first
+/// ([packMaterialBlocks]).
 ShaderHandle compileWebGpuStage(
   WgslModuleCompiler compiler,
   String name,
@@ -185,16 +198,126 @@ ShaderHandle compileWebGpuStage(
   required bool isVertex,
   StageBindings? kept,
   Map<String, Map<String, UniformMemberLayout>>? layouts,
-}) => ShaderHandle(
-  kept: kept,
-  layouts: layouts,
-  backend: WebGpuShader(
+  void Function(ShaderHandle handle)? release,
+}) {
+  final packed = packMaterialBlocks(stage);
+  return wrapShader(
+    kept: kept,
+    layouts: layouts,
+    release: release,
+    backend: WebGpuShader(
+      name: name,
+      isVertex: isVertex,
+      code: (stage: packed, module: compiler.compileModule(name, packed.wgsl)),
+    ),
     name: name,
-    isVertex: isVertex,
-    code: (stage: stage, module: compiler.compileModule(name, stage.wgsl)),
-  ),
-  name: name,
-);
+  );
+}
+
+/// One member of a pack: the block's struct at its reflected size, on the
+/// 16-byte boundary the uniform address space wants of a struct.
+String _packedMember(int index, int size, String type) =>
+    '    @align(16) @size($size) m$index: $type,';
+
+/// The block names the engine's own stages bind, which a material's own
+/// may not take: every one but `MaterialParams`, the block a material's
+/// plain uniforms are members of.
+final Set<String> _engineBlockNames = <String>{
+  for (final stage in stageBindings.values) ...stage.blocks,
+}..remove('MaterialParams');
+
+/// [stage] with the uniform blocks of a material's own (D21) — its
+/// `MaterialParams` and every block its source names, `uniform(Strands) …`
+/// — packed into one binding of their group, or [stage] itself where it
+/// has fewer than two of them in a group, or its WGSL does not declare
+/// them in the shape this reads.
+///
+/// **Why one binding.** Every uniform block here is bound with a dynamic
+/// offset (`WebGpuBindingLayouts`), and WebGPU guarantees 8 dynamic
+/// uniform buffers per pipeline layout. The engine's mesh stage binds 2
+/// and its lit stages 5, so a lit model with a block of its own beside
+/// `MaterialParams` asks for 9, and a device at the guaranteed limit
+/// refuses the layout. Packed, the material's blocks count as one,
+/// whatever number of them its source declares.
+///
+/// **How.** The WGSL's declarations of those blocks become members of one
+/// struct, each on a 16-byte boundary at the size its reflection gives,
+/// and each read of a block reads its member; the reflection keeps every
+/// block by its own name, at the shared binding, with its place in it
+/// ([WebGpuBlock.offsetInBinding]) and the size of the whole
+/// ([WebGpuBlock.bindingSizeInBytes]). The encoder fills each block's
+/// bytes where they go and binds the whole, so the renderer binds by name
+/// as it does on every backend.
+WebGpuStage packMaterialBlocks(WebGpuStage stage) {
+  final byGroup = <int, List<WebGpuBlock>>{};
+  for (final block in stage.blocks) {
+    if (_engineBlockNames.contains(block.name)) continue;
+    (byGroup[block.group] ??= <WebGpuBlock>[]).add(block);
+  }
+  var wgsl = stage.wgsl;
+  final replaced = <String, WebGpuBlock>{};
+  for (final MapEntry(key: group, value: own) in byGroup.entries) {
+    if (own.length < 2) continue;
+    own.sort((a, b) => a.binding.compareTo(b.binding));
+    final declarations = <RegExpMatch>[];
+    for (final block in own) {
+      final found = RegExp(
+        '@group\\($group\\)\\s*@binding\\(${block.binding}\\)\\s*'
+        r'var<uniform>\s+(\w+)\s*:\s*(\w+)\s*;',
+      ).firstMatch(wgsl);
+      if (found == null) return stage;
+      declarations.add(found);
+    }
+    final type = 'F3dMaterialBlocks$group';
+    final variable = 'f3d_material_blocks_$group';
+    final first = own.first.binding;
+    final total = own.fold<int>(0, (sum, b) => sum + b.sizeInBytes);
+    final names = <String>[for (final d in declarations) d.group(1)!];
+    // The declarations out, last first so the earlier offsets hold.
+    final ordered = [...declarations]
+      ..sort((a, b) => b.start.compareTo(a.start));
+    for (final found in ordered) {
+      wgsl = wgsl.replaceRange(found.start, found.end, '');
+    }
+    for (final (index, name) in names.indexed) {
+      wgsl = wgsl.replaceAll(
+        RegExp('(?<![\\w.])${RegExp.escape(name)}(?!\\w)'),
+        '$variable.m$index',
+      );
+    }
+    final members = <String>[
+      for (final (index, found) in declarations.indexed)
+        _packedMember(index, own[index].sizeInBytes, found.group(2)!),
+    ];
+    wgsl =
+        'struct $type {\n${members.join('\n')}\n}\n'
+        '@group($group) @binding($first) \n'
+        'var<uniform> $variable: $type;\n'
+        '$wgsl';
+    var offset = 0;
+    for (final block in own) {
+      replaced[block.name] = WebGpuBlock(
+        name: block.name,
+        group: group,
+        binding: first,
+        sizeInBytes: block.sizeInBytes,
+        members: block.members,
+        offsetInBinding: offset,
+        bindingSizeInBytes: total,
+      );
+      offset += block.sizeInBytes;
+    }
+  }
+  if (replaced.isEmpty) return stage;
+  return WebGpuStage(
+    wgsl: wgsl,
+    attributes: stage.attributes,
+    blocks: <WebGpuBlock>[
+      for (final block in stage.blocks) replaced[block.name] ?? block,
+    ],
+    samplers: stage.samplers,
+  );
+}
 
 /// A [ShaderLibrary] over a sidecar's stages, compiled on first use.
 ///
@@ -208,7 +331,9 @@ ShaderHandle compileWebGpuStage(
 /// any other JavaScript object. So this library ends by being dropped, and
 /// [debugTrackedModuleCount] is for a test to read rather than for a device to
 /// drive to zero.
-final class WebGpuShaderLibrary implements ShaderLibrary {
+final class WebGpuShaderLibrary with ShaderLibrary {
+  /// A library over the decoded section `_stages`, compiling each through
+  /// `_compiler` the first time it is asked for.
   WebGpuShaderLibrary(this._compiler, this._stages);
 
   final WgslModuleCompiler _compiler;
@@ -230,13 +355,14 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
     // bindings its pipeline layout is built from.
     final compute = engineComputeShaders[name];
     if (compute != null) {
-      return ShaderHandle(
+      return wrapShader(
         backend: WebGpuComputeShader(
           name: name,
           stage: compute,
           module: _compiler.compileModule(name, compute.wgsl),
         ),
         name: name,
+        release: _forget,
       );
     }
     final isVertex = _stages.vertex.containsKey(name);
@@ -254,8 +380,13 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
       isVertex: isVertex,
       kept: stageBindings[name],
       layouts: uniformBlocks[name],
+      release: _forget,
     );
   }
+
+  /// A disposed handle's release. A `GPUShaderModule` has no `destroy`, so
+  /// forgetting the handle is what lets it be collected.
+  void _forget(ShaderHandle handle) => forgetShader(_handles, handle);
 
   /// Drops the handles this library has handed out.
   ///
@@ -280,8 +411,9 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
 ///
 /// [name] is carried through because it is the only thing an error message can
 /// say, and because the two ways of building this list — from the sidecar's own
-/// attribute table and from a [VertexLayoutSpec] — agree about nothing else.
+/// attribute table and from a [VertexLayoutDescriptor] — agree about nothing else.
 final class WebGpuVertexAttribute {
+  /// An input [name] at [shaderLocation], [offsetInBytes] into each element.
   const WebGpuVertexAttribute({
     required this.name,
     required this.shaderLocation,
@@ -289,12 +421,14 @@ final class WebGpuVertexAttribute {
     required this.offsetInBytes,
   });
 
+  /// The input's name, which error messages quote.
   final String name;
 
   /// Spelled as `GPUVertexAttribute` spells it, because that is where the
   /// number is going.
   final int shaderLocation;
 
+  /// The per-vertex format the pipeline's vertex layout declares.
   final VertexFormat format;
 
   /// Where this attribute begins inside one element of its buffer.
@@ -303,14 +437,21 @@ final class WebGpuVertexAttribute {
 
 /// One vertex buffer a pipeline reads, in the slot its position gives it.
 final class WebGpuVertexBuffer {
+  /// A buffer of elements [strideInBytes] apart; [attributes] is copied
+  /// into an unmodifiable list.
   WebGpuVertexBuffer({
     required this.strideInBytes,
     required this.stepMode,
     required List<WebGpuVertexAttribute> attributes,
   }) : attributes = List<WebGpuVertexAttribute>.unmodifiable(attributes);
 
+  /// Bytes from one element of the buffer to the next.
   final int strideInBytes;
+
+  /// Whether the buffer advances per vertex or per instance.
   final VertexStepMode stepMode;
+
+  /// The inputs read out of each element, unmodifiable.
   final List<WebGpuVertexAttribute> attributes;
 }
 
@@ -327,6 +468,8 @@ final class WebGpuVertexBuffer {
 /// samplers by name. The sidecar is the file version of exactly this record,
 /// which is why the two look alike.
 final class WebGpuPipeline {
+  /// A pair called [name]; the collections are copied unmodifiable, and
+  /// [fragmentOutputs] null writes every colour target.
   WebGpuPipeline({
     required this.name,
     required this.vertexModule,
@@ -351,9 +494,9 @@ final class WebGpuPipeline {
   /// Kept beside [buffers] rather than thrown away once the locations are
   /// resolved, because it is what the pipeline cache's signature is rendered
   /// from: two layouts over one stage pair are two pipelines, and the
-  /// fingerprint of a `VertexLayoutSpec` is the string that says so. See
+  /// fingerprint of a `VertexLayoutDescriptor` is the string that says so. See
   /// `webgpu_pipeline_cache.dart`.
-  final VertexLayoutSpec layout;
+  final VertexLayoutDescriptor layout;
 
   /// The vertex stage's module, as the device's own type.
   ///
@@ -368,6 +511,13 @@ final class WebGpuPipeline {
 
   /// The fragment stage's module, held for the reason above.
   final Object fragmentModule;
+
+  /// [layout] as `webgpuVertexLayoutFingerprint` renders it, rendered once.
+  ///
+  /// Every draw keys the pipeline cache with it, and it was rendered at every
+  /// draw: a string a buffer and an attribute long, built and dropped per
+  /// draw, where the cache's own comment said once per pipeline.
+  late final String layoutFingerprint = webgpuVertexLayoutFingerprint(layout);
 
   /// Every buffer this pipeline reads vertices from, slot *n* at index *n*.
   final List<WebGpuVertexBuffer> buffers;
@@ -451,13 +601,18 @@ typedef WebGpuVisibility = ({bool vertex, bool fragment});
 
 /// One uniform block of a group, and which stages see it.
 final class WebGpuBoundBlock {
+  /// [block] seen by the stages [visibility] names, bindable by default.
   const WebGpuBoundBlock({
     required this.block,
     required this.visibility,
     this.bindable = true,
   });
 
+  /// The block's reflection: name, binding and size.
   final WebGpuBlock block;
+
+  /// Which stages declare the block, which the layout entry's visibility
+  /// must name.
   final WebGpuVisibility visibility;
 
   /// Whether a caller may be asked to bind it. See
@@ -467,13 +622,18 @@ final class WebGpuBoundBlock {
 
 /// One texture-and-sampler pair of a group, and which stages see it.
 final class WebGpuBoundSampler {
+  /// [sampler] seen by the stages [visibility] names, bindable by default.
   const WebGpuBoundSampler({
     required this.sampler,
     required this.visibility,
     this.bindable = true,
   });
 
+  /// The pair's reflection: name, both bindings and the view shape.
   final WebGpuSampler sampler;
+
+  /// Which stages declare the pair, which both layout entries' visibility
+  /// must name.
   final WebGpuVisibility visibility;
 
   /// Whether a caller may be asked to bind it: false where every stage that
@@ -493,9 +653,14 @@ final class WebGpuBoundSampler {
 
 /// What one `@group` of a pipeline holds, each list in binding order.
 final class WebGpuGroupShape {
+  /// A group of [blocks] and [samplers], each already in binding order.
   const WebGpuGroupShape({required this.blocks, required this.samplers});
 
+  /// The group's uniform blocks, in binding order, which is the order a
+  /// draw's dynamic offsets follow.
   final List<WebGpuBoundBlock> blocks;
+
+  /// The group's texture-and-sampler pairs, in binding order.
   final List<WebGpuBoundSampler> samplers;
 
   /// Whether this group has nothing in it, which a pipeline's lower group
@@ -526,10 +691,14 @@ final class WebGpuGroupShape {
 /// fragment stage of this backend, when the two stages disagree about where a
 /// name is bound, or when [layout] does not feed every input the vertex stage
 /// declares.
+///
+/// [owner] is the device whose `releasePipeline` the handle's `dispose`
+/// calls.
 PipelineHandle createWebGpuPipeline(
   ShaderHandle vertex,
   ShaderHandle fragment, {
-  VertexLayoutSpec? layout,
+  VertexLayoutDescriptor? layout,
+  GraphicsDevice? owner,
 }) {
   final vertexStage = _stageOf(vertex, wantVertex: true);
   final fragmentStage = _stageOf(fragment, wantVertex: false);
@@ -541,7 +710,7 @@ PipelineHandle createWebGpuPipeline(
   // layout like any other rather than a second way of packing a buffer.
   final spec = layout ?? _derivedLayout(vertexStage.stage);
   final name = '${vertex.name}+${fragment.name}';
-  return PipelineHandle(
+  return wrapPipeline(
     backend: WebGpuPipeline(
       name: name,
       vertexModule: vertexStage.module,
@@ -559,6 +728,7 @@ PipelineHandle createWebGpuPipeline(
       fragmentOutputs: wgslFragmentOutputs(fragmentStage.stage.wgsl),
     ),
     name: name,
+    owner: owner,
   );
 }
 
@@ -594,11 +764,11 @@ WebGpuShader _stageOf(ShaderHandle handle, {required bool wantVertex}) {
 /// location order already, and sorting is how that stays a fact about the bytes
 /// rather than a habit of the generator.
 ///
-/// A `VertexLayoutSpec` and not the resolved buffers, so that a derived layout
+/// A `VertexLayoutDescriptor` and not the resolved buffers, so that a derived layout
 /// and a stated one are the same thing by the time anything reads them — and so
 /// that the pipeline cache's signature can be rendered from a layout whether or
 /// not the caller wrote it out.
-VertexLayoutSpec _derivedLayout(WebGpuStage stage) {
+VertexLayoutDescriptor _derivedLayout(WebGpuStage stage) {
   final ordered = <WebGpuAttribute>[...stage.attributes]
     ..sort(
       (WebGpuAttribute a, WebGpuAttribute b) =>
@@ -617,7 +787,7 @@ VertexLayoutSpec _derivedLayout(WebGpuStage stage) {
     );
     at += attribute.format.bytesPerElement;
   }
-  return VertexLayoutSpec(<BufferLayout>[
+  return VertexLayoutDescriptor(<BufferLayout>[
     BufferLayout(strideInBytes: at, attributes: attributes),
   ]);
 }
@@ -736,7 +906,7 @@ List<T> _sorted<T>(Map<int, T>? byBinding, Comparator<T> order) =>
 List<WebGpuVertexBuffer> _resolvedBuffers(
   String stageName,
   WebGpuStage stage,
-  VertexLayoutSpec layout,
+  VertexLayoutDescriptor layout,
 ) {
   final byName = <String, WebGpuAttribute>{
     for (final attribute in stage.attributes) attribute.name: attribute,
@@ -843,7 +1013,8 @@ Map<String, WebGpuSampler> _mergedSamplers(
         (seen.group != sampler.group ||
             seen.textureBinding != sampler.textureBinding ||
             seen.samplerBinding != sampler.samplerBinding ||
-            seen.dimension != sampler.dimension)) {
+            seen.dimension != sampler.dimension ||
+            seen.comparison != sampler.comparison)) {
       throw StateError(
         'the stages "${vertex.name}" and "${fragment.name}" both declare the '
         'sampler "${sampler.name}" and put it in different places: group '

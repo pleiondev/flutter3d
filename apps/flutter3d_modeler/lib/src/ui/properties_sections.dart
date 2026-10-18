@@ -12,27 +12,59 @@ import 'tools.dart';
 
 /// One section the properties panel can show.
 enum PropertiesSection {
+  /// How the viewport shades — material, normals, wireframe. Every mode
+  /// shows it.
   display,
+
+  /// Perspective or orthographic, and the standard views. Every mode shows
+  /// it.
   view,
+
+  /// The object list — object mode's.
   objects,
+
+  /// The selected object's transform grid — object mode's.
   transform,
+
+  /// The modifier stack — object mode's.
   modifiers,
+
+  /// The compact material row — object mode's, and material mode's too.
   materials,
 
-  /// `ux-40`'s own row: the rest of the Material workspace — a live preview
+  /// `ux-40`'s own row: the rest of the RenderMaterial workspace — a live preview
   /// of the material being edited, its texture slots and its texture graph.
-  /// Material mode's alone; object mode keeps [materials] on its own, which
+  /// RenderMaterial mode's alone; object mode keeps [materials] on its own, which
   /// is the compact row a person fixing a mesh needs and not a screen they
   /// have to scroll past to reach the modifier stack.
   materialWorkspace,
+
+  /// The last-operation card, with its arguments to amend — mesh mode's.
   lastOperation,
+
+  /// What is selected in the mesh, counted — mesh mode's.
   selection,
+
+  /// The mesh's vertex, edge and face counts — mesh mode's.
   mesh,
+
+  /// The triangle count against the project profile's budget. Every mode
+  /// shows it.
   budget,
+
+  /// The clip and skeleton panel — what the pose sub-mode shows.
   animation,
+
+  /// The scene's lights — scene mode's.
   sceneSources,
+
+  /// The shadow toggle and its status — scene mode's.
   sceneShadows,
+
+  /// The sky preset and the ambient level — scene mode's.
   sceneEnvironment,
+
+  /// Bloom and exposure — scene mode's.
   scenePost,
 
   /// `ui-40d`'s own row: the weight-paint sub-mode's own panel — brush
@@ -62,7 +94,7 @@ enum PropertiesSection {
 /// answer `true` in every mode rather than disappearing along with the
 /// mode-specific sections. Object mode owns the object list, the transform
 /// grid, the modifier stack and — `mat-04a-n`'s own row — the material
-/// panel: a full `Material` workspace of its own is `ModelerMode.material`'s
+/// panel: a full `RenderMaterial` workspace of its own is `ModelerMode.material`'s
 /// phase-2 row, but phase 1's own scenario ("clean a mesh, fix its
 /// material, export to GLB") needs a way to paint an object today, and
 /// object mode is where that object already is. Mesh mode owns the
@@ -133,7 +165,7 @@ Set<PropertiesSection> sectionsFor(
       PropertiesSection.sceneEnvironment,
       PropertiesSection.scenePost,
     },
-    // **`ux-07`: Material mode is no longer empty.** It was enabled, it
+    // **`ux-07`: RenderMaterial mode is no longer empty.** It was enabled, it
     // switched, and it showed Display/View/Budget and nothing else — the
     // materials were edited in Object mode, with no hint and no link. The
     // live run's own finding, and the first minute of the application is
@@ -152,6 +184,7 @@ Set<PropertiesSection> sectionsFor(
       PropertiesSection.materials,
       PropertiesSection.materialWorkspace,
     },
+    // ignore: avoid-wildcard-cases-with-enums, the other modes show no sections in this layout
     _ => const <PropertiesSection>{},
   },
 };

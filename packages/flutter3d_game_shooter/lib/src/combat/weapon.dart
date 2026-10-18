@@ -64,6 +64,8 @@ final class Arsenal {
   /// Seconds still to wait before the next shot.
   double _cooldown = 0.0;
 
+  /// The weapons held, in the order they were picked up; an unmodifiable
+  /// copy.
   List<WeaponDef> get owned => List<WeaponDef>.unmodifiable(_owned);
 
   /// Whether anything is being held at all.
@@ -108,10 +110,17 @@ final class Arsenal {
   /// its own ammunition gets it here without this package knowing the name.
   Iterable<AmmoType> get carrying => _ammo.keys;
 
+  /// How many rounds of [type] are carried, outside any magazine: nought
+  /// for a type never picked up, and -1 for [AmmoType.none], which is never
+  /// counted.
   int ammoOf(AmmoType type) => type == AmmoType.none ? -1 : (_ammo[type] ?? 0);
 
+  /// [ammoOf] the weapon in hand's ammunition; nought when nothing is held,
+  /// -1 for a weapon that uses none.
   int get currentAmmo => isEmpty ? 0 : ammoOf(current.ammo);
 
+  /// Whether a weapon of [weapon]'s name is held; compared by name, so a
+  /// retuned definition still counts as the same weapon.
   bool owns(WeaponDef weapon) =>
       _owned.any((WeaponDef w) => w.name == weapon.name);
 
@@ -171,6 +180,11 @@ final class Arsenal {
     },
   };
 
+  /// Puts back what [save] wrote, looking each weapon's name up in [slots].
+  ///
+  /// A name no longer in [slots] is dropped, and an index past the end of
+  /// what is held reads as the first. A missing list of weapons or of
+  /// ammunition leaves the current one; a missing number reads as nought.
   void restore(Map<String, Object?> from) {
     final names = from['owned'];
     if (names is List) {
@@ -187,7 +201,7 @@ final class Arsenal {
     _current = (from['current'] as num?)?.toInt() ?? 0;
     // A saved index into a roster that has since shrunk would throw on the
     // first shot rather than on load, which is the worse of the two places.
-    if (_current >= _owned.length) _current = _owned.isEmpty ? 0 : 0;
+    if (_current >= _owned.length) _current = 0;
     _cooldown = (from['cooldown'] as num?)?.toDouble() ?? 0.0;
     _reloading = (from['reloading'] as num?)?.toDouble() ?? 0.0;
     _magazines.clear();
@@ -218,6 +232,10 @@ final class Arsenal {
     }
   }
 
+  /// Runs the cooldown and any reload down by [dt] seconds.
+  ///
+  /// A reload that finishes fills the weapon in hand's magazine from what is
+  /// carried, and no further than what is carried.
   void advanceTime(double dt) {
     if (_cooldown > 0.0) {
       _cooldown = (_cooldown - dt).clamp(0.0, double.infinity);
@@ -263,6 +281,7 @@ final class Arsenal {
   final Map<String, int> _magazines = <String, int>{};
 
   /// How long the reload has left, or zero when none is running.
+  /// In seconds.
   double get reloading => _reloading;
   double _reloading = 0.0;
 

@@ -24,12 +24,16 @@ typedef ChurnCost = ({double edit, double convert, double upload});
 
 /// Moves vertices, rebuilds and re-uploads the mesh a node draws.
 final class ChurnRun {
+  /// A run over [node], starting from the vertices of [from], which is the
+  /// mesh the node was uploaded from; the run keeps its own copy of the
+  /// positions and leaves [from] as it was.
   ChurnRun({required this.device, required this.node, required MeshData from})
     : _positions = Float32List.fromList(from.vertices),
       _source = from,
       _offset = from.layout.floatOffsetOf(VertexLayout.position.name),
       _stride = from.layout.floatsPerVertex;
 
+  /// The device each rebuilt mesh is uploaded to: the one [node] draws on.
   final GraphicsDevice device;
 
   /// The node whose geometry is replaced each step.

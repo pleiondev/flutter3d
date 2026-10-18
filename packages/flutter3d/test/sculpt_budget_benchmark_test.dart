@@ -128,6 +128,10 @@
 ///   second and third time costs the same as the first, which a scheme that
 ///   allocated for every touched vertex or for the mesh's whole normal
 ///   buffer, every stroke, would not do.
+///
+/// Tagged `benchmark`, which this package's `dart_test.yaml` skips:
+/// `tool/benchmarks.sh` runs it.
+@Tags(<String>['benchmark'])
 library;
 
 import 'dart:math' as math;
@@ -137,7 +141,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A grid of quads `n` by `n` — the point and face layout of `tool/bench.dart`
 /// (`p0-04`, `mesh-31`), copied rather than imported because that file is a
@@ -298,7 +301,7 @@ void main() {
     // every face touching one. Kept and cleared rather than remade, for the
     // same reason as the store above.
     final ring = <int>{};
-    final ray = Ray(Vector3.zero(), Vector3(0, -1, 0));
+    final ray = LocalRay(Vector3.zero(), Vector3(0, -1, 0));
 
     const strokeIterations = 3; // plus one untimed warmup, below
     final strokeTotals = <double>[];

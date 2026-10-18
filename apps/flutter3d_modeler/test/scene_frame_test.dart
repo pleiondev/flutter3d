@@ -30,7 +30,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   group('scene mode, drawn', () {
@@ -39,19 +38,19 @@ void main() {
       final lighting = SceneLighting(
         lights: <ProjectLight>[
           ProjectLight(
-            type: ProjectLightType.point,
-            color: Vector3(1.0, 0.35, 0.3),
+            type: LightType.point,
+            color: LinearColor(1.0, 0.35, 0.3),
             intensity: 5.0,
             range: 8.0,
           ),
           ProjectLight(
-            type: ProjectLightType.point,
-            color: Vector3(0.3, 0.4, 1.0),
+            type: LightType.point,
+            color: LinearColor(0.3, 0.4, 1.0),
             intensity: 5.0,
             range: 8.0,
           ),
           ProjectLight(
-            type: ProjectLightType.spot,
+            type: LightType.spot,
             intensity: 4.0,
             outerConeAngle: 0.5,
           ),
@@ -72,7 +71,7 @@ void main() {
           // → LightNode/RenderSettings` and this is that call, made against
           // the identical stage a real window would build.
           sync.sync(stage.scene, lighting);
-          return (scene: stage.scene, camera: stage.camera);
+          return FrameSubject(scene: stage.scene, camera: stage.camera);
         },
       );
 

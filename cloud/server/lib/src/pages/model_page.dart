@@ -5,12 +5,14 @@ library;
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
+import '../convert/exporter.dart';
 import '../db/models_repository.dart';
 import '../domain/access.dart';
 import '../domain/model.dart';
 import '../domain/project.dart';
 import '../domain/user.dart';
 import '../storage/inspect.dart';
+import 'download_as.dart';
 import 'format.dart';
 import 'forms.dart';
 import 'layout.dart';
@@ -22,6 +24,7 @@ class ModelPage extends StatelessComponent {
     required this.viewer,
     required this.csrf,
     required this.viewerAvailable,
+    this.editor = false,
     this.revisions = const [],
     this.ownerProjects = const [],
     this.sourceSha = '',
@@ -39,6 +42,10 @@ class ModelPage extends StatelessComponent {
   /// Whether the web build of the renderer is deployed. Without it the button
   /// would open a frame with a 404 in it.
   final bool viewerAvailable;
+
+  /// `MODELS_EDITOR`: whether a model opened here can be saved back. Off,
+  /// the page offers viewing and says the history is closed to new saves.
+  final bool editor;
 
   /// Past saves of the source file, newest first — only ever non-empty when
   /// the caller already checked `canEdit`, since nobody else's page fetches
@@ -61,7 +68,7 @@ class ModelPage extends StatelessComponent {
 
   /// Set only when `/m/<id>/publish` refused the form just submitted — the
   /// same `RegisterInvalid` shape `RegisterPage` already re-shows its own
-  /// errors with. Keyed `licence`/`category`.
+  /// errors with. Keyed `license`/`category`.
   final Map<String, String> publishProblems;
 
   /// The licence and category the refused form was submitted with, so the
@@ -98,8 +105,8 @@ class ModelPage extends StatelessComponent {
             ],
             if (model.category case final category?)
               span([Component.text(category.label)], classes: 'badge'),
-            if (model.licence case final licence? when model.isPublic)
-              span([Component.text(licence.spdx)], classes: 'badge'),
+            if (model.license case final license? when model.isPublic)
+              span([Component.text(license.spdx)], classes: 'badge'),
           ], classes: 'by'),
         ], classes: 'model-head'),
         div(
@@ -112,7 +119,9 @@ class ModelPage extends StatelessComponent {
               ),
             div([
               if (viewerAvailable)
-                button([Component.text('Open in 3D')], type: ButtonType.button)
+                button([
+                  Component.text(editor ? 'Open in 3D' : 'View in 3D'),
+                ], type: ButtonType.button)
               else
                 p([
                   Component.text('The 3D view is not deployed on this server.'),
@@ -120,7 +129,8 @@ class ModelPage extends StatelessComponent {
               p([
                 Component.text(
                   'Loads the flutter3d renderer: WebGPU where the browser '
-                  'has it, WebGL2 where it does not.',
+                  'has it, WebGL2 where it does not.'
+                  '${editor ? '' : ' Turn it, light it, look at its materials; editing stays in the modeller on your own machine.'}',
                 ),
               ]),
             ], classes: model.hasPreview ? 'poster has-preview' : 'poster'),
@@ -176,7 +186,7 @@ class ModelPage extends StatelessComponent {
                       model: model,
                       csrf: csrf,
                       problems: publishProblems,
-                      licence: publishLicence,
+                      license: publishLicence,
                       category: publishCategory,
                     ),
             if (editable) _DeleteForm(model: model, csrf: csrf),
@@ -191,10 +201,10 @@ class ModelPage extends StatelessComponent {
               dd([Component.text(formatBytes(model.sizeBytes))]),
               dt([Component.text('Uploaded')]),
               dd([Component.text(isoDate(model.createdAt))]),
-              if (model.licence case final licence?) ...[
+              if (model.license case final license?) ...[
                 dt([Component.text('Licence')]),
                 dd([
-                  a([Component.text(licence.spdx)], href: licence.url),
+                  a([Component.text(license.spdx)], href: license.url),
                 ]),
               ],
               if (model.category case final category?) ...[
@@ -207,28 +217,52 @@ class ModelPage extends StatelessComponent {
               href: '/files/${model.id}/source',
               classes: 'button quiet',
             ),
+            DownloadAsMenu(
+              formats: ExportFormat.offeredFor(
+                SourceFormat.of(model.sourceFormat),
+              ),
+              originalSuffix: suffix.isEmpty ? null : suffix,
+              hrefOf: (format) => format == ExportFormat.original
+                  ? '/files/${model.id}/source'
+                  : '/files/${model.id}/as/${format.column}',
+            ),
           ]),
         ], classes: 'model-grid'),
-        if (editable) _RevisionsSection(model: model, revisions: revisions),
+        if (editable)
+          _RevisionsSection(model: model, revisions: revisions, editor: editor),
       ],
     );
   }
 }
 
 class _RevisionsSection extends StatelessComponent {
-  const _RevisionsSection({required this.model, required this.revisions});
+  const _RevisionsSection({
+    required this.model,
+    required this.revisions,
+    required this.editor,
+  });
 
   final ModelRecord model;
   final List<RevisionRecord> revisions;
+  final bool editor;
 
   @override
   Component build(BuildContext context) => section([
     h2([Component.text('Revisions')]),
+    if (!editor)
+      p([
+        Component.text(
+          'Editing on this site is switched off, so no new revisions are '
+          'made here. Past ones stay downloadable.',
+        ),
+      ], classes: 'muted'),
     if (revisions.isEmpty)
       p([
         Component.text(
-          'No past saves yet — saving an edit here keeps the file it '
-          'replaces as a revision.',
+          editor
+              ? 'No past saves yet — saving an edit here keeps the file it '
+                    'replaces as a revision.'
+              : 'No past saves.',
         ),
       ], classes: 'muted')
     else
@@ -352,14 +386,14 @@ class _PublishForm extends StatelessComponent {
     required this.model,
     required this.csrf,
     this.problems = const {},
-    this.licence,
+    this.license,
     this.category,
   });
 
   final ModelRecord model;
   final String csrf;
   final Map<String, String> problems;
-  final String? licence;
+  final String? license;
   final String? category;
 
   @override
@@ -383,7 +417,7 @@ class _PublishForm extends StatelessComponent {
                 type: InputType.radio,
                 name: 'licence',
                 value: choice.spdx,
-                checked: (licence ?? Licence.cc0.spdx) == choice.spdx,
+                checked: (license ?? Licence.cc0.spdx) == choice.spdx,
                 attributes: const {'required': ''},
               ),
               Component.text(' ${choice.label}'),

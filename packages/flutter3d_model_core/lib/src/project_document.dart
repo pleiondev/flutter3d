@@ -17,6 +17,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show AnimationGraphJson;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -107,6 +108,8 @@ ModelDocument toModelDocument(ModelProject project, {bool withLods = false}) =>
 /// would upload it again, or write it twice into a file whose whole point is
 /// that a shared mesh is written once. Reusing the exact instance is what lets
 /// those caches work across an edit that touched a different object entirely.
+///
+/// An application makes one with `ProjectModelDocument()` to export a project.
 final class ProjectModelDocument extends ModelDocument {
   final Map<(int, int), MeshData> _meshCache = <(int, int), MeshData>{};
 
@@ -133,6 +136,12 @@ final class ProjectModelDocument extends ModelDocument {
 
   @override
   List<AnimationClip> animations = const <AnimationClip>[];
+
+  /// The project's animation graphs in the root `extras`, under
+  /// `AnimationGraphJson.extrasKey`; null for a project with none, so its
+  /// export is the file it always was.
+  @override
+  DocumentAsset? asset;
 
   /// The stack evaluator this document folds modifiers through — `ux-13`.
   ///
@@ -431,6 +440,22 @@ final class ProjectModelDocument extends ModelDocument {
               : indexOfId[skeleton.skeletonRoot!],
         ),
     ];
+    // The graphs in the root `extras`, and who made it and on what terms
+    // (`ModelProject.rights`); null for a project with neither, so its export
+    // is the file it always was.
+    final rights = project.rights;
+    asset = project.animationGraphs.isEmpty && rights == null
+        ? null
+        : DocumentAsset(
+            extras: project.animationGraphs.isEmpty
+                ? null
+                : <String, Object?>{
+                    AnimationGraphJson.extrasKey: project.animationGraphs,
+                  },
+            copyright: rights?.copyright,
+            author: rights?.author,
+            license: rights?.license,
+          );
     animations = <AnimationClip>[
       for (final ProjectClip clip in project.clips)
         AnimationClip(
@@ -513,14 +538,40 @@ int? _skeletonIndexOf(ModelObject object, int skeletonCount) {
 /// things, and only one of them is what the file said.
 ///
 /// Which way is up in the file being imported.
-enum UpAxis {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class UpAxis {
+  const UpAxis._(this.name);
+
   /// glTF's own convention, and this project's: no adjustment.
-  y,
+  static const UpAxis y = UpAxis._('y');
 
   /// Common in CAD and DCC exports (and STL, which specifies no convention at
   /// all but is Z-up in practice more often than not). The root is rotated
   /// −90° about X, which is the rotation that takes a Z-up model's "up" to Y.
-  z,
+  static const UpAxis z = UpAxis._('z');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<UpAxis> values = <UpAxis>[y, z];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static UpAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'UpAxis.$name';
 }
 
 /// How to interpret a file [fromModelDocument] is bringing in, for the two
@@ -533,15 +584,30 @@ enum UpAxis {
 /// lives. It composes for free with the existing hierarchy walk: a root's
 /// children inherit the correction by inheriting the root's transform, the
 /// same way they inherit everything else about where it sits.
-final class ImportOptions {
-  const ImportOptions({this.scale = 1.0, this.upAxis = UpAxis.y});
+final class ImportSettings {
+  /// Settings leaving the file as it is: scale one and Y up.
+  const ImportSettings({this.scale = 1.0, this.upAxis = UpAxis.y});
+
+  /// A copy with the given fields replaced.
+  ImportSettings copyWith({double? scale, UpAxis? upAxis}) =>
+      ImportSettings(scale: scale ?? this.scale, upAxis: upAxis ?? this.upAxis);
 
   /// Multiplies every root's translation and scale. STL carries no unit at
   /// all and is conventionally millimetres; `0.001` reads such a file as
   /// metres, the unit every other placement in this project is already in.
   final double scale;
 
+  /// Which axis the file treats as up. [UpAxis.z] rotates every root so that up
+  /// becomes Y; [UpAxis.y], the default, changes nothing.
   final UpAxis upAxis;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportSettings && other.scale == scale && other.upAxis == upAxis;
+
+  @override
+  int get hashCode => Object.hash(scale, upAxis);
 }
 
 /// The profile does not come back, because a file does not record one: a
@@ -549,7 +615,7 @@ final class ImportOptions {
 /// belongs to the workspace rather than to the model.
 ModelProject fromModelDocument(
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final nodes = document.nodes;
   final taken = List<bool>.filled(nodes.length, false);
@@ -657,6 +723,8 @@ ModelProject fromModelDocument(
   project = project.copyWith(
     skeletons: _skeletonsOf(document.skins, objectIdOfNode),
     clips: _clipsOf(document.animations, objectIdOfNode),
+    animationGraphs: _graphsOf(document.asset),
+    rights: _rightsOf(document.asset),
   );
 
   if (options.scale != 1.0 || options.upAxis == UpAxis.z) {
@@ -688,6 +756,7 @@ ModelProject fromModelDocument(
 /// A tally of what an import actually produced, for a screen that wants to say
 /// "312 objects, 4 materials" before anyone opens the outliner to count.
 final class ImportCounts {
+  /// A tally of [objects], [materials], [images] and [triangles].
   const ImportCounts({
     required this.objects,
     required this.materials,
@@ -695,9 +764,16 @@ final class ImportCounts {
     required this.triangles,
   });
 
+  /// Number of objects in the imported project.
   final int objects;
+
+  /// Number of materials in the imported project.
   final int materials;
+
+  /// Number of images in the imported project.
   final int images;
+
+  /// Triangles summed across every object's geometry, a count.
   final int triangles;
 
   @override
@@ -727,12 +803,15 @@ final class ImportCounts {
 /// project, plus [issues] and [counts] for a caller that wants them, so
 /// nothing that already calls `fromModelDocument` has to change.
 final class ImportReport {
+  /// A report of [project] with the decoder's [issues] and the tally in
+  /// [counts].
   const ImportReport({
     required this.project,
     required this.issues,
     required this.counts,
   });
 
+  /// The project [fromModelDocument] built.
   final ModelProject project;
 
   /// The decoder's own [ModelDocument.warnings], passed through verbatim — an
@@ -741,6 +820,7 @@ final class ImportReport {
   /// the wording wrong.
   final List<String> issues;
 
+  /// What the import produced, counted.
   final ImportCounts counts;
 }
 
@@ -748,7 +828,7 @@ final class ImportReport {
 /// in alongside the project it produces.
 ImportReport importReportOf(
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final project = fromModelDocument(document, options: options);
   return ImportReport(
@@ -801,6 +881,34 @@ List<ProjectSkeleton> _skeletonsOf(
 /// dropped rather than kept under a fabricated id — a track is one entry in
 /// a clip, not a positional slot anything else addresses, so dropping one
 /// costs nothing downstream the way dropping a skeleton would.
+/// The graphs [asset]'s root `extras` keeps, as JSON by name — every one, as
+/// the project file keeps them: one this build cannot read is kept for the
+/// build that can and refused only when somebody sets it.
+/// Who made [asset]'s model and on what terms, the three alone, or null
+/// where it says none of them.
+DocumentAsset? _rightsOf(DocumentAsset? asset) =>
+    asset == null ||
+        (asset.copyright == null &&
+            asset.author == null &&
+            asset.license == null)
+    ? null
+    : DocumentAsset(
+        copyright: asset.copyright,
+        author: asset.author,
+        license: asset.license,
+      );
+
+Map<String, Map<String, Object?>> _graphsOf(DocumentAsset? asset) {
+  final kept = asset?.extras?[AnimationGraphJson.extrasKey];
+  if (kept is! Map<String, Object?>) {
+    return const <String, Map<String, Object?>>{};
+  }
+  return <String, Map<String, Object?>>{
+    for (final MapEntry(:key, :value) in kept.entries)
+      if (value is Map<String, Object?>) key: value,
+  };
+}
+
 List<ProjectClip> _clipsOf(
   List<AnimationClip> animations,
   Map<int, int> objectIdOfNode,
@@ -852,6 +960,7 @@ MeshData _meshOf(Geometry geometry, ShapeSet shapeSet) {
     EditedGeometry(:final mesh) => mesh.toMeshData(),
     ImportedGeometry(:final MeshData data) => data,
     SocketGeometry() => _nothing,
+    _ => throw UnsupportedError('no mesh data for $geometry'),
   };
   if (shapeSet.isEmpty) return mesh;
   if (geometry is! EditedGeometry) return mesh;

@@ -59,6 +59,9 @@ String sculptLimitRefusal(ProjectProfile profile, int triangles) =>
 /// and nothing has to be re-entrant. The caller runs [advance] once per
 /// frame and stops when it answers true.
 final class YieldingBuild {
+  /// A build of [steps] steps, each run by [step], spending at most [slice]
+  /// of a frame per [advance]: the web's shorter slice in a browser, the
+  /// desktop's elsewhere.
   YieldingBuild({
     required this.steps,
     required this.step,

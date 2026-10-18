@@ -48,7 +48,7 @@ ModelProject _sample() {
   }
 
   final history = ModelHistory(project);
-  for (final (String name, Vector4 colour) in <(String, Vector4)>[
+  for (final (String name, Vector4 color) in <(String, Vector4)>[
     ('oak', Vector4(0.45, 0.30, 0.16, 1.0)),
     ('brass', Vector4(0.72, 0.58, 0.24, 1.0)),
     ('paint', Vector4(0.18, 0.34, 0.52, 1.0)),
@@ -59,7 +59,7 @@ ModelProject _sample() {
         SetMaterialField(
           index: history.project.materials.length - 1,
           field: 'baseColor',
-          value: <double>[colour.x, colour.y, colour.z, colour.w],
+          value: <double>[color.x, color.y, color.z, color.w],
         ),
       ),
       isNull,

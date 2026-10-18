@@ -1,0 +1,87 @@
+# The public API of flutter3d_model_mcp.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_model_mcp/flutter3d_model_mcp.dart
+
+typedef CommandTarget = ({int? object, String? level, List<int>? elements, List<int>? objects});
+
+final class ModelHttpServer
+  Future<void> close()
+  String get token
+  int get port
+  static Future<ModelHttpServer> start({required ModelSession session, int port = 0, String? token, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], void Function(String toolName, Map<String, Object?> arguments, PictureAnswer answer, Duration elapsed)? onToolCall, void Function(String clientName)? onInitialize, String? Function()? pausedBecause})
+
+base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer>
+  ModelMcpServer(super.channel, {required ModelSession session, List<ModelPictureTool> extraTools = const <ModelPictureTool>[], super.pausedBecause, super.onCall, void Function(String clientName)? onInitialize})
+
+typedef ModelPictureTool = OfferedTool<ModelSession, PictureAnswer>;
+
+final class ModelSession
+  Answer amend(ModelCommand to)
+  Answer autoRig({required String template, required Map<String, List<double>> markers, int? skinObjectId, String? skeletonName, String mirrorAxis = 'x', List<double>? bounds, int spineCount = 1, bool fingers = false, bool toes = false, bool faceBones = false, bool ikChains = false, bool controllers = false})
+  Answer bakeDrivers({required int clipIndex, required int shapeTargetObjectId, List<Map<String, Object?>>? drivers})
+  Answer bakeIkOnClip({required int clipIndex, required int rootJointId, required int midJointId, required int effectorJointId, required List<double> target, required List<double> pole, double fps = 30})
+  Answer batch(List<Map<String, Object?>> commands)
+  Answer buildFrom(List<Map<String, Object?>> spec)
+  Answer cleanup()
+  Answer export(String to, {String? format, bool force = false})
+  Answer journal(String to)
+  Answer makeGameReady(String profile)
+  Answer redo()
+  Answer repairAsset(String profile)
+  Answer retargetClip({required int sourceClipIndex, required int sourceSkeletonIndex, required int targetSkeletonIndex, Map<String, String>? boneMap, bool lockFeet = true, double groundY = 0.0, double footTolerance = 1e-3, String? clipName})
+  Answer run(ModelCommand command)
+  Answer runOn(ModelCommand command, {int? object, String? level, List<int>? elements, List<int>? objects})
+  Answer runTargeted(ModelCommand command, CommandTarget target)
+  Answer save(String? to, {bool includeHistory = false})
+  Answer select({List<int>? objects, int? object, String? level, List<int>? elements})
+  Answer undo()
+  Future<Answer> import(String from, {ImportOptions options = const ImportOptions(), bool weld = false, bool fixNormals = false, bool triangulate = false})
+  List<int> get objectIds
+  List<int> madeSince(List<int> before)
+  Map<String, Object?> structured(Answer answer, {List<int> made = const <int>[]})
+  ModelHistory get history
+  ModelProject get project
+  ModelSession(ModelHistory history, {this.path, this.client})
+  ProjectSelection? reportedSelection
+  String audit()
+  String check()
+  String describe(int id, {String? level, int? limit, List<int>? elements})
+  String get selection
+  String inspect()
+  String listMaterials()
+  String listing()
+  String validateRig()
+  String? client
+  String? path
+  factory ModelSession.open(String path)
+  static CommandTarget targetIn(Map<String, Object?> arguments)
+  void rebind(ModelHistory next)
+
+typedef ModelTool = OfferedTool<ModelSession, Answer>;
+
+final ModelPictureTool auditTool
+
+const List<String> describableFamilies = <String>['modifier', 'shape', 'textureNode']
+
+String describeType({required String family, String? kind})
+
+const String modelMcpVersion = '0.8.0'
+
+const List<OfferedPrompt> modelPrompts = …
+
+List<ModelTool> get modelTools
+
+const List<String> renderModes = <String>['material', 'normals', 'selection', 'weights', 'wireframe']
+
+final ModelPictureTool renderSheetTool
+
+final ModelPictureTool renderSnapshotTool
+
+final ModelPictureTool renderTool
+
+export package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart show Answer
+  Answer
+  deleteMcpSessionFile
+  writeMcpSessionFile

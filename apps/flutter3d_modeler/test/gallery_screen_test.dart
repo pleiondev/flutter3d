@@ -3,8 +3,8 @@
 ///     flutter test test/gallery_screen_test.dart
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d_mesh/flutter3d_mesh.dart' hide ImportReport;
+import 'package:flutter/material.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/gallery/gallery_insert.dart';
@@ -47,7 +47,7 @@ final class _Broken implements GallerySource {
 
 GalleryItem _item({
   required String id,
-  required GalleryLicence licence,
+  required GalleryLicence license,
   String? author,
   String name = 'A thing',
   RecipeCategory category = RecipeCategory.furniture,
@@ -56,7 +56,7 @@ GalleryItem _item({
   name: name,
   about: 'One sentence about what it is.',
   category: category,
-  licence: licence,
+  license: license,
   sourceId: 'test',
   author: author,
   open: () async => BuiltModel(EditMesh.cuboid()),
@@ -94,10 +94,10 @@ void main() {
       'shows the rest', (WidgetTester tester) async {
     await _pump(tester, <GallerySource>[
       _Source(<GalleryItem>[
-        _item(id: 'free', licence: GalleryLicence.cc0, name: 'Free thing'),
+        _item(id: 'free', license: GalleryLicence.cc0, name: 'Free thing'),
         _item(
           id: 'credited',
-          licence: GalleryLicence.ccBy4,
+          license: GalleryLicence.ccBy4,
           name: 'Credited thing',
           author: 'A. Maker',
         ),
@@ -124,7 +124,7 @@ void main() {
     await _pump(tester, <GallerySource>[
       const _Broken(),
       _Source(<GalleryItem>[
-        _item(id: 'free', licence: GalleryLicence.cc0, name: 'Free thing'),
+        _item(id: 'free', license: GalleryLicence.cc0, name: 'Free thing'),
       ]),
     ]);
 
@@ -142,7 +142,7 @@ void main() {
         // is where that refusal has to take effect.
         _item(
           id: 'nameless',
-          licence: GalleryLicence.ccBy4,
+          license: GalleryLicence.ccBy4,
           name: 'Nameless thing',
         ),
       ]),
@@ -251,13 +251,13 @@ void main() {
     test('and says what it took on, where a licence asks for a credit', () {
       final GalleryItem credited = _item(
         id: 'credited',
-        licence: GalleryLicence.ccBy4,
+        license: GalleryLicence.ccBy4,
         name: 'Chair',
         author: 'A. Maker',
       );
       expect(insertSaid(credited, 1), contains('A. Maker'));
       expect(
-        insertSaid(_item(id: 'free', licence: GalleryLicence.cc0), 2),
+        insertSaid(_item(id: 'free', license: GalleryLicence.cc0), 2),
         isNot(contains('by')),
       );
     });

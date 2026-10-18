@@ -8,12 +8,22 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `horizon-occlusion` page: the post stage with horizon-based
+/// occlusion and, optionally, the indirect light it bounces. Its check is
+/// that the occlusion pass ran or was declined with a reason.
 final class HorizonOcclusionDemo extends ShowcaseDemo {
+  /// Which method the occlusion pass uses, from the "Method" choice.
   AmbientOcclusionMethod method = AmbientOcclusionMethod.ssil;
+
+  /// How far the horizon search reaches, in metres, 0.1 to 2.
   double radius = 0.6;
+
+  /// How strong the occlusion is, 0 to 1; 0 lets the pass off its check.
   double strength = 1.0;
+
+  /// How thick a surface is assumed to be behind what the screen shows, in
+  /// metres, 0.05 to 1; used by the indirect light.
   double thickness = 0.3;
 
   @override
@@ -28,10 +38,13 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final GraphicsDevice device = context.device;
-    MeshNode slab(Vector3 size, Vector3 at, Vector4 colour, String name) =>
+    MeshNode slab(Vector3 size, Vector3 at, Vector4 color, String name) =>
         MeshNode(
           DeviceMesh.upload(device, CuboidShape(size: size).build()),
-          Material(lighting: LightingModel.lambert, baseColor: colour),
+          RenderMaterial(
+            lighting: LightingModel.lambert,
+            baseColor: _fromSrgb(color),
+          ),
           name: name,
         )..setPositionFrom(at);
 
@@ -55,10 +68,11 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
     // #endregion room
 
     // #region light
-    scene.ambientIntensity = 0.3;
-    final LightNode sun = LightNode(name: 'sun', intensity: 1.5)
-      ..castsShadow = false
-      ..setRotationYawPitchRoll(0.0, -0.6, 0.0);
+    scene.ambientIntensity = 0.3 * LightNode.defaultIntensity;
+    final LightNode sun =
+        LightNode(name: 'sun', intensity: 1.5 * LightNode.defaultIntensity)
+          ..castsShadow = false
+          ..setRotationYawPitchRoll(0.0, -0.6, 0.0);
     // #endregion light
     return scene..add(sun);
   }
@@ -121,3 +135,6 @@ final class HorizonOcclusionDemo extends ShowcaseDemo {
     // #endregion ran
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

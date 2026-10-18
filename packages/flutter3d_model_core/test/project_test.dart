@@ -10,7 +10,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -157,8 +157,8 @@ void main() {
 
     test('target is an enum hint naming every ProfileTarget by its name', () {
       final hint = const ProjectProfile().profileHints['target'];
-      expect(hint, isA<EnumHint>());
-      expect((hint! as EnumHint).values, ['desktop', 'mobile', 'web']);
+      expect(hint, isA<ChoiceHint>());
+      expect((hint! as ChoiceHint).values, ['desktop', 'mobile', 'web']);
     });
 
     test('the two require* flags are flags, not ranges', () {
@@ -176,7 +176,7 @@ void main() {
         ProjectSelection.none,
       );
 
-      expect(outcome.ok, isFalse);
+      expect(outcome.isOk, isFalse);
       expect(outcome.refused, contains('nothing is selected'));
       expect(outcome.project, isNull);
     });
@@ -188,7 +188,7 @@ void main() {
       // Mutation: leave the selection alone after a duplicate, and a person who
       // copies something and drags is dragging the original — which is the
       // commonest two-step in a modeller and the easiest to get wrong.
-      expect(outcome.ok, isTrue);
+      expect(outcome.isOk, isTrue);
       expect(outcome.project!.objects, hasLength(2));
       expect(outcome.selection!.objects, <int>[2]);
     });

@@ -29,20 +29,23 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart'
     as widgets_material
     show Material, MaterialType;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show LessonPlayer;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'check_prompt.dart';
-import 'lesson_player.dart';
+import 'lesson_theme.dart';
 import 'orbit_cubit.dart';
 
 /// Wraps [SceneSurface] around a [LessonPlayer], with a "Previous"/"Next"
 /// button pair driving it and the current step's `caption` shown beside
 /// them — the flat counterpart of `flutter3d_stereo`'s `LessonStereoView`.
 class LessonView extends StatefulWidget {
+  /// A view drawing [scene] through [renderer] from [camera], stepped by
+  /// [player].
   const LessonView({
     super.key,
     required this.renderer,
@@ -53,9 +56,16 @@ class LessonView extends StatefulWidget {
     this.restPositions = const <String, Vector3>{},
   });
 
+  /// What draws the frames; the screen opened it and disposes of it.
   final Renderer renderer;
+
+  /// The lesson's scene, as [LessonCubit] built it.
   final Scene scene;
+
+  /// The eye each step places and the turntable then orbits.
   final CameraNode camera;
+
+  /// The steps the two buttons walk; its current step is the one shown.
   final LessonPlayer player;
 
   /// Named scene nodes a step's `visible`/`hidden` list can reach — empty
@@ -70,8 +80,22 @@ class LessonView extends StatefulWidget {
   /// takes nothing apart, which is every lesson that ships today.
   final Map<String, Vector3> restPositions;
 
+  /// The ring drawn around the scene while it has keyboard focus.
+  static const Key focusRingKey = ValueKey<String>('lesson-view-focus-ring');
+
   @override
   State<LessonView> createState() => _LessonViewState();
+}
+
+/// Where Tab goes, in the order a student reads the screen: the question
+/// first (it is what the step asks), then the step buttons, then the scene,
+/// which only the arrow keys do anything with. Reading order alone would
+/// start at the scene, since it fills the screen from its top left corner.
+abstract final class _FocusOrder {
+  static const double check = 1;
+  static const double previous = 2;
+  static const double next = 3;
+  static const double scene = 4;
 }
 
 class _LessonViewState extends State<LessonView> {
@@ -83,6 +107,14 @@ class _LessonViewState extends State<LessonView> {
   double _lastScale = 1.0;
 
   double _viewportHeight = 600.0;
+
+  /// The scene's place in the Tab order, and what the arrow keys act on.
+  final FocusNode _sceneFocus = FocusNode(debugLabel: 'Lesson view');
+
+  /// One arrow-key press turns the view as far as a drag of this many
+  /// pixels does; one plus or minus zooms by this factor.
+  static const double _keyTurnPixels = 24.0;
+  static const double _keyZoom = 0.9;
 
   @override
   void initState() {
@@ -97,8 +129,36 @@ class _LessonViewState extends State<LessonView> {
 
   @override
   void dispose() {
+    _sceneFocus.dispose();
     unawaited(_orbit.close());
     super.dispose();
+  }
+
+  /// The keyboard's way to look around, for a student who cannot drag: the
+  /// arrows turn the turntable the way a drag in that direction does, plus
+  /// and minus zoom the way a pinch does.
+  KeyEventResult _onSceneKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      _orbit.rotate(-_keyTurnPixels, 0.0);
+    } else if (key == LogicalKeyboardKey.arrowRight) {
+      _orbit.rotate(_keyTurnPixels, 0.0);
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      _orbit.rotate(0.0, _keyTurnPixels);
+    } else if (key == LogicalKeyboardKey.arrowDown) {
+      _orbit.rotate(0.0, -_keyTurnPixels);
+    } else if (key == LogicalKeyboardKey.equal ||
+        key == LogicalKeyboardKey.add ||
+        key == LogicalKeyboardKey.numpadAdd) {
+      _orbit.zoom(_keyZoom);
+    } else if (key == LogicalKeyboardKey.minus ||
+        key == LogicalKeyboardKey.numpadSubtract) {
+      _orbit.zoom(1.0 / _keyZoom);
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
   }
 
   void _step(void Function() advance) {
@@ -129,6 +189,11 @@ class _LessonViewState extends State<LessonView> {
         _lastScale = details.scale;
       }
     }
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) _onScroll(event);
+    if (event is PointerScaleEvent) _onPointerScale(event);
   }
 
   void _onScroll(PointerScrollEvent event) {
@@ -178,132 +243,222 @@ class _LessonViewState extends State<LessonView> {
     // found the hard way, live, because `main.dart`'s `LessonReady` branch
     // returns this widget with no `Scaffold` around it (the loading and
     // error screens each carry their own; this one, until now, needed none).
+    final player = widget.player;
     return widgets_material.Material(
       type: widgets_material.MaterialType.transparency,
-      child: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: Listener(
-              onPointerSignal: (PointerSignalEvent event) {
-                if (event is PointerScrollEvent) _onScroll(event);
-                if (event is PointerScaleEvent) _onPointerScale(event);
-              },
-              onPointerPanZoomUpdate: _onPanZoomUpdate,
-              child: GestureDetector(
-                // Opaque rather than the default `deferToChild`: the scene
-                // surface underneath is a presented GPU frame (or, headless in
-                // a test, nothing painted at all), and a drag anywhere over
-                // the viewport should orbit the camera regardless of what
-                // happens to be drawn at that exact pixel.
-                behavior: HitTestBehavior.opaque,
-                onScaleStart: (ScaleStartDetails details) => _lastScale = 1.0,
-                onScaleUpdate: _onScaleUpdate,
-                // Rebuilds this subtree on every `OrbitCubit` emit — the only
-                // reason it needs to. `SceneSurface` calls `renderer.render`
-                // from inside its own `build`
-                // (`packages/flutter3d_app/lib/src/surface/scene_surface.dart`),
-                // so a mutation to the turntable with no rebuild to follow
-                // moves the camera and leaves the picture on screen exactly as
-                // it was — found the hard way, by a drag that changed
-                // `camera.readWorldPosition()` in a widget test and changed
-                // nothing a person watching a real browser could see.
-                child: BlocBuilder<OrbitCubit, OrbitPose>(
-                  bloc: _orbit,
-                  builder: (BuildContext context, OrbitPose pose) {
-                    return LayoutBuilder(
-                      builder:
-                          (BuildContext context, BoxConstraints constraints) {
-                            _viewportHeight = constraints.maxHeight;
-                            return SceneSurface(
-                              renderer: widget.renderer,
-                              scene: widget.scene,
-                              view: RenderView(camera: widget.camera),
-                              settings: () => const RenderSettings(),
-                              // The turntable already wrote the camera's
-                              // transform the moment a gesture moved it;
-                              // `apply()` here is idempotent — it only
-                              // replays the orbit's own last-known state — so
-                              // calling it again on an unrelated rebuild costs
-                              // nothing.
-                              onBeforeFrame: () => _orbit.orbit.apply(),
-                              presentFrame: presentFrame,
-                            );
-                          },
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24.0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (caption != null && caption.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xCC0E1013),
-                        borderRadius: BorderRadius.circular(6.0),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8.0,
-                        ),
-                        child: Text(
-                          caption,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.none,
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: FocusTraversalOrder(
+                order: const NumericFocusOrder(_FocusOrder.scene),
+                // A container, so the focus node's own flags land on the
+                // node that carries the name rather than on one beside it;
+                // the pointer's way in sits under the same name as the
+                // keyboard's, since both turn the one scene.
+                child: Semantics(
+                  container: true,
+                  label: 'Lesson view',
+                  hint: 'Arrow keys turn the view; plus and minus zoom.',
+                  child: Listener(
+                    onPointerSignal: _onPointerSignal,
+                    onPointerPanZoomUpdate: _onPanZoomUpdate,
+                    child: GestureDetector(
+                      // Opaque rather than the default `deferToChild`: the scene
+                      // surface underneath is a presented GPU frame (or, headless in
+                      // a test, nothing painted at all), and a drag anywhere over
+                      // the viewport should orbit the camera regardless of what
+                      // happens to be drawn at that exact pixel.
+                      behavior: HitTestBehavior.opaque,
+                      onScaleStart: (ScaleStartDetails details) =>
+                          _lastScale = 1.0,
+                      onScaleUpdate: _onScaleUpdate,
+                      child: Focus(
+                        focusNode: _sceneFocus,
+                        onKeyEvent: _onSceneKey,
+                        child: ListenableBuilder(
+                          listenable: _sceneFocus,
+                          builder: (BuildContext context, Widget? scene) =>
+                              Stack(
+                                fit: StackFit.expand,
+                                children: <Widget>[
+                                  scene!,
+                                  if (_sceneFocus.hasFocus)
+                                    const IgnorePointer(
+                                      child: _FocusRing(
+                                        key: LessonView.focusRingKey,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          // Rebuilds this subtree on every `OrbitCubit` emit — the only
+                          // reason it needs to. `SceneSurface` calls `renderer.render`
+                          // from inside its own `build`
+                          // (`packages/flutter3d_app/lib/src/surface/scene_surface.dart`),
+                          // so a mutation to the turntable with no rebuild to follow
+                          // moves the camera and leaves the picture on screen exactly as
+                          // it was — found the hard way, by a drag that changed
+                          // `camera.readWorldPosition()` in a widget test and changed
+                          // nothing a person watching a real browser could see.
+                          child: BlocBuilder<OrbitCubit, OrbitPose>(
+                            bloc: _orbit,
+                            builder: (BuildContext context, OrbitPose pose) {
+                              return LayoutBuilder(
+                                builder: (BuildContext context, BoxConstraints constraints) {
+                                  _viewportHeight = constraints.maxHeight;
+                                  return SceneSurface(
+                                    renderer: widget.renderer,
+                                    scene: widget.scene,
+                                    view: CameraView(camera: widget.camera),
+                                    settings: () => const RenderSettings(),
+                                    // The turntable already wrote the camera's
+                                    // transform the moment a gesture moved it;
+                                    // `apply()` here is idempotent — it only
+                                    // replays the orbit's own last-known state — so
+                                    // calling it again on an unrelated rebuild costs
+                                    // nothing.
+                                    onBeforeFrame: () => _orbit.orbit.apply(),
+                                    presentFrame: presentFrame,
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       ),
                     ),
                   ),
-                if (checkSpec != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    // Keyed by the step's own name, not the spec's contents:
-                    // the ordinary Flutter answer to "a fresh attempt counter
-                    // on a fresh step" is a fresh `State`, not a field this
-                    // widget has to remember to reset itself.
-                    child: CheckPrompt(
-                      key: ValueKey(currentStep!.name),
-                      spec: checkSpec,
-                    ),
-                  ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: 'Previous step',
-                      onPressed: widget.player.isFirst
-                          ? null
-                          : () => _step(widget.player.previous),
-                    ),
-                    const SizedBox(width: 24.0),
-                    IconButton(
-                      icon: const Icon(Icons.arrow_forward),
-                      tooltip: 'Next step',
-                      onPressed: widget.player.isLast
-                          ? null
-                          : () => _step(widget.player.next),
-                    ),
-                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            // Full height, so that at a large text size the panel scrolls
+            // rather than running off the top of the screen; aligned to the
+            // bottom and sized to its content, so that everywhere it does not
+            // cover, a drag still reaches the scene.
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 24.0,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (caption != null && caption.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          // A live region, so a screen reader reads the new step
+                          // when a button moves to it, with where in the lesson it
+                          // stands, which the screen shows only by the buttons.
+                          child: Semantics(
+                            container: true,
+                            liveRegion: true,
+                            label:
+                                'Step ${player.index + 1} of ${player.steps.length}',
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: LessonTheme.scrim,
+                                borderRadius: BorderRadius.circular(6.0),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                  vertical: 8.0,
+                                ),
+                                child: Text(
+                                  caption,
+                                  style: const TextStyle(
+                                    color: LessonTheme.text,
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (checkSpec != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          // Keyed by the step's own name, not the spec's contents:
+                          // the ordinary Flutter answer to "a fresh attempt counter
+                          // on a fresh step" is a fresh `State`, not a field this
+                          // widget has to remember to reset itself.
+                          child: FocusTraversalOrder(
+                            order: const NumericFocusOrder(_FocusOrder.check),
+                            child: CheckPrompt(
+                              key: ValueKey(currentStep!.name),
+                              spec: checkSpec,
+                            ),
+                          ),
+                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          FocusTraversalOrder(
+                            order: const NumericFocusOrder(
+                              _FocusOrder.previous,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              tooltip: 'Previous step',
+                              onPressed: player.isFirst
+                                  ? null
+                                  : () => _step(player.previous),
+                            ),
+                          ),
+                          const SizedBox(width: 24.0),
+                          FocusTraversalOrder(
+                            order: const NumericFocusOrder(_FocusOrder.next),
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_forward),
+                              tooltip: 'Next step',
+                              onPressed: player.isLast
+                                  ? null
+                                  : () => _step(player.next),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// The ring round the scene while it has keyboard focus: [LessonTheme]'s
+/// light ring inside a dark rim, so one of the two stands out over any
+/// frame the lesson shows.
+class _FocusRing extends StatelessWidget {
+  const _FocusRing({super.key});
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.fromBorderSide(
+        BorderSide(color: LessonTheme.focusRingEdge, width: 2.0),
+      ),
+    ),
+    child: Padding(
+      padding: EdgeInsets.all(2.0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.fromBorderSide(
+            BorderSide(color: LessonTheme.focusRing, width: 3.0),
+          ),
+        ),
+      ),
+    ),
+  );
 }

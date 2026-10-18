@@ -24,6 +24,8 @@ import 'package:flutter3d_showcase/pages/formats/usdz.dart';
 import 'package:flutter3d_showcase/pages/formats/variants_and_pointers.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> formatsDemos = <String, DemoBuilder>{
   'gltf-load': GltfLoadDemo.new,
   'gltf-cameras-lights': GltfCamerasLightsDemo.new,

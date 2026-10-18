@@ -6,6 +6,7 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -28,6 +29,10 @@ dependencies:
   # `InputState` and `GameAction`, and the physics it re-exports.
   flutter3d_sim:
     path: ../../flutter3d_sim
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics:
+    path: ../../flutter3d_physics
 
 
 dev_dependencies:

@@ -1,0 +1,9 @@
+f3dmat 2
+fullscreen Pulse {
+  uniform vec3 tint = vec3(1.0);
+  uniform float strength = 0.0;
+  fragment {
+    let base = sample(scene, uv);
+    return vec4(mix(base.rgb, base.rgb * tint, strength), base.a);
+  }
+}

@@ -55,6 +55,8 @@ final class _CacheEntry {
 /// already treats as nothing to combine with (see its own doc comment). The
 /// object that closes the loop still evaluates — with that one modifier
 /// inert — rather than the whole recursion refusing to answer at all.
+///
+/// An application keeps one, `ModifierEvaluationCache()`, across edits.
 final class ModifierEvaluationCache {
   final Map<int, _CacheEntry> _byObjectId = <int, _CacheEntry>{};
 

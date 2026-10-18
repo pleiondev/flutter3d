@@ -36,7 +36,10 @@ import 'simulation_cache.dart';
 ///
 /// [system] is read, not owned: nothing here calls [ParticleSystem.clear],
 /// so a caller keeps whatever else it wanted the same instance for.
-final class BakeParticleSystemJobRequest implements SimulationBakeRequest {
+final class BakeParticleSystemJobRequest with SimulationBakeRequest {
+  /// A bake of [system] for object [objectId] at version [baseVersion]: 180
+  /// frames of a sixtieth of a second unless given. [advancePerFrame] null
+  /// advances [system] with [ParticleSystem.advance].
   BakeParticleSystemJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -51,10 +54,17 @@ final class BakeParticleSystemJobRequest implements SimulationBakeRequest {
   final int objectId;
   @override
   final int baseVersion;
+
+  /// The particle system read each frame. It is advanced but never cleared, so
+  /// it stays the caller's.
   final ParticleSystem system;
   @override
   final int frameCount;
+
+  /// In seconds.
   final double dt;
+
+  /// What a cache-status strip calls this bake, `Particles` by default.
   final String label;
 
   /// What one frame of baking does to [system] before its positions are
@@ -66,6 +76,11 @@ final class BakeParticleSystemJobRequest implements SimulationBakeRequest {
   @override
   int get vertexCount => system.capacity;
 
+  /// Advances [system] [frameCount] times by [dt] and returns a cache holding
+  /// the live particles' positions after each step, [ParticleSystem.capacity]
+  /// vertices a frame. The live particles fill the first vertices in pool order
+  /// and the rest read as the origin, so a vertex does not follow one particle
+  /// from frame to frame.
   Future<SimulationCache> buildCache() async {
     final instances = Float32List(
       system.capacity * ParticleSystem.floatsPerInstance,

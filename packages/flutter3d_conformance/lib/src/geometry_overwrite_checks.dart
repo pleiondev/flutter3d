@@ -28,7 +28,7 @@ Future<Uint8List> _draw(
   int size = 16,
 }) async {
   final target = device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -40,7 +40,7 @@ Future<Uint8List> _draw(
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -48,7 +48,11 @@ Future<Uint8List> _draw(
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex, fragment))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex, fragment: fragment),
+      ),
+    )
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })
@@ -61,9 +65,8 @@ Future<Uint8List> _draw(
     ..draw();
   pass.submit();
 
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the target could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await device.readback(target);
+  return pixels.buffer.asUint8List();
 }
 
 /// Draws a single quad (already bound) into a fresh target and reads it back.

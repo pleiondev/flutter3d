@@ -91,6 +91,8 @@ String sculptBrushLabel(BrushKind kind) => switch (kind.name) {
 
 /// The 48-wide strip of brushes.
 class SculptPalette extends StatelessWidget {
+  /// The strip with [armed] highlighted; a press arms another brush through
+  /// [onBrush].
   const SculptPalette({super.key, required this.armed, required this.onBrush});
 
   /// Which brush the armed rail tool names.
@@ -101,9 +103,9 @@ class SculptPalette extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colours = Theme.of(context).colorScheme;
+    final ColorScheme colors = Theme.of(context).colorScheme;
     return Material(
-      color: colours.surfaceContainerHigh.withValues(alpha: 0.92),
+      color: colors.surfaceContainerHigh.withValues(alpha: 0.92),
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: SizedBox(
         width: kSculptPaletteWidth,
@@ -118,7 +120,7 @@ class SculptPalette extends StatelessWidget {
                   isSelected: kind == armed,
                   selectedIcon: Icon(
                     sculptBrushIcon(kind),
-                    color: colours.primary,
+                    color: colors.primary,
                   ),
                   icon: Icon(sculptBrushIcon(kind)),
                   onPressed: () => onBrush(kind),
@@ -134,6 +136,8 @@ class SculptPalette extends StatelessWidget {
 /// The 250-wide settings card: how the brush behaves, and the one command
 /// this mode offers.
 class SculptPanel extends StatelessWidget {
+  /// The card over one sculpting session's brush settings; every change goes
+  /// out through its callback.
   const SculptPanel({
     super.key,
     required this.radius,
@@ -152,16 +156,27 @@ class SculptPanel extends StatelessWidget {
   /// In logical pixels — the diameter of the cursor, and what a stroke's own
   /// `radiusPixels` reads.
   final double radius;
+
+  /// The radius slider moved, with the new cursor diameter in logical pixels.
   final ValueChanged<double> onRadius;
 
   /// 0 to 1, `SculptStroke.strength`'s own range.
   final double strength;
+
+  /// The strength slider moved, with the new value `0..1`.
   final ValueChanged<double> onStrength;
 
+  /// How a stroke's effect fades from the cursor's centre to its rim.
   final BrushFalloff falloff;
+
+  /// Another falloff was picked.
   final ValueChanged<BrushFalloff> onFalloff;
 
+  /// Whether every stroke is applied a second time mirrored across `x = 0`,
+  /// the model's own symmetry plane.
   final bool symmetryX;
+
+  /// The symmetry box was ticked or cleared.
   final ValueChanged<bool> onSymmetryX;
 
   /// Adds a subdivision level to the mesh being sculpted.
@@ -180,10 +195,10 @@ class SculptPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme colours = theme.colorScheme;
+    final ColorScheme colors = theme.colorScheme;
     final AppLocalizations l = AppLocalizations.of(context);
     return Material(
-      color: colours.surfaceContainerHigh.withValues(alpha: 0.92),
+      color: colors.surfaceContainerHigh.withValues(alpha: 0.92),
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: SizedBox(
         width: kSculptCardWidth,
@@ -268,6 +283,7 @@ class SculptPanel extends StatelessWidget {
 /// The whole sculpting layout: the viewport with the palette and the card
 /// floating over it, and nothing docked beside either.
 class SculptChrome extends StatelessWidget {
+  /// The layout of [viewport], with [palette] and [panel] over it.
   const SculptChrome({
     super.key,
     required this.viewport,
@@ -275,8 +291,13 @@ class SculptChrome extends StatelessWidget {
     required this.panel,
   });
 
+  /// The sculpting viewport, filling the whole area.
   final Widget viewport;
+
+  /// The brush strip, floated over the left edge and centred top to bottom.
   final Widget palette;
+
+  /// The settings card, floated over the top right corner.
   final Widget panel;
 
   @override

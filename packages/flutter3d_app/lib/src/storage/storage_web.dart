@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:web/web.dart' as web;
 
 import '../diagnostics/issues.dart';
@@ -17,19 +18,21 @@ import 'storage.dart';
 /// indistinguishable from a player who has changed no settings.
 ///
 /// `localStorage` rather than IndexedDB, and the reason is size: these are two
-/// small JSON documents, synchronous reads suit callers that already promise not
-/// to throw, and IndexedDB would make every one of them a future for a payload
-/// that fits in a few kilobytes. If a save ever grows past the megabytes a
+/// small JSON documents, and IndexedDB's transactions are a lot of machinery for a payload that fits in
+/// a few kilobytes. If a save ever grows past the megabytes a
 /// browser allows here, that is the moment to change it — and the symptom will
-/// be [write] returning false rather than something silent.
+/// be [write] throwing rather than something silent.
 ///
 /// Keys are namespaced by application, because two games served from the same
 /// origin — which is exactly how this repository's demos are deployed — would
 /// otherwise each overwrite the other's settings.
-final class WebStorage implements Storage {
+final class WebStorage extends Storage {
+  /// A store under keys namespaced by [appName]; issues are printed unless
+  /// [onIssue] takes them.
   WebStorage({required this.appName, IssueSink? onIssue})
     : onIssue = onIssue ?? printIssue;
 
+  /// The game's name, the namespace of its keys: `flutter3d/<appName>/…`.
   final String appName;
 
   /// Where this says what the browser would not let it do — a private window
@@ -39,7 +42,7 @@ final class WebStorage implements Storage {
   String _key(String name) => 'flutter3d/$appName/$name';
 
   @override
-  String? read(String name) {
+  Future<String?> read(String name) async {
     try {
       return web.window.localStorage.getItem(_key(name));
     } catch (error) {
@@ -51,20 +54,22 @@ final class WebStorage implements Storage {
   }
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     try {
       web.window.localStorage.setItem(_key(name), contents);
-      return true;
-    } catch (error) {
+    } catch (error, stackTrace) {
       // A quota that has run out is the usual one, and it arrives as an
       // exception rather than as a return value.
       onIssue(Issue('storage: could not write $name ($error)'));
-      return false;
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 
   @override
-  void remove(String name) {
+  Future<void> remove(String name) async {
     try {
       web.window.localStorage.removeItem(_key(name));
     } catch (error) {
@@ -93,6 +98,7 @@ extension on web.IDBRequest {
     onerror = ((web.Event _) {
       completer.completeError(
         error ?? StateError('IndexedDB request failed with no error set'),
+        StackTrace.current,
       );
     }).toJS;
     return completer.future;
@@ -109,11 +115,17 @@ extension on web.IDBRequest {
 /// made before the first completes share one connection rather than each
 /// opening their own — the same reasoning [FileBinaryStorage] gives for
 /// resolving its directory lazily rather than in the constructor.
-final class IndexedDbBinaryStorage implements BinaryStorage {
+final class IndexedDbBinaryStorage extends BinaryStorage {
+  /// A store in [appName]'s own database; issues are printed unless
+  /// [onIssue] takes them.
   IndexedDbBinaryStorage({required this.appName, IssueSink? onIssue})
     : onIssue = onIssue ?? printIssue;
 
+  /// The game's name; its database is `flutter3d/<appName>`.
   final String appName;
+
+  /// Where this says what the browser would not let it do: a read, a write
+  /// or a removal that failed, with the browser's reason.
   final IssueSink onIssue;
 
   static const String _storeName = 'documents';
@@ -157,17 +169,19 @@ final class IndexedDbBinaryStorage implements BinaryStorage {
   }
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     try {
       final db = await _database();
       await _store(
         db,
         'readwrite',
       ).put(contents.toJS, name.toJS).complete<JSAny?>();
-      return true;
-    } catch (error) {
+    } catch (error, stackTrace) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      return false;
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 

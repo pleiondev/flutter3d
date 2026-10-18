@@ -63,12 +63,12 @@ export 'src/reading.dart' show FileReading, SurfaceReading;
 /// engine's own tests load, which is the only fixture here with a skin deep
 /// enough to be worth asking a second engine about.
 const List<String> committedFixtures = <String>[
-  'packages/flutter3d_model_mcp/test/fixtures/table.glb',
-  'packages/flutter3d_model_mcp/test/fixtures/tutorial/case1.glb',
-  'packages/flutter3d_model_mcp/test/fixtures/tutorial/case3.glb',
-  'packages/flutter3d_model_mcp/test/fixtures/tutorial/case4.glb',
-  'packages/flutter3d_model_mcp/test/fixtures/tutorial/case5.glb',
-  'packages/flutter3d_model_mcp/test/fixtures/tutorial/case6.glb',
+  'packages/flutter3d_mcp/test/model/fixtures/table.glb',
+  'packages/flutter3d_mcp/test/model/fixtures/tutorial/case1.glb',
+  'packages/flutter3d_mcp/test/model/fixtures/tutorial/case3.glb',
+  'packages/flutter3d_mcp/test/model/fixtures/tutorial/case4.glb',
+  'packages/flutter3d_mcp/test/model/fixtures/tutorial/case5.glb',
+  'packages/flutter3d_mcp/test/model/fixtures/tutorial/case6.glb',
   'packages/flutter3d/test/fixtures/hero.glb',
 ];
 

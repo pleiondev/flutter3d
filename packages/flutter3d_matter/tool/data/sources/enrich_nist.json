@@ -1,0 +1,1229 @@
+{
+ "water": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.333,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 962 (https://pubchem.ncbi.nlm.nih.gov/compound/962), \"Index of refraction: 1.333\" [Lewis, R.J. Sr. (ed) Sax's Dangerous Properties of Industrial Materials. 11th Edition. Wiley-Interscience, Wiley & Sons, Inc. Hoboken, NJ. 2004., p. V3: 3692]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "962",
+   "formula": "H 2 O "
+  }
+ },
+ "heavyWater": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3283,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 24602 (https://pubchem.ncbi.nlm.nih.gov/compound/24602), \"Index of refraction: 1.3283 at 20 °C/D\" [Kirk-Othmer Encyclopedia of Chemical Technology. 4th ed. Volumes 1: New York, NY. John Wiley and Sons, 1991-Present., p. V8: 5 (1993)]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "24602",
+   "formula": "D 2 O "
+  }
+ },
+ "methanol": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 713.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 887 (https://pubchem.ncbi.nlm.nih.gov/compound/887), \"440 °C\"",
+     "note": "values listed by PubChem sources, °C: [440, 464]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 19900000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -725.7 kJ/mol (Chao and Rossini, 1965 see Rossini, 1934 ; Corresponding Δ f Hº liquid = -239.5 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C67561&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 2.265e+07 J/kg minus the vaporization of the product water, 4/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 282.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 887 (https://pubchem.ncbi.nlm.nih.gov/compound/887), \"9 °C c.c.\"",
+     "note": "values listed, °C: [9, 10, 11, 12]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3292,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 887 (https://pubchem.ncbi.nlm.nih.gov/compound/887), \"Index of refraction: 1.3292 at 20 °C/D\" [O'Neil, M.J. (ed.). The Merck Index - An Encyclopedia of Chemicals, Drugs, and Biologicals. Cambridge, UK:  Royal Society of Chemistry, 2013., p. 1106]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "887",
+   "formula": "CH 4 O "
+  }
+ },
+ "pentane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 533.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8003 (https://pubchem.ncbi.nlm.nih.gov/compound/8003), \"260 °C\"",
+     "note": null
+    },
+    "heatOfCombustion": {
+     "value": 44980000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -3509.0 kJ/mol (Good, 1970 Corresponding Δ f Hº liquid = -173.5 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C109660&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.864e+07 J/kg minus the vaporization of the product water, 12/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 224.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8003 (https://pubchem.ncbi.nlm.nih.gov/compound/8003), \"-49 °C c.c.\"",
+     "note": "values listed, °C: [-49, -40]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3575,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8003 (https://pubchem.ncbi.nlm.nih.gov/compound/8003), \"Index of refraction: 1.3575 at 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-438]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8003",
+   "formula": "C 5 H 12 "
+  }
+ },
+ "isopentane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 693.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6556 (https://pubchem.ncbi.nlm.nih.gov/compound/6556), \"420 °C\"",
+     "note": "values listed by PubChem sources, °C: [420, 427]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 44910000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -3504.4 kJ/mol (Good, 1970 Reanalyzed by Pedley, Naylor, et al., 1986 , Original value = -3503.6 ± 0.46 kJ/mol; Corresponding Δ f Hº liquid = -178.2 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C78784&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.857e+07 J/kg minus the vaporization of the product water, 12/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 222.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6556 (https://pubchem.ncbi.nlm.nih.gov/compound/6556), \"-51 °C (-60 °F) - closed cup\" [Sigma-Aldrich; Safety Data Sheet for 2-Methylbutane. Product Number: M32631, Version 4.10 (Revision Date 02/26/2015). Available from, as of December 27, 2017: https://www.sigmaaldrich.com/safety-center.html]",
+     "note": "values listed, °C: [-57, -51]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3537,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6556 (https://pubchem.ncbi.nlm.nih.gov/compound/6556), \"Index of refraction = 1.3537 at 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 3-330]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6556",
+   "formula": "C 5 H 12 "
+  }
+ },
+ "hexane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 498.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8058 (https://pubchem.ncbi.nlm.nih.gov/compound/8058), \"225 °C\"",
+     "note": null
+    },
+    "heatOfCombustion": {
+     "value": 44730000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -4163.0 kJ/mol (N/A Average of 6 values; Individual data points) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C110543&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.831e+07 J/kg minus the vaporization of the product water, 14/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 251.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8058 (https://pubchem.ncbi.nlm.nih.gov/compound/8058), \"-22 °C c.c.\"",
+     "note": "values listed, °C: [-23, -22]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3727,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8058 (https://pubchem.ncbi.nlm.nih.gov/compound/8058), \"Index of refraction: 1.3727 at 25 °C\" [Haynes, W.M. (ed.) CRC Handbook of Chemistry and Physics.   91st ed. Boca Raton, FL: CRC Press Inc., 2010-2011, p. 3-282]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8058",
+   "formula": "C 6 H 14 "
+  }
+ },
+ "cyclohexane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 533.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8078 (https://pubchem.ncbi.nlm.nih.gov/compound/8078), \"260 °C\"",
+     "note": "values listed by PubChem sources, °C: [245, 260, 270]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 43560000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -3930.0 kJ/mol (N/A Average of 7 values; Individual data points) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C110827&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.67e+07 J/kg minus the vaporization of the product water, 12/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 255.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8078 (https://pubchem.ncbi.nlm.nih.gov/compound/8078), \"-18 °C c.c.\"",
+     "note": "values listed, °C: [-20, -18, -17]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.42662,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8078 (https://pubchem.ncbi.nlm.nih.gov/compound/8078), \"Index of refraction: 1.42662 at 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-132]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8078",
+   "formula": "C 6 H 12 "
+  }
+ },
+ "heptane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 493.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8900 (https://pubchem.ncbi.nlm.nih.gov/compound/8900), \"220 °C\"",
+     "note": "values listed by PubChem sources, °C: [220, 223, 285]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 44560000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -4817.0 kJ/mol (N/A Average of 7 values; Individual data points) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C142825&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.807e+07 J/kg minus the vaporization of the product water, 16/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 266.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8900 (https://pubchem.ncbi.nlm.nih.gov/compound/8900), \"-7 °C c.c.\"",
+     "note": "values listed, °C: [-7, -4]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3855,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8900 (https://pubchem.ncbi.nlm.nih.gov/compound/8900), \"Index of refraction = 1.3855 at 25 °C\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-290]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8900",
+   "formula": "C 7 H 16 "
+  }
+ },
+ "octane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 493.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 356 (https://pubchem.ncbi.nlm.nih.gov/compound/356), \"220 °C\"",
+     "note": "values listed by PubChem sources, °C: [206, 220]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 44070000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -5430.0 kJ/mol (N/A Average of 6 values; Individual data points) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C111659&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.754e+07 J/kg minus the vaporization of the product water, 18/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 286.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 356 (https://pubchem.ncbi.nlm.nih.gov/compound/356), \"13 °C c.c.\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3944,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 356 (https://pubchem.ncbi.nlm.nih.gov/compound/356), \"Index of refraction: 1.3944 at 25 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-426]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "356",
+   "formula": "C 8 H 18 "
+  }
+ },
+ "nonane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 478.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8141 (https://pubchem.ncbi.nlm.nih.gov/compound/8141), \"205 °C\"",
+     "note": null
+    },
+    "heatOfCombustion": {
+     "value": 44330000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -6125.21 kJ/mol (Good, 1969 Corresponding Δ f Hº liquid = -274.7 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C111842&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.776e+07 J/kg minus the vaporization of the product water, 20/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 304.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8141 (https://pubchem.ncbi.nlm.nih.gov/compound/8141), \"31 °C c.c.\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.4058,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8141 (https://pubchem.ncbi.nlm.nih.gov/compound/8141), \"Index of refraction: 1.4058 at 20 °C\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-420]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8141",
+   "formula": "C 9 H 20 "
+  }
+ },
+ "decane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 483.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 15600 (https://pubchem.ncbi.nlm.nih.gov/compound/15600), \"210 °C\"",
+     "note": null
+    },
+    "heatOfCombustion": {
+     "value": 44240000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -6778.33 kJ/mol (Prosen and Rossini, 1945 Corresponding Δ f Hº liquid = -300.9 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C124185&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.764e+07 J/kg minus the vaporization of the product water, 22/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 319.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 15600 (https://pubchem.ncbi.nlm.nih.gov/compound/15600), \"46 °C c.c.\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.4102,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 15600 (https://pubchem.ncbi.nlm.nih.gov/compound/15600), \"Index of refraction: 1.4102 at 20 °C\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 3-142]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "15600",
+   "formula": "C 10 H 22 "
+  }
+ },
+ "dodecane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 475.9,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8182 (https://pubchem.ncbi.nlm.nih.gov/compound/8182), \"397 °F (203 °C)\" [National Fire Protection Association;  Fire Protection Guide to Hazardous Materials. 14TH Edition, Quincy, MA 2010, p. 325-54]",
+     "note": "values listed by PubChem sources, °C: [203, 204]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 43030000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -7901.74 kJ/mol (Gollis, Belenyessy, et al., 1962 Corresponding Δ f Hº liquid = -536.17 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C112403&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.639e+07 J/kg minus the vaporization of the product water, 26/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 356.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8182 (https://pubchem.ncbi.nlm.nih.gov/compound/8182), \"83 °C (181 °F) - closed cup\" [Sigma-Aldrich; Safety Data Sheet for Dodecane. Product Number: 44010, Version 3.8 (Revision Date 01/26/2015). Available from, as of August 18, 2016: https://www.sigmaaldrich.com/safety-center.html]",
+     "note": "values listed, °C: [71, 74, 83]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.4216,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8182 (https://pubchem.ncbi.nlm.nih.gov/compound/8182), \"Index of refraction: 1.4216 at 20 °C\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 3-236]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8182",
+   "formula": "C 12 H 26 "
+  }
+ },
+ "benzene": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 771.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 241 (https://pubchem.ncbi.nlm.nih.gov/compound/241), \"498 °C\"",
+     "note": "values listed by PubChem sources, °C: [498, 592]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 40130000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -3267.0 kJ/mol (N/A Average of 9 values; Individual data points) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C71432&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.182e+07 J/kg minus the vaporization of the product water, 6/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 262.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 241 (https://pubchem.ncbi.nlm.nih.gov/compound/241), \"-11 °C c.c.\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.5011,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 241 (https://pubchem.ncbi.nlm.nih.gov/compound/241), \"Index of refraction: 1.5011 at 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-34]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "241",
+   "formula": "C 6 H 6 "
+  }
+ },
+ "toluene": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 753.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 1140 (https://pubchem.ncbi.nlm.nih.gov/compound/1140), \"480 °C\"",
+     "note": null
+    },
+    "heatOfCombustion": {
+     "value": 40630000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° liquid = -3920.0 kJ/mol (N/A Average of 5 out of 6 values; Individual data points) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C108883&Mask=2&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.254e+07 J/kg minus the vaporization of the product water, 8/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 277.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 1140 (https://pubchem.ncbi.nlm.nih.gov/compound/1140), \"4 °C c.c.\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.4967,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 1140 (https://pubchem.ncbi.nlm.nih.gov/compound/1140), \"Index of refraction: 1.4967 @ 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 3-514]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "1140",
+   "formula": "C 7 H 8 "
+  }
+ },
+ "r11": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3865,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6389 (https://pubchem.ncbi.nlm.nih.gov/compound/6389), \"Index of refraction: 1.3865 @ 18.5 °C/D\" [O'Neil, M.J. (ed.). The Merck Index - An Encyclopedia of Chemicals, Drugs, and Biologicals. Whitehouse Station, NJ:  Merck and Co., Inc., 2006., p. 1657]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6389",
+   "formula": "CCl 3 F "
+  }
+ },
+ "r113": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 953.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6428 (https://pubchem.ncbi.nlm.nih.gov/compound/6428), \"680 °C\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3557,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6428 (https://pubchem.ncbi.nlm.nih.gov/compound/6428), \"Index of refraction: 1.3557 at 25 °C/D\" [Haynes, W.M. (ed.) CRC Handbook of Chemistry and Physics.   91st ed. Boca Raton, FL: CRC Press Inc., 2010-2011, p. 3-496]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6428",
+   "formula": "C 2 Cl 3 F 3 "
+  }
+ },
+ "r123": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.36332,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 9385 (https://pubchem.ncbi.nlm.nih.gov/compound/9385), \"Index of refraction: 1.36332 at 15 °C/D\" [Smart BE, Fernandez RE; Kirk-Othmer Encyclopedia of Chemical Technology. (1999-2012). New York, NY: John Wiley & Sons; Fluorinated Aliphatic Compounds. Online Posting Date: December 4, 2000]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "9385",
+   "formula": "C 2 HCl 2 F 3 "
+  }
+ },
+ "r141b": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": -276.9,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 15586 (https://pubchem.ncbi.nlm.nih.gov/compound/15586), \"530-550 °C\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.36,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 15586 (https://pubchem.ncbi.nlm.nih.gov/compound/15586), \"Index of refraction= 1.3600 @ 10 °C/D\" [Lide, DR (ed.). CRC Handbook of Chemistry and Physics. 81st Edition. CRC Press LLC, Boca Raton: FL 2000, p. 3-154]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "15586",
+   "formula": "C 2 H 3 Cl 2 F "
+  }
+ },
+ "nitrogen": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.003012,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 947 (https://pubchem.ncbi.nlm.nih.gov/compound/947), \"Index of refraction (one atmosphere, 0 °C, wavelength): 1.003012 at 0.4861 um; 1.002998 at 0.5461 um; 1.002990 at 0.5893 un; 1.002982 at 0.6563 um (N2)\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 10-248]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "947",
+   "formula": "N 2 "
+  }
+ },
+ "oxygen": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.2243,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 977 (https://pubchem.ncbi.nlm.nih.gov/compound/977), \"Index of refraction: liq: 1.2243 at -181 °C/D\" [Lide, D.R. CRC Handbook of Chemistry and Physics 86TH  Edition 2005-2006. CRC Press, Taylor & Francis, Boca Raton,  FL 2005, p. 4-140]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "977",
+   "formula": "O 2 "
+  }
+ },
+ "hydrogen": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 833.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 783 (https://pubchem.ncbi.nlm.nih.gov/compound/783), \"560 °C\"",
+     "note": "values listed by PubChem sources, °C: [500, 560, 574]; autoignition depends on the test method (ASTM E659 vs older)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "783",
+   "formula": "H 2 "
+  }
+ },
+ "fluorine": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.0002,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 24524 (https://pubchem.ncbi.nlm.nih.gov/compound/24524), \"INDEX OF REFRACTION: 1.0002\" [Weast, R.C. (ed.) Handbook of Chemistry and Physics. 69th ed. Boca Raton, FL: CRC Press Inc., 1988-1989., p. B-91]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "24524",
+   "formula": "F 2 "
+  }
+ },
+ "carbonMonoxide": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 878.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 281 (https://pubchem.ncbi.nlm.nih.gov/compound/281), \"605 °C\"",
+     "note": "values listed by PubChem sources, °C: [605, 609, 700]; autoignition depends on the test method (ASTM E659 vs older)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "281",
+   "formula": "CO "
+  }
+ },
+ "carbonDioxide": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.663,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 280 (https://pubchem.ncbi.nlm.nih.gov/compound/280), \"Index of refraction: 1.6630 at 24 °C\" [Lide, D.R. CRC Handbook of Chemistry and Physics 88TH    Edition 2007-2008. CRC Press, Taylor & Francis, Boca Raton,    FL 2007, p. 4-148]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "280",
+   "formula": "CO 2 "
+  }
+ },
+ "nitrousOxide": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.000516,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 948 (https://pubchem.ncbi.nlm.nih.gov/compound/948), \"Index of refraction: 1.000516 at 0 °C/D, 1 atmosphere, 0.5893 um\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 10-248]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "948",
+   "formula": "N 2 O "
+  }
+ },
+ "methane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 810.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 297 (https://pubchem.ncbi.nlm.nih.gov/compound/297), \"537 °C\"",
+     "note": "values listed by PubChem sources, °C: [537, 540]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 50040000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -890.7 kJ/mol (Pittam and Pilcher, 1972 Corresponding Δ f Hº gas = -74.48 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C74828&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 5.552e+07 J/kg minus the vaporization of the product water, 4/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 85.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 297 (https://pubchem.ncbi.nlm.nih.gov/compound/297), \"-188 °C (-306 °F) - closed cup\" [Sigma-Aldrich Material Safety Data Sheet for methane.  Product number 295477.  Version 3.3. (December 5, 2012).  Available from, as of November 6, 2013. https://www.sigmaaldrich.com/catalog/product/aldrich/295477?lang=en&region=US]",
+     "note": null
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "297",
+   "formula": "CH 4 "
+  }
+ },
+ "ethane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 745.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6324 (https://pubchem.ncbi.nlm.nih.gov/compound/6324), \"472 °C\"",
+     "note": "values listed by PubChem sources, °C: [472, 504]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 47510000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -1560.7 kJ/mol (Pittam and Pilcher, 1972 Corresponding Δ f Hº gas = -83.85 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C74840&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 5.19e+07 J/kg minus the vaporization of the product water, 6/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 138.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6324 (https://pubchem.ncbi.nlm.nih.gov/compound/6324), \"-135 °C (-211 °F) - closed cup\" [Sigma-Aldrich Material Safety Data Sheet for ethane.  Product number 539775.  Version 3.3. (December 28, 2012).  Available from, as of November 7, 2013. https://www.sigmaaldrich.com/catalog/product/aldrich/539775?lang=en&region=US]",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.0377,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6324 (https://pubchem.ncbi.nlm.nih.gov/compound/6324), \"INDEX OF REFRACTION: 1.0377 @ 0 °C/D & 546 MM HG\" [Weast, R.C. (ed.) Handbook of Chemistry and Physics. 69th ed. Boca Raton, FL: CRC Press Inc., 1988-1989., p. C-263]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6324",
+   "formula": "C 2 H 6 "
+  }
+ },
+ "ethylene": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 713.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6325 (https://pubchem.ncbi.nlm.nih.gov/compound/6325), \"440 °C\"",
+     "note": "values listed by PubChem sources, °C: [440, 450]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 47170000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -1411.2 kJ/mol (Rossini and Knowlton, 1937 Reanalyzed by Cox and Pilcher, 1970 , Original value = -1410.97 ± 0.30 kJ/mol; Corresponding Δ f Hº gas = 52.52 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C74851&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 5.03e+07 J/kg minus the vaporization of the product water, 4/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 173.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6325 (https://pubchem.ncbi.nlm.nih.gov/compound/6325), \"-100 °C (-148 °F) - closed cup\" [Sigma-Aldrich; Safety Data Sheet for Ethylene. Product Number: 536164, Version 3.7 (Revision Date 05/24/2016). Available from, as of July 26, 2017: https://www.sigmaaldrich.com/safety-center.html]",
+     "note": "values listed, °C: [-136, -100]"
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.363,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6325 (https://pubchem.ncbi.nlm.nih.gov/compound/6325), \"Index of refraction: 1.363 at -100 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 3-256]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6325",
+   "formula": "C 2 H 4 "
+  }
+ },
+ "propane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 723.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6334 (https://pubchem.ncbi.nlm.nih.gov/compound/6334), \"450 °C\"",
+     "note": null
+    },
+    "heatOfCombustion": {
+     "value": 46340000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -2219.2 kJ/mol (Pittam and Pilcher, 1972 Corresponding Δ f Hº gas = -104.7 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C74986&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 5.033e+07 J/kg minus the vaporization of the product water, 8/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 169.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6334 (https://pubchem.ncbi.nlm.nih.gov/compound/6334), \"-104 °C\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.2898,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6334 (https://pubchem.ncbi.nlm.nih.gov/compound/6334), \"Index of refraction: 1.2898 @ 20 °C\" [Weast, R.C. and M.J. Astle. CRC Handbook of Data on Organic Compounds. Volumes I and II. Boca Raton, FL: CRC Press Inc. 1985., p. V2 140]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6334",
+   "formula": "C 3 H 8 "
+  }
+ },
+ "propylene": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 733.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 8252 (https://pubchem.ncbi.nlm.nih.gov/compound/8252), \"460 °C\"",
+     "note": "values listed by PubChem sources, °C: [455, 460]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 45770000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -2057.8 kJ/mol (Wiberg and Fenoglio, 1968 Corresponding Δ f Hº gas = 19.8 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C115071&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.89e+07 J/kg minus the vaporization of the product water, 6/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 165.4,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8252 (https://pubchem.ncbi.nlm.nih.gov/compound/8252), \"-162 °F (-108 °C)\" [Lewis, R.J. Sr.; Hawley's Condensed Chemical Dictionary 14th Edition. John Wiley & Sons, Inc. New York, NY 2001., p. 930]",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3567,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 8252 (https://pubchem.ncbi.nlm.nih.gov/compound/8252), \"Index of refraction: 1.3567 at -40 °C/D\" [O'Neil, M.J. (ed.). The Merck Index - An Encyclopedia of Chemicals, Drugs, and Biologicals. Cambridge, UK:  Royal Society of Chemistry, 2013., p. 1454]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "8252",
+   "formula": "C 3 H 6 "
+  }
+ },
+ "butane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 638.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 7843 (https://pubchem.ncbi.nlm.nih.gov/compound/7843), \"365 °C\"",
+     "note": "values listed by PubChem sources, °C: [288, 365]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 45720000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -2877.5 kJ/mol (Pittam and Pilcher, 1972 Corresponding Δ f Hº gas = -125.6 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C106978&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.951e+07 J/kg minus the vaporization of the product water, 10/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 213.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 7843 (https://pubchem.ncbi.nlm.nih.gov/compound/7843), \"-60 °C\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3326,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 7843 (https://pubchem.ncbi.nlm.nih.gov/compound/7843), \"Index of refraction: 1.3326 at 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 94th Edition. CRC Press LLC, Boca Raton: FL 2013-2014, p. 3-76]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "7843",
+   "formula": "C 4 H 10 "
+  }
+ },
+ "isobutane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 733.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6360 (https://pubchem.ncbi.nlm.nih.gov/compound/6360), \"460 °C\"",
+     "note": "values listed by PubChem sources, °C: [460, 477]; autoignition depends on the test method (ASTM E659 vs older)"
+    },
+    "heatOfCombustion": {
+     "value": 45580000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -2869.0 kJ/mol (Pittam and Pilcher, 1972 Corresponding Δ f Hº gas = -134.2 kJ/mol (simple calculation by NIST; no Washburn corrections); ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C75285&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 4.936e+07 J/kg minus the vaporization of the product water, 10/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 190.2,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6360 (https://pubchem.ncbi.nlm.nih.gov/compound/6360), \"-82.99 °C (-117.38 °F) - closed cup\" [Sigma-Aldrich; Safety Data Sheet for 2-Methylpropane. Product Number: 295450, Version 4.5 (Revision Date 06/07/2015). Available from, as of December 20, 2017: https://www.sigmaaldrich.com/safety-center.html]",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3518,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6360 (https://pubchem.ncbi.nlm.nih.gov/compound/6360), \"Index of refraction: 1.3518 at 25 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 3-326]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6360",
+   "formula": "C 4 H 10 "
+  }
+ },
+ "ammonia": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 903.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 222 (https://pubchem.ncbi.nlm.nih.gov/compound/222), \"630 °C\"",
+     "note": "values listed by PubChem sources, °C: [630, 651]; autoignition depends on the test method (ASTM E659 vs older)"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 405.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 222 (https://pubchem.ncbi.nlm.nih.gov/compound/222), \"132 °C (270 °F) - closed cup\" [Sigma-Aldrich; Safety Data Sheet for Ammonia (7664-41-7). Product Number: 294993, Version 3.10 (Revision Date 02/23/2016). Available from, as of May 2, 2016: https://www.sigmaaldrich.com/safety-center.html]",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.3944,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 222 (https://pubchem.ncbi.nlm.nih.gov/compound/222), \"Index of refraction: 1.3944 at -77 °C/D; 1.3327 at 20 °C/D\" [Haynes, W.M. (ed.). CRC Handbook of Chemistry and Physics. 95th Edition. CRC Press LLC, Boca Raton: FL 2014-2015, p. 4-137]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "222",
+   "formula": "H 3 N "
+  }
+ },
+ "hydrogenSulfide": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 543.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 402 (https://pubchem.ncbi.nlm.nih.gov/compound/402), \"270 °C\"",
+     "note": "values listed by PubChem sources, °C: [260, 270]; autoignition depends on the test method (ASTM E659 vs older)"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 533.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Haz-Map, Information on Hazardous Chemicals and Occupational Diseases via PubChem CID 402 (https://pubchem.ncbi.nlm.nih.gov/compound/402), \"500 °F\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.374,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 402 (https://pubchem.ncbi.nlm.nih.gov/compound/402), \"INDEX OF REFRACTION (LIQ): 1.374\" [Weast, R.C. (ed.) Handbook of Chemistry and Physics. 69th ed. Boca Raton, FL: CRC Press Inc., 1988-1989., p. B-95]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "402",
+   "formula": "H 2 S "
+  }
+ },
+ "sulfurHexafluoride": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.000783,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 17358 (https://pubchem.ncbi.nlm.nih.gov/compound/17358), \"Index of refraction: 1.000783 (gas)\" [Evans FE, Mani G; Fluorine Compounds, Inorganic, Sulfur. Kirk-Othmer Encyclopedia of Chemical Technology. (1999-2015). New York, NY: John Wiley & Sons. Online Posting Date: 4 Dec 2000.]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "17358",
+   "formula": "F 6 S "
+  }
+ },
+ "r14": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 1373.2,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6393 (https://pubchem.ncbi.nlm.nih.gov/compound/6393), \">1100 °C\"",
+     "note": null
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6393",
+   "formula": "CF 4 "
+  }
+ },
+ "r22": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 905.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 6372 (https://pubchem.ncbi.nlm.nih.gov/compound/6372), \"632 °C\"",
+     "note": null
+    }
+   },
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.256,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6372 (https://pubchem.ncbi.nlm.nih.gov/compound/6372), \"Index of refraction: 1.256 at 25 °C\" [Smart BE, Fernandez RE; Kirk-Othmer Encyclopedia of Chemical Technology. (2005). NY, NY: John Wiley & Sons; Fluorinated Aliphatic Compounds. Online Posting Date: December 4, 2000.]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6372",
+   "formula": "CHClF 2 "
+  }
+ },
+ "r23": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.215,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 6373 (https://pubchem.ncbi.nlm.nih.gov/compound/6373), \"Index of refraction: 1.215 @ -73 °C (liquid)\" [Kirk-Othmer Encyclopedia of Chemical Technology. 4th ed. Volumes 1: New York, NY. John Wiley and Sons, 1991-Present., p. V11 502]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   },
+   "thermal": {
+    "heatOfCombustion": {
+     "value": 1022000.0,
+     "unit": "J/kg",
+     "confidence": "handbook",
+     "source": "NIST WebBook condensed/gas-phase thermochemistry, Δc H° gas = -71.55 kJ/mol (Goy, Lord, et al., 1967 ALS) (https://webbook.nist.gov/cgi/cbook.cgi?ID=C75467&Mask=1&Units=SI)",
+     "note": "net (lower) heat: the standard gross heat 1.022e+06 J/kg minus the vaporization of the product water, 0/2 mol × 44.0 kJ/mol (H2O at 298.15 K); derived here. A fire's effective heat is lower by its combustion efficiency"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "6373",
+   "formula": "CHF 3 "
+  }
+ },
+ "r125": {
+  "groups": {
+   "optical": {
+    "refractiveIndex": {
+     "value": 1.5012,
+     "unit": "1",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 9633 (https://pubchem.ncbi.nlm.nih.gov/compound/9633), \"Liquid refractive index = 1.5012 at 19 °C/D\" [Kirk-Othmer Encyclopedia of Chemical Technology. 4th ed. Volumes 1: New York, NY. John Wiley and Sons, 1991-Present., p. V11 502]",
+     "note": "check the conditions in the quoted string (temperature, wavelength, phase)"
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "9633",
+   "formula": "C 2 HF 5 "
+  }
+ },
+ "liquidMethane": {
+  "groups": {
+   "thermal": {
+    "autoignitionTemperature": {
+     "value": 810.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "ILO-WHO International Chemical Safety Cards (ICSCs) via PubChem CID 297 (https://pubchem.ncbi.nlm.nih.gov/compound/297), \"537 °C\"",
+     "note": "values listed by PubChem sources, °C: [537, 540]; autoignition depends on the test method (ASTM E659 vs older)"
+    }
+   },
+   "extra": {
+    "flashPoint": {
+     "value": 85.1,
+     "unit": "K",
+     "confidence": "handbook",
+     "source": "Hazardous Substances Data Bank (HSDB) via PubChem CID 297 (https://pubchem.ncbi.nlm.nih.gov/compound/297), \"-188 °C (-306 °F) - closed cup\" [Sigma-Aldrich Material Safety Data Sheet for methane.  Product number 295477.  Version 3.3. (December 5, 2012).  Available from, as of November 6, 2013. https://www.sigmaaldrich.com/catalog/product/aldrich/295477?lang=en&region=US]",
+     "note": null
+    }
+   }
+  },
+  "raw": {
+   "pubchemCid": "297",
+   "formula": "CH 4 "
+  }
+ }
+}

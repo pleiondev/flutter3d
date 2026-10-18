@@ -22,6 +22,9 @@ import 'dart:math' as math;
 ///
 /// A trigger is one-sided and gets the same treatment along its single axis.
 final class Deadzone {
+  /// A dead zone of [stick] and [trigger], each a fraction of travel.
+  ///
+  /// Asserts that both are from nought to below one.
   const Deadzone({this.stick = 0.15, this.trigger = 0.06})
     : assert(stick >= 0.0 && stick < 1.0),
       assert(trigger >= 0.0 && trigger < 1.0);
@@ -34,9 +37,11 @@ final class Deadzone {
   /// default to is settled by moving it.
   final double stick;
 
-  /// The same for a trigger, which rests at zero and only travels one way.
+  /// The same for a trigger, which rests at zero and only travels one way: the
+  /// fraction of its travel that counts as released.
   final double trigger;
 
+  /// Returns a copy with the given fields replaced; null keeps this one's.
   Deadzone copyWith({double? stick, double? trigger}) =>
       Deadzone(stick: stick ?? this.stick, trigger: trigger ?? this.trigger);
 

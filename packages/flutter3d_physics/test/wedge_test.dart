@@ -310,6 +310,11 @@ void main() {
       // Nothing new was written for this: the ground probe already refused a
       // normal that flat, and until there was a shape that could report one,
       // the refusal had never been reachable.
+      //
+      // That held only while characters fell at 24 m/s². At the world's
+      // 9.81 the slide kept the part of the walk that ran up the face and
+      // the body coasted a metre up it. Mutation: strip the steep face's own
+      // normal in `_slide` instead of its horizontal half — 2.02 comes back.
       final world = _floor();
       world.add(
         Collider(

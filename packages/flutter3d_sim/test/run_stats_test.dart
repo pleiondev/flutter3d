@@ -34,7 +34,7 @@ void main() {
     stats.advance(1.0, <GameEvent>[const _Coin(), const _Death()]);
 
     expect(stats.tally.counts, isEmpty);
-    expect(stats.elapsed, 1.0);
+    expect(stats.elapsedSeconds, 1.0);
   });
 
   test('and counts what it was told to, by name', () {
@@ -73,7 +73,7 @@ void main() {
       stats.advance(1.0 / 60.0, const <GameEvent>[]);
     }
 
-    expect(stats.elapsed, closeTo(2.0, 1e-9));
+    expect(stats.elapsedSeconds, closeTo(2.0, 1e-9));
   });
 
   test('clearing forgets the run but keeps the counters', () {
@@ -84,7 +84,7 @@ void main() {
 
     stats.clear();
     expect(stats.tally['coins'], 0);
-    expect(stats.elapsed, 0.0);
+    expect(stats.elapsedSeconds, 0.0);
 
     stats.advance(1.0, <GameEvent>[const _Coin()]);
     expect(stats.tally['coins'], 1, reason: 'it stopped counting');
@@ -97,6 +97,6 @@ void main() {
     final loaded = RunStats()..restore(stats.save());
 
     expect(loaded.tally['coins'], 2);
-    expect(loaded.elapsed, 3.0);
+    expect(loaded.elapsedSeconds, 3.0);
   });
 }

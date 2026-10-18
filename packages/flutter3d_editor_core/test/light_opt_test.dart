@@ -52,6 +52,16 @@ Map<String, Object?> _point(List<double> at, {double intensity = 3.0}) =>
       'range': 10.0,
     };
 
+/// One pre-1.0 unit of strength, which the version-1 documents here write.
+const double _unit = LevelLight.defaultIntensity;
+
+/// [row], a version-1 light, read as a level reads it: lifted to candela.
+LevelLight _lifted(Map<String, Object?> row) =>
+    Level.fromJson(<String, Object?>{
+      'version': 1,
+      'lights': <Object?>[row],
+    }).lights.single;
+
 Level _level(List<Map<String, Object?>> lights) => Level.fromJson(
   jsonDecode(jsonEncode(_room(lights))) as Map<String, Object?>,
 );
@@ -71,8 +81,8 @@ void main() {
       //
       // Mutation: leave `tonemap` at its default in `LightShading.settings`.
       // The tone curve rolls the sum off and the two pictures part.
-      final a = LevelLight.fromJson(_point(<double>[-1.0, 2.5, 0.0]));
-      final b = LevelLight.fromJson(_point(<double>[1.5, 2.0, 1.0]));
+      final a = _lifted(_point(<double>[-1.0, 2.5, 0.0]));
+      final b = _lifted(_point(<double>[1.5, 2.0, 1.0]));
       final shading = LightShading.of(_level(const []), width: 64, height: 40);
       final view = _views.first;
       final unlit = shading.render(view, const <LevelLight>[]);
@@ -112,7 +122,7 @@ void main() {
 
       expect(plan.before, hasLength(3));
       expect(plan.after, hasLength(1));
-      expect(plan.after.single.intensity, closeTo(9.0, 0.05));
+      expect(plan.after.single.intensity, closeTo(9.0 * _unit, 0.05 * _unit));
       expect(plan.after.single.position, Vector3(0.0, 2.5, 0.0));
       expect(plan.difference, lessThan(optimizer.maxDifference));
       expect(plan.underLit, lessThanOrEqualTo(optimizer.maxUnderLit));
@@ -121,7 +131,7 @@ void main() {
       expect(plan.overlapAfter, 0.0);
       expect(plan.moves, hasLength(greaterThanOrEqualTo(2)));
       expect(plan.holds, isTrue);
-      expect(plan.changes, isTrue);
+      expect(plan.hasChanges, isTrue);
       expect(level.lights, hasLength(3), reason: 'the level was changed');
     });
 
@@ -147,7 +157,7 @@ void main() {
         previewAfter: Uint8List(4),
       );
 
-      expect(plan.changes, isFalse);
+      expect(plan.hasChanges, isFalse);
       expect(plan.says, contains('misses the bounds'));
     });
 
@@ -190,7 +200,7 @@ void main() {
       expect(plan.after, hasLength(1));
       expect(plan.moves.first, startsWith('merged light 0 and light 1'));
       expect(plan.after.single.position.x, closeTo(0.0, 0.01));
-      expect(plan.after.single.intensity, closeTo(6.0, 0.3));
+      expect(plan.after.single.intensity, closeTo(6.0 * _unit, 0.3 * _unit));
       expect(plan.difference, lessThan(optimizer.maxDifference));
     });
 
@@ -218,7 +228,7 @@ void main() {
     final noon = LightingState(
       'noon',
       lights: <LevelLight>[
-        LevelLight.fromJson(_point(<double>[0.0, 2.5, 0.0], intensity: 60.0)),
+        _lifted(_point(<double>[0.0, 2.5, 0.0], intensity: 60.0)),
       ],
     );
     const night = LightingState('night');
@@ -249,9 +259,10 @@ void main() {
 
   group('views', () {
     test('are taken along the path a player walked, at eye height', () {
-      final poses = <Pose>[
+      final poses = <GhostFrame>[
         for (var i = 0; i < 20; i++)
-          Pose(time: i / 15.0, yaw: 0.0)..position.setValues(i * 0.5, 0.0, 0.0),
+          GhostFrame(timeSeconds: i / 15.0, yaw: 0.0)
+            ..position.setValues(i * 0.5, 0.0, 0.0),
       ];
       final views = viewsAlong(poses, count: 3);
       expect(views, hasLength(3));
@@ -297,7 +308,10 @@ void main() {
       expect(jsonEncode(editing.level.toJson()), before);
       editing.history.redo();
       expect(editing.level.lights, hasLength(1));
-      expect(editing.level.lights.single.intensity, closeTo(9.0, 0.05));
+      expect(
+        editing.level.lights.single.intensity,
+        closeTo(9.0 * _unit, 0.05 * _unit),
+      );
     });
   });
 }

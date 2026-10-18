@@ -4,7 +4,7 @@ part of 'command.dart';
 /// Which algorithm [UnwrapCommand] hands a face's own island to.
 ///
 /// A `final class` with a `static const` instance rather than an `enum`, the
-/// same choice `BlendMode`/`DriverAxis`/`ShapeDriverCurve` already make in
+/// same choice `PaintBlendMode`/`DriverAxis`/`ShapeDriverCurve` already make in
 /// this project's own published packages: a second method later is a second
 /// instance, not a break in an already-shipped enum.
 final class UnwrapMethod {
@@ -13,6 +13,7 @@ final class UnwrapMethod {
   /// Least Squares Conformal Maps — the only method there is today.
   static const UnwrapMethod lscm = UnwrapMethod._('lscm');
 
+  /// What the method is called in a command's arguments, such as `lscm`.
   final String name;
 
   @override
@@ -38,12 +39,16 @@ final class UnwrapMethod {
 /// [splitIslands] is allowed to walk, so unwrapping one selected patch never
 /// reaches past it onto a face nobody chose.
 final class UnwrapCommand extends ModelCommand {
+  /// An unwrap by [method], packing the islands [margin] apart into one unit
+  /// square unless [autoPack] is false.
   const UnwrapCommand({
     this.method = UnwrapMethod.lscm,
     this.margin = 0.01,
     this.autoPack = true,
   });
 
+  /// The algorithm each island is flattened with, [UnwrapMethod.lscm] by
+  /// default.
   final UnwrapMethod method;
 
   /// The gap [autoPack] leaves between islands in UV space, in the same
@@ -201,6 +206,8 @@ void _packIslandsInPlace(
 /// with is a few hundred bytes, and deleting one out from under a `SetRig`
 /// or a keyframe that names it by index is a document that no longer opens.
 final class PackAtlas extends ModelCommand {
+  /// A pack of [objectIds] into one atlas, their cells [margin] apart: a
+  /// hundredth of the square unless given.
   const PackAtlas({required this.objectIds, this.margin = 0.01});
 
   /// Which objects share the atlas, in the order their cells are packed.

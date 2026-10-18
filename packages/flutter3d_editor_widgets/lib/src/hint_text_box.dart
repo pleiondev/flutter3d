@@ -26,9 +26,15 @@ String numberText(num it) =>
 
 /// A box that writes [onWrite] when the field is left or Enter is pressed.
 final class HintTextBox extends StatefulWidget {
+  /// A box showing [text] and reporting through [onWrite].
   const HintTextBox({super.key, required this.text, required this.onWrite});
 
+  /// What the box shows; a new one replaces what is typed only when it
+  /// differs, so an undo shows here without fighting the cursor.
   final String text;
+
+  /// Called with the box's text on Enter, and on a tap outside when it
+  /// differs from [text].
   final void Function(String text) onWrite;
 
   @override
@@ -83,9 +89,15 @@ class _HintTextBoxState extends State<HintTextBox> {
 
 /// Three or four numbers side by side: a position, a size, a colour.
 final class NumbersRow extends StatelessWidget {
+  /// A box per number of [values], reporting through [onWrite].
   const NumbersRow({super.key, required this.values, required this.onWrite});
 
+  /// The numbers shown, one box each, printed by [numberText].
   final List<num> values;
+
+  /// Called with the whole list, one number replaced, when a box is
+  /// finished with text that parses as a number; text that does not is
+  /// dropped.
   final void Function(List<num> values) onWrite;
 
   @override

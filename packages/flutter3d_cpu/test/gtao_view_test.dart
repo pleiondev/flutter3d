@@ -13,8 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/src/cpu_shader_bindings.dart';
 import 'package:flutter3d_cpu/src/cpu_shader_stage.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_color.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_ssao.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/cpu_texture.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
@@ -41,8 +40,8 @@ Vector4 _shade({
     Vector3(0.0, 1.0, 0.0),
   );
   final viewProjection = projection.multiplied(view);
-  final wall = encodeOctahedral(Vector3(0.0, 0.0, 1.0));
-  final shaded = encodeOctahedral(normal ?? Vector3(0.0, 0.0, 1.0));
+  final wall = encodeSurfaceNormal(Vector3(0.0, 0.0, 1.0));
+  final shaded = encodeSurfaceNormal(normal ?? Vector3(0.0, 0.0, 1.0));
   final surface = CpuTexture(_size, _size, TextureFormat.r32g32b32a32Float);
   final scene = CpuTexture(_size, _size, TextureFormat.r32g32b32a32Float);
   for (var py = 0; py < _size; py++) {
@@ -76,8 +75,8 @@ Vector4 _shade({
       },
     },
     <String, BoundTexture>{
-      'surface_texture': BoundTexture(surface, SamplerOptions.nearestClamp),
-      'scene_texture': BoundTexture(scene, SamplerOptions.nearestClamp),
+      'surface_texture': BoundTexture(surface, SamplerDescriptor.nearestClamp),
+      'scene_texture': BoundTexture(scene, SamplerDescriptor.nearestClamp),
     },
   );
   return const SsaoShader().run(
@@ -108,13 +107,13 @@ void main() {
       x: x,
       y: y,
     ).x;
-    final centre = at(_size ~/ 2, _size ~/ 2);
+    final center = at(_size ~/ 2, _size ~/ 2);
     final corner = at(4, 5);
-    expect(centre, closeTo(1.0, 1e-3));
+    expect(center, closeTo(1.0, 1e-3));
     // Mutation: measure from the camera position, as before. The zenith
     // tilts off the slice towards the corner and the wall there comes out
     // under half open.
-    expect(corner, closeTo(centre, 1e-3));
+    expect(corner, closeTo(center, 1e-3));
   });
 
   test('a normal turned away from the eye is held at the grazing edge', () {

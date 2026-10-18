@@ -37,6 +37,9 @@ import 'image_dimensions.dart';
 
 /// What a texture panel needs before anything decodes a pixel.
 final class TextureInfo {
+  /// Information for a texture [width] by [height] texels in [format], costing
+  /// [bytesOnDevice] bytes uploaded, with [hasOwnMips] saying whether the file
+  /// carries a mip chain.
   const TextureInfo({
     required this.width,
     required this.height,
@@ -45,8 +48,13 @@ final class TextureInfo {
     required this.hasOwnMips,
   });
 
+  /// Width of the top level in texels, as the header states it.
   final int width;
+
+  /// Height of the top level in texels, as the header states it.
   final int height;
+
+  /// The format the texture is uploaded in, the badge a texture panel shows.
   final TextureFileFormat format;
 
   /// How many bytes this costs once uploaded — see the library doc comment
@@ -54,6 +62,8 @@ final class TextureInfo {
   /// instead.
   final int bytesOnDevice;
 
+  /// Whether the file carries more than one mip level of its own. Always false
+  /// for PNG and JPEG.
   final bool hasOwnMips;
 
   @override
@@ -76,20 +86,66 @@ final class TextureInfo {
 }
 
 /// The badge a texture slot shows for what actually samples on the GPU.
-enum TextureFileFormat {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureFileFormat {
+  const TextureFileFormat._(this.name);
+
   /// PNG or JPEG, decoded to `RGBA8` on upload — four bytes a texel, no mip
   /// chain of its own.
-  rgba8,
-  bc1,
-  bc3,
-  bc7,
-  etc2Rgba8,
-  astc4x4,
+  static const TextureFileFormat rgba8 = TextureFileFormat._('rgba8');
+
+  /// BC1: four by four texels in eight bytes, colour with one-bit alpha.
+  static const TextureFileFormat bc1 = TextureFileFormat._('bc1');
+
+  /// BC3: four by four texels in sixteen bytes, colour with smooth alpha.
+  static const TextureFileFormat bc3 = TextureFileFormat._('bc3');
+
+  /// BC7: four by four texels in sixteen bytes, the high-quality desktop
+  /// format.
+  static const TextureFileFormat bc7 = TextureFileFormat._('bc7');
+
+  /// ETC2 RGBA8: four by four texels in sixteen bytes, the format WebGL2 can
+  /// assume broadly.
+  static const TextureFileFormat etc2Rgba8 = TextureFileFormat._('etc2Rgba8');
+
+  /// ASTC 4×4: four by four texels in sixteen bytes, the format phones carry.
+  static const TextureFileFormat astc4x4 = TextureFileFormat._('astc4x4');
 
   /// A KTX2 `vkFormat` this reader has no badge for. See the library doc
   /// comment: [TextureInfo.bytesOnDevice] is then the level index's own
   /// stored total, not a block-layout sum.
-  other,
+  static const TextureFileFormat other = TextureFileFormat._('other');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureFileFormat> values = <TextureFileFormat>[
+    rgba8,
+    bc1,
+    bc3,
+    bc7,
+    etc2Rgba8,
+    astc4x4,
+    other,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureFileFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureFileFormat.$name';
 }
 
 /// [bytes]' own declared size, format and weight — from a PNG/JPEG header via
@@ -159,31 +215,65 @@ TextureFileFormat? _fileFormatFor(int vkFormat) => switch (vkFormat) {
   _ => null,
 };
 
-/// The block a compressed [format] is stored in — [blockWidth] by
-/// [blockHeight] texels, [bytesPerBlock] bytes each — or null for
+/// The block a compressed [format] is stored in — a [CompressedBlock] of
+/// texels across, texels down and bytes per block — or null for
 /// [TextureFileFormat.rgba8] (one texel a value, no block at all) and
 /// [TextureFileFormat.other] (unknown, so no block size to name).
 ///
 /// Shared with `texture_budget.dart`'s own re-encode estimate, so a block's
 /// byte size is stated in exactly one place rather than twice.
-({int blockWidth, int blockHeight, int bytesPerBlock})? blockLayoutFor(
-  TextureFileFormat format,
-) => switch (format) {
-  TextureFileFormat.bc1 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 8),
-  TextureFileFormat.bc3 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 16),
-  TextureFileFormat.bc7 => (blockWidth: 4, blockHeight: 4, bytesPerBlock: 16),
-  TextureFileFormat.etc2Rgba8 => (
+CompressedBlock? blockLayoutFor(TextureFileFormat format) => switch (format) {
+  TextureFileFormat.bc1 => const CompressedBlock(
+    blockWidth: 4,
+    blockHeight: 4,
+    bytesPerBlock: 8,
+  ),
+  TextureFileFormat.bc3 ||
+  TextureFileFormat.bc7 ||
+  TextureFileFormat.etc2Rgba8 ||
+  TextureFileFormat.astc4x4 => const CompressedBlock(
     blockWidth: 4,
     blockHeight: 4,
     bytesPerBlock: 16,
   ),
-  TextureFileFormat.astc4x4 => (
-    blockWidth: 4,
-    blockHeight: 4,
-    bytesPerBlock: 16,
-  ),
-  TextureFileFormat.rgba8 || TextureFileFormat.other => null,
+  // rgba8 and other have no block, and neither does a format a later minor
+  // adds before this table learns it.
+  _ => null,
 };
+
+/// The block a compressed texture format is stored in: what
+/// [blockLayoutFor] answers.
+final class CompressedBlock {
+  /// A block of [blockWidth] by [blockHeight] texels in [bytesPerBlock] bytes.
+  const CompressedBlock({
+    required this.blockWidth,
+    required this.blockHeight,
+    required this.bytesPerBlock,
+  });
+
+  /// How many texels wide one block is.
+  final int blockWidth;
+
+  /// How many texels tall one block is.
+  final int blockHeight;
+
+  /// How many bytes one block takes.
+  final int bytesPerBlock;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CompressedBlock &&
+      other.blockWidth == blockWidth &&
+      other.blockHeight == blockHeight &&
+      other.bytesPerBlock == bytesPerBlock;
+
+  @override
+  int get hashCode => Object.hash(blockWidth, blockHeight, bytesPerBlock);
+
+  @override
+  String toString() =>
+      'CompressedBlock(${blockWidth}x$blockHeight, $bytesPerBlock bytes)';
+}
 
 const int _kKtx2HeaderOffset = 12;
 const int _kKtx2HeaderBytes = 36;
@@ -232,7 +322,7 @@ int _compressedBytes(
   int width,
   int height,
   int levels,
-  ({int blockWidth, int blockHeight, int bytesPerBlock}) layout,
+  CompressedBlock layout,
 ) {
   var total = 0;
   var w = width;

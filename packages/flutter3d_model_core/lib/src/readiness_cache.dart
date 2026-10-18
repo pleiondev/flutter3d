@@ -23,11 +23,14 @@
 /// gets somebody to press Export on a file that will not load.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import 'project.dart';
 import 'readiness.dart';
 
 /// Readiness for a project, recomputed only where the project moved.
 final class ReadinessCache {
+  /// An empty cache; the first call to [of] computes every object.
   ReadinessCache();
 
   final Map<int, _Cached> _byObject = <int, _Cached>{};
@@ -184,7 +187,7 @@ ExportIssue? _budgetIssue(ModelProject project, int triangles) {
   return triangles <= allowed
       ? null
       : ExportIssue(
-          ExportSeverity.warning,
+          Severity.warning,
           'the project draws $triangles triangles and the '
           '${project.profile.name} profile allows $allowed; it will load and '
           'it will cost frames',

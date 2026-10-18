@@ -28,6 +28,12 @@
 /// again, and one per question for a pick. A staging texture is given back on
 /// every path out, the refused ones included: one the pool lost would be GPU
 /// memory nothing can free.
+///
+/// **The idle ones are held to a number**, [GpuReadback.idleCapacity], across
+/// every size: past it the one given back longest ago is dropped for the
+/// collector. Before the bound the pool kept one texture for every size it
+/// had ever been asked for, which a resized window with a meter reading each
+/// frame turned into one per size the window passed through.
 library;
 
 import 'dart:async';
@@ -38,25 +44,36 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'gpu_texture.dart';
+import 'staging_pool.dart';
 
 /// The staging pool and the copy. One per device.
 final class GpuReadback {
+  /// A readback with an empty pool, calling [onRejectedSubmission] for each
+  /// copy the queue refuses.
   GpuReadback({required this.onRejectedSubmission});
 
   /// Told when the queue refuses the copy, so the device's own counter of
   /// refused buffers stays the one place that number lives.
   final void Function() onRejectedSubmission;
 
+  /// How many idle staging textures the pool keeps, across every size.
+  static const int idleCapacity = 8;
+
   /// Staging textures nothing is copying into or reading from, by size and
   /// format.
-  final Map<String, List<TextureHandle>> _idle =
-      <String, List<TextureHandle>>{};
+  final StagingPool<String, TextureHandle> _idle =
+      StagingPool<String, TextureHandle>(capacity: idleCapacity);
 
-  /// How many staging textures exist, in the pool or in flight. Diagnostic:
-  /// a number that climbs is a caller asking faster than the queue answers.
+  /// How many staging textures have been made, in the pool, in flight or
+  /// dropped. Diagnostic: a number that climbs is a caller asking faster than
+  /// the queue answers, or in more sizes than the pool keeps.
   int get debugStagingCount => _made;
   int _made = 0;
 
+  /// Reads [region] of [texture], or all of it when [region] is null, as RGBA
+  /// bytes, four a pixel, row-major from the top. Fails with a [StateError]
+  /// when the queue refuses the copy or the staging texture reads back as
+  /// nothing.
   Future<ByteData> read(TextureHandle texture, ScreenRect? region) {
     final rect = readbackRegionOf(texture, region);
     final staging = _take(rect.width, rect.height, texture.format);
@@ -89,6 +106,7 @@ final class GpuReadback {
               StateError(
                 'the GPU refused the command buffer carrying a readback',
               ),
+              StackTrace.current,
             );
             return;
           }
@@ -104,6 +122,7 @@ final class GpuReadback {
                   if (bytes == null) {
                     completer.completeError(
                       StateError('the staging texture read back as nothing'),
+                      StackTrace.current,
                     );
                   } else {
                     completer.complete(bytes);
@@ -129,8 +148,8 @@ final class GpuReadback {
       '${width}x$height/${format.name}';
 
   TextureHandle _take(int width, int height, TextureFormat format) {
-    final idle = _idle[_keyFor(width, height, format)];
-    if (idle != null && idle.isNotEmpty) return idle.removeLast();
+    final idle = _idle.take(_keyFor(width, height, format));
+    if (idle != null) return idle;
     _made++;
     return createGpuTexture(
       StorageMode.devicePrivate,
@@ -142,10 +161,8 @@ final class GpuReadback {
     );
   }
 
-  void _give(TextureHandle staging) => _idle
-      .putIfAbsent(
-        _keyFor(staging.width, staging.height, staging.format),
-        () => <TextureHandle>[],
-      )
-      .add(staging);
+  void _give(TextureHandle staging) => _idle.give(
+    _keyFor(staging.width, staging.height, staging.format),
+    staging,
+  );
 }

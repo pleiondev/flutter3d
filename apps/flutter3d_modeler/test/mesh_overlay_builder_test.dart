@@ -22,10 +22,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
+import 'package:flutter3d_modeler/src/overlay_ink.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// An overlay with no device behind it.
 ///
@@ -33,8 +34,8 @@ import 'package:vector_math/vector_math.dart';
 /// pipeline is created on the first `encode` rather than in the constructor.
 MeshOverlay _overlay() {
   final overlay = MeshOverlay(
-    vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-    fragmentShader: const ShaderHandle(backend: 0, name: 'DebugLineFragment'),
+    vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+    fragmentShader: wrapShader(backend: 0, name: 'DebugLineFragment'),
   );
   // The depth bias moves every vertex towards the eye, which would put a
   // fraction of a per cent on every position and area asserted below. Zero
@@ -66,25 +67,26 @@ Vector3 _positionAt(OverlayBatch batch, int vertex) => Vector3(
   _floatAt(batch, vertex, 2),
 );
 
-Vector4 _colourAt(OverlayBatch batch, int vertex) => Vector4(
+Vector4 _colorAt(OverlayBatch batch, int vertex) => Vector4(
   _floatAt(batch, vertex, 3),
   _floatAt(batch, vertex, 4),
   _floatAt(batch, vertex, 5),
   _floatAt(batch, vertex, 6),
 );
 
-/// How many vertices of [batch] were written in [colour], ignoring alpha —
+/// How many vertices of [batch] were written in [color], ignoring alpha —
 /// which the wash rewrites on its way in.
-int _countColoured(OverlayBatch batch, Vector4 colour) {
+int _countColoured(OverlayBatch batch, Vector4 color) {
   // Against what the overlay stores rather than against the palette directly:
-  // `MeshOverlay.asDrawn` converts a colour a design named into the linear
-  // quantity the scene pass wants, because everything written there is encoded
-  // again on the way out. Comparing to the palette would be comparing to the
-  // number before that conversion, and would count nothing at all.
-  final drawn = MeshOverlay.asDrawn(colour);
+  // the palette's sRGB numbers reach the overlay as the linear colour they
+  // name ([OverlayInk.ink]), because everything the scene pass writes is
+  // encoded again on the way out. Comparing to the palette would be comparing
+  // to the number before that conversion, and would count nothing at all.
+  final ink = color.ink;
+  final drawn = Vector4(ink.r, ink.g, ink.b, ink.a);
   var found = 0;
   for (var vertex = 0; vertex < batch.vertexCount; vertex++) {
-    final at = _colourAt(batch, vertex);
+    final at = _colorAt(batch, vertex);
     if (at.x == drawn.x && at.y == drawn.y && at.z == drawn.z) found++;
   }
   return found;
@@ -302,8 +304,8 @@ void main() {
       mesh.setEdgeFlag(marked, EdgeFlags.seam, on: true);
       mesh.endStep();
 
-      final colours = MeshOverlayColours();
-      MeshOverlayBuilder(colours: colours).build(
+      final colors = MeshOverlayColours();
+      MeshOverlayBuilder(colors: colors).build(
         overlay,
         mesh: mesh,
         selection: Selection.empty(ElementLevel.vertex),
@@ -313,16 +315,16 @@ void main() {
       );
 
       // Twelve edges, two vertices each; one of them is the seam.
-      expect(_countColoured(overlay.lines, colours.seam), 2);
-      expect(_countColoured(overlay.lines, colours.wire), 22);
+      expect(_countColoured(overlay.lines, colors.seam), 2);
+      expect(_countColoured(overlay.lines, colors.wire), 22);
     });
 
     test('with nothing marked, every edge is plain wire', () {
       final mesh = EditMesh.cuboid();
       final overlay = _overlay();
-      final colours = MeshOverlayColours();
+      final colors = MeshOverlayColours();
 
-      MeshOverlayBuilder(colours: colours).build(
+      MeshOverlayBuilder(colors: colors).build(
         overlay,
         mesh: mesh,
         selection: Selection.empty(ElementLevel.vertex),
@@ -331,8 +333,8 @@ void main() {
         view: _view(),
       );
 
-      expect(_countColoured(overlay.lines, colours.seam), 0);
-      expect(_countColoured(overlay.lines, colours.wire), 24);
+      expect(_countColoured(overlay.lines, colors.seam), 0);
+      expect(_countColoured(overlay.lines, colors.wire), 24);
     });
 
     test('clearing the flag returns the edge to plain wire', () {
@@ -349,11 +351,11 @@ void main() {
       mesh.setEdgeFlag(marked, EdgeFlags.seam, on: false);
       mesh.endStep();
 
-      final colours = MeshOverlayColours();
+      final colors = MeshOverlayColours();
       // A fresh builder and version 1: nothing has been drawn by this
       // instance yet, so this is a first build rather than a rebuild — the
       // versions-unchanged short circuit is not what is under test here.
-      MeshOverlayBuilder(colours: colours).build(
+      MeshOverlayBuilder(colors: colors).build(
         overlay,
         mesh: mesh,
         selection: Selection.empty(ElementLevel.vertex),
@@ -362,8 +364,8 @@ void main() {
         view: _view(),
       );
 
-      expect(_countColoured(overlay.lines, colours.seam), 0);
-      expect(_countColoured(overlay.lines, colours.wire), 24);
+      expect(_countColoured(overlay.lines, colors.seam), 0);
+      expect(_countColoured(overlay.lines, colors.wire), 24);
     });
   });
 
@@ -371,9 +373,9 @@ void main() {
     test('vertex level puts a handle on every vertex, selected or not', () {
       final mesh = EditMesh.cuboid();
       final overlay = _overlay();
-      final colours = MeshOverlayColours();
+      final colors = MeshOverlayColours();
 
-      MeshOverlayBuilder(colours: colours).build(
+      MeshOverlayBuilder(colors: colors).build(
         overlay,
         mesh: mesh,
         selection: Selection.of(ElementLevel.vertex, <int>[1, 3]),
@@ -390,8 +392,8 @@ void main() {
       // Mutation: hand every handle the same colour and this is 48 — the two
       // selected corners stop being distinguishable from the six others, which
       // is the whole information the level carries.
-      expect(_countColoured(overlay.handles, colours.selected), 12);
-      expect(_countColoured(overlay.handles, colours.vertex), 36);
+      expect(_countColoured(overlay.handles, colors.selected), 12);
+      expect(_countColoured(overlay.handles, colors.vertex), 36);
       // Nothing is a face here, so nothing is washed.
       expect(overlay.fill.vertexCount, 0);
     });
@@ -629,11 +631,8 @@ void main() {
       final mesh = EditMesh.cuboid();
       // The bias is what this is about, so it is left at its default here.
       final overlay = MeshOverlay(
-        vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-        fragmentShader: const ShaderHandle(
-          backend: 0,
-          name: 'DebugLineFragment',
-        ),
+        vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+        fragmentShader: wrapShader(backend: 0, name: 'DebugLineFragment'),
       );
       final builder = MeshOverlayBuilder();
       final selection = Selection.of(ElementLevel.face, <int>[0]);
@@ -844,7 +843,7 @@ void main() {
   });
 
   group('ux-28: what the pointer is resting on', () {
-    final MeshOverlayColours colours = MeshOverlayColours();
+    final MeshOverlayColours colors = MeshOverlayColours();
 
     MeshOverlayRebuild over(
       MeshOverlay overlay,
@@ -868,7 +867,7 @@ void main() {
 
       over(
         overlay,
-        MeshOverlayBuilder(colours: colours),
+        MeshOverlayBuilder(colors: colors),
         mesh: mesh,
         hovered: Selection.of(ElementLevel.face, <int>[3]),
       );
@@ -877,7 +876,7 @@ void main() {
       // at six vertices. Mutation: draw the hover as a wash instead and this
       // is zero here and six in the fill — which also puts the mesh's own
       // triangulator on the path of every pointer move.
-      expect(_countColoured(overlay.handles, colours.hovered), 24);
+      expect(_countColoured(overlay.handles, colors.hovered), 24);
       expect(overlay.fill.vertexCount, 0);
     });
 
@@ -885,9 +884,9 @@ void main() {
       final mesh = EditMesh.cuboid();
       final overlay = _overlay();
 
-      over(overlay, MeshOverlayBuilder(colours: colours), mesh: mesh);
+      over(overlay, MeshOverlayBuilder(colors: colors), mesh: mesh);
 
-      expect(_countColoured(overlay.handles, colours.hovered), 0);
+      expect(_countColoured(overlay.handles, colors.hovered), 0);
     });
 
     test('a face that is already selected is not outlined twice', () {
@@ -896,7 +895,7 @@ void main() {
 
       over(
         overlay,
-        MeshOverlayBuilder(colours: colours),
+        MeshOverlayBuilder(colors: colors),
         mesh: mesh,
         selection: Selection.of(ElementLevel.face, <int>[3]),
         hovered: Selection.of(ElementLevel.face, <int>[3]),
@@ -906,14 +905,14 @@ void main() {
       // same depth, so which one a pixel shows is the rasteriser's own
       // business — and what a person sees is the selection going pale and
       // back as the pointer crosses it.
-      expect(_countColoured(overlay.handles, colours.hovered), 0);
-      expect(_countColoured(overlay.handles, colours.selected), 24);
+      expect(_countColoured(overlay.handles, colors.hovered), 0);
+      expect(_countColoured(overlay.handles, colors.selected), 24);
     });
 
     test('the pointer moving to another face rebuilds the handles only', () {
       final mesh = EditMesh.cuboid();
       final overlay = _overlay();
-      final builder = MeshOverlayBuilder(colours: colours);
+      final builder = MeshOverlayBuilder(colors: colors);
       over(
         overlay,
         builder,
@@ -932,13 +931,13 @@ void main() {
       // highlight stays on the face the pointer has left until the camera
       // happens to move.
       expect(moved, (lines: false, handles: true, fill: false));
-      expect(_countColoured(overlay.handles, colours.hovered), 24);
+      expect(_countColoured(overlay.handles, colors.hovered), 24);
     });
 
     test('and the same face again rebuilds nothing', () {
       final mesh = EditMesh.cuboid();
       final overlay = _overlay();
-      final builder = MeshOverlayBuilder(colours: colours);
+      final builder = MeshOverlayBuilder(colors: colors);
       final Selection same = Selection.of(ElementLevel.face, <int>[3]);
       over(overlay, builder, mesh: mesh, hovered: same);
 

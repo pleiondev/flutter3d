@@ -64,6 +64,7 @@
 /// path, which is where the length belongs.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -128,7 +129,7 @@ void main() {
         reason: 'the pile never came to rest',
       );
       expect(
-        dynamics.bodies.where((b) => b.isAsleep).isNotEmpty,
+        dynamics.bodies.any((b) => b.isAsleep),
         isTrue,
         reason: 'nothing went to sleep, so that branch is untested here',
       );
@@ -163,7 +164,9 @@ CollisionWorld _room() {
 /// everywhere — `determinism_test.dart` is that proof — so the scene is
 /// identical on both platforms even though it is not a literal.
 Dynamics _pile(CollisionWorld world) {
-  final dynamics = Dynamics(world: world);
+  // The gravity the digests below were recorded under: 22 m/s², what
+  // `Dynamics` fell by before it fell by its world's.
+  final dynamics = Dynamics(world: world, gravity: Vector3(0.0, -22.0, 0.0));
   final dice = GameRandom(20260906);
 
   // A tower, straight up and slightly out of line. It only stands if warm
@@ -242,57 +245,60 @@ DigestTrace _settle({required int steps, int every = 5}) {
   return trace;
 }
 
-/// Recorded on macOS-arm64 under the VM, 2026-09-06, and matched by Chrome.
+/// Recorded on macOS-arm64 under the VM, 2026-09-06, and matched by Chrome;
+/// recorded again on 2026-10-11, VM and Chrome, when the solver's contacts
+/// became speculative and a body nothing pushes on began to fall as the
+/// core's substeps have it fall.
 ///
 /// One table, and it was expected to be one: the solver reaches for nothing the
 /// platform supplies. See the head of this file for the three ways that could
 /// have been wrong anyway.
 ///
-/// **Matched again on ubuntu-x64, under the VM and under Chrome, in CI run
-/// 34121423137 on 2026-09-07** — every checkpoint, both environments. No number
+/// **The table before, matched again on ubuntu-x64, under the VM and under
+/// Chrome, in CI run 34121423137 on 2026-09-07** — every checkpoint, both environments. No number
 /// here moved; the expectation is simply held by a second processor and a
 /// second operating system now, which is worth writing down because the same
 /// run also found eleven rows of `parity_test.dart`'s libm table answering
 /// differently on that machine. The solver walked past all of it.
 const List<String> _recorded = <String>[
-  '37f28474',
-  'a752b50a',
-  '7dfe1c61',
-  '5046a17c',
-  '64a067c1',
-  '4fbb69dd',
-  'ccf2f091',
-  'a7e25eb4',
-  '4baeec4c',
-  'a437ba80',
-  'e9f8ecdc',
-  '85c34be6',
-  '8b15ddae',
-  'a6623621',
-  '7d6888c6',
-  'f8f8a3a3',
-  'd68bbbd2',
-  '4b3edaf9',
-  '87b41367',
-  'd3d501c8',
-  '0e0cb93e',
-  '5e36cced',
-  'a118f1fa',
-  '732ebe6a',
-  '18858f58',
-  'a6bf8401',
-  'cfe03e1b',
-  '3e260d78',
-  '18cde76a',
-  '1abdea02',
-  '3b626073',
-  '408a32c4',
-  'caaed919',
-  'caaed919',
-  'caaed919',
-  'caaed919',
-  'caaed919',
-  'caaed919',
-  'caaed919',
-  'caaed919',
+  '4b3d1355',
+  'c9946e10',
+  'e059337f',
+  '03991d59',
+  '6d74656f',
+  '868c0884',
+  '74992c84',
+  'b3a6c854',
+  '4aa698fd',
+  'a2999cf2',
+  'e43c2d94',
+  '41bed7f0',
+  '598eb5cb',
+  '24848d89',
+  'c8c03f86',
+  '3198b765',
+  'a9daac98',
+  'f091a294',
+  'b0c06c68',
+  'cb69b569',
+  '68e0c8df',
+  '8adce493',
+  '91458385',
+  '6a985d96',
+  'cdeacb82',
+  'ffdc06c8',
+  '5a98c982',
+  'cb396ac2',
+  '113106d4',
+  '697be326',
+  'ca3254c3',
+  'fbf31081',
+  '1ec6e3a9',
+  '3ad648c8',
+  'f3433b5f',
+  '6093ee7e',
+  '6093ee7e',
+  '6093ee7e',
+  '6093ee7e',
+  '6093ee7e',
 ];

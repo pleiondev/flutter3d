@@ -17,6 +17,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -26,10 +28,11 @@ const int _size = 32;
 
 /// `PolygonMode.line` is drawn as edges, or refused; never filled instead.
 ///
-/// **The one capability that differs across all three backends** — true on
-/// Impeller, false on WebGL2 and on the software rasteriser — and the contract
-/// attaches a promise to each answer. `supportsWireframe`'s doc says a backend
-/// that cannot draw it "refuses loudly rather than filling the triangles
+/// **The one capability that differs across the backends** — listed on
+/// Impeller over Metal and Vulkan, not on Impeller's OpenGL ES path, WebGL2,
+/// WebGPU or the software rasteriser — and the contract attaches a promise to
+/// each answer. `DeviceFeature.wireframe`'s doc says a backend that cannot
+/// draw it "refuses loudly rather than filling the triangles
 /// instead, because a silent substitution here looks exactly like the wireframe
 /// setting having no effect"; nothing was checking either half.
 ///
@@ -40,24 +43,28 @@ const int _size = 32;
 Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
   final (:pass, :target, :draw) = _oneTriangle(device);
 
-  if (!device.supportsWireframe) {
+  if (!device.features.has(DeviceFeature.wireframe)) {
     var refused = false;
     try {
       pass.setPolygonMode(PolygonMode.line);
       draw();
       pass.submit();
-    } on UnsupportedError {
+    } on UnsupportedCapabilityException {
       // Deliberately not submitted, for the reason
       // `checkUniformMemberMismatchIsRefused` gives: a backend is entitled to
       // release the pass on the way out.
       refused = true;
+    } on UnsupportedError {
+      // The same, from a backend that refuses with a bare UnsupportedError
+      // rather than the UnsupportedCapabilityException the contract asks for.
+      refused = true;
     }
     require(
       refused,
-      'supportsWireframe is false and PolygonMode.line was accepted anyway. A '
+      'wireframe is not listed and PolygonMode.line was accepted anyway. A '
       'backend that cannot draw edges must throw an UnsupportedError rather '
       'than fill the triangles, which looks exactly like the wireframe '
-      'setting having no effect. See GraphicsDevice.supportsWireframe.',
+      'setting having no effect. See DeviceFeature.wireframe.',
     );
     return;
   }
@@ -69,7 +76,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
   final painted = await _paintedPixels(device, target);
   require(
     painted > 40,
-    'supportsWireframe is true and PolygonMode.line drew $painted pixels — '
+    'wireframe is listed and PolygonMode.line drew $painted pixels — '
     'the outline of a triangle this size is about ninety, so nothing was '
     'drawn at all',
   );
@@ -80,20 +87,21 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
   // would have noticed.
   require(
     painted < 250,
-    'supportsWireframe is true and PolygonMode.line filled the triangle: '
+    'wireframe is listed and PolygonMode.line filled the triangle: '
     '$painted pixels came back where an outline is about ninety. A backend '
     'that answers true must draw edges; one that cannot must answer false and '
-    'throw. See GraphicsDevice.supportsWireframe.',
+    'throw. See DeviceFeature.wireframe.',
   );
 }
 
 /// Every [PrimitiveType] is assembled as itself, or refused as one.
 ///
-/// The software rasteriser draws two of the five and throws for the other
-/// three; both hardware backends draw all five. Neither half was checked, and
-/// the interesting half is not the throw — it is that a backend which quietly
-/// assembled `point` as `triangle` would draw a plausible frame and pass
-/// everything else here.
+/// Every backend in the repository that draws assembles all five since
+/// 1.0.0-rc.1, strips and points behind `DeviceFeature.primitiveStrips` and
+/// `DeviceFeature.pointPrimitives`; one without them refuses from
+/// `setPrimitiveType`. The interesting half is not the refusal — it is that
+/// a backend which quietly assembled `point` as `triangle` would draw a
+/// plausible frame and pass everything else here.
 ///
 /// Coverage is the discriminator and it is a blunt one on purpose: three
 /// vertices make one filled triangle of some four hundred pixels, one or two
@@ -112,18 +120,40 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       pass.setPrimitiveType(type);
       draw();
       pass.submit();
+    } on UnsupportedCapabilityException {
+      refused = true;
     } on UnsupportedError {
       refused = true;
-    } on Object catch (error) {
-      throw ConformanceFailure(
-        'drawing PrimitiveType.${type.name} failed with '
-        '${error.runtimeType}: $error. A backend that cannot assemble a '
-        'primitive type refuses with an UnsupportedError — a caller deciding '
-        'between two ways of drawing cannot act on anything else. See '
-        'PassEncoder.setPrimitiveType.',
+    } on Object catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ConformanceFailureException(
+          'drawing PrimitiveType.${type.name} failed with '
+          '${error.runtimeType}: $error. A backend that cannot assemble a '
+          'primitive type refuses with an UnsupportedCapabilityException (or at least an '
+          'UnsupportedError) — a caller deciding '
+          'between two ways of drawing cannot act on anything else. See '
+          'PassEncoder.setPrimitiveType.',
+        ),
+        stackTrace,
       );
     }
     painted[type] = refused ? null : await _paintedPixels(device, target);
+  }
+
+  // **Refused exactly where unlisted**, since 1.0.0-rc.1: a strip or a
+  // point is drawn by a device that lists its feature and refused by one
+  // that does not, never the other way round.
+  for (final (type, feature) in <(PrimitiveType, DeviceFeature)>[
+    (PrimitiveType.triangleStrip, DeviceFeature.primitiveStrips),
+    (PrimitiveType.lineStrip, DeviceFeature.primitiveStrips),
+    (PrimitiveType.point, DeviceFeature.pointPrimitives),
+  ]) {
+    final listed = device.features.has(feature);
+    require(
+      listed == (painted[type] != null),
+      'PrimitiveType.${type.name} was ${painted[type] == null ? 'refused' : 'drawn'} '
+      'by a device that ${listed ? 'lists' : 'does not list'} ${feature.name}',
+    );
   }
 
   final filled = painted[PrimitiveType.triangle];
@@ -133,11 +163,11 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
     'so nothing below can be compared against it',
   );
 
-  // Mutation: delete the `_primitive != PrimitiveType.triangle` guard in
-  // `CpuEncoder._drawOnce`, so the software rasteriser assembles a point or a
-  // strip as a triangle instead of refusing. Every count then equals the
-  // filled one and the three requires below fail — which is the silent
-  // substitution the guard exists to prevent, and which no picture would show.
+  // Mutation: make `CpuEncoder._drawOnce` read three corners a primitive
+  // whatever the topology, so the software rasteriser assembles a point or a
+  // line strip as a triangle. Every count then equals the filled one and the
+  // requires below fail — which is the silent substitution the contract
+  // forbids, and which no picture would show.
   for (final type in <PrimitiveType>[
     PrimitiveType.line,
     PrimitiveType.lineStrip,
@@ -145,12 +175,12 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
   ]) {
     final count = painted[type];
     if (count == null) continue;
-    // Half the filled area, not a tenth of it, and the slack is for [point]
-    // alone: `debug_line.vert` writes no `gl_PointSize`, which ES leaves
-    // undefined, so a driver is entitled to draw three points of some size
-    // nobody chose. Three points at any size a driver would pick stay well
-    // under half a triangle, and the substitution this is looking for lands
-    // exactly on the filled count rather than near it.
+    // Half the filled area: two line segments across the target are the
+    // largest honest answer, and the substitution this is looking for lands
+    // exactly on the filled count rather than near it. `debug_line.vert`
+    // writes `gl_PointSize = 1.0` on Impeller and GLES, so a point is one
+    // pixel wherever the size is honoured; a tighter bound for [point] alone
+    // waits for a run of every backend on a tree with that write in it.
     require(
       count * 2 < filled!,
       'PrimitiveType.${type.name} drew $count pixels where a filled triangle '
@@ -168,7 +198,69 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       'vertices as a triangle list drew $filled. A strip of three vertices is '
       'one triangle, so this backend assembled it as edges or points.',
     );
+
+    // **Primitive restart is always on for strips**, since 1.0.0-rc.1:
+    // the same two triangles drawn as a list and as one strip broken by an
+    // all-ones index cover the same pixels. Mutation: treat 0xFFFF as an
+    // index in the software rasteriser's `_assembleStrip`, and the strip
+    // stops at the vertex that does not exist, the second triangle missing.
+    final list = await _paintedPixels(
+      device,
+      _twoTriangles(device, PrimitiveType.triangle, <int>[0, 1, 2, 3, 4, 5]),
+    );
+    final restarted = await _paintedPixels(
+      device,
+      _twoTriangles(device, PrimitiveType.triangleStrip, <int>[
+        0,
+        1,
+        2,
+        IndexType.int16.restartIndex,
+        3,
+        4,
+        5,
+      ]),
+    );
+    require(
+      (restarted - list).abs() * 20 <= list,
+      'two triangles drawn as a strip broken by an all-ones index painted '
+      '$restarted pixels where the same two as a list painted $list. A '
+      'backend that lists primitive-strips restarts a strip at 0xFFFF; see '
+      'PassEncoder.setPrimitiveType.',
+    );
   }
+}
+
+/// Two triangles side by side, drawn as [type] through [indices] into a
+/// fresh target, which is returned once the pass is submitted.
+TextureHandle _twoTriangles(
+  GraphicsDevice device,
+  PrimitiveType type,
+  List<int> indices,
+) {
+  final (:pass, :target, draw: _) = _oneTriangle(device);
+  final vertex = device.shaders['DebugLineVertex']!;
+  final vertices = Float32List.fromList(<double>[
+    -0.9, -0.6, 0.5, 1, 1, 1, 1, //
+    -0.1, -0.6, 0.5, 1, 1, 1, 1,
+    -0.5, 0.6, 0.5, 1, 1, 1, 1,
+    0.1, -0.6, 0.5, 1, 1, 1, 1,
+    0.9, -0.6, 0.5, 1, 1, 1, 1,
+    0.5, 0.6, 0.5, 1, 1, 1, 1,
+  ]);
+  pass
+    ..setPrimitiveType(type)
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(vertices), 6)
+    ..bindIndexData(
+      ByteData.sublistView(Uint16List.fromList(indices)),
+      IndexType.int16,
+      indices.length,
+    )
+    ..draw()
+    ..submit();
+  return target;
 }
 
 /// A pass open on a fresh target, and the one triangle to draw into it.
@@ -186,7 +278,7 @@ _oneTriangle(GraphicsDevice device) {
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: _size,
       height: _size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -198,7 +290,7 @@ _oneTriangle(GraphicsDevice device) {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
     ),
@@ -206,7 +298,11 @@ _oneTriangle(GraphicsDevice device) {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!));
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    );
 
   final triangle = Float32List.fromList(<double>[
     -0.9, -0.9, 0.5, 1, 1, 1, 1, //
@@ -234,9 +330,8 @@ _oneTriangle(GraphicsDevice device) {
 /// whichever end of the target a backend calls row zero — and these two checks
 /// are about how much was drawn, never about where.
 Future<int> _paintedPixels(GraphicsDevice device, TextureHandle target) async {
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   return <int>[
     for (var i = 0; i < bytes.length; i += 4)
       if (bytes[i] > 64 || bytes[i + 1] > 64 || bytes[i + 2] > 64) i,

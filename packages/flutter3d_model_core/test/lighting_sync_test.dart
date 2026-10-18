@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -25,7 +26,7 @@ void main() {
     final scene = Scene();
     final sync = LightingSync();
     final history = ModelHistory(const ModelProject());
-    history.run(const AddLight(type: ProjectLightType.point));
+    history.run(const AddLight(type: LightType.point));
 
     sync.sync(scene, history.project.lighting);
 
@@ -59,8 +60,8 @@ void main() {
     final scene = Scene();
     final sync = LightingSync();
     final history = ModelHistory(const ModelProject());
-    history.run(const AddLight(type: ProjectLightType.directional));
-    history.run(const AddLight(type: ProjectLightType.spot));
+    history.run(const AddLight(type: LightType.directional));
+    history.run(const AddLight(type: LightType.spot));
 
     sync.sync(scene, history.project.lighting);
 
@@ -79,6 +80,9 @@ void main() {
     history.run(const SetLightField(index: 0, field: 'intensity', value: 4.5));
     sync.sync(scene, history.project.lighting);
 
+    // A project light is lux or candela, as a `LightNode` is, so the sync
+    // passes the number through. Mutation: multiply it by the pre-1.0 unit,
+    // and the light is 5 790 times too bright.
     expect(scene.lights.single.intensity, 4.5);
   });
 
@@ -87,7 +91,7 @@ void main() {
     final scene = Scene();
     final sync = LightingSync();
     final history = ModelHistory(const ModelProject());
-    history.run(const AddLight(type: ProjectLightType.point));
+    history.run(const AddLight(type: LightType.point));
     history.run(
       SetLightTransform(
         index: 0,
@@ -150,5 +154,11 @@ void main() {
     test('a project with no lights drops nothing', () {
       expect(lightOverflowOf(const SceneLighting()), 0);
     });
+  });
+
+  test('a new project is exposed as any frame is by default', () {
+    // Mutation: write the engine's 1.6 here again, and a change to the
+    // engine's default leaves every new project behind.
+    expect(const SceneLighting().exposure, RenderSettings.defaultExposure);
   });
 }

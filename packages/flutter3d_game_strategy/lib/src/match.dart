@@ -28,10 +28,12 @@
 /// lead is a draw wherever in the list it happens to fall.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'bot.dart';
 import 'economy.dart';
+import 'events.dart';
 import 'simulation.dart';
 import 'unit.dart';
 
@@ -41,6 +43,7 @@ final class MatchGoal {
   const MatchGoal({this.delivered = 400.0});
 
   /// How much a side must have brought home, in total, to win outright.
+  /// In units of resource, a count of what workers carry.
   final double delivered;
 }
 
@@ -69,9 +72,9 @@ final class Standing {
 /// decided after the step would be answering the previous frame's map, and two
 /// bots doing that would take turns being a step stale — which is a difference
 /// between sides that nobody put there.
-final class Match {
+final class StrategyMatch {
   /// Runs [bots] against each other on [simulation].
-  Match({
+  StrategyMatch({
     required this.simulation,
     required this.bots,
     this.goal = const MatchGoal(),
@@ -113,13 +116,43 @@ final class Match {
   Standing _standing = const Standing.running();
 
   /// Moves the match on by [dt] seconds, and does nothing once it is over.
-  void step(double dt) {
+  ///
+  /// What the step did goes onto the bus [publishTo] named, from inside the
+  /// step: a [UnitFired] for each of the step's shots, in the order they were
+  /// fired, and a [MatchDecided] on the step the match is decided.
+  ///
+  /// [context] is the loop's, when a loop steps the match: what the
+  /// simulation's systems are handed.
+  void step(double dt, {LoopContext? context}) {
     if (_standing.isOver) return;
     for (final Bot bot in bots) {
       bot.step(simulation);
     }
-    simulation.step(dt);
+    simulation.step(dt, context: context);
     _standing = _judge();
+    final bus = _bus;
+    if (bus == null) return;
+    for (final shot in simulation.shots) {
+      bus.publish(UnitFired.of(shot));
+    }
+    if (_standing.isOver) bus.publish(MatchDecided(_standing.winner));
+  }
+
+  EventRegistry? _bus;
+
+  /// Publishes what each step does onto [bus] — [UnitFired] and
+  /// [MatchDecided] — until the registration is cancelled: the run's
+  /// `publishTo`, as every genre's run has. One bus at a time; a second call
+  /// moves the events to the new one.
+  /// The simulation's systems publish onto it too, when no loop steps the
+  /// match.
+  Registration publishTo(EventRegistry bus) {
+    _bus = bus;
+    final systems = simulation.publishTo(bus);
+    return Registration(() {
+      systems.cancel();
+      if (identical(_bus, bus)) _bus = null;
+    });
   }
 
   /// Which of the three endings this is, asked in the order they beat each
@@ -171,7 +204,7 @@ final class Match {
 
     for (final int mortal in standing) {
       if (_makesUnits(simulation, mortal)) continue;
-      for (final Unit unit in simulation.units) {
+      for (final StrategyUnit unit in simulation.units) {
         if (unit.side != mortal && unit.type.isArmed) return true;
       }
     }
@@ -215,7 +248,7 @@ final class Match {
 
   /// Whether [side] has anything left to act with in [simulation].
   static bool _canAct(StrategySimulation simulation, int side) {
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (unit.side == side) return true;
     }
     return _makesUnits(simulation, side);
@@ -268,11 +301,20 @@ final class Match {
   /// claims to describe. A finishing line moved between the save and the load
   /// is then honoured, which is the same boundary [MatchGoal] already sits on:
   /// the goal belongs to whoever staged the match.
-  Snapshot save() => Snapshot(<String, Object?>{
-    'simulation': simulation.save().data,
-    'bots': <Object?>[for (final Bot bot in bots) bot.save()],
-  });
+  Snapshot save() {
+    final inner = simulation.save();
+    return Snapshot(<String, Object?>{
+      'simulation': inner.data,
+      'bots': <Object?>[for (final Bot bot in bots) bot.save()],
+    }, requires: inner.requires);
+  }
 
+  /// Puts back the world and the bots that [save] wrote, then judges
+  /// [standing] afresh from what was put back.
+  ///
+  /// A document without a world leaves the simulation as it is. Bots are
+  /// restored in order, as many as both this match and the document have;
+  /// the rest keep their phase.
   void restore(Snapshot snapshot) {
     final Map<String, Object?> from = snapshot.data;
     final Map<String, Object?>? world = from.object('simulation');
@@ -288,7 +330,7 @@ final class Match {
     for (final ResourceNode node in simulation.resources) {
       if (!node.isEmpty) return true;
     }
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if ((unit.job?.carried ?? 0.0) > 0.0) return true;
     }
     return false;

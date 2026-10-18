@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(x, y, z), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(x, y, z), size: Vector3(sx, sy, sz));
 
 /// Rooms A (x 0..8), B (x 10..18) and C (x 20..28), 8 m deep and 4 m high.
 /// A–B share a wall with a 2 m doorway at z 3..5; B–C's wall is solid.
@@ -99,7 +99,7 @@ void main() {
     final map = Automap(grid, revealRadius: 1.0)
       ..revealAll(Vector3(4.0, 0.1, 4.0));
 
-    expect(map.everythingRevealed, isTrue);
+    expect(map.isEverythingRevealed, isTrue);
     expect(map.isRevealed(_cell(grid, 17.0, 6.0)), isTrue, reason: 'all of B');
     expect(
       map.isWall(_cell(grid, 18.25, 4.0)),

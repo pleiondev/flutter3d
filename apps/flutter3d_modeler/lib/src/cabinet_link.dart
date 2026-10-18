@@ -9,6 +9,8 @@
 /// read.
 library;
 
+import 'app_config.dart';
+
 /// UX-only: which entry points this build offers, never a security boundary.
 ///
 /// **The server decides what a save is allowed to do, every time,
@@ -20,6 +22,8 @@ library;
 /// in the first place, so it does not dangle an action in front of somebody
 /// that cannot possibly succeed.
 final class CabinetLink {
+  /// A link with every field given. Most callers read one out of the page's
+  /// query string with [CabinetLink.fromQuery] instead.
   const CabinetLink({
     required this.id,
     required this.mode,
@@ -27,6 +31,25 @@ final class CabinetLink {
     this.isOwner = false,
     this.sourceSha,
   });
+
+  /// Reads `id`, `mode`, `csrf`, `editable` and `sourceSha` out of a query
+  /// string's own parameters — [Uri.queryParameters] shape, the same map
+  /// `screen/files.dart`'s own `_open` already reads `model`/`name` out of.
+  ///
+  /// An `id` that is present but does not parse as an integer is treated the
+  /// same as no `id` at all — [CabinetLink.none] in every field but `mode`
+  /// and `csrf`, which still come along in case something downstream wants
+  /// to know what the link claimed even though it could not be trusted.
+  factory CabinetLink.fromQuery(Map<String, String> query) => CabinetLink(
+    id: switch (query['id']) {
+      final String raw => int.tryParse(raw),
+      null => null,
+    },
+    mode: query['mode'],
+    csrf: query['csrf'] ?? '',
+    isOwner: query['editable'] == 'true',
+    sourceSha: query['sourceSha'],
+  );
 
   /// No `id` at all — every launch that is not the cabinet's own iframe: a
   /// bare `flutter run`, a `--dart-define=model=` measurement run, a desktop
@@ -95,8 +118,10 @@ final class CabinetLink {
   bool get isViewOnly => mode == 'view';
 
   /// Whether "Save to cabinet" is worth offering: a cabinet entry to save
-  /// back to, and nothing saying this build is here only to be looked at.
-  bool get canSaveBack => isFromCabinet && !isViewOnly;
+  /// back to, nothing saying this build is here only to be looked at, and a
+  /// build that was not compiled as a viewer ([kViewerOnly]) — the server
+  /// that serves one answers a save-back with 410 anyway.
+  bool get canSaveBack => isFromCabinet && !isViewOnly && !kViewerOnly;
 
   /// Whether `tut-19`'s own preview capture is worth attempting once the
   /// viewport has framed the subject: a cabinet entry, opened to be looked
@@ -110,23 +135,4 @@ final class CabinetLink {
       isOwner &&
       sourceSha != null &&
       sourceSha!.isNotEmpty;
-
-  /// Reads `id`, `mode`, `csrf`, `editable` and `sourceSha` out of a query
-  /// string's own parameters — [Uri.queryParameters] shape, the same map
-  /// `screen/files.dart`'s own `_open` already reads `model`/`name` out of.
-  ///
-  /// An `id` that is present but does not parse as an integer is treated the
-  /// same as no `id` at all — [CabinetLink.none] in every field but `mode`
-  /// and `csrf`, which still come along in case something downstream wants
-  /// to know what the link claimed even though it could not be trusted.
-  factory CabinetLink.fromQuery(Map<String, String> query) => CabinetLink(
-    id: switch (query['id']) {
-      final String raw? => int.tryParse(raw),
-      null => null,
-    },
-    mode: query['mode'],
-    csrf: query['csrf'] ?? '',
-    isOwner: query['editable'] == 'true',
-    sourceSha: query['sourceSha'],
-  );
 }

@@ -8,17 +8,30 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `image-based-lighting` page: five spheres from roughness 0.05 to 1.0
+/// with no direct light at all, lit only by an environment cube. Its check is
+/// that the cube was built and bound.
 final class ImageBasedLightingDemo extends ShowcaseDemo {
+  /// Whether the environment cube lights the scene; off leaves the spheres
+  /// with nothing but the ambient term.
   bool lit = true;
+
+  /// Which cube lights the spheres: 0 for the one made from the procedural
+  /// sky, 1 for the one made from the studio panorama.
   int source = 0;
+
+  /// The scene's ambient intensity as a multiple of
+  /// `LightNode.defaultIntensity`, 0 to 2 on the "Strength" slider.
   double strength = 1.0;
+
+  /// How metallic every sphere is, 0 to 1; a metal shows the environment in
+  /// its reflection, a dielectric mostly in its diffuse colour.
   double metallic = 1.0;
 
-  ({TextureHandle texture, int levels})? _fromSky;
-  ({TextureHandle texture, int levels})? _fromPanorama;
-  late final List<Material> _balls;
+  EnvironmentCube? _fromSky;
+  EnvironmentCube? _fromPanorama;
+  late final List<RenderMaterial> _balls;
   late final Scene _scene;
 
   @override
@@ -33,16 +46,25 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region environments
-    _fromSky = EnvironmentMap.fromSky(
-      context.device,
-      const SkySettings(enabled: true, glowStrength: 0.4, sunIntensity: 2.0),
-    );
-    _fromPanorama = EnvironmentMap.fromPanorama(
-      context.device,
-      _studioPanorama(),
-      width: 64,
-      height: 32,
-    );
+    final cubes = EnvironmentMap.isSupportedOn(context.device);
+    _fromSky = cubes
+        ? EnvironmentMap.fromSky(
+            context.device,
+            const SkySettings(
+              enabled: true,
+              glowStrength: 0.4,
+              sunIntensity: 2.0,
+            ),
+          )
+        : null;
+    _fromPanorama = cubes
+        ? EnvironmentMap.fromPanorama(
+            context.device,
+            _studioPanorama(),
+            width: 64,
+            height: 32,
+          )
+        : null;
     // #endregion environments
 
     // #region balls
@@ -51,12 +73,12 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
       SphereShape(radius: 0.8, segments: 32, rings: 16).build(),
     );
     final Scene scene = _scene = Scene();
-    _balls = <Material>[];
+    _balls = <RenderMaterial>[];
     for (var i = 0; i < 5; i++) {
-      final Material material = Material(
+      final RenderMaterial material = RenderMaterial(
         name: 'ball $i',
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.95, 0.75, 0.45, 1.0),
+        baseColor: LinearColor.fromSrgb(0.95, 0.75, 0.45, 1.0),
         metallic: metallic,
         roughness: 0.05 + i * 0.24,
       );
@@ -73,15 +95,13 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region use
-    final ({TextureHandle texture, int levels})? chosen = source == 0
-        ? _fromSky
-        : _fromPanorama;
+    final EnvironmentCube? chosen = source == 0 ? _fromSky : _fromPanorama;
     _scene
       ..environment = lit ? chosen?.texture : null
       ..environmentLevels = chosen?.levels ?? 0
-      ..ambientIntensity = strength;
+      ..ambientIntensity = strength * LightNode.defaultIntensity;
     // #endregion use
-    for (final Material ball in _balls) {
+    for (final RenderMaterial ball in _balls) {
       ball.metallic = metallic;
     }
   }

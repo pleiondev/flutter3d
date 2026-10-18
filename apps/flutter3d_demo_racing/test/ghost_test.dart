@@ -16,30 +16,30 @@ import 'dart:io';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'; // Storage
 import 'package:flutter3d_demo_racing/src/ghost_car.dart';
+import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show GhostFrame;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// A car that goes where it is put, so a test about keeping a lap is not also a
 /// test about driving one.
-final class _Car implements VehicleController {
+final class _Car with VehicleController {
   _Car()
     : collider = Collider(
         shape: CollisionSphere(0.7),
@@ -73,7 +73,7 @@ final class _Car implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;
@@ -85,10 +85,12 @@ final class _Car implements VehicleController {
   double trackDistance = 0.0;
 
   @override
-  void step(double dt, VehicleInput input) {}
+  void step(VehicleStep context) {}
 
   @override
-  void placeAt(Vector3 at, double yaw, {double? trackDistance}) {
+  void placeAt(VehiclePlacement placement) {
+    final at = placement.position;
+    final yaw = placement.headingYaw;
     collider.position.setFrom(at);
     headingYaw = yaw;
   }
@@ -120,7 +122,7 @@ GhostKeeper _keeper(
 }) => GhostKeeper(storage: storage, track: track);
 
 void main() {
-  test('a best lap is still there the next time the game starts', () {
+  test('a best lap is still there the next time the game starts', () async {
     // The reason any of it exists. A lap driven and then lost at the window
     // close is a lap nobody drove.
     final storage = _Storage();
@@ -129,10 +131,10 @@ void main() {
 
     expect(keeper.finished(4.0), isTrue);
 
-    final afterRelaunch = _keeper(storage)..load();
+    final afterRelaunch = await _loaded(_keeper(storage));
 
     expect(afterRelaunch.best, isNotNull);
-    expect(afterRelaunch.best!.lapTime, closeTo(4.0, 1e-3));
+    expect(afterRelaunch.best!.lapSeconds, closeTo(4.0, 1e-3));
     // Eighty metres is where four seconds at twenty a second ends; the last
     // sample lands a fifteenth of a second short of the line, which is why the
     // tape carries the lap time separately from its own last stamp.
@@ -143,7 +145,7 @@ void main() {
     );
   });
 
-  test('and a slower lap does not take its place', () {
+  test('and a slower lap does not take its place', () async {
     // Mutation: keep every lap. The ghost would be whatever was driven last,
     // which is the opposite of what a player is racing against.
     //
@@ -158,9 +160,9 @@ void main() {
     _drive(keeper, seconds: 9.0, from: 500.0);
     expect(keeper.finished(9.0), isFalse);
 
-    expect(keeper.best!.lapTime, closeTo(4.0, 1e-3));
+    expect(keeper.best!.lapSeconds, closeTo(4.0, 1e-3));
     expect(
-      _keeper(storage).let((k) => k..load()).best!.lapTime,
+      (await _loaded(_keeper(storage))).best!.lapSeconds,
       closeTo(4.0, 1e-3),
       reason: 'the disk kept the slow lap even though memory did not',
     );
@@ -183,7 +185,7 @@ void main() {
       closeTo(500.0, 0.5),
       reason: 'the new lap starts where the old one did',
     );
-    expect(keeper.best!.poses.first.time, closeTo(0.0, 1e-6));
+    expect(keeper.best!.poses.first.timeSeconds, closeTo(0.0, 1e-6));
   });
 
   test('and a lap nobody really drove is not kept', () {
@@ -199,7 +201,7 @@ void main() {
     expect(storage.documents, isEmpty);
   });
 
-  test('and a lap of one circuit is not offered on another', () {
+  test('and a lap of one circuit is not offered on another', () async {
     // Mutation: one filename for every track. A best lap of the ring drawn on
     // a different circuit is a car driving through the scenery.
     final storage = _Storage();
@@ -207,19 +209,23 @@ void main() {
     _drive(ring, seconds: 4.0);
     ring.finished(4.0);
 
-    final elsewhere = _keeper(storage, track: 'assets/tracks/other.json')
-      ..load();
+    final elsewhere = await _loaded(
+      _keeper(storage, track: 'assets/tracks/other.json'),
+    );
 
     expect(elsewhere.best, isNull);
     expect(storage.documents.keys, contains('ghost-ring.json'));
   });
 
-  test('and a file that will not read costs a lap, not the game', () {
+  test('and a file that will not read costs a lap, not the game', () async {
     final storage = _Storage();
     storage.documents['ghost-ring.json'] = 'this is not a lap';
 
+    // `load` reads through `Storage`, which is asynchronous: what it leaves
+    // behind is only there once it has completed, and completing rather than
+    // failing is the "not the game" half.
     final keeper = _keeper(storage);
-    expect(keeper.load, returnsNormally);
+    await expectLater(keeper.load(), completes);
 
     expect(keeper.best, isNull);
     expect(
@@ -245,13 +251,13 @@ void main() {
       final car = _Car();
       final player = RacerProgress(index: 0);
       for (var step = 0; step * (1 / 60.0) < seconds; step++) {
-        player.lapTime = step / 60.0;
-        car.position.setValues(from + player.lapTime * 20.0, 0.0, 0.0);
+        player.lapSeconds = step / 60.0;
+        car.position.setValues(from + player.lapSeconds * 20.0, 0.0, 0.0);
         keeper.stepped(player, car, false);
       }
       player
         ..lastLap = seconds
-        ..lapTime = 0.0;
+        ..lapSeconds = 0.0;
       keeper.stepped(player, car, true);
       return keeper;
     }
@@ -269,15 +275,15 @@ void main() {
 
       final tape = keeper.best!;
       expect(
-        tape.poses.last.time,
+        tape.poses.last.timeSeconds,
         greaterThan(3.0),
         reason: 'the tape ends before it began',
       );
 
-      final ghost = GhostCar(SceneNode(name: 'ghost'));
-      ghost.showAt(2.0, tape, 0.0);
+      final ghost = Ghost(SceneNode(name: 'ghost'));
+      ghost.showAt(2.0, tape, lift: 0.0);
       expect(
-        ghost.node.visible,
+        ghost.node.isVisible,
         isTrue,
         reason: 'a recorded lap that can never be drawn',
       );
@@ -291,18 +297,19 @@ void main() {
       lapThrough(keeper, seconds: 3.0, best: true, from: 500.0);
 
       final tape = keeper.best!;
-      expect(tape.poses.first.time, closeTo(0.0, 1e-6));
+      expect(tape.poses.first.timeSeconds, closeTo(0.0, 1e-6));
       expect(
-        tape.poses.last.time,
+        tape.poses.last.timeSeconds,
         closeTo(3.0, 0.2),
-        reason: 'the second tape is ${tape.poses.last.time}s of recording',
+        reason:
+            'the second tape is ${tape.poses.last.timeSeconds}s of recording',
       );
-      expect(tape.lapTime, closeTo(3.0, 1e-6));
+      expect(tape.lapSeconds, closeTo(3.0, 1e-6));
     });
   });
 
   group('the record', () {
-    test('is what a lap is measured against, not this session', () {
+    test('is what a lap is measured against, not this session', () async {
       // **The bug the record found, and it destroyed things.** `finished` used
       // to be handed the simulation's `bestLapThisStep`, and a race starts with
       // no laps in it — so the first lap of every launch was the best one by
@@ -315,7 +322,7 @@ void main() {
       keeper.finished(4.0);
 
       // A new launch: nothing in memory, everything on disk.
-      final relaunched = _keeper(storage)..load();
+      final relaunched = await _loaded(_keeper(storage));
       _drive(relaunched, seconds: 9.0, from: 500.0);
 
       expect(
@@ -341,7 +348,7 @@ void main() {
       _drive(keeper, seconds: 4.0);
       keeper.finished(4.0);
 
-      expect(keeper.record, keeper.best!.lapTime);
+      expect(keeper.record, keeper.best!.lapSeconds);
     });
 
     test('and a lap that beats it says so, once', () {
@@ -354,8 +361,8 @@ void main() {
       final player = RacerProgress(index: 0);
 
       for (var step = 0; step * (1 / 60.0) < 4.0; step++) {
-        player.lapTime = step / 60.0;
-        car.position.setValues(player.lapTime * 20.0, 0.0, 0.0);
+        player.lapSeconds = step / 60.0;
+        car.position.setValues(player.lapSeconds * 20.0, 0.0, 0.0);
         expect(
           keeper.stepped(player, car, false),
           isFalse,
@@ -364,7 +371,7 @@ void main() {
       }
       player
         ..lastLap = 4.0
-        ..lapTime = 0.0;
+        ..lapSeconds = 0.0;
 
       expect(keeper.stepped(player, car, true), isTrue);
 
@@ -384,13 +391,13 @@ void main() {
       final car = _Car();
       final player = RacerProgress(index: 0);
       for (var step = 0; step * (1 / 60.0) < 6.0; step++) {
-        player.lapTime = step / 60.0;
-        car.position.setValues(500.0 + player.lapTime * 20.0, 0.0, 0.0);
+        player.lapSeconds = step / 60.0;
+        car.position.setValues(500.0 + player.lapSeconds * 20.0, 0.0, 0.0);
         keeper.stepped(player, car, false);
       }
       player
         ..lastLap = 6.0
-        ..lapTime = 0.0;
+        ..lapSeconds = 0.0;
 
       expect(keeper.stepped(player, car, true), isFalse);
       expect(keeper.record, closeTo(4.0, 1e-3));
@@ -438,11 +445,11 @@ void main() {
     }
 
     test('is where the lap was at this point of the lap being driven', () {
-      final ghost = GhostCar(SceneNode(name: 'ghost'));
+      final ghost = Ghost(SceneNode(name: 'ghost'));
 
-      ghost.showAt(2.0, recordedLap(), 0.0);
+      ghost.showAt(2.0, recordedLap(), lift: 0.0);
 
-      expect(ghost.node.visible, isTrue);
+      expect(ghost.node.isVisible, isTrue);
       // Two seconds into a straight line at twenty metres a second.
       expect(ghost.node.localMatrix.getTranslation().x, closeTo(40.0, 0.5));
     });
@@ -451,15 +458,15 @@ void main() {
       // Mutation: leave it where it was. A ghost that stops at the point the
       // tape ended reads as a car abandoned on the racing line — and on a lap
       // slower than the recorded one, that is most of the lap.
-      final ghost = GhostCar(SceneNode(name: 'ghost'));
+      final ghost = Ghost(SceneNode(name: 'ghost'));
       final lap = recordedLap();
 
-      ghost.showAt(2.0, lap, 0.0);
-      expect(ghost.node.visible, isTrue);
+      ghost.showAt(2.0, lap, lift: 0.0);
+      expect(ghost.node.isVisible, isTrue);
 
-      ghost.showAt(99.0, lap, 0.0);
+      ghost.showAt(99.0, lap, lift: 0.0);
 
-      expect(ghost.node.visible, isFalse);
+      expect(ghost.node.isVisible, isFalse);
     });
 
     test('and is lifted along its own up, not the world\'s', () {
@@ -468,13 +475,13 @@ void main() {
       final tape = GhostTape(
         seconds: 1.0,
         poses: <GhostFrame>[
-          GhostFrame(time: 0.0)..up.setValues(1.0, 0.0, 0.0),
-          GhostFrame(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
+          GhostFrame(timeSeconds: 0.0)..up.setValues(1.0, 0.0, 0.0),
+          GhostFrame(timeSeconds: 1.0)..up.setValues(1.0, 0.0, 0.0),
         ],
       );
-      final ghost = GhostCar(SceneNode(name: 'ghost'));
+      final ghost = Ghost(SceneNode(name: 'ghost'));
 
-      ghost.showAt(0.5, tape, 0.5);
+      ghost.showAt(0.5, tape, lift: 0.5);
 
       expect(ghost.node.localMatrix.getTranslation().x, closeTo(0.5, 1e-3));
       expect(ghost.node.localMatrix.getTranslation().y, closeTo(0.0, 1e-3));
@@ -482,6 +489,8 @@ void main() {
   });
 }
 
-extension<T> on T {
-  R let<R>(R Function(T) f) => f(this);
+/// [keeper], once it has read what is on disk.
+Future<GhostKeeper> _loaded(GhostKeeper keeper) async {
+  await keeper.load();
+  return keeper;
 }

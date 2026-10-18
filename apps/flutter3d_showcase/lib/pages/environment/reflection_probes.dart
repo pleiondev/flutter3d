@@ -9,14 +9,20 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `reflection-probes` page: a mirror ball before a red wall, reflecting the room through a probe's captured cube. Its check is
+/// that the probe finished capturing and its pass drew into the cube.
 final class ReflectionProbesDemo extends ShowcaseDemo {
+  /// How strongly the probe's cube contributes, 0 to 2; written into the
+  /// probe each frame.
   double intensity = 1.0;
+
+  /// The mirror ball's roughness, 0.02 to 1: the higher, the blurrier the
+  /// level of the probe's roughness chain it reads.
   double roughness = 0.06;
 
   late final ReflectionProbeNode _probe;
-  late final Material _ball;
+  late final RenderMaterial _ball;
 
   @override
   void configureView(DemoContext context) {
@@ -29,22 +35,22 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material floor = Material(
+    final RenderMaterial floor = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.5, 0.5, 0.53, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.53, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
-    final Material wall = Material(
+    final RenderMaterial wall = RenderMaterial(
       name: 'wall',
-      baseColor: Vector4(0.82, 0.18, 0.14, 1.0),
+      baseColor: LinearColor.fromSrgb(0.82, 0.18, 0.14, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
     // #region ball
-    final Material ball = _ball = Material(
+    final RenderMaterial ball = _ball = RenderMaterial(
       name: 'mirror ball',
-      baseColor: Vector4(0.9, 0.9, 0.92, 1.0),
+      baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.92, 1.0),
       metallic: 1.0,
       roughness: roughness,
     );
@@ -70,7 +76,7 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
           );
 
     return Scene()
-      ..ambientIntensity = 0.15
+      ..ambientIntensity = 0.15 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -93,7 +99,7 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
         )..setPosition(0.0, 0.9, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.5, -0.7, -0.35)),
       )
       ..add(_probe);

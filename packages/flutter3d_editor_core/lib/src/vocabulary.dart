@@ -1,21 +1,14 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-/// A kind for a type nobody here can vouch for.
+/// A registry made of whatever [level] already names, each type an
+/// [OpenKind].
 ///
 /// **An editor has no vocabulary of its own, and must not invent one.** A
 /// level document says `monster` or `coin` or `checkpoint`, and what those are
 /// worth is the game's business — the engine's own registry doc says so at
 /// length, and its first version shipped a list of fourteen kinds that a second
-/// game silently validated its levels against.
-///
-/// So this accepts whatever the document happens to name and vouches for none
-/// of it: an entity of an unknown type is a coordinate with a word attached,
-/// which is exactly what it is to an editor that does not know the game.
-final class OpenKind extends EntityKind {
-  const OpenKind(super.type);
-}
-
-/// A registry made of whatever [level] already names.
+/// game silently validated its levels against. So this accepts whatever the
+/// document happens to name and vouches for none of it.
 ///
 /// Everything therefore validates, which is the point rather than a compromise:
 /// the checks an editor can honestly make are about geometry, materials and

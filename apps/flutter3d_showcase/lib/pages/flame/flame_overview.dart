@@ -14,6 +14,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
+/// The `flame-overview` page: a flutter3d cube and a Flame shape drawn
+/// together, neither moving the other. Its check is that each stays where
+/// its own layer put it.
 final class FlameOverviewDemo extends ShowcaseDemo {
   late final double _flameX;
   late final double _cubeX;
@@ -26,7 +29,10 @@ final class FlameOverviewDemo extends ShowcaseDemo {
     Flutter3dFlameWidget(
       game: _game,
       camera: _context.camera,
-      existing: (device: _context.device, renderer: _context.renderer),
+      existing: BorrowedRenderer(
+        device: _context.device,
+        renderer: _context.renderer,
+      ),
       buildScene: (GraphicsDevice device) => _scene,
     ),
   );
@@ -54,13 +60,16 @@ final class FlameOverviewDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(0.8, 0.8, 0.8)).build(),
       ),
-      Material(name: 'cube', baseColor: Vector4(0.5, 0.6, 0.8, 1.0)),
+      RenderMaterial(
+        name: 'cube',
+        baseColor: LinearColor.fromSrgb(0.5, 0.6, 0.8, 1.0),
+      ),
       name: 'cube',
     );
     _scene = Scene()
       ..add(_cube)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

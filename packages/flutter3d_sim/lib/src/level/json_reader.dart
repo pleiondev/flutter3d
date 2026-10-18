@@ -1,3 +1,5 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'level.dart' show LevelFormatException;
@@ -39,6 +41,26 @@ extension JsonObjectReader on Map<String, Object?> {
     );
   }
 
+  /// A colour in linear light, `[r, g, b]` or `[r, g, b, a]`, or [fallback]
+  /// when the key is absent.
+  ///
+  /// **Read at double precision.** A colour read through a `Vector3` came
+  /// back through float32, so a fog of 0.05 was written back as
+  /// 0.05000000074505806.
+  LinearColor linearColor(String key, {required LinearColor fallback}) {
+    final value = this[key];
+    if (value == null) return fallback;
+    if (value is! List || value.length < 3 || value.length > 4) {
+      throw LevelFormatException('"$key" must be three or four numbers');
+    }
+    return LinearColor(
+      _number(value[0], key),
+      _number(value[1], key),
+      _number(value[2], key),
+      value.length > 3 ? _number(value[3], key) : 1.0,
+    );
+  }
+
   /// A colour, where the fourth component defaults to opaque.
   Vector4 vector4(String key, {required Vector4 fallback}) {
     final value = this[key];
@@ -54,6 +76,8 @@ extension JsonObjectReader on Map<String, Object?> {
     );
   }
 
+  /// The number under [key], or [fallback] when it is absent. Throws a
+  /// [LevelFormatException] when it is there and not a number.
   double numberOr(String key, double fallback) {
     final value = this[key];
     if (value == null) return fallback;
@@ -61,6 +85,8 @@ extension JsonObjectReader on Map<String, Object?> {
     return value.toDouble();
   }
 
+  /// The bool under [key], or [fallback] when it is absent. Throws a
+  /// [LevelFormatException] when it is there and not a bool.
   bool flagOr(String key, {bool fallback = false}) {
     final value = this[key];
     if (value == null) return fallback;
@@ -81,6 +107,8 @@ extension JsonObjectReader on Map<String, Object?> {
     return value.round();
   }
 
+  /// The string under [key], or null when it is absent. Throws a
+  /// [LevelFormatException] when it is there and not a string.
   String? textOrNull(String key) {
     final value = this[key];
     if (value == null) return null;
@@ -118,6 +146,11 @@ extension JsonObjectReader on Map<String, Object?> {
   }
 
   /// An enum value by its name, naming the alternatives when it is not one.
+  ///
+  /// **For a game's own documents, not the engine's.** The engine's formats
+  /// read explicit wire tables (`LightType.fromWireName`), so a rename
+  /// in Dart never changes a file; a game reading a property it wrote with
+  /// its own enum's names reaches for this.
   T enumValue<T extends Enum>(
     String key,
     List<T> values,
@@ -141,6 +174,7 @@ extension JsonObjectReader on Map<String, Object?> {
   }
 }
 
+/// Reading one JSON value as a level document's nested object.
 extension JsonValueReader on Object? {
   /// This value as a JSON object, or an error naming where it was expected.
   Map<String, Object?> asJsonObject(String context) {
@@ -151,11 +185,22 @@ extension JsonValueReader on Object? {
   }
 }
 
+/// Writing a [Vector3] the way a level document holds one.
 extension JsonVectorWriter on Vector3 {
   /// The three components, ready for `jsonEncode`.
   List<double> toJson() => <double>[x, y, z];
 }
 
+/// Writing a [Vector4] colour the way a level document holds one.
 extension JsonColorWriter on Vector4 {
+  /// The four components, `[x, y, z, w]`, the fourth always written; what
+  /// [JsonObjectReader.vector4] reads back.
   List<double> toJson() => <double>[x, y, z, w];
+}
+
+/// Writing a [LinearColor] the way a level document holds one.
+extension JsonLinearColorWriter on LinearColor {
+  /// `[r, g, b]`, and the coverage after them only when it is not opaque:
+  /// what [JsonObjectReader.linearColor] reads back.
+  List<double> toJson() => <double>[r, g, b, if (a != 1.0) a];
 }

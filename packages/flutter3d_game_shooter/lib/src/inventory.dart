@@ -26,16 +26,23 @@ final class Inventory with KeyHolder {
     Health? health,
     Arsenal? arsenal,
     KeyRing? keys,
-    this.maxArmour = 100.0,
+    this.maxArmor = 100.0,
   }) : health = health ?? Health(100.0),
        arsenal = arsenal ?? Arsenal(slots: const <WeaponDef>[]),
        keyRing = keys ?? KeyRing();
 
+  /// The player's hit points and armour, 100 hit points when none was
+  /// given; what monsters and blasts take from, through [damage].
   final Health health;
+
+  /// The weapons carried and their ammunition.
   final Arsenal arsenal;
+
+  /// The keys carried, which a locked door reads through [keys].
   final KeyRing keyRing;
 
-  final double maxArmour;
+  /// The most armour it holds, in armour points (unitless).
+  final double maxArmor;
 
   @override
   Set<String> get keys => keyRing.keys;
@@ -51,10 +58,15 @@ final class Inventory with KeyHolder {
   /// Seconds left on each power-up that is running, by name.
   Map<String, double> get powers => running.remaining;
 
+  /// Whether the power-up called [power] is running.
   bool has(String power) => running.has(power);
 
+  /// Seconds left on the power-up called [power]; nought when it is not
+  /// running.
   double remainingOf(String power) => running.remainingOf(power);
 
+  /// Whether invulnerability is running, so that [damage] lets nothing
+  /// through.
   bool get isInvulnerable => has('invulnerability');
 
   /// Whether the damage multiplier is running.
@@ -76,12 +88,12 @@ final class Inventory with KeyHolder {
   /// Starts or refreshes a power-up. Never stacks — see [PowerUpGift].
   void empower(String power, double seconds) => running.empower(power, seconds);
 
-  /// Adds armour up to [maxArmour], and says how much stuck.
-  double addArmour(double amount) {
+  /// Adds armour up to [maxArmor], and says how much stuck.
+  double addArmor(double amount) {
     if (amount <= 0.0) return 0.0;
-    final taken = math.min(amount, maxArmour - health.armour);
+    final taken = math.min(amount, maxArmor - health.armor);
     if (taken <= 0.0) return 0.0;
-    health.armour += taken;
+    health.armor += taken;
     return taken;
   }
 
@@ -96,6 +108,8 @@ final class Inventory with KeyHolder {
     return health.damage(amount);
   }
 
+  /// Health, weapons, keys and running power-ups, as a document [restore]
+  /// reads back.
   Map<String, Object?> save() => <String, Object?>{
     'health': health.save(),
     'arsenal': arsenal.save(),
@@ -103,6 +117,9 @@ final class Inventory with KeyHolder {
     'powers': running.save(),
   };
 
+  /// Puts back what [save] wrote and empties [expired].
+  ///
+  /// A missing health or arsenal is left as it is.
   void restore(Map<String, Object?> from) {
     final health = from['health'];
     if (health is Map) this.health.restore(health.cast<String, Object?>());
@@ -113,6 +130,8 @@ final class Inventory with KeyHolder {
     expired.clear();
   }
 
+  /// Runs every power-up down by [dt] seconds, adding the ones that ran out
+  /// to [expired].
   void step(double dt) => expired.addAll(running.step(dt));
 
   /// Power-ups that ran out this step, for anything that wants to say so.

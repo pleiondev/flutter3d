@@ -24,6 +24,11 @@
 /// they were not tuned against a player, and the doc on each says what it would
 /// take to settle it. A game that ships should tune its own and say so.
 final class Difficulty {
+  /// A difficulty called [name]; every axis left out is as at [normal].
+  ///
+  /// Asserts that the damage multipliers are not negative,
+  /// [opponentReaction] is above nought and [assistance] is from nought to
+  /// one.
   const Difficulty(
     this.name, {
     this.damageTaken = 1.0,
@@ -42,13 +47,13 @@ final class Difficulty {
   /// with the same name are the same difficulty.
   final String name;
 
-  /// What the player is hurt by, multiplied.
+  /// What the player is hurt by, multiplied: a unitless multiplier.
   ///
   /// The axis every action game turns first, and the one a player feels
   /// immediately: half damage is twice as many mistakes before dying.
   final double damageTaken;
 
-  /// What the player's own attacks are worth, multiplied.
+  /// What the player's own attacks are worth: a unitless multiplier.
   ///
   /// Separate from [damageTaken] because they are not the same experience.
   /// Taking less damage makes a fight longer and more forgiving; dealing more
@@ -56,8 +61,8 @@ final class Difficulty {
   /// on its own.
   final double damageDealt;
 
-  /// How quickly the opposition reacts, multiplied — **and it is a duration,
-  /// so smaller is harder.**
+  /// How quickly the opposition reacts: a unitless multiplier — **and what
+  /// it scales is a duration, so smaller is harder.**
   ///
   /// Named for what it scales rather than for what it means, because the sign
   /// is the thing people get wrong: a monster's alert duration and a driver's
@@ -106,6 +111,24 @@ final class Difficulty {
     damageDealt: 0.75,
     opponentReaction: 0.5,
   );
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Difficulty> values = <Difficulty>[
+    gentle,
+    normal,
+    hard,
+    punishing,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static Difficulty? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The four that ship, for a menu that wants to list them.
   ///

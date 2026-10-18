@@ -42,8 +42,10 @@ part of 'command.dart';
 /// set and no tracks in it yet, is the state an artist starting a brand new
 /// animation is actually in.
 final class AddClip extends ModelCommand {
+  /// A step appending an empty clip called [clipName].
   const AddClip({this.clipName});
 
+  /// The new clip's name, or null for an unnamed clip.
   final String? clipName;
 
   @override
@@ -110,16 +112,12 @@ List<double>? _doubleListFrom(Object? json) {
 /// is a file this build cannot honestly guess at rather than an ordinary
 /// omission.
 AnimationInterpolation? _interpolationFrom(Object? json) =>
-    AnimationInterpolation.values
-        .where((AnimationInterpolation each) => each.name == json)
-        .firstOrNull;
+    interpolationOf(json);
 
 /// The [AnimationPath] [json] names, or null when it does not match one —
 /// the same "no default" reasoning as [_interpolationFrom], for the same
 /// reason: every writer of [PoseJoint] names one explicitly.
-AnimationPath? _pathFrom(Object? json) => AnimationPath.values
-    .where((AnimationPath each) => each.name == json)
-    .firstOrNull;
+AnimationPath? _pathFrom(Object? json) => animationPathOf(json);
 
 /// [transform]'s own [path] component, decomposed from the local matrix —
 /// or null for [AnimationPath.weights], which [PoseJoint] does not key; see
@@ -146,6 +144,7 @@ List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
     ],
     AnimationPath.scale => <double>[scale.x, scale.y, scale.z],
     AnimationPath.weights || AnimationPath.pointer => null,
+    _ => throw UnsupportedError('a transform has no $path channel'),
   };
 }
 
@@ -166,6 +165,8 @@ List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
 /// pose is the one that survives, the same way it would if only that call
 /// had ever run.
 final class PoseJoint extends ModelCommand {
+  /// A step keying [joint]'s current [path] component onto clip [clipIndex] at
+  /// [frame].
   const PoseJoint({
     required this.joint,
     required this.path,
@@ -173,9 +174,20 @@ final class PoseJoint extends ModelCommand {
     required this.frame,
   });
 
+  /// Object id of the joint keyed, read off its local transform. [apply]
+  /// refuses when the project has no such object.
   final int joint;
+
+  /// Which component is keyed: translation, rotation or scale. [apply] refuses
+  /// weights and pointer paths.
   final AnimationPath path;
+
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip.
   final int clipIndex;
+
+  /// The frame keyed, a count of frames at [ProjectProfile.fps]; the key lands
+  /// at that frame's time in seconds.
   final int frame;
 
   @override
@@ -187,7 +199,7 @@ final class PoseJoint extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'joint': joint,
-    'path': path.name,
+    'path': animationPathWord(path),
     'clipIndex': clipIndex,
     'frame': frame,
   };
@@ -261,23 +273,41 @@ ModelProject _withTrack(
   return project.copyWith(clips: clips);
 }
 
-/// Writes (or replaces) the keyframe at [time] on clip [clipIndex] track
+/// Writes (or replaces) the keyframe at [timeSeconds] on clip [clipIndex] track
 /// [trackIndex] — [KeyTable.setKey], wired into the undo stack.
 final class SetKey extends ModelCommand {
+  /// A step writing a key at [timeSeconds] seconds holding [values] onto track
+  /// [trackIndex] of clip [clipIndex], with flat tangents unless given.
   const SetKey({
     required this.clipIndex,
     required this.trackIndex,
-    required this.time,
+    required this.timeSeconds,
     required this.values,
     this.inTangent,
     this.outTangent,
   });
 
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip.
   final int clipIndex;
+
+  /// Index of the track in the clip's [ProjectClip.tracks]. [apply] refuses an
+  /// index with no track.
   final int trackIndex;
-  final double time;
+
+  /// In seconds.
+  final double timeSeconds;
+
+  /// The key's value, one number per component of the track. [apply] refuses a
+  /// list of the wrong length.
   final List<double> values;
+
+  /// The tangent arriving at the key, one number per component, or null for a
+  /// flat one. [apply] refuses a list of the wrong length.
   final List<double>? inTangent;
+
+  /// The tangent leaving the key, one number per component, or null for a flat
+  /// one. [apply] refuses a list of the wrong length.
   final List<double>? outTangent;
 
   @override
@@ -290,7 +320,7 @@ final class SetKey extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'clipIndex': clipIndex,
     'trackIndex': trackIndex,
-    'time': time,
+    'time': timeSeconds,
     'values': values,
     'inTangent': inTangent,
     'outTangent': outTangent,
@@ -319,7 +349,12 @@ final class SetKey extends ModelCommand {
         'has ${outTangent!.length}',
       );
     }
-    table.setKey(time, values, inTangent: inTangent, outTangent: outTangent);
+    table.setKey(
+      timeSeconds,
+      values,
+      inTangent: inTangent,
+      outTangent: outTangent,
+    );
     return Outcome.done(
       _withTrack(
         project,
@@ -332,19 +367,31 @@ final class SetKey extends ModelCommand {
 }
 
 /// Shifts the keys at [indices] on clip [clipIndex] track [trackIndex] by
-/// [deltaTime] — [KeyTable.moveKeys], wired into the undo stack.
+/// [deltaSeconds] — [KeyTable.moveKeys], wired into the undo stack.
 final class MoveKeys extends ModelCommand {
+  /// A step moving keys [indices] of track [trackIndex] in clip [clipIndex] by
+  /// [deltaSeconds] seconds.
   const MoveKeys({
     required this.clipIndex,
     required this.trackIndex,
     required this.indices,
-    required this.deltaTime,
+    required this.deltaSeconds,
   });
 
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip.
   final int clipIndex;
+
+  /// Index of the track in the clip's [ProjectClip.tracks]. [apply] refuses an
+  /// index with no track.
   final int trackIndex;
+
+  /// Positions of the keys moved, in the track's time order. [apply] refuses a
+  /// position with no key.
   final List<int> indices;
-  final double deltaTime;
+
+  /// In seconds.
+  final double deltaSeconds;
 
   @override
   String get name => 'moveKeys';
@@ -357,7 +404,7 @@ final class MoveKeys extends ModelCommand {
     'clipIndex': clipIndex,
     'trackIndex': trackIndex,
     'indices': indices,
-    'deltaTime': deltaTime,
+    'deltaTime': deltaSeconds,
   };
 
   @override
@@ -372,7 +419,7 @@ final class MoveKeys extends ModelCommand {
         );
       }
     }
-    table.moveKeys(indices, deltaTime);
+    table.moveKeys(indices, deltaSeconds);
     return Outcome.done(
       _withTrack(
         project,
@@ -390,14 +437,24 @@ final class MoveKeys extends ModelCommand {
 /// track drives something for as long as the document exists, and one with
 /// nothing to sample is not a smaller track, it is a broken one.
 final class DeleteKeys extends ModelCommand {
+  /// A step deleting keys [indices] from track [trackIndex] of clip
+  /// [clipIndex].
   const DeleteKeys({
     required this.clipIndex,
     required this.trackIndex,
     required this.indices,
   });
 
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip.
   final int clipIndex;
+
+  /// Index of the track in the clip's [ProjectClip.tracks]. [apply] refuses an
+  /// index with no track.
   final int trackIndex;
+
+  /// Positions of the keys deleted, in the track's time order. [apply] refuses
+  /// a position with no key, and a list that would delete every key.
   final List<int> indices;
 
   @override
@@ -449,14 +506,23 @@ final class DeleteKeys extends ModelCommand {
 /// key's own tangents survive the switch, [KeyTable.setInterpolation]'s own
 /// guarantee.
 final class SetInterpolation extends ModelCommand {
+  /// A step switching track [trackIndex] of clip [clipIndex] to
+  /// [interpolation].
   const SetInterpolation({
     required this.clipIndex,
     required this.trackIndex,
     required this.interpolation,
   });
 
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip.
   final int clipIndex;
+
+  /// Index of the track in the clip's [ProjectClip.tracks]. [apply] refuses an
+  /// index with no track.
   final int trackIndex;
+
+  /// How the track reads between keys: linear, step or cubic.
   final AnimationInterpolation interpolation;
 
   @override
@@ -469,7 +535,7 @@ final class SetInterpolation extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'clipIndex': clipIndex,
     'trackIndex': trackIndex,
-    'interpolation': interpolation.name,
+    'interpolation': interpolationWord(interpolation),
   };
 
   @override
@@ -494,6 +560,8 @@ final class SetInterpolation extends ModelCommand {
 /// .setTangent], wired into the undo stack. Either tangent left `null`
 /// keeps whatever that key already had, [KeyTable.setTangent]'s own rule.
 final class SetTangent extends ModelCommand {
+  /// A step setting the tangents of key [index] on track [trackIndex] of clip
+  /// [clipIndex]; a null tangent keeps the key's own.
   const SetTangent({
     required this.clipIndex,
     required this.trackIndex,
@@ -502,10 +570,24 @@ final class SetTangent extends ModelCommand {
     this.outTangent,
   });
 
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip.
   final int clipIndex;
+
+  /// Index of the track in the clip's [ProjectClip.tracks]. [apply] refuses an
+  /// index with no track.
   final int trackIndex;
+
+  /// Position of the key in the track's time order. [apply] refuses a position
+  /// with no key.
   final int index;
+
+  /// The new arriving tangent, one number per component, or null to keep the
+  /// key's. [apply] refuses a list of the wrong length.
   final List<double>? inTangent;
+
+  /// The new leaving tangent, one number per component, or null to keep the
+  /// key's. [apply] refuses a list of the wrong length.
   final List<double>? outTangent;
 
   @override

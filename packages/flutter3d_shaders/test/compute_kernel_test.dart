@@ -1,0 +1,538 @@
+// The kernel language: read once into one checked tree, translated to WGSL
+// and to Dart, and the Dart kernel computing what WGSL defines.
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/kernel.dart';
+import 'package:test/test.dart';
+
+const String _scale = '''
+compute Scale {
+  workgroup 64;
+  buffer values: f32[] read_write;
+  buffer factor: f32[] read;
+  kernel {
+    let i = id.x;
+    if i >= len(values) { return; }
+    values[i] = values[i] * factor[0];
+  }
+}
+''';
+
+/// Runs [body] as a one-invocation kernel writing a `u32` or `f32` result
+/// into `out[0]`, and answers it.
+num _eval(String body, {String type = 'u32'}) {
+  final kernel = ComputeKernel.parse('''
+compute Probe {
+  workgroup 1;
+  buffer out: $type[] read_write;
+  kernel {
+    $body
+  }
+}
+''');
+  final out = ByteData(4);
+  kernel.toDartKernel().dispatch(KernelInputs(buffers: {'out': out}), 1);
+  return switch (type) {
+    'f32' => out.getFloat32(0, Endian.little),
+    'i32' => out.getInt32(0, Endian.little),
+    _ => out.getUint32(0, Endian.little),
+  };
+}
+
+Matcher _refusedAt(int line, String reason) => throwsA(
+  isA<ComputeKernelException>()
+      .having((e) => e.line, 'line', line)
+      .having((e) => e.reason, 'reason', contains(reason)),
+);
+
+void main() {
+  group('reading', () {
+    test('a kernel names its workgroup and its bindings in order', () {
+      // Mutation: number the bindings from one, and WebGPU binds the
+      // factor where the values belong.
+      final kernel = ComputeKernel.parse(_scale);
+      expect(kernel.name, 'Scale');
+      expect(kernel.workgroupSize, const WorkgroupSize(64, 1, 1));
+      expect(kernel.workgroupSize.invocations, 64);
+      expect(kernel.bindings.map((b) => (b.name, b.index, b.writable)), [
+        ('values', 0, true),
+        ('factor', 1, false),
+      ]);
+      expect(kernel.binding('factor')!.kind, KernelBindingKind.buffer);
+      expect(kernel.groupsFor(65), 2);
+    });
+
+    test('a material or a full-screen stage beside the kernels is skipped', () {
+      final kernels = ComputeKernel.parseAll('''
+material Glow { fragment { return vec4(1.0); } }
+fullscreen Fog { fragment { return sample(scene, uv); } }
+$_scale
+''');
+      expect(kernels.single.name, 'Scale');
+    });
+
+    test('any other top-level word is refused rather than skipped', () {
+      // Mutation: skip it as a block, and the kernel after it in a file
+      // that misspells a word disappears without a sentence.
+      expect(
+        () => ComputeKernel.parseAll('shader Glow { }\n$_scale'),
+        _refusedAt(1, '"shader"'),
+      );
+    });
+  });
+
+  group('versions', () {
+    test('the language is at version 2, and a source may say so', () {
+      expect(kernelLanguageVersion, 2);
+      expect(ComputeKernel.parse('kernel 1\n$_scale').name, 'Scale');
+      expect(ComputeKernel.parse('kernel 2\n$_scale').languageVersion, 2);
+      expect(ComputeKernel.parse(_scale).languageVersion, 1);
+    });
+
+    test('a newer source is refused, naming both versions', () {
+      // Mutation: read past the version line, and a kernel written for a
+      // later language runs under this one's meaning of its words.
+      expect(
+        () => ComputeKernel.parse('kernel 3\n$_scale'),
+        throwsA(
+          isA<ComputeKernelException>()
+              .having((e) => e.line, 'line', 1)
+              .having(
+                (e) => e.reason,
+                'reason',
+                allOf(contains('version 3'), contains('version 2')),
+              ),
+        ),
+      );
+      expect(
+        () => ComputeKernel.parse('kernel 0\n$_scale'),
+        _refusedAt(1, 'not a kernel language version'),
+      );
+    });
+
+    test('a material file\'s version line does not swallow its kernels', () {
+      // Mutation: treat "f3dmat 3" as the start of a block to skip, and the
+      // kernel after it is lost: "expected one kernel and found 0".
+      final kernel = ComputeKernel.parse('f3dmat 3\n$_scale');
+      expect(kernel.name, 'Scale');
+      expect(ComputeKernel.parse('f3dmat 3\nkernel 1\n$_scale').name, 'Scale');
+      expect(
+        () => ComputeKernel.parse('f3dmat 3\nkernel 3\n$_scale'),
+        _refusedAt(2, 'version 3'),
+      );
+    });
+
+    test('the material language\'s compute form is named, not misread', () {
+      expect(
+        () => ComputeKernel.parse('''
+compute Ripples {
+  uniform float time = 0.0;
+  kernel { return vec4(1.0); }
+}
+'''),
+        _refusedAt(2, 'lowerMaterialCompute'),
+      );
+    });
+
+    test('a workgroup is three numbers, one where the source gave fewer', () {
+      const size = WorkgroupSize(8, 4, 1);
+      expect((size.x, size.y, size.z), (8, 4, 1));
+      expect(size, const WorkgroupSize(8, 4, 1));
+      expect(size.hashCode, const WorkgroupSize(8, 4, 1).hashCode);
+      expect(size.invocations, 32);
+      expect('$size', 'WorkgroupSize(8, 4, 1)');
+      expect(
+        ComputeKernel.parse(
+          _scale.replaceAll('workgroup 64', 'workgroup 4, 4, 2'),
+        ).workgroupSize,
+        const WorkgroupSize(4, 4, 2),
+      );
+    });
+
+    test('a write to a read buffer is refused where it is written', () {
+      // Mutation: accept it, and WebGPU refuses the module at load with a
+      // message about an access mode nobody wrote.
+      expect(
+        () => ComputeKernel.parse(
+          _scale.replaceAll('values[i] = values[i]', 'factor[0] = values[i]'),
+        ),
+        _refusedAt(8, 'read only'),
+      );
+    });
+
+    test('mixed types are refused, naming both', () {
+      expect(
+        () => _eval('let a = 1u; let b = 2i; out[0] = a + b;'),
+        _refusedAt(5, 'u32 + i32'),
+      );
+    });
+
+    test(
+      'an unknown name, a loose break and a large workgroup are refused',
+      () {
+        expect(() => _eval('out[0] = nothing;'), _refusedAt(5, '"nothing"'));
+        expect(() => _eval('break;'), _refusedAt(5, 'outside a loop'));
+        expect(
+          () => ComputeKernel.parse(
+            _scale.replaceAll('workgroup 64', 'workgroup 512'),
+          ),
+          _refusedAt(2, 'more than every device runs'),
+        );
+      },
+    );
+  });
+
+  group('the Dart kernel computes what WGSL defines', () {
+    test('every f32 operation is rounded to an f32', () {
+      // Mutation: compute in doubles, and 2^24 + 1 survives where every
+      // GPU loses the one.
+      expect(_eval('out[0] = 16777216.0 + 1.0;', type: 'f32'), 16777216.0);
+      expect(
+        _eval('let t = 0.1; out[0] = t * 3.0;', type: 'f32'),
+        0.30000001192092896,
+      );
+    });
+
+    test(
+      'integers wrap at 32 bits, and a division by zero is the dividend',
+      () {
+        expect(_eval('let a = 4294967295u; out[0] = a + 2u;'), 1);
+        expect(_eval('let a = 65536u; out[0] = a * a + 7u;'), 7);
+        expect(_eval('let a = 9u; let z = 0u; out[0] = a / z;'), 9);
+        expect(_eval('let a = 9u; let z = 0u; out[0] = a % z;'), 0);
+        expect(_eval('let a = -7; out[0] = a / 2;', type: 'i32'), -3);
+        expect(_eval('let s = 33u; out[0] = 1u << s;'), 2);
+      },
+    );
+
+    test('sin, cos and pow are the f32 nearest the exact value', () {
+      // Mutation: leave the result a double, and a store of it into an f32
+      // list rounds where the source did not say so.
+      double f32(double v) => (Float32List(1)..[0] = v)[0];
+      expect(
+        _eval('let x = 0.5; out[0] = sin(x);', type: 'f32'),
+        f32(math.sin(f32(0.5))),
+      );
+      expect(
+        _eval('let x = 0.25; out[0] = cos(x);', type: 'f32'),
+        f32(math.cos(f32(0.25))),
+      );
+      expect(
+        _eval('let x = 2.0; out[0] = pow(x, 0.5);', type: 'f32'),
+        f32(math.sqrt(2.0)),
+      );
+      expect(
+        _eval(
+          'let v = sin(vec2(0.0, 0.5)) + pow(vec2(2.0), vec2(3.0)); '
+          'out[0] = v.y;',
+          type: 'f32',
+        ),
+        f32(f32(math.sin(0.5)) + 8.0),
+      );
+      expect(() => _eval('out[0] = sin(1u);'), _refusedAt(5, 'sin()'));
+      expect(
+        () => _eval('out[0] = pow(vec2(1.0), 2.0);', type: 'f32'),
+        _refusedAt(5, 'pow()'),
+      );
+    });
+
+    test(
+      'round breaks ties to even, and a conversion truncates and clamps',
+      () {
+        expect(_eval('out[0] = round(2.5);', type: 'f32'), 2.0);
+        expect(_eval('out[0] = round(3.5);', type: 'f32'), 4.0);
+        expect(_eval('let x = -2.7; out[0] = i32(x);', type: 'i32'), -2);
+        expect(_eval('let x = -2.7; out[0] = u32(x);'), 0);
+        expect(_eval('let x = 1e20; out[0] = u32(x);'), 0xFFFFFFFF);
+      },
+    );
+
+    test('loops, vectors and select', () {
+      expect(
+        _eval('''
+var total = 0u;
+for i in 0u .. 10u {
+  if i == 7u { break; }
+  if i % 2u == 0u { continue; }
+  total += i;
+}
+out[0] = total;'''),
+        1 + 3 + 5,
+      );
+      expect(
+        _eval(
+          'let v = vec3(1.0, 2.0, 3.0) * 2.0; out[0] = v.z + v.x;',
+          type: 'f32',
+        ),
+        8.0,
+      );
+      expect(_eval('out[0] = select(1u > 2u, 5u, 6u);'), 6);
+    });
+
+    test(
+      'a buffer read past its end is zero, and a write there is dropped',
+      () {
+        final kernel = ComputeKernel.parse(_scale);
+        final values = ByteData(8)
+          ..setFloat32(0, 1.5, Endian.little)
+          ..setFloat32(4, 2, Endian.little);
+        kernel.toDartKernel().dispatch(
+          KernelInputs(buffers: {'values': values, 'factor': ByteData(0)}),
+          1,
+        );
+        expect(values.getFloat32(0, Endian.little), 0);
+        expect(values.getFloat32(4, Endian.little), 0);
+      },
+    );
+
+    test('textures load and images store as RGBA8 levels, ties to even', () {
+      final kernel = ComputeKernel.parse('''
+compute Copy {
+  workgroup 2, 2;
+  texture source: rgba8;
+  image target: rgba8;
+  kernel {
+    let x = i32(id.x);
+    let y = i32(id.y);
+    store(target, x, y, load(source, x, y) * 0.5);
+  }
+}
+''');
+      final source = KernelPixels(
+        2,
+        2,
+        rgba: Uint8List.fromList(<int>[for (var i = 0; i < 16; i++) i * 17]),
+      );
+      final target = KernelPixels(2, 2);
+      kernel.toDartKernel().dispatch(
+        KernelInputs(textures: {'source': source}, images: {'target': target}),
+        1,
+      );
+      expect(target.rgba, <int>[
+        for (var i = 0; i < 16; i++) unormLevel(unormValue(i * 17) * 0.5),
+      ]);
+    });
+  });
+
+  group('WGSL', () {
+    test('one module, bindings in group zero, the entry point main', () {
+      // Mutation: drop the prefixes, and a kernel with a local called
+      // `ptr` is a WGSL syntax error on the device.
+      final wgsl = ComputeKernel.parse(_scale).toWgsl();
+      expect(wgsl.entryPoint, 'main');
+      expect(
+        wgsl.code,
+        contains(
+          '@group(0) @binding(0) var<storage, read_write> b_values: array<f32>;',
+        ),
+      );
+      expect(
+        wgsl.code,
+        contains(
+          '@group(0) @binding(1) var<storage, read> b_factor: array<f32>;',
+        ),
+      );
+      expect(wgsl.code, contains('@compute @workgroup_size(64, 1, 1)'));
+      expect(wgsl.workgroupSize, const WorkgroupSize(64, 1, 1));
+    });
+
+    test('sin, cos and pow are WGSL\'s own', () {
+      final wgsl = ComputeKernel.parse('''
+compute Wave {
+  workgroup 1;
+  buffer out: f32[] read_write;
+  kernel { out[0] = pow(sin(out[0]), cos(out[1])); }
+}
+''').toWgsl().code;
+      expect(wgsl, contains('pow(sin(b_out[0i]), cos(b_out[1i]))'));
+    });
+
+    test('every f32 product and sum goes through f3d_exact', () {
+      // Mutation: emit the product bare, and Metal fuses it into the sum
+      // beside it: the conformance kernels then differ by an ulp.
+      final wgsl = ComputeKernel.parse(_scale).toWgsl().code;
+      expect(wgsl, contains('f3d_exact(b_values[l_i] * b_factor[0i])'));
+      expect(wgsl, contains('f3d_zero = f3d_id.z >> 31u;'));
+    });
+
+    test('the barrier survives being applied twice', () {
+      // Dawn compiles under Metal's relaxed math, which folds `0.0 + x` to
+      // `x`; a sum that starts at zero then wraps one barrier straight in
+      // another, and an exclusive or twice with one value is no or at all.
+      // The product beneath came out bare and fused into the next sum: the
+      // skinning kernel an ulp off in 26 values of 512 on Chrome. An
+      // inclusive or with zero survives a second one. Mutation: go back to
+      // `^`, and this fails here and on Chrome's conformance run.
+      final wgsl = ComputeKernel.parse(_scale).toWgsl().code;
+      expect(wgsl, contains('bitcast<u32>(x) | f3d_zero'));
+      expect(wgsl, isNot(contains('^')));
+    });
+
+    test('an image store is rounded to its level, ties to even', () {
+      // A level halfway between two was stored half up on Chrome, where the
+      // Dart kernel and wgpu round it to even: the blur kernel one level off
+      // in 12 texels of 256. The store is handed the level's own value, which
+      // every conversion reads back as that level. Mutation: store the sum
+      // as it is.
+      final wgsl = ComputeKernel.parse('''
+compute Copy {
+  workgroup 2, 2;
+  texture source: rgba8;
+  image target: rgba8;
+  kernel {
+    store(target, i32(id.x), i32(id.y), load(source, i32(id.x), i32(id.y)));
+  }
+}
+''').toWgsl().code;
+      expect(wgsl, contains('textureStore(b_target, '));
+      expect(wgsl, contains(', f3d_unorm8(textureLoad('));
+      expect(
+        wgsl,
+        contains(
+          'return round(clamp(v, vec4<f32>(0.0f), vec4<f32>(1.0f)) * '
+          '255.0f) / 255.0f;',
+        ),
+      );
+    });
+  });
+
+  group('bundles', () {
+    test('a kernel bundle carries each kernel by name, and reads back', () {
+      final bundle = ShaderBundle.decode(
+        kernelBundle('k', ComputeKernel.parseAll(_scale)).encode(),
+      );
+      expect(bundle.names, <String>['Scale']);
+      expect(kernelsOf(bundle)['Scale']!.bindings, hasLength(2));
+    });
+
+    test('a kernel that does not read refuses its bundle, by name', () {
+      final bundle = ShaderBundle(
+        name: 'bad',
+        sdk: '',
+        stages: const <ShaderBundleStage>[
+          ShaderBundleStage('Scale', fragment: false),
+        ],
+        sections: <String, ByteData>{
+          ShaderBundle.kernelSection: encodeKernelSection(<String, String>{
+            'Scale': 'compute Scale { kernel { oops } }',
+          }),
+        },
+      );
+      expect(
+        () => kernelsOf(bundle),
+        throwsA(
+          isA<ShaderBundleException>()
+              .having((e) => e.name, 'name', 'bad')
+              .having((e) => e.reason, 'reason', contains('"Scale"')),
+        ),
+      );
+    });
+  });
+
+  group('atomics', () {
+    const lists = '''
+kernel 2
+compute Lists {
+  workgroup 4;
+  buffer cell: u32[] read;
+  buffer head: u32[] atomic;
+  buffer next: u32[] read_write;
+  buffer count: u32[] atomic;
+  kernel {
+    let i = id.x;
+    if i >= len(cell) { return; }
+    next[i] = atomicExchange(head, cell[i], i);
+    atomicAdd(count, cell[i], 1u);
+  }
+}
+''';
+
+    test('many invocations build one list each cell, and count it', () {
+      // Mutation: write the old head instead of the exchange's answer, and
+      // every list loses all but its last element.
+      final cells = <int>[0, 1, 0, 2, 1, 0];
+      final cell = ByteData(cells.length * 4);
+      for (var i = 0; i < cells.length; i++) {
+        cell.setUint32(i * 4, cells[i], Endian.little);
+      }
+      final head = ByteData(12);
+      for (var c = 0; c < 3; c++) {
+        head.setUint32(c * 4, 0xFFFFFFFF, Endian.little);
+      }
+      final next = ByteData(cells.length * 4);
+      final count = ByteData(12);
+      ComputeKernel.parse(lists).toDartKernel().dispatch(
+        KernelInputs(
+          buffers: {'cell': cell, 'head': head, 'next': next, 'count': count},
+        ),
+        2,
+      );
+      for (var c = 0; c < 3; c++) {
+        final seen = <int>[];
+        for (
+          var j = head.getUint32(c * 4, Endian.little);
+          j != 0xFFFFFFFF;
+          j = next.getUint32(j * 4, Endian.little)
+        ) {
+          seen.add(j);
+        }
+        expect(seen..sort(), <int>[
+          for (var i = 0; i < cells.length; i++)
+            if (cells[i] == c) i,
+        ]);
+        expect(count.getUint32(c * 4, Endian.little), seen.length);
+      }
+    });
+
+    test('an atomic call is WGSL\'s atomic on the element', () {
+      final wgsl = ComputeKernel.parse(lists).toWgsl().code;
+      expect(wgsl, contains('array<atomic<u32>>'));
+      expect(wgsl, contains('atomicExchange(&b_head[b_cell[l_i]], l_i)'));
+      expect(wgsl, contains('_ = atomicAdd(&b_count[b_cell[l_i]], 1u);'));
+      final store = ComputeKernel.parse(
+        '''
+kernel 2
+compute Clear {
+  buffer head: u32[] atomic;
+  kernel { atomicStore(head, id.x, 7u); out(); }
+}
+'''
+            .replaceAll(' out();', ''),
+      ).toWgsl().code;
+      expect(store, contains('atomicStore(&b_head[(f3d_id).x], 7u);'));
+    });
+
+    test('atomics are refused where they cannot mean what they say', () {
+      // Mutation: read an atomic buffer by index, and WGSL refuses the
+      // module at load, on the device, rather than here with a line.
+      expect(
+        () => ComputeKernel.parse(
+          'compute A { buffer h: u32[] atomic; kernel { } }',
+        ),
+        _refusedAt(1, 'kernel language 2'),
+      );
+      expect(
+        () => ComputeKernel.parse(
+          'kernel 2\ncompute A { buffer h: f32[] atomic; kernel { } }',
+        ),
+        _refusedAt(2, 'i32 or u32'),
+      );
+      expect(
+        () => ComputeKernel.parse(
+          'kernel 2\ncompute A { buffer h: u32[] atomic; '
+          'kernel { let x = h[0]; } }',
+        ),
+        _refusedAt(2, 'atomicLoad'),
+      );
+      expect(
+        () => ComputeKernel.parse(
+          'kernel 2\ncompute A { buffer h: u32[] read_write; '
+          'kernel { let x = atomicLoad(h, 0); } }',
+        ),
+        _refusedAt(2, 'not atomic'),
+      );
+    });
+  });
+}

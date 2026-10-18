@@ -10,6 +10,8 @@ part of 'arcade_game.dart';
 /// chase them. The ship stays faster than any bot, at
 /// [ArcadeGame.shipSpeed], or a hunter could never be rammed at all.
 final class ArcadeLevel {
+  /// A level of [bots] bots walking at [botSpeed], lost after [maxHits] hits.
+  /// By default none of them hunt and none of them dodge.
   const ArcadeLevel({
     required this.bots,
     required this.botSpeed,

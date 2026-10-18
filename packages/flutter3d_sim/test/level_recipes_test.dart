@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -122,7 +123,7 @@ void main() {
       final lintel = level.brushes.singleWhere(
         (Brush b) => b.material == 'wall' && b.size.y < 1.5,
       );
-      expect(lintel.centre.y, closeTo(3.5, 1e-6));
+      expect(lintel.center.y, closeTo(3.5, 1e-6));
       expect(lintel.size.x, closeTo(2.0, 1e-6));
       expect(lintel.shadowCasting, ShadowCasting.doubleSided);
       // A room reflects itself: one probe, half way up.

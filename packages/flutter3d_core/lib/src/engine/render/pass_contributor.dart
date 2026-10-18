@@ -2,10 +2,15 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/typed_blocks.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene.dart';
+import 'depth_turn.dart' show TurnedBundleEncoder;
+import 'draw_journal.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
@@ -27,10 +32,26 @@ export 'contributor_registry.dart';
 /// pipeline tracker describing a pipeline it replaced makes the next node
 /// skip a bind it needed.
 final class FramePassState {
+  /// The lighting model of the mesh pipeline bound now, or null when the
+  /// bound pipeline is not one of the lit ones and the next draw must bind.
   LightingModel? boundPipeline;
+
+  /// Whether the bound mesh pipeline is the skinned variant; null when
+  /// nothing known is bound.
   bool? boundSkinned;
+
+  /// Whether the bound mesh pipeline is the instanced variant; null when
+  /// nothing known is bound.
   bool? boundInstanced;
+
+  /// Whether the bound mesh pipeline is the lightmapped variant; null when
+  /// nothing known is bound.
   bool? boundLightmapped;
+
+  /// Whether the bound mesh pipeline is its lighting model's opaque variant —
+  /// `A1.2`, the stage with no reachable `discard`. Part of what is bound, as
+  /// the three above are.
+  bool? boundOpaque;
 
   /// The depth test the pass is currently set to.
   ///
@@ -43,8 +64,28 @@ final class FramePassState {
   /// Seeded with what the scene pass establishes for itself, and reseeded
   /// wherever that state is re-established.
   CompareFunction depthCompare = CompareFunction.less;
+
+  /// Whether the pass now encoding may turn alpha into coverage — `P7`: it
+  /// multisamples and the device can. Set by the scene pass for its own
+  /// draws and cleared before its contributors.
+  bool coverageAvailable = false;
+
+  /// What `setAlphaToCoverage` was last told, tracked as [depthCompare] is so
+  /// a scene without the setting emits no call at all. Every pass starts off.
+  bool alphaToCoverage = false;
+
+  /// Whether a material asked for alpha to coverage this frame and was drawn
+  /// with its hard cutoff instead — `FrameResult.alphaToCoverageDeclined`.
+  bool coverageDeclined = false;
+
+  /// Draw calls issued into the pass so far, a count. A plugin that draws
+  /// adds its own.
   int drawCalls = 0;
+
+  /// How many times a mesh pipeline was bound, a count.
   int pipelineSwitches = 0;
+
+  /// Draws of skinned meshes this frame, a count.
   int skinnedDraws = 0;
 
   /// Triangles actually drawn this frame — `view-17`'s own row: a batch's
@@ -58,6 +99,11 @@ final class FramePassState {
   /// not one instance of itself, so it does not add to this count.
   int instances = 0;
 
+  /// Where each draw is written down, for the one frame somebody asked to
+  /// see them — `P12`. Null otherwise; see [DrawJournal] for why a draw site
+  /// writes `journal?.add(...)` and nothing more.
+  DrawJournal? journal;
+
   /// Call after encoding anything that binds its own pipeline.
   ///
   /// The tracker describes the mesh pipelines only, so a pass that replaced
@@ -68,6 +114,7 @@ final class FramePassState {
     boundSkinned = null;
     boundInstanced = null;
     boundLightmapped = null;
+    boundOpaque = null;
   }
 }
 
@@ -87,6 +134,7 @@ final class FramePassState {
 /// shadows a draw gets is therefore a decision at the call site, where it can be
 /// read, rather than a field lookup two thousand lines away.
 final class SceneShadows {
+  /// Shadow textures to sample; each null one samples as unoccluded.
   const SceneShadows({
     this.directional,
     this.directionalMoments,
@@ -108,7 +156,7 @@ final class SceneShadows {
   ///
   /// [casterIndex] is the frame's, not the node's — it says which light the
   /// directional map belongs to, and a node either has that map or does not.
-  static SceneShadows from(NodeFrame frame, {int casterIndex = -1}) {
+  static SceneShadows from(RenderFrame frame, {int casterIndex = -1}) {
     final resources = frame.resources;
     TextureHandle? declared(ResourceId id) =>
         resources.declares(id) ? resources.tryTexture(id) : null;
@@ -161,6 +209,9 @@ final class SceneShadows {
   /// `FrameGraphNode.keeps` — so a texture here may hold pixels an earlier
   /// frame drew, deliberately, and is exactly as valid to sample for it.
   final TextureHandle? point;
+
+  /// The atlas of the static point-shadow bake, or null when none is bound.
+  /// Maintained across frames, as [point] is.
   final TextureHandle? pointStatic;
 }
 
@@ -179,13 +230,15 @@ final class SceneShadows {
 /// A description rather than a builder, because everything here is a fact about
 /// one draw and none of it is a decision made in stages.
 final class FullscreenDraw {
+  /// A draw of [fragment] over the whole of [target], with the given
+  /// [textures] and [uniforms] bound, linear-clamp sampling by default.
   const FullscreenDraw({
     required this.target,
     required this.fragment,
     this.textures = const <String, TextureHandle>{},
     this.uniforms = const <String, Map<String, Float32List>>{},
-    this.sampler = SamplerOptions.linearClamp,
-    this.samplers = const <String, SamplerOptions>{},
+    this.sampler = SamplerDescriptor.linearClamp,
+    this.samplers = const <String, SamplerDescriptor>{},
     this.loadAction = LoadAction.dontCare,
   });
 
@@ -208,10 +261,10 @@ final class FullscreenDraw {
   /// filtered at all — and a single sampler for the draw could serve one of
   /// them or the other. It served the wrong one for as long as the pass has
   /// existed; see [sampler].
-  final Map<String, SamplerOptions> samplers;
+  final Map<String, SamplerDescriptor> samplers;
 
   /// How [slot] is sampled: its own entry in [samplers], or [sampler].
-  SamplerOptions samplerFor(String slot) => samplers[slot] ?? sampler;
+  SamplerDescriptor samplerFor(String slot) => samplers[slot] ?? sampler;
 
   /// Uniform block name, to member name, to the data for that member.
   ///
@@ -224,14 +277,14 @@ final class FullscreenDraw {
   /// would otherwise wrap the far edge onto the near one.
   ///
   /// **An effect reading a buffer of *data* rather than colour wants
-  /// [SamplerOptions.nearestClamp], and two of them were not asking for it.**
-  /// The surface buffer holds an octahedral normal in `rg` and a window depth
-  /// in `a`; the average of two octahedral normals is not the encoding of any
+  /// [SamplerDescriptor.nearestClamp], and two of them were not asking for it.**
+  /// The surface buffer holds an octahedral normal in `rg` and the depth
+  /// along the view axis in metres in `a`; the average of two octahedral normals is not the encoding of any
   /// normal, which is the sentence `ssao.frag` opens with to explain why
   /// reading that buffer switches multisampling off — and the pass that says
   /// it was itself sampling the buffer bilinearly. Per-slot overrides live in
   /// [samplers].
-  final SamplerOptions sampler;
+  final SamplerDescriptor sampler;
 
   /// Discarding by default, because nothing under a full-screen pass survives
   /// it and loading what was there costs bandwidth for pixels about to be
@@ -251,7 +304,11 @@ final class FullscreenDraw {
 ///
 /// An interface rather than the [Renderer] class so a plugin cannot reach past
 /// what it was offered, and so a test can drive one without a GPU context.
-abstract interface class RenderServices {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class RenderServices {
   /// Draws every visible mesh of [scene] into an open pass, as the renderer
   /// draws the world.
   ///
@@ -263,24 +320,15 @@ abstract interface class RenderServices {
   /// only what the calling node declared a read of, so a node that never
   /// claimed the atlas gets nothing to sample rather than a renderer field.
   ///
-  /// Takes the [NodeFrame] rather than the settings, the pass state and the
+  /// Takes the [RenderFrame] rather than the settings, the pass state and the
   /// shadows separately. Those three came off the frame at every call site, and
   /// the shadows had to be assembled there too — three lines a caller could get
   /// wrong quietly. Getting them wrong looked like a weapon lit as though the
   /// room were not, and there was no way for this method to tell.
   ///
-  /// [viewProjection] stays a parameter because it is the one thing genuinely
-  /// the caller's: the view model draws the same scene through a different
-  /// camera, which is what makes it a separate pass. Build it with
-  /// `toDepthRange`, or it is right on one backend and wrong on the other.
-  void encodeScene({
-    required NodeFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  });
+  /// **Everything here is in scene space** — see [SceneEncodeRequest] and
+  /// "Space" in `docs/CONTRACTS.md`.
+  void encodeScene(SceneEncodeRequest request);
 
   /// Draws one full-screen pass, described by [draw].
   ///
@@ -295,18 +343,19 @@ abstract interface class RenderServices {
   /// callers do not use is an extension point nobody has checked, and the first
   /// plugin to try it finds out what it cannot express.
   ///
-  /// **Where the fragment stage comes from differs per backend**, and all three
-  /// answers are worth having in one place, because the question arrives as
-  /// "why does my effect work in tests and not on the device":
-  ///
-  ///  * the software rasteriser takes a Dart object — add it to the map handed
-  ///    to `CpuShaderLibrary` alongside `builtinCpuShaders()`;
-  ///  * WebGL compiles GLSL at runtime — put the source in the `ShaderSources`
-  ///    handed to `WebGlDevice.create`;
-  ///  * Impeller compiles ahead of time, so an application ships its own bundle
-  ///    and names it in `GpuRenderBackend.create(extraBundles: [...])`. Those
-  ///    are searched before the engine's, so a stage sharing a name with one of
-  ///    the engine's replaces it.
+  /// **Where the fragment stage comes from is the same on every backend**:
+  /// one entrance, so an effect that works in a test works on the device.
+  /// Write the stage as a `.f3dmat` source with a `fullscreen` stage. Each
+  /// backend's `MaterialCompiler`, found in the `MaterialCompilerRegistry`,
+  /// turns it into that backend's section of a shader bundle: in the build,
+  /// for every backend the project ships (Impeller's only way, since
+  /// `impellerc` does not ship with a game), or while the game runs through
+  /// `RuntimeShaders` on the software rasteriser, WebGL2 and WebGPU. Load
+  /// the bundle with `GraphicsDevice.loadShaders` and hand the library to
+  /// `RendererSteps.addMaterials`; the stage the renderer's library then
+  /// answers for the material's name is [FullscreenDraw.fragment]. A
+  /// backend's own shader map is not an entrance for a stage of an
+  /// application's own.
   void drawFullscreen(FullscreenDraw draw);
 }
 
@@ -314,24 +363,30 @@ abstract interface class RenderServices {
 ///
 /// It carries a pass, and that is the whole distinction: a contributor draws
 /// into a pass it did not make, so it must be handed one. A node owns its pass
-/// and therefore creates one, which is why it takes [NodeFrame] instead. The
+/// and therefore creates one, which is why it takes a `RenderFrame` instead. The
 /// two were one type until the scene pass was extracted and the difference
 /// stopped being expressible.
-final class ContributorFrame {
+final class ContributorFrame extends FrameContext {
+  /// A frame for a contributor to draw into [encoder]; the renderer's to
+  /// make.
   ContributorFrame({
     required this.encoder,
-    required this.device,
-    required this.services,
-    required this.state,
-    required this.settings,
-    required this.width,
-    required this.height,
-    this.view,
+    required super.device,
+    required super.services,
+    required super.settings,
+    required super.width,
+    required super.height,
+    super.view,
     this.viewProjection,
-    this.frameIndex = 0,
+    super.frameIndex,
+    super.timeSeconds,
+    super.origin,
+    super.views,
+    super.viewIndex,
     this.temporal = false,
     this.lights,
     this.sceneDepth,
+    this.reversedDepth = false,
   });
 
   /// The pass being built. Drawing into it is the point.
@@ -342,24 +397,16 @@ final class ContributorFrame {
   /// comment.
   final PassEncoder encoder;
 
-  /// The backend, for a contributor that builds its own pipeline out of the
-  /// bundle's stages. Passed as a value; there is no global to reach for.
-  final GraphicsDevice device;
-
-  final RenderServices services;
-  final FramePassState state;
-  final RenderSettings settings;
-
-  final int width;
-  final int height;
-
-  /// The view being drawn.
-  final RenderView? view;
+  /// The view-projection this pass draws with: jittered while a temporal
+  /// resolve runs, and reversed under `RenderSettings.reversedDepth` —
+  /// what a contributor multiplies its positions by to land on the same
+  /// pixels as the engine's own draws. Null outside a renderer.
+  ///
+  /// It takes **scene-space** positions, float32 offsets from
+  /// [FrameContext.origin] (`Scene.origin`), as every vertex the engine draws
+  /// is; a contributor holding a `WorldPosition` subtracts the origin in
+  /// doubles first (`Scene.toScene`).
   final vm.Matrix4? viewProjection;
-
-  /// `Renderer.frameIndex` for this frame, for a contributor whose noise has
-  /// to change from frame to frame for a temporal resolve to average it.
-  final int frameIndex;
 
   /// Whether a temporal resolve integrates this frame — the setting, on a
   /// device that can run it. What a contributor asks before it trades a
@@ -377,7 +424,7 @@ final class ContributorFrame {
   /// whatever the opaque half drew there, and zero where it drew nothing. The
   /// same size as the pass, so a fragment reads its own texel at
   /// `gl_FragCoord` over that size, rows counted as `FragCoordFromTop` counts
-  /// them. Read it with [SamplerOptions.nearestClamp]: its other channels are
+  /// them. Read it with [SamplerDescriptor.nearestClamp]: its other channels are
   /// an encoded normal, which a filter averages into nonsense.
   ///
   /// Given only to a contributor whose [PassContributor.readsSceneDepth] is
@@ -390,20 +437,86 @@ final class ContributorFrame {
   /// over after the resolve — and a contributor handed null draws as it would
   /// without asking.
   final TextureHandle? sceneDepth;
+
+  /// Whether this pass keeps its depth the other way round — near at one,
+  /// far at nought — as `RenderSettings.reversedDepth` draws it.
+  ///
+  /// **Nothing to do for a contributor that draws through
+  /// [viewProjection]**: the matrix is already reversed, and the pass turns
+  /// every depth test it is given — `less` stays "nearer wins" — so a
+  /// contributor written for the ordinary convention draws the same picture.
+  /// What has to ask is a stage that writes a depth of its own rather than
+  /// projecting one: the far plane is nought here, not one.
+  ///
+  /// **And a render bundle**, which keeps the depth tests it was recorded
+  /// with past the pass's turning: record one meant for this pass through
+  /// [createRenderBundleEncoder], and again when this changes.
+  final bool reversedDepth;
+
+  /// An encoder whose draws are kept as a [RenderBundle] for [encoder]'s
+  /// pass — `GraphicsDevice.createRenderBundleEncoder`, with its depth tests
+  /// turned as they are recorded while [reversedDepth] is true.
+  ///
+  /// A bundle is replayed as it was recorded, so the turning [encoder] does
+  /// to every depth test it is given cannot reach the tests inside one: a
+  /// bundle recorded with `less` straight from the device and replayed into
+  /// a reversed pass draws only what lies behind everything. Recorded through
+  /// this, `less` stays "nearer wins" in either convention. A bundle made
+  /// here belongs to this convention; when [reversedDepth] changes, record it
+  /// again.
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) {
+    final inner = device.createRenderBundleEncoder(descriptor);
+    return reversedDepth ? TurnedBundleEncoder(inner) : inner;
+  }
 }
 
 /// How a reactive sprite's coverage is worked out — `R4`, and the shapes
 /// `post/reactive_sprite.frag` knows, in its order.
-enum ReactiveShape {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ReactiveShape {
+  const ReactiveShape._(this.name);
+
   /// `particle.frag`'s procedural disc: a squared smoothstep from the middle.
-  disc,
+  static const ReactiveShape disc = ReactiveShape._('disc');
 
   /// `splat.frag`'s Gaussian, with the quad's coordinates in standard
   /// deviations.
-  gaussian,
+  static const ReactiveShape gaussian = ReactiveShape._('gaussian');
 
   /// The sprite texture's own alpha.
-  sprite,
+  static const ReactiveShape sprite = ReactiveShape._('sprite');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ReactiveShape> values = <ReactiveShape>[
+    disc,
+    gaussian,
+    sprite,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ReactiveShape? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
+
+  @override
+  String toString() => 'ReactiveShape.$name';
 }
 
 /// Everything a contributor is handed to mark its pixels reactive — `R4`.
@@ -420,7 +533,7 @@ enum ReactiveShape {
 /// surface buffer instead, as the velocity passes do, which is why a draw
 /// here binds through [bindSprite] rather than naming the buffer itself.
 final class ReactiveFrame {
-  ReactiveFrame({
+  ReactiveFrame._({
     required this.encoder,
     required this.device,
     required this.view,
@@ -440,10 +553,12 @@ final class ReactiveFrame {
   /// The pass, open on the velocity target with the view's viewport set.
   final PassEncoder encoder;
 
+  /// The device the pass runs on, for what the contributor creates or
+  /// uploads.
   final GraphicsDevice device;
 
   /// The view the velocity belongs to.
-  final RenderView view;
+  final CameraView view;
 
   /// The matrix the scene pass drew [view] with — jittered while the resolve
   /// runs — so a mark lands on the pixels the draw covered there.
@@ -488,13 +603,13 @@ final class ReactiveFrame {
         fragment,
         'surface_texture',
         _surface,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       )
       ..bindTexture(
         fragment,
         'sprite_texture',
         texture ?? _white,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       );
   }
 }
@@ -513,12 +628,114 @@ final class ReactiveFrame {
 /// `LightListInfo` block and `light_list_texture` sampler. [bind] writes all
 /// three, and binds a stand-in for the texture when the frame has no list,
 /// because a declared sampler nobody binds is a native crash on Metal.
-abstract interface class ContributorLights {
-  /// Binds the lights reaching a sphere at [centre] of [radius] to [stage].
-  void bind(
-    PassEncoder encoder,
-    ShaderHandle stage, {
-    required vm.Vector3 centre,
-    required double radius,
-  });
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ContributorLights {
+  /// Binds the lights reaching the sphere [LightBindRequest] describes to
+  /// its stage.
+  void bind(LightBindRequest request);
 }
+
+/// What [ContributorLights.bind] is handed: where to bind, and the sphere
+/// the lights must reach.
+///
+/// **One object, so a minor can hand the renderer more** — a light mask, a
+/// cap on the count — without breaking a contributor written against 1.0.
+/// **Mutable**, so a contributor that binds every frame keeps one and sets
+/// it, and a frame allocates nothing for it; the renderer reads it during
+/// the call and does not keep it.
+final class LightBindRequest {
+  /// A request to bind the lights near the sphere at [center] with [radius]
+  /// into [stage] on [encoder].
+  LightBindRequest({
+    required this.encoder,
+    required this.stage,
+    required this.center,
+    required this.radius,
+  });
+
+  /// The open pass the draw is encoded into.
+  PassEncoder encoder;
+
+  /// The stage that declares `lib/contributor_lights.glsl`.
+  ShaderHandle stage;
+
+  /// The sphere's center, in scene space.
+  vm.Vector3 center;
+
+  /// The sphere's radius, in meters.
+  double radius;
+}
+
+/// What [RenderServices.encodeScene] is handed: the scene, the pass it is
+/// drawn into, and the camera it is drawn through.
+///
+/// **One object, so a minor can hand the renderer more** — a layer mask, a
+/// clip plane — without breaking a node or a test double written against
+/// 1.0.
+///
+/// **Everything here is in scene space**: [viewProjection] takes a point
+/// relative to `Scene.origin` to the clip space of [encoder]'s pass, and
+/// [cameraPosition] is the eye in that space (what the camera node's
+/// `worldMatrix` says), not a world position.
+final class SceneEncodeRequest {
+  /// A request to encode [scene] into [encoder] for [frame], seen through
+  /// [viewProjection] from [cameraPosition].
+  const SceneEncodeRequest({
+    required this.frame,
+    required this.encoder,
+    required this.scene,
+    required this.viewProjection,
+    required this.cameraPosition,
+    this.casterIndex = -1,
+  });
+
+  /// The frame being drawn. The shadows a draw samples come from
+  /// [SceneShadows.from] over it: only what the calling node declared a
+  /// read of.
+  final RenderFrame frame;
+
+  /// The open pass.
+  final PassEncoder encoder;
+
+  /// What is drawn: every visible mesh of it.
+  final Scene scene;
+
+  /// The one thing genuinely the caller's: the view model draws the same
+  /// scene through a different camera, which is what makes it a separate
+  /// pass. Build it with `toDepthRange`, or it is right on one backend and
+  /// wrong on the other — and, drawing into a [ContributorFrame]'s pass
+  /// rather than one of its own, with `toReversedDepth` first wherever
+  /// [ContributorFrame.reversedDepth] says that pass runs reversed.
+  final vm.Matrix4 viewProjection;
+
+  /// The eye, in scene space.
+  final vm.Vector3 cameraPosition;
+
+  /// Which light the frame's directional shadow map belongs to, as
+  /// [SceneShadows.from] takes it; -1 for none.
+  final int casterIndex;
+}
+
+/// A [ReactiveFrame], for the renderer that draws the reactive mask. Not
+/// exported by `flutter3d_core.dart`: the block it binds through is the
+/// engine's own.
+ReactiveFrame newReactiveFrame({
+  required PassEncoder encoder,
+  required GraphicsDevice device,
+  required CameraView view,
+  required vm.Matrix4 viewProjection,
+  required TextureHandle surface,
+  required TextureHandle white,
+  required ReactiveInfoBlock info,
+}) => ReactiveFrame._(
+  encoder: encoder,
+  device: device,
+  view: view,
+  viewProjection: viewProjection,
+  surface: surface,
+  white: white,
+  info: info,
+);

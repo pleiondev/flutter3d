@@ -6,11 +6,18 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `depth-of-field` page: a row of posts going back from the eye,
+/// through a thin lens. Its check is that the depth of field pass ran.
 final class DepthOfFieldDemo extends ShowcaseDemo {
+  /// How far from the eye the lens is focused, in metres, 1 to 11.
   double focusDistance = 4.0;
+
+  /// The lens's f-number, 1.4 to 16: the smaller, the shallower the focus.
   double aperture = 2.0;
+
+  /// The lens's focal length in metres, 0.024 to 0.135, shown as 24 to 135
+  /// mm.
   double focalLength = 0.085;
 
   @override
@@ -35,9 +42,9 @@ final class DepthOfFieldDemo extends ShowcaseDemo {
       scene.add(
         MeshNode(
           post,
-          Material(
+          RenderMaterial(
             name: 'post $i',
-            baseColor: Vector4(0.85, 0.4 + i * 0.08, 0.2, 1.0),
+            baseColor: LinearColor.fromSrgb(0.85, 0.4 + i * 0.08, 0.2, 1.0),
           ),
           name: 'post $i',
         )..setPosition(0.0, 0.0, z),
@@ -45,7 +52,7 @@ final class DepthOfFieldDemo extends ShowcaseDemo {
     }
     // #endregion row
     return scene..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
     );
   }

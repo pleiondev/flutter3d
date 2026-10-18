@@ -7,6 +7,8 @@ import 'package:vector_math/vector_math.dart';
 /// two are the same kind of thing and a recorded lap can be played back through
 /// either. Values are held between steps rather than being events: a throttle
 /// is a position, not a press.
+///
+/// A driver, the player's or an AI's, writes one made with `VehicleInput()`.
 final class VehicleInput {
   /// How hard the driven wheels are being turned, from nought to one.
   double throttle = 0.0;
@@ -16,6 +18,7 @@ final class VehicleInput {
   double brake = 0.0;
 
   /// Steering, from `-1` (full left) to `1` (full right).
+  /// Unitless.
   double steer = 0.0;
 
   /// Locks the wheels. Not a drift button — see [VehicleController.slipAngle]
@@ -38,6 +41,8 @@ final class VehicleInput {
   /// driven in somebody's wake is driven in it again.
   double shelter = 0.0;
 
+  /// Lets go of everything: every number back to nought and every flag to
+  /// false.
   void reset() {
     throttle = 0.0;
     brake = 0.0;
@@ -47,6 +52,7 @@ final class VehicleInput {
     shelter = 0.0;
   }
 
+  /// Copies every field of [other] into this one.
   void setFrom(VehicleInput other) {
     throttle = other.throttle;
     brake = other.brake;
@@ -67,7 +73,11 @@ final class VehicleInput {
 /// be four rays with springs on them. Everything above has to survive that
 /// change without noticing it, so the questions it may ask are fixed now, while
 /// there is still only one thing answering them.
-abstract interface class VehicleController {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class VehicleController {
   /// Where the car is. The body's centre, not the wheels.
   Vector3 get position;
 
@@ -103,7 +113,7 @@ abstract interface class VehicleController {
   double get slipRatio;
 
   /// Whether the car is on something.
-  bool get grounded;
+  bool get isGrounded;
 
   /// How hard something pushed the car back this step, in metres per second
   /// taken out of it. Zero on a clean lap.
@@ -120,8 +130,8 @@ abstract interface class VehicleController {
   /// to know which class it has.
   /// **A number, and that is why it is still here** while the flags around the
   /// genre became events. An edge — jumped, landed, crossed the line — is a
-  /// moment, and a moment belongs in the step's buffer where two of them can be
-  /// told apart and put in order. This is how hard the car is being scraped or
+  /// moment, and a moment belongs among the step's events where two of them
+  /// can be told apart and put in order. This is how hard the car is being scraped or
   /// struck *now*, which is state, and a game implementing this interface says
   /// it by answering rather than by being handed a sink to write into.
   double get impactThisStep;
@@ -140,15 +150,15 @@ abstract interface class VehicleController {
   /// volumes lying on the road meet.
   Collider get collider;
 
-  /// Advances one fixed step.
-  void step(double dt, VehicleInput input);
+  /// Advances one fixed step of the step's length, on its input.
+  void step(VehicleStep context);
 
   /// Puts the car somewhere, stopped and facing a given way.
   ///
   /// For the starting grid and for being put back on the track. Everything
   /// carried between steps is dropped, so that a car returning from a spin does
   /// not arrive still spinning.
-  void placeAt(Vector3 position, double headingYaw, {double? trackDistance});
+  void placeAt(VehiclePlacement placement);
 
   /// Everything about this car that a race is made of.
   ///
@@ -167,4 +177,44 @@ abstract interface class VehicleController {
   /// whatever the car has now, which is what lets a save from an older build
   /// load at all.
   void restore(Map<String, Object?> from);
+}
+
+/// What [VehicleController.step] is handed, once a step per car.
+///
+/// **One object, so a minor can hand a car more** — the step's number, the
+/// track under it — without breaking a car written against 1.0.
+/// **Reused**: `RacingSimulation` owns one and sets it for each car each
+/// step, so a step allocates nothing for it; a car reads it during the call
+/// and does not keep it.
+final class VehicleStep {
+  /// A step [dt] seconds long, driven by [input].
+  VehicleStep({required this.dt, required this.input});
+
+  /// The step's length, in seconds.
+  double dt;
+
+  /// What the driver asks of the car this step.
+  VehicleInput input;
+}
+
+/// What [VehicleController.placeAt] is handed, for the reason
+/// [VehicleStep] gives.
+final class VehiclePlacement {
+  /// A placement at [position] facing [headingYaw], at [trackDistance] when
+  /// the caller knows it.
+  const VehiclePlacement({
+    required this.position,
+    required this.headingYaw,
+    this.trackDistance,
+  });
+
+  /// Where the car's body goes.
+  final Vector3 position;
+
+  /// Which way it faces, in radians about the up axis.
+  final double headingYaw;
+
+  /// How far along the track that is, in meters, when the caller knows;
+  /// null to let the car work it out.
+  final double? trackDistance;
 }

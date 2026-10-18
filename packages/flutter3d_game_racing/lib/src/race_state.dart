@@ -13,6 +13,10 @@ export 'racer_progress.dart';
 /// commentator or a test can be handed the state of a race without being handed
 /// the machinery that runs one.
 final class RaceState {
+  /// A race of [racers] cars round [track] under [mode].
+  ///
+  /// A mode that starts behind lights opens in [RacePhase.countdown] with
+  /// [countdownSeconds] on the clock; any other opens running.
   RaceState({
     required this.mode,
     required this.track,
@@ -29,24 +33,30 @@ final class RaceState {
            : RacePhase.running,
        countdown = mode.startsBehindLights ? countdownSeconds : 0.0;
 
+  /// The rules: whether there are lights, whether anything is counted, and
+  /// whether the lap count ends a car's race.
   final RaceMode mode;
+
+  /// The circuit, whose length [positionOf] ranks laps by.
   final TrackSpline track;
 
   /// How many laps a race is. Ignored in the modes that do not end.
   final int laps;
 
+  /// How long the countdown before the start lasts, in seconds.
   final double countdownSeconds;
 
   /// One per car, in the order the cars were given. Nought is the player.
   final List<RacerProgress> progress;
 
+  /// Where the race has got to: on the lights, running, or over.
   RacePhase phase;
 
   /// Seconds left on the lights.
   double countdown;
 
   /// The whole race clock, in simulated seconds.
-  double elapsed = 0.0;
+  double elapsedSeconds = 0.0;
 
   /// Where this car is running, counting from one.
   ///
@@ -66,14 +76,15 @@ final class RaceState {
   }
 
   bool _isAhead(RacerProgress other, RacerProgress mine) {
-    if (other.finished && mine.finished) {
+    if (other.isFinished && mine.isFinished) {
       return other.finishedAt! < mine.finishedAt!;
     }
-    if (other.finished != mine.finished) return other.finished;
+    if (other.isFinished != mine.isFinished) return other.isFinished;
     return other.progressAlong(track.length) > mine.progressAlong(track.length);
   }
 
   /// The quickest lap anybody has done, or null before there is one.
+  /// In seconds.
   double? get bestLap {
     double? best;
     for (final racer in progress) {
@@ -92,7 +103,7 @@ final class RaceState {
   Map<String, Object?> save() => <String, Object?>{
     'phase': phase.name,
     'countdown': countdown,
-    'elapsed': elapsed,
+    'elapsed': elapsedSeconds,
     'progress': <Map<String, Object?>>[
       for (final racer in progress) racer.save(),
     ],
@@ -105,9 +116,9 @@ final class RaceState {
   /// the snapshot machinery keeps, so that a save from a build with a smaller
   /// grid loads rather than refuses.
   void restore(Map<String, Object?> from) {
-    phase = from.enumOf('phase', RacePhase.values, phase);
-    countdown = from.number('countdown', countdown);
-    elapsed = from.number('elapsed');
+    phase = RacePhase.byName(from['phase']) ?? phase;
+    countdown = from.number('countdown', orElse: countdown);
+    elapsedSeconds = from.number('elapsed');
     final rows = from['progress'];
     if (rows is! List) return;
     for (var i = 0; i < progress.length && i < rows.length; i++) {
@@ -116,6 +127,9 @@ final class RaceState {
     }
   }
 
+  /// Calls [RacerProgress.clearStepFlags] on every car, which does nothing
+  /// now that a step's moments are events. The simulation calls it at the
+  /// top of each step.
   void clearStepFlags() {
     for (final racer in progress) {
       racer.clearStepFlags();

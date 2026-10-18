@@ -3,17 +3,21 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
+
 import 'cpu_shader_stage.dart';
 
 /// `prefix_sum.comp`: an inclusive prefix sum over 1024 unsigned integers in
 /// one workgroup of 256 invocations, phase by phase between its barriers.
-final class PrefixSumShader implements CpuComputeShader {
+final class PrefixSumShader extends CpuComputeShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `PrefixSum`.
   const PrefixSumShader();
 
   static const int _invocations = 256;
 
   @override
-  (int, int, int) get workgroupSize => (_invocations, 1, 1);
+  WorkgroupSize get workgroupSize => const WorkgroupSize(_invocations, 1, 1);
 
   @override
   void runWorkgroup((int, int, int) group, CpuComputeBindings bindings) {

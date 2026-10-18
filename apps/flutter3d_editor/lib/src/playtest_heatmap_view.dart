@@ -13,6 +13,8 @@ import 'playtest_report.dart';
 /// to prove directly than through a `WidgetTester`'s hit-testing, which
 /// only tells you the two agree, not that either is right.
 final class HeatmapLayout {
+  /// The layout of [report] fitted to [size], [margin] pixels in from every
+  /// edge.
   HeatmapLayout({
     required this.report,
     required this.size,
@@ -60,20 +62,27 @@ final class HeatmapLayout {
         : available.height / spanZ;
   }
 
+  /// The heatmap being laid out.
   final PlaytestReport report;
+
+  /// The space it is fitted to, in logical pixels.
   final Size size;
+
+  /// The empty border round the map, in logical pixels.
   final double margin;
 
   late final double _minX;
   late final double _minZ;
   late final double _scale;
 
+  /// How wide a cell is on screen, in logical pixels.
   double get cellPixels => report.cellSize * _scale;
 
   /// World `(x, z)` to a point on screen.
   Offset toScreen(double x, double z) =>
       Offset(margin + (x - _minX) * _scale, margin + (z - _minZ) * _scale);
 
+  /// The square [cell] covers on screen.
   Rect cellRect(HeatmapCell cell) {
     final topLeft = toScreen(
       cell.x * report.cellSize,
@@ -111,9 +120,14 @@ final class HeatmapLayout {
 /// `rp-02`'s own note on why "live play in the editor" was not the
 /// direction taken).
 final class PlaytestHeatmapView extends StatelessWidget {
+  /// A view of [report], telling [onDeathTap] which death was tapped.
   const PlaytestHeatmapView({super.key, required this.report, this.onDeathTap});
 
+  /// The heatmap shown.
   final PlaytestReport report;
+
+  /// Told the death a tap landed on, within reach of its marker; null when
+  /// taps do nothing.
   final void Function(DeathPoint death)? onDeathTap;
 
   @override

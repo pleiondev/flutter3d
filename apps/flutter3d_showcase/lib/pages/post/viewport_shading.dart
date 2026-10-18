@@ -8,7 +8,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `viewport-shading` page: the post stage drawn in a viewport shading
+/// mode. Its check is that the mode picked ran, and that off runs nothing.
 final class ViewportShadingDemo extends ShowcaseDemo {
+  /// Which mode is drawn, an index into the "Mode" choice.
   int mode = 1;
 
   static const List<ViewportShading> _modes = ViewportShading.values;

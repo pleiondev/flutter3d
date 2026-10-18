@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'key_ease.dart';
@@ -5,14 +7,18 @@ import 'particle.dart';
 
 /// One point on a [ParticleGradient].
 final class GradientKey {
+  /// The key [color] at [at], left by [ease], straight by default.
   const GradientKey(this.at, this.color, {this.ease = KeyEase.linear});
 
-  /// Where in the particle's life this key sits, in `[0, 1]`.
+  /// Where in the particle's life this key sits, in `[0, 1]`: a fraction of
+  /// its life.
   final double at;
 
-  /// Linear RGB with alpha as brightness, matching [Particle.color].
-  final Vector4 color;
+  /// Linear RGB with alpha as brightness, written into [Particle.linearRgba].
+  final LinearColor color;
 
+  /// How the colour leaves this key on its way to the next. Never read on
+  /// the last key.
   final KeyEase ease;
 }
 
@@ -23,16 +29,22 @@ final class GradientKey {
 /// how a colour ramp ends up with a grey frame in the middle that nobody put
 /// there. A gradient's keys are keys of the whole colour.
 final class ParticleGradient {
+  /// A gradient through [keys]. Asserts that there is at least one and
+  /// that they are ordered by [GradientKey.at].
   ParticleGradient(this.keys)
     : assert(keys.isNotEmpty, 'a gradient with no keys has no colour'),
       assert(_isSorted(keys), 'gradient keys must be ordered by `at`');
 
-  ParticleGradient.constant(Vector4 color)
+  /// A gradient that is [color] all its life.
+  ParticleGradient.constant(LinearColor color)
     : this(<GradientKey>[GradientKey(0.0, color)]);
 
-  ParticleGradient.linear(Vector4 from, Vector4 to)
+  /// A straight ramp from [from] at birth to [to] at death.
+  ParticleGradient.linear(LinearColor from, LinearColor to)
     : this(<GradientKey>[GradientKey(0.0, from), GradientKey(1.0, to)]);
 
+  /// The keys, ordered by [GradientKey.at]; the colour holds the first
+  /// key's before it and the last key's after it.
   final List<GradientKey> keys;
 
   static bool _isSorted(List<GradientKey> keys) {
@@ -51,11 +63,11 @@ final class ParticleGradient {
   void sampleInto(Vector4 out, double t) {
     final last = keys.length - 1;
     if (t <= keys[0].at) {
-      out.setFrom(keys[0].color);
+      _write(out, keys[0].color);
       return;
     }
     if (t >= keys[last].at) {
-      out.setFrom(keys[last].color);
+      _write(out, keys[last].color);
       return;
     }
 
@@ -65,18 +77,21 @@ final class ParticleGradient {
       if (t > b.at) continue;
       final span = b.at - a.at;
       if (span <= 0.0) {
-        out.setFrom(b.color);
+        _write(out, b.color);
         return;
       }
       final k = easeShape((t - a.at) / span, a.ease);
       out.setValues(
-        a.color.x + (b.color.x - a.color.x) * k,
-        a.color.y + (b.color.y - a.color.y) * k,
-        a.color.z + (b.color.z - a.color.z) * k,
-        a.color.w + (b.color.w - a.color.w) * k,
+        a.color.r + (b.color.r - a.color.r) * k,
+        a.color.g + (b.color.g - a.color.g) * k,
+        a.color.b + (b.color.b - a.color.b) * k,
+        a.color.a + (b.color.a - a.color.a) * k,
       );
       return;
     }
-    out.setFrom(keys[last].color);
+    _write(out, keys[last].color);
   }
+
+  static void _write(Vector4 out, LinearColor color) =>
+      out.setValues(color.r, color.g, color.b, color.a);
 }

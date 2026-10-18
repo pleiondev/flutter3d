@@ -14,15 +14,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 const double _barWidth = 300;
 
-const List<LodSpec> _threeLevels = <LodSpec>[
-  LodSpec(ratio: 1.0, maxScreenFraction: 1.0),
-  LodSpec(ratio: 0.5, maxScreenFraction: 0.4),
-  LodSpec(ratio: 0.15, maxScreenFraction: 0.1),
+const List<LodSettings> _threeLevels = <LodSettings>[
+  LodSettings(ratio: 1.0, maxScreenFraction: 1.0),
+  LodSettings(ratio: 0.5, maxScreenFraction: 0.4),
+  LodSettings(ratio: 0.15, maxScreenFraction: 0.1),
 ];
 
 Future<void> show(
   WidgetTester tester, {
-  List<LodSpec> lods = _threeLevels,
+  List<LodSettings> lods = _threeLevels,
   required void Function(int lodIndex, double maxScreenFraction)
   onThresholdChanged,
 }) => tester.pumpWidget(

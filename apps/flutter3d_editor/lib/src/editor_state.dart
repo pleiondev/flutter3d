@@ -23,6 +23,7 @@ sealed class EditorState {
 /// Before anything is known: the device has not opened, or the document has
 /// not been looked for yet.
 final class EditorOpening extends EditorState {
+  /// The state the editor starts in.
   const EditorOpening();
 }
 
@@ -32,8 +33,10 @@ final class EditorOpening extends EditorState {
 /// **A path that does not exist is a request to make one**, not a reason to
 /// stop — see `EditorCubit.nothingFound`.
 final class EditorChoosing extends EditorState {
+  /// A chooser offering [templates], saying [said].
   const EditorChoosing(this.templates, {required this.said});
 
+  /// What a new project can be made from.
   final List<Template> templates;
 
   /// What to say under the list of templates — usually why it is showing at
@@ -49,6 +52,7 @@ final class EditorChoosing extends EditorState {
 /// a state class that disagreed with the thing on screen the moment either one
 /// changed.
 final class EditorReady extends EditorState {
+  /// An open level being edited through [editing].
   const EditorReady({
     required this.editing,
     required this.assetRoot,
@@ -60,6 +64,7 @@ final class EditorReady extends EditorState {
     this.placing,
   });
 
+  /// The document being edited, its selection and its undo.
   final Editing editing;
 
   /// The directory this document's `assets/…` paths are relative to, if it
@@ -89,6 +94,10 @@ final class EditorReady extends EditorState {
 
   static const Object _unset = Object();
 
+  /// This state with the fields given replaced; the document, its asset root
+  /// and its looks stay what was opened. [placing] is cleared by passing
+  /// null.
+  // ignore: avoid-incomplete-copy-with, the document, its asset root and its looks stay what was opened.
   EditorReady copyWith({
     String? said,
     EditorAxis? axis,
@@ -109,10 +118,21 @@ final class EditorReady extends EditorState {
 
 /// Nothing could be opened, and this is why.
 final class EditorFailed extends EditorState {
+  /// A failure carrying what was thrown.
   const EditorFailed(this.error);
 
+  /// What opening the level threw.
   final Object error;
 }
 
 /// Which axis the size keys work on.
-enum EditorAxis { x, y, z }
+enum EditorAxis {
+  /// Across, the world's x.
+  x,
+
+  /// Up, the world's y.
+  y,
+
+  /// Along, the world's z.
+  z,
+}

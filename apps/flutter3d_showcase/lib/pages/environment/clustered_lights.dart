@@ -8,10 +8,17 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `clustered-lights` page: an eight by eight grid of coloured point
+/// lamps over a white floor. Its check is that a per-draw light list would
+/// leave 32 of the 64 out, which is the loss the cells take back.
 final class ClusteredLightsDemo extends ShowcaseDemo {
+  /// Whether the frame sorts lights into clusters; the "Clustered lights"
+  /// switch, read into `RenderSettings.clusteredLights` every frame.
   bool clustered = true;
+
+  /// How far each lamp reaches, in metres, from 0.4 to 3.0 on the "Light
+  /// range" slider; written into every lamp's `range` each frame.
   double range = 0.8;
 
   final List<LightNode> _lights = <LightNode>[];
@@ -35,14 +42,14 @@ final class ClusteredLightsDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region floor
     final Scene scene = Scene()
-      ..ambientIntensity = 0.03
+      ..ambientIntensity = 0.03 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(12.0, 0.1, 12.0)).build(),
           ),
-          Material(name: 'floor', lighting: LightingModel.lambert),
+          RenderMaterial(name: 'floor', lighting: LightingModel.lambert),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       );
@@ -54,9 +61,9 @@ final class ClusteredLightsDemo extends ShowcaseDemo {
         final LightNode light = LightNode(
           name: 'lamp $i $j',
           type: LightType.point,
-          intensity: 1.5,
+          intensity: 1.5 * LightNode.defaultIntensity,
           range: range,
-          color: _hue((i * 8 + j) / 64.0),
+          color: _hue((i * 8 + j) / 64.0).toLinearColor(),
         )..setPosition(i - 3.5, 0.3, j - 3.5);
         _lights.add(light);
         scene.add(light);

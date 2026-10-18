@@ -9,12 +9,13 @@ import 'scene_node.dart';
 /// Turntable controls: orbit a node around a target point.
 ///
 /// Drives a [SceneNode] rather than a camera, so the same controller can swing a
-/// light or a probe around a model. That separation is why Babylon's
-/// ArcRotateCamera behaviour is worth decomposing instead of copying: the orbit
-/// is a placement policy, not a property of a lens.
+/// light or a probe around a model: the orbit is a placement policy, not a
+/// property of a lens.
 ///
 /// Holds no Flutter types; the gesture bridge lives in the app layer.
 final class OrbitController {
+  /// An orbit placing [node] [distance] metres from [target] (the origin when
+  /// null) at [yaw] and [pitch] radians, applied at once.
   OrbitController(
     this.node, {
     Vector3? target,
@@ -23,20 +24,23 @@ final class OrbitController {
     this.pitch = 0.35,
     this.minDistance = 0.05,
     this.maxDistance = 1e5,
-    this.framingFov = math.pi / 4,
+    this.framingFovY = math.pi / 4,
   }) : target = target ?? Vector3.zero(),
-       orthoHeight = 2.0 * distance * math.tan(framingFov * 0.5) {
+       orthoHeight = 2.0 * distance * math.tan(framingFovY * 0.5) {
     apply();
   }
 
+  /// The node the controller places, usually a camera.
   SceneNode node;
 
   /// Point being orbited, in world space.
   final Vector3 target;
 
+  /// From [target] to the camera, in metres.
   double distance;
 
   /// Rotation about the world Y axis.
+  /// In radians.
   double yaw;
 
   /// Elevation. Clamped just short of the poles, because looking straight down
@@ -49,15 +53,17 @@ final class OrbitController {
   /// than it — see there for why a fixed floor made a small model
   /// unframeable.
   double minDistance;
+
+  /// The farthest the camera may go from [target], in metres.
   double maxDistance;
 
   /// The vertical angle the two lenses are kept in step through.
   ///
-  /// A perspective camera shows a target-height of `2·distance·tan(fov/2)`, and
+  /// A perspective camera shows a target-height of `2·distance·tan(fovY/2)`, and
   /// [orthoHeight] is held at that same value — so switching a viewport from
   /// one lens to the other leaves the model the size it already was, which is
   /// the whole point of having both.
-  final double framingFov;
+  final double framingFovY;
 
   /// The world height an orthographic lens shows, in the units the scene is in.
   ///
@@ -74,6 +80,9 @@ final class OrbitController {
   /// Radians per pixel of drag.
   double rotateSensitivity = 0.008;
 
+  /// Turns the orbit by a drag of [deltaYaw] and [deltaPitch] pixels, scaled
+  /// by [rotateSensitivity], with the pitch clamped short of straight up and
+  /// down. Cancels a turn that is still playing.
   void rotate(double deltaYaw, double deltaPitch) {
     // A hand on the mouse outranks a turn that is still playing: an animation
     // that kept running would drag the view out from under the drag.
@@ -122,7 +131,7 @@ final class OrbitController {
   /// orbit angle instead of only the one it was computed at.
   void frameBounds(
     Aabb3 bounds, {
-    double fovYRadians = math.pi / 4,
+    double fovY = math.pi / 4,
     double margin = 1.25,
   }) {
     target
@@ -141,7 +150,7 @@ final class OrbitController {
     // which is far closer than anybody orbits by hand and still far enough
     // out for the near plane `suggestedDepthRange` derives from it.
     minDistance = math.min(minDistance, radius * 0.1);
-    distance = (radius / math.sin(fovYRadians * 0.5) * margin).clamp(
+    distance = (radius / math.sin(fovY * 0.5) * margin).clamp(
       minDistance,
       maxDistance,
     );
@@ -152,7 +161,7 @@ final class OrbitController {
     // middle, so matching the diameter would frame the model eight per cent
     // larger in one lens than the other, and switching between them would make
     // it jump.
-    orthoHeight = 2.0 * distance * math.tan(fovYRadians * 0.5);
+    orthoHeight = 2.0 * distance * math.tan(fovY * 0.5);
     apply();
   }
 
@@ -161,13 +170,13 @@ final class OrbitController {
   /// A fixed 0.1..1000 range wastes most of the depth buffer on empty space and
   /// z-fights on small models; tying the range to the orbit distance keeps
   /// precision where the geometry actually is.
-  ({double near, double far}) suggestedDepthRange() {
+  ClipDistances suggestedDepthRange() {
     final near = math.max(distance * 0.01, 1e-4);
     // 10x the orbit distance covers the far side of anything frameBounds framed,
     // with room to zoom in. A larger multiplier only spends depth precision on
     // empty space, which is the very thing this method exists to avoid.
     final far = distance * 10.0 + 10.0;
-    return (near: near, far: far);
+    return ClipDistances(near: near, far: far);
   }
 
   Vector3 _upVector() {
@@ -286,4 +295,27 @@ final class OrbitController {
     if (t >= 1.0) _turnLength = 0.0;
     apply();
   }
+}
+
+/// A near and a far clip plane, as distances from the camera: what
+/// [OrbitController.suggestedDepthRange] answers.
+final class ClipDistances {
+  /// The planes [near] and [far].
+  const ClipDistances({required this.near, required this.far});
+
+  /// The distance to the near clip plane, in metres.
+  final double near;
+
+  /// The distance to the far clip plane, in metres.
+  final double far;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClipDistances && other.near == near && other.far == far;
+
+  @override
+  int get hashCode => Object.hash(near, far);
+
+  @override
+  String toString() => 'ClipDistances($near, $far)';
 }

@@ -84,16 +84,24 @@ import 'triangulate.dart';
 /// A plane, as the unit [normal] and the distance [w] along it from the
 /// origin — a point `p` lies on the plane exactly when `normal·p == w`.
 final class CsgPlane {
+  /// A plane facing [normal], [w] metres from the origin along it. The
+  /// normal is taken as given, not normalised.
   const CsgPlane(this.normal, this.w);
 
+  /// The plane through [a], [b] and [c], facing the side from which they
+  /// run anticlockwise. Three points on one line give a zero normal.
   factory CsgPlane.fromPoints(Vector3 a, Vector3 b, Vector3 c) {
     final normal = (b - a).cross(c - a).normalized();
     return CsgPlane(normal, normal.dot(a));
   }
 
+  /// The unit vector the plane's front side faces.
   final Vector3 normal;
+
+  /// The plane's distance from the origin along [normal], in metres.
   final double w;
 
+  /// The same plane facing the other way: front and back swapped.
   CsgPlane get flipped => CsgPlane(-normal, -w);
 }
 
@@ -101,12 +109,21 @@ final class CsgPlane {
 /// into — carrying [materialSlot] through the operation the way a face's
 /// own slot survives every other whole-mesh rebuild in this package.
 final class CsgPolygon {
+  /// A face through [vertices], lying in [plane], drawn with material
+  /// [materialSlot].
   const CsgPolygon(this.vertices, this.plane, this.materialSlot);
 
+  /// The corners in order, anticlockwise seen from the front of [plane];
+  /// at least three.
   final List<Vector3> vertices;
+
+  /// The plane the polygon lies in, facing its front.
   final CsgPlane plane;
+
+  /// The material slot of the face this polygon came from.
   final int materialSlot;
 
+  /// The same face turned inside out: corners reversed, plane flipped.
   CsgPolygon get flipped => CsgPolygon(
     vertices.reversed.toList(growable: false),
     plane.flipped,
@@ -126,11 +143,20 @@ const int _spanning = 3;
 /// See the library doc comment for why every method here walks its own tree
 /// on an explicit stack.
 final class CsgNode {
+  /// An empty node; `build` gives it a plane and polygons.
   CsgNode();
 
+  /// The plane this node splits by, taken from the first polygon built
+  /// into it; null on an empty node.
   CsgPlane? plane;
+
+  /// The polygons lying exactly on [plane].
   List<CsgPolygon> polygons = <CsgPolygon>[];
+
+  /// The subtree for everything in front of [plane]; null when nothing is.
   CsgNode? front;
+
+  /// The subtree for everything behind [plane]; null when nothing is.
   CsgNode? back;
 
   /// A tree of the same shape, sharing every [CsgPlane] and [CsgPolygon] —
@@ -274,8 +300,10 @@ final class CsgNode {
 /// How close to a [CsgPlane] a vertex counts as lying on it, and how many
 /// polygons landed there — the coplanar detector the plan's own row names.
 final class CsgTolerance {
+  /// A tolerance of [eps] metres, with nothing counted yet.
   CsgTolerance(this.eps);
 
+  /// How far from a plane a vertex may be and still lie on it, in metres.
   final double eps;
 
   /// Bumped once per polygon [CsgNode.build] or [CsgNode.clipPolygons]
@@ -356,9 +384,15 @@ void _splitPolygon(
 /// human sentence rather than a bare number — see the library doc comment
 /// for what a coplanar polygon means and why it is not refused.
 final class CsgResult {
+  /// A result of [mesh] with [warnings] about it.
   const CsgResult(this.mesh, this.warnings);
 
+  /// The combined solid, rebuilt from the surviving polygons; empty when
+  /// nothing survives.
   final EditMesh mesh;
+
+  /// Human sentences about the run, such as how many coplanar polygons were
+  /// met; empty when there was nothing to say.
   final List<String> warnings;
 }
 
@@ -391,7 +425,46 @@ CsgResult? booleanOp(
 }) => _boolean(a, b, operation, maxPolygons);
 
 /// The three boolean operations a binary space partition answers.
-enum CsgOperation { union, subtract, intersect }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class CsgOperation {
+  const CsgOperation._(this.name);
+
+  /// Keeps everything either solid covers: [booleanUnion].
+  static const CsgOperation union = CsgOperation._('union');
+
+  /// Cuts the second solid out of the first: [booleanSubtract].
+  static const CsgOperation subtract = CsgOperation._('subtract');
+
+  /// Keeps only what both solids cover: [booleanIntersect].
+  static const CsgOperation intersect = CsgOperation._('intersect');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<CsgOperation> values = <CsgOperation>[
+    union,
+    subtract,
+    intersect,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static CsgOperation? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'CsgOperation.$name';
+}
 
 CsgResult? _boolean(EditMesh a, EditMesh b, CsgOperation op, int maxPolygons) {
   final aTriangles = _triangleCount(a);
@@ -428,6 +501,8 @@ CsgResult? _boolean(EditMesh a, EditMesh b, CsgOperation op, int maxPolygons) {
       nodeB.clipTo(nodeA, tolerance);
       nodeA.build(nodeB.allPolygons(), tolerance);
       nodeA.invert();
+    default:
+      throw UnsupportedError('no boolean recipe for $op');
   }
 
   final resultPolygons = nodeA.allPolygons();
@@ -536,6 +611,6 @@ EditMesh? _fromPolygons(List<CsgPolygon> polygons) {
     mesh.endStep();
   }
 
-  final (welded, _) = mergeByDistance(mesh);
+  final MergedMesh(mesh: welded) = mergeByDistance(mesh);
   return welded;
 }

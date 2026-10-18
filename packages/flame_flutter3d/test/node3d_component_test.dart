@@ -21,7 +21,7 @@ final class _Fighter extends Node3dComponent with Tap3dCallbacks {
             device,
             CuboidShape(size: Vector3.all(1.0)).build(),
           ),
-          Material(),
+          RenderMaterial(),
         ),
         scene: scene,
       );

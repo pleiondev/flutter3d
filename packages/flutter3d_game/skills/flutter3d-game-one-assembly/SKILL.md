@@ -36,7 +36,7 @@ final class MyRun extends RunSession<LoadedLevel> {
   @override RunOutcome outcomeOf(LoadedLevel level) => …;
   @override String? nextOf(LoadedLevel level) => …;
   @override Snapshot snapshotOf(LoadedLevel level) => …;
-  @override void restoreInto(LoadedLevel level, Snapshot snapshot) => …;
+  @override void restoreInto(RunRestoreContext<LoadedLevel> context) => …;
 }
 ```
 

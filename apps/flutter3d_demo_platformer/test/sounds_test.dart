@@ -22,7 +22,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_audio/testing.dart';
+import 'package:flutter3d_demo_content/repo_checks.dart';
 import 'package:flutter3d_demo_platformer/src/sounds.dart';
 import 'package:flutter_test/flutter_test.dart';
 

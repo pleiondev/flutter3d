@@ -141,7 +141,7 @@ final class BakedPoses {
     final durations = <double>[];
 
     final int wasPlaying = player.clipIndex;
-    final double wasAt = player.time;
+    final double wasAt = player.timeSeconds;
     // `play` starts the player as well as selecting a clip, so whether it was
     // running is part of what has to be put back: a paused rig that is baked
     // from must not come out of it walking.
@@ -149,8 +149,8 @@ final class BakedPoses {
 
     var at = 0;
     for (var clip = 0; clip < player.clips.length; clip++) {
-      player.play(clip);
-      final double duration = player.duration;
+      player.play(index: clip);
+      final double duration = player.durationSeconds;
       durations.add(duration);
       for (var frame = 0; frame < framesPerClip; frame++) {
         // `frame / frames`, not `frame / (frames - 1)`: a loop's last sample is
@@ -170,7 +170,7 @@ final class BakedPoses {
 
     if (wasPlaying >= 0) {
       player
-        ..play(wasPlaying)
+        ..play(index: wasPlaying)
         ..seek(wasAt);
     }
     if (!wasRunning) player.pause();

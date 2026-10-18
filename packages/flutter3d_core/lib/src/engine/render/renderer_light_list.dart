@@ -41,11 +41,19 @@ extension _LightList on Renderer {
   /// Rows are candidates in scene order, so a draw's tail — which
   /// `LightBuffer.extraIndices` gives as candidate indices — is a list of row
   /// numbers with no mapping in between.
+  /// Whether [lights]' rows and the view's cells fit one list texture — the
+  /// cells reach the draws only when they do.
+  bool _clusterRowsFit(LightBuffer lights) =>
+      lights.candidates.length +
+          LightClusters.headerRows +
+          _lightClusters.entryRows <=
+      _kMaxListRows;
+
   TextureHandle? _buildLightList(LightBuffer lights) {
     final count = lights.candidates.length;
     if (count <= LightBuffer.maxLights) return null;
 
-    // **Compared, not keyed on `SceneNode.changeEpoch`.** The epoch covers a
+    // **Compared, not keyed on `sceneChangeEpoch`.** The epoch covers a
     // light that moved, appeared or vanished, and nothing else: colour,
     // intensity, range and the cone are plain fields on `LightNode` that
     // advance no counter, so a torch flickering in place kept the row it was
@@ -56,11 +64,31 @@ extension _LightList on Renderer {
     // the one texture a lit stage already samples. A view so crowded that
     // they would outgrow a texture every backend can make reads the draws'
     // own tails instead.
-    if (_clustersActive &&
-        count + LightClusters.headerRows + _lightClusters.entryRows >
-            _kMaxListRows) {
+    //
+    // Decided where the cells are built (`_clusterRowsFit`), not here: this
+    // runs at the first draw that binds the list, after that draw has chosen
+    // its lights, and a draw that chose believing the cells were on chose
+    // with no fade. Kept as a guard for a caller that reaches it first.
+    if (_clustersActive && !_clusterRowsFit(lights)) {
       _clustersActive = false;
     }
+
+    // **Once a view, not once a draw.** Every lit draw asks, and the rows
+    // are the view's, not the draw's: the same table, the same cells. With
+    // the cells in, writing and comparing them is thousands of rows, and
+    // done per draw it was most of a frame of 270 lit draws.
+    // [_lightListEpoch] advances wherever the rows can change between two
+    // asks — see the field.
+    if (_lightListTexture != null &&
+        identical(lights, _lightListBuiltFrom) &&
+        _clustersActive == _lightListBuiltClustered &&
+        _lightListEpoch == _lightListBuiltEpoch) {
+      return _lightListTexture;
+    }
+    // Forgotten until the list is in place: a device that refuses the
+    // upload leaves the old texture, and the next draw asks again.
+    _lightListBuiltFrom = null;
+
     final rowCount = _clustersActive
         ? count + LightClusters.headerRows + _lightClusters.entryRows
         : count;
@@ -69,6 +97,7 @@ extension _LightList on Renderer {
       _lightListScratch = Float32List(length);
     }
     final rows = Float32List.sublistView(_lightListScratch, 0, length);
+    _lightListBuilds++;
     for (var i = 0; i < count; i++) {
       lights.writeCandidateRow(i, rows, i * _kLightRowFloats);
       _writeShadowRow(lights.candidates[i], rows, i * _kLightRowFloats);
@@ -79,7 +108,7 @@ extension _LightList on Renderer {
       _clusterEntryRow = count + LightClusters.headerRows;
     }
     if (_lightListTexture != null && _sameRows(rows, _lightListUploaded)) {
-      return _lightListTexture;
+      return _builtFrom(lights);
     }
 
     final previous = _lightListTexture;
@@ -94,6 +123,14 @@ extension _LightList on Renderer {
     // After the new one is made rather than before: a device that refuses the
     // upload leaves the frame with the texture it had rather than with none.
     if (previous != null) _destroyAfterFrame(previous);
+    return _builtFrom(lights);
+  }
+
+  /// Notes what the list now in place was built from, and returns it.
+  TextureHandle? _builtFrom(LightBuffer lights) {
+    _lightListBuiltFrom = lights;
+    _lightListBuiltClustered = _clustersActive;
+    _lightListBuiltEpoch = _lightListEpoch;
     return _lightListTexture;
   }
 
@@ -108,7 +145,7 @@ extension _LightList on Renderer {
   /// row keeps them, because its cone texel holds an edge, and it is never
   /// given an atlas row.
   void _writeShadowRow(LightNode light, Float32List rows, int at) {
-    if (light.type == LightType.area) return;
+    if (light.type.base == LightType.area) return;
     final row = _shadowRowOf[light];
     rows[at + 14] = row == null ? 0.0 : row + 1.0;
     rows[at + 15] = row == null ? 0.0 : _shadowRowShape[row];
@@ -181,7 +218,7 @@ extension _LightList on Renderer {
         // Nearest and clamped: a row holds a light's numbers, and a filtered
         // read halfway between two rows would invent a light that is the
         // average of two.
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 }

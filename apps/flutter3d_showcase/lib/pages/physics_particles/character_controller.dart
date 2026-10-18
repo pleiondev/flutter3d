@@ -13,8 +13,11 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
+/// The `character-controller` page: the robot standing on a
+/// `CharacterController`, dropped onto a floor and pushed towards +x. Its
+/// check is that it landed on a flat ground normal and moved along +x.
 final class CharacterControllerDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final CharacterController _controller;
@@ -58,7 +61,7 @@ final class CharacterControllerDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region floor
-    _world = CollisionWorld();
+    _world = onRunPhysics(CollisionWorld());
     _world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
     // #endregion floor
 
@@ -95,12 +98,15 @@ final class CharacterControllerDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(20.0, 1.0, 20.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.5, 0.55, 0.5, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.5, 0.55, 0.5, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.5, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 

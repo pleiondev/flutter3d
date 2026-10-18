@@ -7,8 +7,10 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `particle-curves` page: smoke whose size and colour follow curves
+/// over its life. Its check is a size curve that rises then falls and a
+/// gradient that fades to nothing.
 final class ParticleCurvesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _smokeEffect;
@@ -49,9 +51,9 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
 
     // #region gradient
     _color = ParticleGradient(<GradientKey>[
-      GradientKey(0.0, Vector4(1.0, 0.95, 0.6, 1.0)),
-      GradientKey(0.4, Vector4(1.0, 0.4, 0.1, 1.0), ease: KeyEase.smooth),
-      GradientKey(1.0, Vector4(0.2, 0.05, 0.05, 0.0)),
+      GradientKey(0.0, LinearColor(1.0, 0.95, 0.6, 1.0)),
+      GradientKey(0.4, LinearColor(1.0, 0.4, 0.1, 1.0), ease: KeyEase.smooth),
+      GradientKey(1.0, LinearColor(0.2, 0.05, 0.05, 0.0)),
     ]);
     // #endregion gradient
 
@@ -61,7 +63,7 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
       emitter: const DriftEmitter(speed: Range(0.4, 0.9)),
       lifetime: const Range(1.2, 2.0),
       size: const Range(0.08, 0.12),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0, 1.0),
       affectors: <ParticleAffector>[
         ParticleSizeCurve(_size),
         ParticleColorGradient(_color),
@@ -70,12 +72,12 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
     // #endregion effect
 
     _particles.burst(_smokeEffect, Vector3.zero());
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles),
     );
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

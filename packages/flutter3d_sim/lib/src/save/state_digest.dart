@@ -37,6 +37,13 @@
 /// every intermediate stays under 2^53, where both platforms are exact. It is
 /// FNV-1a's number, arrived at by a route a browser can walk.
 ///
+/// ## What it leaves out
+///
+/// One field of one kind of string: the ABI stamp in the header of a native
+/// world snapshot, which names the build that wrote the world rather than the
+/// world. Why, and what guards compatibility instead, is at
+/// `StateDigest._withoutStamp`.
+///
 /// ## What it is not
 ///
 /// Not cryptographic and not claimed to be. A player who wants to forge a
@@ -47,6 +54,9 @@ library;
 
 import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
 
 import 'game_random.dart' show GameRandom;
 import 'snapshot.dart' show Snapshot;
@@ -59,6 +69,7 @@ import 'snapshot.dart' show Snapshot;
 /// than being skipped: a `Vector3` handed to this by mistake would otherwise
 /// hash to nothing at all and two different worlds would agree.
 final class StateDigest {
+  /// A digest of nothing yet, at the FNV-1a offset basis.
   StateDigest();
 
   /// The digest of one value, for the common case of asking once.
@@ -149,12 +160,63 @@ final class StateDigest {
 
   void _text(String value) {
     _byte(_tagText);
-    final bytes = utf8.encode(value);
+    final bytes = utf8.encode(_withoutStamp(value));
     _length(bytes.length);
     for (final byte in bytes) {
       _byte(byte);
     }
   }
+
+  /// [value] with the stamp of the build that wrote it zeroed, when it is a
+  /// native world snapshot in base64; [value] itself otherwise.
+  ///
+  /// **The one string whose every character is not state.** A snapshot of the
+  /// native core (`f3d_snapshot.c`) opens with a 20-byte header: the magic
+  /// `F3DS`, the format's minor and major, the writer's `F3D_ABI_VERSION`,
+  /// the bytes a real is written in, and the count of sections. The third
+  /// field says which build of the core wrote the bytes, not what world they
+  /// hold: the core's ABI moves whenever a function or a struct of its
+  /// interface does, the same world steps to the same bits on either side of
+  /// it, and a digest that read the stamp would call every tape with native
+  /// physics a different run on the day of the bump. So the stamp is folded
+  /// in as zero, and only here: every place that writes a snapshot into a
+  /// save — a dynamics' `core`, a game's elements' `world` — writes it as
+  /// `base64Encode(world.snapshot())`, and this is where all of them are read.
+  ///
+  /// What the stamp guarded is guarded elsewhere. Whether a tape may be played
+  /// by this build at all is `SimulationVersion`'s question, asked before a
+  /// step; whether the core can read the bytes is the snapshot reader's, which
+  /// refuses a format major other than its own. The format's minor and major
+  /// stay in the digest, because a world written in another layout is other
+  /// bytes the reader may treat otherwise.
+  ///
+  /// Only the first 16 characters are decoded — the 12 bytes up to the
+  /// stamp's end — so a string that is not a snapshot costs a prefix check.
+  static String _withoutStamp(String value) {
+    // "F3D", the first three bytes of the magic, in base64; and the header's
+    // 20 bytes are 28 characters at least.
+    if (value.length < 28 || !value.startsWith('RjNE')) return value;
+    final Uint8List head;
+    try {
+      head = base64Decode(value.substring(0, 16));
+    } on FormatException {
+      return value;
+    }
+    final header = ByteData.sublistView(head);
+    if (header.getUint32(0, Endian.little) != _snapshotMagic ||
+        header.getUint16(6, Endian.little) != _snapshotMajor ||
+        header.getUint32(8, Endian.little) == 0) {
+      return value;
+    }
+    header.setUint32(8, 0, Endian.little);
+    return base64Encode(head) + value.substring(16);
+  }
+
+  /// `F3DS` read little-endian, as `F3D_SNAPSHOT_MAGIC` in `f3d_snapshot.c`.
+  static const int _snapshotMagic = 0x53443346;
+
+  /// The format major whose header [_withoutStamp] knows the layout of.
+  static const int _snapshotMajor = 1;
 
   /// A number as the eight bytes of its double, whatever kind of number it was.
   ///
@@ -181,8 +243,8 @@ final class StateDigest {
   /// The cost, stated rather than discovered: two worlds differing only in the
   /// sign of a zero hash the same. Every IEEE operation agrees about them
   /// except division, whose result differs in sign of infinity — and every
-  /// division in this repository is already gated on `Tolerance.divisor`, which
-  /// refuses both zeroes alike.
+  /// division in this repository is already gated on
+  /// `GeometryTolerance.divisor`, which refuses both zeroes alike.
   void _number(num value) {
     _byte(_tagNumber);
     final number = value == 0 ? 0.0 : value.toDouble();
@@ -257,9 +319,11 @@ String contentDigestHex(Map<String, Object?> json) =>
     StateDigest.of(json).toRadixString(16).padLeft(8, '0');
 
 /// Thrown when a [DigestTrace] cannot be read back at all.
-final class DigestTraceFormatException implements Exception {
+final class DigestTraceFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the trace.
   const DigestTraceFormatException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -268,6 +332,8 @@ final class DigestTraceFormatException implements Exception {
 
 /// Where two runs of the same tape parted company.
 final class Divergence {
+  /// A disagreement at checkpoint [step]; either digest is null when that
+  /// side had no checkpoint there.
   const Divergence({
     required this.step,
     required this.expected,
@@ -311,6 +377,8 @@ final class Divergence {
 /// stopped matching, and the defect is between that checkpoint and the one
 /// before.
 final class DigestTrace {
+  /// An empty trace taking a checkpoint every [every] steps, 25 by
+  /// default. Asserts [every] is above nought.
   DigestTrace({this.every = 25})
     : _steps = <int>[],
       _digests = <int>[],
@@ -322,36 +390,6 @@ final class DigestTrace {
   /// trace read off a file is exactly the trace [divergenceFrom] is for
   /// comparing a fresh one against.
   DigestTrace._parts(this.every, this._steps, this._digests);
-
-  /// How many steps pass between checkpoints.
-  ///
-  /// Every step would be exact and is not the default: a thousand steps of a
-  /// crypt is a thousand snapshots taken, and the cost of taking one is the
-  /// cost of `save()` on every body in the world. Twenty-five is fine enough
-  /// that a divergence is bracketed to under half a second of play.
-  final int every;
-
-  final List<int> _steps;
-  final List<int> _digests;
-
-  /// The step numbers checkpointed, in order.
-  List<int> get steps => List<int>.unmodifiable(_steps);
-
-  /// The digest at each of [steps].
-  List<int> get digests => List<int>.unmodifiable(_digests);
-
-  /// The digests as eight-digit hexadecimal, which is how a trace is committed.
-  List<String> get hexDigests => <String>[
-    for (final digest in _digests) digest.toRadixString(16).padLeft(8, '0'),
-  ];
-
-  /// Writes this trace down — `every`, the checkpointed steps, and their
-  /// digests as hex — the shape a `.f3drun`'s `checkpoints` field holds.
-  Map<String, Object?> toJson() => <String, Object?>{
-    'every': every,
-    'steps': List<int>.of(_steps),
-    'digests': hexDigests,
-  };
 
   /// Reads a trace back, or throws a [DigestTraceFormatException] that says
   /// why not.
@@ -396,6 +434,36 @@ final class DigestTrace {
     return DigestTrace._parts(every.toInt(), steps, digests);
   }
 
+  /// How many steps pass between checkpoints.
+  ///
+  /// Every step would be exact and is not the default: a thousand steps of a
+  /// crypt is a thousand snapshots taken, and the cost of taking one is the
+  /// cost of `save()` on every body in the world. Twenty-five is fine enough
+  /// that a divergence is bracketed to under half a second of play.
+  final int every;
+  final List<int> _steps;
+
+  final List<int> _digests;
+
+  /// The step numbers checkpointed, in order.
+  List<int> get steps => List<int>.unmodifiable(_steps);
+
+  /// The digest at each of [steps].
+  List<int> get digests => List<int>.unmodifiable(_digests);
+
+  /// The digests as eight-digit hexadecimal, which is how a trace is committed.
+  List<String> get hexDigests => <String>[
+    for (final digest in _digests) digest.toRadixString(16).padLeft(8, '0'),
+  ];
+
+  /// Writes this trace down — `every`, the checkpointed steps, and their
+  /// digests as hex — the shape a `.f3drun`'s `checkpoints` field holds.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'every': every,
+    'steps': List<int>.of(_steps),
+    'digests': hexDigests,
+  };
+
   /// Takes a checkpoint if [step] is one, and does nothing if it is not.
   ///
   /// Called with the state **after** the step has run, so that checkpoint zero
@@ -406,6 +474,20 @@ final class DigestTrace {
     if (step % every != 0) return;
     _steps.add(step);
     _digests.add(StateDigest.of(state));
+  }
+
+  /// Drops the checkpoints taken after [step].
+  ///
+  /// For a run that was lived again from [step] — a level swapped under it:
+  /// what was observed after [step] is a run that no longer happened, and a
+  /// replay checked against it would be checked against the wrong world. The
+  /// steps between [step] and the next [observe] stay unchecked, which is a
+  /// gap and not a false answer.
+  void forgetAfter(int step) {
+    final keep = _steps.indexWhere((s) => s > step);
+    if (keep < 0) return;
+    _steps.removeRange(keep, _steps.length);
+    _digests.removeRange(keep, _digests.length);
   }
 
   /// The first checkpoint at which this trace and [expected] disagree.

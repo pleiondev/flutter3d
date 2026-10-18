@@ -1,11 +1,15 @@
-/// One `RenderView` cropped to a rectangle, and two combined in one frame.
+/// One `CameraView` cropped to a rectangle, and two combined in one frame.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `multi-view` page: two cubes on different layers, the viewport
+/// cropped to one view and a second view drawn beside it. Its check is that
+/// the two views drew more than one draw.
 final class MultiViewDemo extends ShowcaseDemo {
+  /// Whether the main view shows the left cube's layer (1) rather than the
+  /// right cube's (2).
   bool showLeft = true;
 
   late final Scene _scene;
@@ -28,7 +32,10 @@ final class MultiViewDemo extends ShowcaseDemo {
               context.device,
               CuboidShape(size: Vector3.all(1.0)).build(),
             ),
-            Material(name: 'left', baseColor: Vector4(0.2, 0.55, 0.95, 1.0)),
+            RenderMaterial(
+              name: 'left',
+              baseColor: LinearColor.fromSrgb(0.2, 0.55, 0.95, 1.0),
+            ),
             name: 'left cube',
           )
           ..setPosition(-1.4, 0.0, 0.0)
@@ -39,7 +46,10 @@ final class MultiViewDemo extends ShowcaseDemo {
               context.device,
               CuboidShape(size: Vector3.all(1.0)).build(),
             ),
-            Material(name: 'right', baseColor: Vector4(0.95, 0.42, 0.2, 1.0)),
+            RenderMaterial(
+              name: 'right',
+              baseColor: LinearColor.fromSrgb(0.95, 0.42, 0.2, 1.0),
+            ),
             name: 'right cube',
           )
           ..setPosition(1.4, 0.0, 0.0)
@@ -47,12 +57,12 @@ final class MultiViewDemo extends ShowcaseDemo {
     // #endregion layers
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.5, 0.6)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.45, 0.5, 0.6)
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(leftCube)
       ..add(rightCube)
       ..add(
-        LightNode(name: 'key', intensity: 3.0)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
 
@@ -67,12 +77,12 @@ final class MultiViewDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region split
-    final RenderView left = RenderView(
+    final CameraView left = CameraView(
       camera: context.camera,
       viewportFraction: const ViewportRect(0.0, 0.0, 0.5, 1.0),
       layerMask: 1,
     );
-    final RenderView right = RenderView(
+    final CameraView right = CameraView(
       camera: context.camera,
       viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
       layerMask: 2,
@@ -81,7 +91,7 @@ final class MultiViewDemo extends ShowcaseDemo {
       width: 320,
       height: 180,
       scene: _scene,
-      views: <RenderView>[left, right],
+      views: <CameraView>[left, right],
       settings: const RenderSettings(),
     );
     // #endregion split

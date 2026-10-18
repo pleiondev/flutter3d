@@ -34,7 +34,7 @@ abstract final class BridgePriority {
   /// `PhysicsStepComponent`: the solver, before anything reads a body.
   static const int physics = -1000;
 
-  /// `ChaseCameraComponent`, and a `CameraSyncComponent` that writes Flame's
+  /// `FlameChaseCameraComponent`, and a `CameraSyncComponent` that writes Flame's
   /// viewfinder from the 3D camera: after the craft they follow have moved
   /// this frame, before Flame's camera reads its viewfinder.
   static const int camera = 1000;

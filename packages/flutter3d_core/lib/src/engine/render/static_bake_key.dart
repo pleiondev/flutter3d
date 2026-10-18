@@ -44,6 +44,8 @@ import 'shadow_settings.dart';
 extension type const StaticBakeKey._(
   (int faces, double padding, int resolution) it
 ) {
+  /// The key of a bake drawn under [settings]: its caster faces, depth
+  /// padding and cube resolution.
   StaticBakeKey.of(ShadowSettings settings)
     : this._((
         settings.casterFaces.index,

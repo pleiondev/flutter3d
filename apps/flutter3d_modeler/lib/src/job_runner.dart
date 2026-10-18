@@ -28,13 +28,16 @@ sealed class JobOutcome<T> {
 
 /// Every chunk ran, and here is what they built together.
 final class JobFinished<T> extends JobOutcome<T> {
+  /// A finished job's [value].
   const JobFinished(this.value);
 
+  /// What `run`'s `combine` built from the finished chunks.
   final T value;
 }
 
 /// [Job.cancel] was called before some chunk started running.
 final class JobCancelled<T> extends JobOutcome<T> {
+  /// The one cancelled outcome; there is nothing to carry.
   const JobCancelled();
 }
 
@@ -46,6 +49,8 @@ final class JobCancelled<T> extends JobOutcome<T> {
 /// class's business, which is why [runChunk] and the value [run] eventually
 /// returns are both generic.
 final class Job<T> {
+  /// A job of [chunkCount] chunks, which must be at least one. Nothing runs
+  /// until [run] is called.
   Job({required this.chunkCount, required this.runChunk, this.onProgress})
     : assert(chunkCount > 0, 'a job of zero chunks has nothing to report');
 

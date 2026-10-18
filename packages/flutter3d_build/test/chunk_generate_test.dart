@@ -82,7 +82,10 @@ void main() {
         ModelSurface(mesh: sphere, skinIndex: 0),
       ],
     );
-    final (split, count) = splitLargeMeshes(document, threshold: 100);
+    final MeshSplit(document: split, meshesSplit: count) = splitLargeMeshes(
+      document,
+      threshold: 100,
+    );
     expect(count, 0);
     expect(split.surfaces.every((s) => s.mesh.clusters == null), isTrue);
   });
@@ -113,12 +116,12 @@ rules:
   });
 
   test('a manifest chunks entry takes true or a count', () {
-    AssetRule rule(String value) => AssetManifest.parse('''
+    AssetRule rule(String value) => AssetBuildManifest.parse('''
 rules:
   - glob: "*.obj"
     chunks: $value
 ''').rules.single;
-    expect(rule('true').chunks, kDefaultChunkThreshold);
+    expect(rule('true').chunks, defaultChunkThreshold);
     expect(rule('false').chunks, isNull);
     expect(rule('200000').chunks, 200000);
     expect(

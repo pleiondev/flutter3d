@@ -29,6 +29,9 @@ import 'texture_info.dart';
 /// A preset for how big a texture may be on one export target, and what
 /// format it should end up encoded as.
 final class TextureBudget {
+  /// A budget of [maxSide] pixels per side and [maxBytesOnDevice] bytes in all,
+  /// encoded as [targetFormat], with power-of-two sides not required unless
+  /// [requirePowerOfTwo] says so.
   const TextureBudget({
     required this.maxSide,
     required this.maxBytesOnDevice,
@@ -38,16 +41,21 @@ final class TextureBudget {
 
   /// The widest or tallest a single texture may be — checked against each
   /// image's own `pixelWidth`/`pixelHeight`, the per-image half of the
-  /// budget. [TextureUsage.overs] is built from this.
+  /// budget. [TextureBudgetUsage.overs] is built from this.
   final int maxSide;
 
   /// How many bytes a project's textures may cost in total once every image
   /// is recomputed under [targetFormat] — the aggregate half, checked against
-  /// [TextureUsage.totalBytes] the same way `ProjectProfile.maxTriangles` is
+  /// [TextureBudgetUsage.totalBytes] the same way `ProjectProfile.maxTriangles` is
   /// checked against a project's summed triangle count.
   final int maxBytesOnDevice;
 
+  /// The format every image is recomputed under when [maxBytesOnDevice] is
+  /// checked, and the one an export should encode to.
   final TextureFileFormat targetFormat;
+
+  /// Whether an image whose width or height is not a power of two is over the
+  /// budget. False for the shipped presets.
   final bool requirePowerOfTwo;
 
   /// Ж5's desktop figures: 2048px, 256MB, BC7.
@@ -90,8 +98,10 @@ final class TextureBudget {
 
 /// What [measure] found: the project's images, recomputed under one
 /// [TextureBudget].
-final class TextureUsage {
-  const TextureUsage({required this.totalBytes, required this.overs});
+final class TextureBudgetUsage {
+  /// The usage of [totalBytes] in all, with [overs] listing the images wider or
+  /// taller than the budget allows.
+  const TextureBudgetUsage({required this.totalBytes, required this.overs});
 
   /// The sum of every image in `project.images`, each counted once no matter
   /// how many materials sample it — `project.images` is itself the
@@ -120,7 +130,7 @@ final class TextureUsage {
 /// recognises, or truncated) contributes nothing to `totalBytes` and never
 /// appears in `overs` — there is no size to measure it against, the same
 /// answer `textureInfo` gives for the same bytes.
-TextureUsage measure(ModelProject project, TextureBudget budget) {
+TextureBudgetUsage measure(ModelProject project, TextureBudget budget) {
   var totalBytes = 0;
   final overs = <int>[];
   for (var i = 0; i < project.images.length; i++) {
@@ -136,7 +146,7 @@ TextureUsage measure(ModelProject project, TextureBudget budget) {
       overs.add(i);
     }
   }
-  return TextureUsage(totalBytes: totalBytes, overs: overs);
+  return TextureBudgetUsage(totalBytes: totalBytes, overs: overs);
 }
 
 /// [width]×[height] recomputed as if encoded to [format]: a block-layout sum

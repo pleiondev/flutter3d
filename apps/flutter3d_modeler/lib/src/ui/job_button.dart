@@ -15,6 +15,8 @@ import '../../../l10n/app_localizations.dart';
 /// An ordinary button labelled [label] when idle; a progress indicator with
 /// a cancel affordance once [progress] is not null.
 final class JobButton extends StatelessWidget {
+  /// A button reading [label] while [progress] is null, and a progress bar
+  /// with a cancel while it is not.
   const JobButton({
     super.key,
     required this.label,

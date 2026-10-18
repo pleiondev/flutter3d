@@ -16,8 +16,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `baked-crowd` page: six figures reading their arm's pose out of one
+/// `BakedPoses` table of two clips, 32 frames each, each figure at its own clip
+/// and phase.
 final class BakedCrowdDemo extends ShowcaseDemo {
   double _time = 0.0;
   static const int _framesPerClip = 32;
@@ -75,17 +77,17 @@ final class BakedCrowdDemo extends ShowcaseDemo {
     // one matrix (see `{{code read}}`), but one a crowd actually reads as
     // people rather than furniture.
     final Scene scene = Scene();
-    final Material torso = Material(
+    final RenderMaterial torso = RenderMaterial(
       name: 'torso',
-      baseColor: Vector4(0.55, 0.6, 0.68, 1.0),
+      baseColor: LinearColor.fromSrgb(0.55, 0.6, 0.68, 1.0),
     );
-    final Material limb = Material(
+    final RenderMaterial limb = RenderMaterial(
       name: 'arm',
-      baseColor: Vector4(0.85, 0.5, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.5, 0.3, 1.0),
     );
-    final Material skin = Material(
+    final RenderMaterial skin = RenderMaterial(
       name: 'head',
-      baseColor: Vector4(0.85, 0.68, 0.55, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.68, 0.55, 1.0),
     );
     final DeviceMesh torsoMesh = DeviceMesh.upload(
       context.device,

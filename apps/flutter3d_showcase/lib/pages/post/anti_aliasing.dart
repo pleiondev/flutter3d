@@ -1,5 +1,5 @@
-/// FXAA: edges smoothed on the finished picture, and a sharpen pass that
-/// shares its taps.
+/// FXAA or SMAA 1x: edges smoothed on the finished picture, and a sharpen
+/// pass that shares FXAA's taps.
 ///
 /// Quoted by `anti_aliasing.md` and shown whole in the Source tab.
 library;
@@ -8,11 +8,19 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `anti-aliasing` page: a wheel of thin spokes whose edges FXAA
+/// smooths. Its check is that the frame ran FXAA exactly when it was asked
+/// to.
 final class AntiAliasingDemo extends ShowcaseDemo {
+  /// Whether edges are smoothed; the "Smooth edges" switch.
   bool enabled = true;
+
+  /// How strongly the frame is sharpened with FXAA's taps, 0 to 1.
   double sharpen = 0.0;
+
+  /// FXAA or SMAA 1x, as [EdgeSmoothing.fxaa] and [EdgeSmoothing.smaa].
+  EdgeSmoothing method = EdgeSmoothing.fxaa;
 
   /// One diagonal card staircases at exactly one contrast step, over one
   /// edge — too little for either pass to read as more than noise at a
@@ -40,9 +48,9 @@ final class AntiAliasingDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.1, 2.8, 0.1)).build(),
     );
-    final Material material = Material(
+    final RenderMaterial material = RenderMaterial(
       name: 'spokes',
-      baseColor: Vector4(0.95, 0.95, 0.95, 1.0),
+      baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.95, 1.0),
       lighting: LightingModel.unlit,
     );
     final Scene scene = Scene();
@@ -62,16 +70,29 @@ final class AntiAliasingDemo extends ShowcaseDemo {
   @override
   RenderSettings settings(DemoContext context) => RenderSettings(
     // #region settings
-    antiAlias: AntiAliasSettings(enabled: enabled, sharpen: sharpen),
+    antiAlias: AntiAliasSettings(
+      enabled: enabled,
+      sharpen: sharpen,
+      // #region method
+      method: method,
+      // #endregion method
+    ),
     // #endregion settings
   );
 
   @override
   List<DemoControl> controls(DemoContext context) => <DemoControl>[
     ToggleControl(
-      'FXAA',
+      'Smooth edges',
       value: () => enabled,
       onChanged: (bool v) => enabled = v,
+    ),
+    ChoiceControl(
+      'Method',
+      options: const <String>['FXAA', 'SMAA 1x'],
+      index: () => method == EdgeSmoothing.smaa ? 1 : 0,
+      onChanged: (int i) =>
+          method = i == 1 ? EdgeSmoothing.smaa : EdgeSmoothing.fxaa,
     ),
     SliderControl(
       'Sharpen',

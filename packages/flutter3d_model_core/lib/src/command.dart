@@ -24,13 +24,13 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-// `EnumHint` hidden: `flutter3d_formats`' own is `MaterialHintKind`'s, for a
-// material's fields, and this library's `param_hint.dart` names a command
-// argument's the same word for the same reason — nothing here reads a
-// material's, and the collision is the one the plan's own critique (Г4/Ж2)
-// gives for keeping the two hierarchies apart in the first place.
-import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show AnimationGraphJson, AnimationStateMachine, rootMotionExtra;
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -45,7 +45,9 @@ import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
+import 'project_format.dart' show ProjectFormatException;
 import 'project_morphs.dart';
+import 'project_wire.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
 import 'shape_driver.dart';
@@ -55,6 +57,7 @@ import 'texture_bake.dart';
 import 'texture_graph.dart';
 import 'world_transform.dart';
 
+part 'animation_graph_commands.dart';
 part 'bake_commands.dart';
 part 'job_commands.dart';
 part 'joint_commands.dart';
@@ -117,8 +120,15 @@ final class Outcome {
   factory Outcome.refused(String said) =>
       Outcome._(null, null, said, null, const <EditMesh>[]);
 
+  /// The project after the command, or null when it was refused.
   final ModelProject? project;
+
+  /// What should be selected afterwards, or null to keep the selection as it
+  /// was. Always null for a refusal.
   final ProjectSelection? selection;
+
+  /// The sentence to tell somebody why the command was refused, or null when it
+  /// worked.
   final String? refused;
 
   /// The mesh whose journal moved on, or null when the command only touched
@@ -129,7 +139,8 @@ final class Outcome {
   /// history rolls. Empty for a command that only touched the document.
   final List<EditMesh> meshesTouched;
 
-  bool get ok => refused == null;
+  /// Whether the command worked, so [project] is not null.
+  bool get isOk => refused == null;
 }
 
 /// The point a turn or a scale happens about.
@@ -141,17 +152,47 @@ final class Outcome {
 /// rather than being read fresh. An agent driving the modeller has no toolbar
 /// at all and has to be able to say which point it means.
 ///
-/// Machinery: these are the pivots the arithmetic in `object_commands.dart` has
-/// a branch for. A pivot somebody works out for themselves is a `Vector3`
-/// handed over, not a name added here.
-enum TransformPivot {
+/// These are the pivots the arithmetic in `object_commands.dart` has a branch
+/// for. A pivot somebody works out for themselves is a `Vector3` handed over,
+/// not a name added here; the cursor as a pivot would be a name, so the set
+/// is open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TransformPivot {
+  const TransformPivot._(this.name);
+
   /// The middle of everything selected. Three objects turned together swing
   /// round each other, which is what a person watching the gizmo expects.
-  median,
+  static const TransformPivot median = TransformPivot._('median');
 
   /// Each object about its own origin, which leaves the objects where they are
   /// and points them somewhere else.
-  individual,
+  static const TransformPivot individual = TransformPivot._('individual');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TransformPivot> values = <TransformPivot>[
+    median,
+    individual,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TransformPivot? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TransformPivot.$name';
 }
 
 /// Whose axes a transform is expressed in.
@@ -162,17 +203,43 @@ enum TransformPivot {
 /// tool that offers only the first leaves the second to do the arithmetic by
 /// hand.
 ///
-/// Machinery, for the reason [TransformPivot] is: two is what a basis can be
-/// taken from — the world, or the thing being moved — and a third would be
-/// somebody else's matrix, which is a matrix rather than a name.
-enum TransformSpace {
+/// Two is what a basis is taken from today — the world, or the thing being
+/// moved. The parent's axes or the view's would be a third, so the set is
+/// open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TransformSpace {
+  const TransformSpace._(this.name);
+
   /// The world's axes: the same X for everything selected, whatever each of
   /// them is facing.
-  global,
+  static const TransformSpace global = TransformSpace._('global');
 
   /// The axes of the object being transformed, so two objects in one selection
   /// can go different ways under one command.
-  local,
+  static const TransformSpace local = TransformSpace._('local');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TransformSpace> values = <TransformSpace>[global, local];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TransformSpace? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TransformSpace.$name';
 }
 
 /// [by] wrapped so that it happens at [about], along [basis]'s axes when one is
@@ -210,7 +277,7 @@ Matrix4 _basisOf(Matrix4 transform) {
 }
 
 /// One change, as a value.
-sealed class ModelCommand {
+abstract final class ModelCommand {
   const ModelCommand();
 
   /// The name this is written down and looked up under. Stable: it is in files
@@ -257,6 +324,7 @@ sealed class ModelCommand {
   /// of thing this row exists to stop depending on.
   bool get isJournaled => true;
 
+  /// The command as one journal line: its [name] beside its [arguments].
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     ...arguments,
@@ -277,13 +345,16 @@ sealed class ModelCommand {
 /// would read back only `{"name": "replaceDocument"}`, nothing of [next], and
 /// [modelCommandFromJson] would refuse it anyway since it is not in that
 /// table. It exists so that bringing in an external model —
-/// `flutter3d_model_mcp`'s `import`, and later `doc-11a-n`'s `ImportInto` —
+/// `flutter3d_mcp/model.dart`'s `import`, and later `doc-11a-n`'s `ImportInto` —
 /// still goes through [ModelHistory] and can be undone as itself, rather than
 /// needing a second, private way to push a step that every other command
 /// already has for free.
 final class ReplaceDocument extends ModelCommand {
+  /// A step replacing the whole project with [next], offered for undo as
+  /// [says].
   const ReplaceDocument(this.next, this.says);
 
+  /// The project that replaces the current one, whole.
   final ModelProject next;
 
   @override
@@ -305,9 +376,13 @@ final class ReplaceDocument extends ModelCommand {
 
 /// Renames one object.
 final class Rename extends ModelCommand {
+  /// A step renaming object [id] to [to].
   const Rename({required this.id, required this.to});
 
+  /// The object renamed. [apply] refuses when the project has no such object.
   final int id;
+
+  /// The new name. [apply] refuses a blank one.
   final String to;
 
   @override
@@ -334,9 +409,13 @@ final class Rename extends ModelCommand {
 
 /// Puts a transform on one object, replacing whatever it had.
 final class SetTransform extends ModelCommand {
+  /// A step putting transform [to] on object [id].
   const SetTransform({required this.id, required this.to});
 
+  /// The object moved. [apply] refuses when the project has no such object.
   final int id;
+
+  /// The new transform, relative to the object's parent, copied in whole.
   final Matrix4 to;
 
   @override
@@ -369,8 +448,12 @@ final class SetTransform extends ModelCommand {
 /// what they mean. `ModelHistory.transaction` does the collapsing and this is
 /// the shape that lets it.
 final class MoveBy extends ModelCommand {
+  /// A step moving the selected objects by [by], along the world axes unless
+  /// [space] says otherwise.
   const MoveBy(this.by, {this.space = TransformSpace.global});
 
+  /// How far to move, in metres along each axis of [space]. [apply] refuses
+  /// when no object is selected.
   final Vector3 by;
 
   /// Whose axes [by] is measured along — `ux-12`.
@@ -391,7 +474,7 @@ final class MoveBy extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'by': <double>[by.x, by.y, by.z],
-    if (space != TransformSpace.global) 'space': space.name,
+    if (space != TransformSpace.global) 'space': transformSpaceWord(space),
   };
 
   @override
@@ -437,6 +520,8 @@ final class MoveBy extends ModelCommand {
 
 /// Deletes everything selected, and everything under it.
 final class DeleteObjects extends ModelCommand {
+  /// A step deleting the selected objects and their descendants, then clearing
+  /// the selection. Refused when no object is selected.
   const DeleteObjects();
 
   @override
@@ -466,6 +551,8 @@ final class DeleteObjects extends ModelCommand {
 
 /// Copies everything selected, offset by nothing, and selects the copies.
 final class DuplicateObjects extends ModelCommand {
+  /// A step copying the selected objects in place and selecting the copies.
+  /// Refused when no object is selected.
   const DuplicateObjects();
 
   @override
@@ -535,16 +622,51 @@ final List<String> modelCommandNames = List<String>.unmodifiable(
   _modelCommandReaders.keys,
 );
 
+/// What [read] reads, or null when it throws a [ProjectFormatException]: a
+/// journal entry whose argument does not read back is skipped whole, never
+/// half-built, the rule every reader below keeps.
+T? _readOrNull<T>(T Function() read) {
+  try {
+    return read();
+  } on ProjectFormatException {
+    return null;
+  }
+}
+
 /// Reads a command back out of a journal, or null.
 ///
 /// **Null and not an exception**, for the reason `ProjectSelection.fromJson`
 /// gives: a journal is replayed entry by entry and an entry from a newer
 /// version of the application is one to skip, not one to fail the whole file
 /// over.
-ModelCommand? modelCommandFromJson(Object? json) {
+///
+/// [lightingModels] is the engine's table (`Renderer.lightingModels`) a
+/// command that names a lighting model reads it against — a material field
+/// set to one, a `.fmat` linked — so an agent or a journal can choose a
+/// plugin's model; null reads against the built-in ones alone.
+ModelCommand? modelCommandFromJson(
+  Object? json, {
+  LightingModels? lightingModels,
+}) {
   if (json is! Map<String, Object?>) return null;
   final Object? name = json['name'];
-  return name is String ? _modelCommandReaders[name]?.call(json) : null;
+  final read = name is String ? _modelCommandReaders[name]?.call(json) : null;
+  if (lightingModels == null) return read;
+  return switch (read) {
+    final SetMaterialField set => SetMaterialField(
+      index: set.index,
+      field: set.field,
+      value: set.value,
+      lightingModels: lightingModels,
+    ),
+    final LinkMaterialFile link => LinkMaterialFile(
+      index: link.index,
+      path: link.path,
+      bytes: link.bytes,
+      lightingModels: lightingModels,
+    ),
+    _ => read,
+  };
 }
 
 /// How each command is read back out of its own [ModelCommand.toJson],
@@ -839,11 +961,11 @@ _modelCommandReaders =
       ),
       'addLight': (json) => AddLight(
         type: switch (json['type']) {
-          final String type => ProjectLightType.values.firstWhere(
-            (ProjectLightType t) => t.name == type,
-            orElse: () => ProjectLightType.directional,
+          final String type => LightType.values.firstWhere(
+            (LightType t) => t.name == type,
+            orElse: () => LightType.directional,
           ),
-          _ => ProjectLightType.directional,
+          _ => LightType.directional,
         },
         // `ux-23`. Absent is the identity transform a light has always had,
         // which is what a journal written before this existed replays to.
@@ -954,16 +1076,24 @@ _modelCommandReaders =
         final int index => EmbedMaterial(index),
         _ => null,
       },
-      'setMaterialGraph': (json) => switch (json['materialIndex']) {
-        final int materialIndex => SetMaterialGraph(
-          materialIndex: materialIndex,
-          graph: switch (json['graph']) {
-            final Map<String, Object?> g => TextureGraph.fromJson(g),
+      // A graph that does not read is an entry this build cannot replay,
+      // answered null like every other, never thrown out of the reader.
+      'setMaterialGraph': (json) =>
+          switch ((json['materialIndex'], json['graph'])) {
+            (final int materialIndex, final Map<String, Object?> g) =>
+              switch (_graphFrom(g)) {
+                final TextureGraph graph => SetMaterialGraph(
+                  materialIndex: materialIndex,
+                  graph: graph,
+                ),
+                null => null,
+              },
+            (final int materialIndex, _) => SetMaterialGraph(
+              materialIndex: materialIndex,
+              graph: null,
+            ),
             _ => null,
           },
-        ),
-        _ => null,
-      },
       'bakeTextureGraph': (json) => switch (json['materialIndex']) {
         final int materialIndex => BakeTextureGraph(
           materialIndex: materialIndex,
@@ -979,9 +1109,9 @@ _modelCommandReaders =
             final Map<String, Object?> fields => fields,
             _ => const <String, Object?>{},
           },
-          position: (
-            (json['x'] as num?)?.toDouble() ?? 0.0,
-            (json['y'] as num?)?.toDouble() ?? 0.0,
+          position: NodePosition(
+            x: (json['x'] as num?)?.toDouble() ?? 0.0,
+            y: (json['y'] as num?)?.toDouble() ?? 0.0,
           ),
         ),
         _ => null,
@@ -1143,7 +1273,7 @@ _modelCommandReaders =
               final int baseVersion,
               final Map<String, Object?> cacheJson,
             ) =>
-              switch (SimulationCache.fromJson(cacheJson)) {
+              switch (_readOrNull(() => SimulationCache.fromJson(cacheJson))) {
                 final SimulationCache cache => ApplySimulationCache(
                   objectId: objectId,
                   baseVersion: baseVersion,
@@ -1209,16 +1339,17 @@ _modelCommandReaders =
             (final int id, final int clipIndex, final num time) => KeyShape(
               id: id,
               clipIndex: clipIndex,
-              time: time.toDouble(),
+              timeSeconds: time.toDouble(),
             ),
             _ => null,
           },
       'addShapeDriver': (json) => switch ((json['id'], json['driver'])) {
-        (final int id, final Object? driverJson) =>
-          switch (ShapeDriver.fromJson(driverJson)) {
-            final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
-            null => null,
-          },
+        (final int id, final Object? driverJson) => switch (_readOrNull(
+          () => ShapeDriver.fromJson(driverJson),
+        )) {
+          final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
+          null => null,
+        },
         _ => null,
       },
       'removeShapeDriver': (json) => switch ((json['id'], json['index'])) {
@@ -1316,7 +1447,7 @@ _modelCommandReaders =
           BendJoint(
             skeletonIndex: skeletonIndex,
             jointIndex: jointIndex,
-            degrees: degrees.toDouble(),
+            angle: radians(degrees.toDouble()),
             axis: switch (json['axis']) {
               final int axis => axis,
               _ => 0,
@@ -1357,8 +1488,8 @@ _modelCommandReaders =
               skinObjectId: json['skinObjectId'] as int?,
               label: label,
             ),
-            final Object? weightsJson => switch (SkinWeightsBlob.fromJson(
-              weightsJson,
+            final Object? weightsJson => switch (_readOrNull(
+              () => SkinWeightsBlob.fromJson(weightsJson),
             )) {
               final SkinWeightsBlob weights => SetRig(
                 jointObjects: jointObjects,
@@ -1422,18 +1553,18 @@ _modelCommandReaders =
       'paintVertexColour': (json) => switch ((
         json['objectId'],
         json['samples'],
-        _doubleListFrom(json['colour']),
+        _doubleListFrom(json['color'] ?? json['colour']),
       )) {
         (
           final int objectId,
           final List<Object?> samplesJson,
-          final List<double> colour,
+          final List<double> color,
         ) =>
           switch (_paintSamplesFrom(samplesJson)) {
-            final List<PaintSample> samples => PaintVertexColour(
+            final List<PaintSample> samples => PaintVertexColor(
               objectId: objectId,
               samples: samples,
-              colour: colour,
+              color: color,
               strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
             ),
             null => null,
@@ -1450,18 +1581,18 @@ _modelCommandReaders =
       'paintStroke': (json) => switch ((
         json['objectId'],
         json['samples'],
-        _doubleListFrom(json['colour']),
+        _doubleListFrom(json['color'] ?? json['colour']),
       )) {
         (
           final int objectId,
           final List<Object?> samplesJson,
-          final List<double> colour,
+          final List<double> color,
         ) =>
           switch (_paintSamplesFrom(samplesJson)) {
             final List<PaintSample> samples => PaintStroke(
               objectId: objectId,
               samples: samples,
-              colour: colour,
+              color: color,
               layer: (json['layer'] as num?)?.toInt() ?? 0,
               strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
               size: (json['size'] as num?)?.toInt() ?? 1024,
@@ -1556,7 +1687,7 @@ _modelCommandReaders =
             final List<double> values => SetKey(
               clipIndex: clipIndex,
               trackIndex: trackIndex,
-              time: time.toDouble(),
+              timeSeconds: time.toDouble(),
               values: values,
               inTangent: _doubleListFrom(json['inTangent']),
               outTangent: _doubleListFrom(json['outTangent']),
@@ -1584,7 +1715,7 @@ _modelCommandReaders =
             indices: <int>[
               for (final Object? each in indicesJson) each! as int,
             ],
-            deltaTime: deltaTime.toDouble(),
+            deltaSeconds: deltaTime.toDouble(),
           ),
         _ => null,
       },
@@ -1673,6 +1804,16 @@ _modelCommandReaders =
         _ => null,
       },
       'addClip': (json) => AddClip(clipName: json['clipName'] as String?),
+      'setAnimationGraph': (json) =>
+          switch ((json['graphName'], json['graph'])) {
+            (final String graphName, final Map<String, Object?> graph) =>
+              SetAnimationGraph(graphName: graphName, graph: graph),
+            _ => null,
+          },
+      'removeAnimationGraph': (json) => switch (json['graphName']) {
+        final String graphName => RemoveAnimationGraph(graphName: graphName),
+        _ => null,
+      },
       'addLod': (json) => switch ((
         json['id'],
         json['ratio'],
@@ -1709,11 +1850,8 @@ _modelCommandReaders =
 /// know belongs to a journal written by a newer application — reading it back
 /// as median would replay the step about a different point in silence, which is
 /// worse than skipping the entry the way every other unreadable one is skipped.
-TransformPivot? _pivot(Object? json) => json == null
-    ? TransformPivot.median
-    : TransformPivot.values
-          .where((TransformPivot each) => each.name == json)
-          .firstOrNull;
+TransformPivot? _pivot(Object? json) =>
+    json == null ? TransformPivot.median : transformPivotOf(json);
 
 /// The shape [json] describes, or null when it is not a shape at all.
 ParametricShape? _shapeOf(Object? json) =>
@@ -1738,19 +1876,21 @@ List<Vector2>? _points(Object? json) {
 
 /// Where [json] puts an origin, the middle of the bounds by default, or null.
 /// See [_pivot] for why an unknown word is null rather than the default.
+///
+/// The value's [OriginPlacement.name] is read as well as its wire word, so
+/// an agent may write `boundsCenter` where a journal writes `boundsCentre`.
 OriginPlacement? _placement(Object? json) => json == null
-    ? OriginPlacement.boundsCentre
+    ? OriginPlacement.boundsCenter
     : OriginPlacement.values
-          .where((OriginPlacement each) => each.name == json)
+          .where(
+            (OriginPlacement each) => each.wire == json || each.name == json,
+          )
           .firstOrNull;
 
 /// The space [json] names, [TransformSpace.global] by default, or null. See
 /// [_pivot] for why an unknown word is null rather than the default.
-TransformSpace? _space(Object? json) => json == null
-    ? TransformSpace.global
-    : TransformSpace.values
-          .where((TransformSpace each) => each.name == json)
-          .firstOrNull;
+TransformSpace? _space(Object? json) =>
+    json == null ? TransformSpace.global : transformSpaceOf(json);
 
 /// Exactly [length] numbers, or null.
 ///
@@ -1766,4 +1906,13 @@ List<double>? _doubles(Object? json, int length) {
     out.add(each.toDouble());
   }
   return out;
+}
+
+/// The graph [json] describes, or null when it is not one.
+TextureGraph? _graphFrom(Map<String, Object?> json) {
+  try {
+    return TextureGraph.fromJson(json);
+  } on TextureGraphFormatException {
+    return null;
+  }
 }

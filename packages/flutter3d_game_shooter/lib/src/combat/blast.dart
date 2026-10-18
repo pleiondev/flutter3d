@@ -1,8 +1,10 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// An explosion's shape: how far it reaches and how hard.
 final class Blast {
+  /// A blast reaching [radius] metres with [damage] at its centre.
   const Blast({
     required this.radius,
     required this.damage,
@@ -10,9 +12,11 @@ final class Blast {
     this.knockback = 0.0,
   });
 
+  /// How far it reaches, in metres.
   final double radius;
 
   /// Damage at the very centre.
+  /// In hit points (unitless).
   final double damage;
 
   /// Fraction of [damage] still delivered at the outer edge.
@@ -22,6 +26,7 @@ final class Blast {
   /// any reason to move.
   final double minimumFraction;
 
+  /// Impulse at the centre, in newton-seconds.
   final double knockback;
 
   /// Damage at [distance] from the centre.
@@ -51,8 +56,12 @@ final class Blast {
 /// damage they cannot explain blames the game, and one who deals none they
 /// cannot explain blames their aim.
 final class BlastResolver {
+  /// A resolver finding candidates in [world] and checking each against
+  /// its geometry.
   BlastResolver(this.world);
 
+  /// The world searched for who is in reach, and whose solid geometry
+  /// blocks a blast's line of sight.
   final CollisionWorld world;
 
   final List<Collider> _candidates = <Collider>[];
@@ -66,14 +75,14 @@ final class BlastResolver {
   /// game at close range.
   void resolve(
     Blast blast,
-    Vector3 centre,
+    Vector3 center,
     Map<Collider, double> out, {
     int mask = CollisionLayers.player | CollisionLayers.actor,
   }) {
     out.clear();
     world.overlap(
       CollisionSphere(blast.radius),
-      centre,
+      center,
       _candidates,
       mask: mask,
       includeTriggers: false,
@@ -82,7 +91,7 @@ final class BlastResolver {
     for (final target in _candidates) {
       _toTarget
         ..setFrom(target.position)
-        ..sub(centre);
+        ..sub(center);
       final distance = _toTarget.length;
       final damage = blast.damageAt(distance);
       if (damage <= 0.0) continue;
@@ -91,16 +100,16 @@ final class BlastResolver {
       // way, and normalising a zero vector is undefined anyway.
       if (distance > 1e-4) {
         _toTarget.scale(1.0 / distance);
-        if (_blockedByGeometry(centre, distance)) continue;
+        if (_blockedByGeometry(center, distance)) continue;
       }
 
       out[target] = damage;
     }
   }
 
-  bool _blockedByGeometry(Vector3 centre, double distance) {
+  bool _blockedByGeometry(Vector3 center, double distance) {
     if (!world.raycast(
-      centre,
+      center,
       _toTarget,
       distance,
       _sight,

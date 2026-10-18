@@ -54,6 +54,7 @@ sealed class FileOpened {
 /// A model that has been opened: the document a person now edits, and the
 /// scene that draws it.
 final class OpenedModel extends FileOpened {
+  /// An opened [project], drawn by [stage].
   const OpenedModel(this.project, this.stage);
 
   /// The objects the file became. What the outliner lists, what a click
@@ -71,8 +72,11 @@ final class OpenedModel extends FileOpened {
 
 /// The file, and one sentence saying what is wrong with it.
 final class OpenRefused extends FileOpened {
+  /// A refusal saying [because].
   const OpenRefused(this.because);
 
+  /// The sentence for the status line: what is wrong with the file, said so
+  /// a person knows whether to try another.
   final String because;
 
   @override
@@ -118,7 +122,7 @@ Future<FileOpened> openBytes(
 /// [bytes] decoded as a model — `ui-16`'s own lower half of [openBytes],
 /// pulled out so an import screen can decode a file, ask a person about
 /// units/axis/cleanup, and only then call [openDocument] with the
-/// [ImportOptions] they chose, instead of always getting the defaults
+/// [ImportSettings] they chose, instead of always getting the defaults
 /// [openBytes] itself commits to.
 Future<ModelDocument> decodeBytes(Uint8List bytes, String name) => decodeModel(
   ModelLoadRequest(source: _Bytes(name, bytes), decoders: modelerDecoders),
@@ -178,7 +182,7 @@ final class _Bytes extends AssetSource {
   String get key => 'memory:$_name';
 
   @override
-  Future<Uint8List> read() async => _bytes;
+  Future<Uint8List> read(AssetRead request) async => _bytes;
 
   @override
   AssetUriResolver get resolveUri => (AssetRequest request) async {
@@ -209,7 +213,7 @@ final class _Bytes extends AssetSource {
 Future<OpenedModel> openDocument(
   ModelDocument document, {
   required GraphicsDevice device,
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) =>
     openProject(fromModelDocument(document, options: options), device: device);
 

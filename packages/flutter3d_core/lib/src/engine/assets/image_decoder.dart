@@ -15,3 +15,20 @@ import 'package:flutter3d_core/formats.dart';
 /// caller with no Flutter SDK to ask supplies a different one — a pure-Dart
 /// PNG decoder, once mcp-04n exists — instead.
 typedef ImageDecoder = Future<Rgba8Image?> Function(Uint8List encoded);
+
+/// An [ImageDecoder] that can also scale a large image down while it decodes
+/// it — `A4.17`.
+///
+/// A function of this type *is* an [ImageDecoder] (an extra optional named
+/// parameter does not change what a one-argument call means), so every
+/// parameter typed [ImageDecoder] takes one unchanged; [uploadEncodedImage]
+/// asks `decodeImage is SizedImageDecoder` and passes the cap when it is.
+/// `flutter3d`'s `defaultImageDecoder` is one, through `dart:ui`'s target
+/// size, so the full-size pixels are never produced. A decoder that is not
+/// one is still capped — its result is scaled down afterwards, on the CPU —
+/// which costs the full decode the cap was meant to avoid.
+///
+/// [maxDimension] is the longest side the result may have, keeping the
+/// aspect (`cappedImageSize`); null means the file's own size.
+typedef SizedImageDecoder =
+    Future<Rgba8Image?> Function(Uint8List encoded, {int? maxDimension});

@@ -32,6 +32,8 @@ import 'dart:math' as math;
 /// allocated per particle: a torch emits a hundred and fifty a second and this
 /// sits on the frame path.
 final class ParticleRandom implements math.Random {
+  /// A generator for the system seeded with [systemSeed]; [reseed] points
+  /// it at a particle's stream before it is drawn from.
   ParticleRandom(this.systemSeed);
 
   /// The system's own seed. Two systems with the same one produce the same

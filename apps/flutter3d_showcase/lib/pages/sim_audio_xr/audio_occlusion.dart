@@ -10,16 +10,23 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `audio-occlusion` page: a bell behind a wall and a listener walking
+/// past it. Its check is that the bell heard through the wall is muffled by
+/// half.
 final class AudioOcclusionDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Where the listener stands along x, in metres, -6 to 8; written each frame
+  /// while [walking].
   double listenerX = 0.0;
+
+  /// Whether the listener walks back and forth on its own; dragging the slider
+  /// stops it.
   bool walking = true;
 
   late final AudioScene _audio;
-  late final SoundEmitter _bell;
+  late final AudioEmitter _bell;
   late final AudioListener _listener;
   late final MeshNode _source;
   late final MeshNode _head;
@@ -103,7 +110,7 @@ final class AudioOcclusionDemo extends ShowcaseDemo {
     _gain.set(_bell.audibleGain);
     _muffle.set(_bell.muffle);
     // A muffled bell goes dull.
-    _source.material.baseColor.setValues(
+    _source.material.baseColor = LinearColor.fromSrgb(
       0.9 - 0.45 * _bell.muffle,
       0.75 - 0.3 * _bell.muffle,
       0.3 + 0.2 * _bell.muffle,

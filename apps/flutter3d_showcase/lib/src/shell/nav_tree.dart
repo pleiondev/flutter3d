@@ -12,9 +12,12 @@ import 'package:flutter3d_showcase/src/catalog/feature.dart';
 import 'package:flutter3d_showcase/src/catalog/routes.dart';
 import 'package:flutter3d_showcase/src/catalog/search.dart';
 
+/// The tree of categories and pages, with the search field above it.
 class NavTree extends StatefulWidget {
+  /// A tree marking [current] that asks [onOpen] to go elsewhere.
   const NavTree({super.key, required this.current, required this.onOpen});
 
+  /// Where the app is: the row of its page is marked selected.
   final ShowcaseAddress current;
 
   /// Asked to go to [address]; the shell decides how.

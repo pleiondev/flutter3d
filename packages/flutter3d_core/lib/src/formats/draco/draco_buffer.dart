@@ -19,9 +19,14 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// Thrown when a stream is not one this decodes, with the reason in it.
-final class DracoException implements Exception {
+final class DracoException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the stream is wrong.
   const DracoException(this.message);
+  @override
   final String message;
   @override
   String toString() => 'DracoException: $message';
@@ -31,6 +36,7 @@ Never _fail(String message) => throw DracoException(message);
 
 /// A cursor over a Draco stream.
 final class DracoBuffer {
+  /// A cursor over [bytes], at byte [start].
   DracoBuffer(this.bytes, [this.start = 0]) : position = start {
     _view = ByteData.view(
       bytes.buffer,
@@ -39,14 +45,21 @@ final class DracoBuffer {
     );
   }
 
+  /// The whole stream, read in place.
   final Uint8List bytes;
+
+  /// The byte offset into [bytes] reading began at.
   final int start;
   late final ByteData _view;
+
+  /// The byte offset into [bytes] of the next byte-aligned read; a caller
+  /// may move it to skip.
   int position;
 
-  /// Where the next byte-aligned read will happen.
+  /// How many bytes are left to read, from [position] to the end.
   int get remaining => bytes.lengthInBytes - position;
 
+  /// Reads one unsigned byte. Throws a [DracoException] past the end.
   int readUint8() {
     if (position >= bytes.lengthInBytes) {
       _fail('read past the end of the stream');
@@ -54,29 +67,39 @@ final class DracoBuffer {
     return bytes[position++];
   }
 
+  /// Reads one signed byte, -128 to 127. Throws a [DracoException] past the
+  /// end.
   int readInt8() {
     final value = readUint8();
     return value > 127 ? value - 256 : value;
   }
 
+  /// Reads a little-endian unsigned 16-bit integer. Throws a [RangeError]
+  /// past the end.
   int readUint16() {
     final value = _view.getUint16(position, Endian.little);
     position += 2;
     return value;
   }
 
+  /// Reads a little-endian unsigned 32-bit integer. Throws a [RangeError]
+  /// past the end.
   int readUint32() {
     final value = _view.getUint32(position, Endian.little);
     position += 4;
     return value;
   }
 
+  /// Reads a little-endian signed 32-bit integer. Throws a [RangeError]
+  /// past the end.
   int readInt32() {
     final value = _view.getInt32(position, Endian.little);
     position += 4;
     return value;
   }
 
+  /// Reads a little-endian 32-bit float, unitless as stored. Throws a
+  /// [RangeError] past the end.
   double readFloat32() {
     final value = _view.getFloat32(position, Endian.little);
     position += 4;
@@ -96,6 +119,8 @@ final class DracoBuffer {
     }
   }
 
+  /// Reads the next [count] bytes as a view of [bytes], not a copy. Throws
+  /// a [DracoException] when fewer remain.
   Uint8List readBytes(int count) {
     if (position + count > bytes.lengthInBytes) _fail('read past the end');
     final out = Uint8List.sublistView(bytes, position, position + count);
@@ -156,6 +181,8 @@ final class DracoBuffer {
 /// that last byte say how many bytes the initial state occupies, which is the
 /// one piece of framing the format has.
 final class RAnsDecoder {
+  /// A decoder at a precision of [precisionBits] bits; see
+  /// [precisionFor].
   RAnsDecoder(this.precisionBits)
     : precision = 1 << precisionBits,
       _lut = Uint32List(1 << precisionBits);
@@ -179,7 +206,10 @@ final class RAnsDecoder {
 
   static const int _ioBase = 256;
 
+  /// Bits of probability precision, 12 to 20 as [precisionFor] picks it.
   final int precisionBits;
+
+  /// The total the symbol probabilities add up to: `2^precisionBits`.
   final int precision;
   final Uint32List _lut;
 

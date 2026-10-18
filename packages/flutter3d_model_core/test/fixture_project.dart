@@ -17,6 +17,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
@@ -60,14 +63,14 @@ ModelProject fixtureProject() {
                 version: 3,
                 surface: SurfaceMaterial(
                   name: 'brass',
-                  baseColor: Vector4(0.8, 0.6, 0.2, 1.0),
+                  baseColor: LinearColor.fromSrgb(0.8, 0.6, 0.2, 1.0),
                   metallic: 0.75,
                   roughness: 0.125,
                   baseColorTexture: const TextureBinding(
                     imageIndex: 0,
                     sampling: TextureSampling(
                       useMipmaps: false,
-                      wrapS: TextureWrap.clampToEdge,
+                      wrapS: SamplerAddressMode.clampToEdge,
                     ),
                   ),
                   alphaMode: SurfaceAlphaMode.mask,
@@ -83,6 +86,19 @@ ModelProject fixtureProject() {
                 mimeType: 'image/png',
               ),
             ],
+            // From version 2 on: a lamp in candela, which is what a light
+            // holds since that version. The v1 file has none, and the
+            // lighting of a v1 file is lifted by the reader, not here.
+            lighting: SceneLighting(
+              lights: <ProjectLight>[
+                ProjectLight(
+                  type: LightType.point,
+                  color: LinearColor(1.0, 0.875, 0.75),
+                  intensity: 800.0,
+                  range: 12.0,
+                ),
+              ],
+            ),
           )
           .added(
             (int id) => ModelObject(
@@ -124,4 +140,54 @@ ModelProject fixtureProject() {
   // A second version on one object, so a file that wrote 1 everywhere would be
   // caught rather than agreeing with the default.
   return project.withObject(project.objects[1].copyWith(name: 'lid'));
+}
+
+/// The image a step of [fixtureHistory] samples and the live project does
+/// not: what puts a row in the history's own image table.
+EncodedImage fixtureOldImage() => EncodedImage(
+  bytes: Uint8List.fromList(<int>[9, 8, 7]),
+  name: 'old atlas',
+  mimeType: 'image/png',
+);
+
+/// Three frames of two vertices, every value its own number.
+SimulationCache fixtureCache() => SimulationCache(
+  vertexCount: 2,
+  frames: <Float32List>[
+    for (var f = 0; f < 3; f++)
+      Float32List.fromList(<double>[
+        for (var v = 0; v < 6; v++) f * 100.0 + v + 0.5,
+      ]),
+  ],
+);
+
+/// A section of a kind no build of this version writes, as a later minor
+/// would add one, flagged safe-to-copy: what makes a file version 3.
+ProjectExtraSection fixtureLaterSection() => ProjectExtraSection(
+  kind: 0x80000001,
+  bytes: Uint8List.fromList('a later minor\u0000\u0000\u0000'.codeUnits),
+  count: 1,
+  flags: F3dSectionFlags.safeToCopy,
+);
+
+/// The fixture project with a step of history behind it — `body` renamed,
+/// and an image the step before sampled since dropped — and a baked
+/// simulation on `lid`: what puts sections 7, 8 and 9 in a file.
+ModelHistory fixtureHistory() {
+  final before = fixtureProject();
+  final body = before.objects.first;
+  final lid = before.objects[1];
+  final earlier = before.copyWith(
+    images: <EncodedImage>[...before.images, fixtureOldImage()],
+  );
+  final live = before
+      .withObject(body.copyWith(name: 'body renamed'))
+      .withObject(lid.copyWith(simulationCache: fixtureCache()));
+  return ModelHistory.withSteps(live, <HistoryStep>[
+    HistoryStep(
+      command: Rename(id: body.id, to: 'body renamed'),
+      before: earlier.withObject(lid.copyWith(simulationCache: fixtureCache())),
+      selectionBefore: ProjectSelection.none,
+    ),
+  ]);
 }

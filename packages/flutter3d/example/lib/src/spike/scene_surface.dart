@@ -4,6 +4,8 @@ import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 
 /// Renders the scene at the widget's physical pixel size and paints the result.
 class SceneSurface extends StatelessWidget {
+  /// A surface drawing [scene] from [view] with [settings] through
+  /// [renderer].
   const SceneSurface({
     super.key,
     required this.renderer,
@@ -14,10 +16,19 @@ class SceneSurface extends StatelessWidget {
     this.fixedSize,
   });
 
+  /// What draws the frame.
   final Renderer renderer;
+
+  /// What is drawn.
   final Scene scene;
-  final RenderView view;
+
+  /// The camera the frame is drawn from.
+  final CameraView view;
+
+  /// The settings the frame is drawn with.
   final RenderSettings settings;
+
+  /// Called with each frame's result once it is drawn.
   final ValueChanged<FrameResult> onFrame;
 
   /// Renders at this size instead of the widget's, in physical pixels.
@@ -46,7 +57,7 @@ class SceneSurface extends StatelessWidget {
           width: width,
           height: height,
           scene: scene,
-          views: <RenderView>[view],
+          views: <CameraView>[view],
           settings: settings,
         );
         onFrame(frame);

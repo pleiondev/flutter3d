@@ -1,0 +1,149 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: ff5772a3c77c0712
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: build-SixWayField (SixWayField)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      typedef: 'SixWayField'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+          typedef: 'SixWayField'
+  - title: 'flutter3d 1.0.0-rc.1: build-SixWaySheet (SixWaySheet)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      class: 'SixWaySheet'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+          class: 'SixWaySheet'
+  - title: 'flutter3d 1.0.0-rc.1: build-bakeSixWay (bakeSixWay)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      function: 'bakeSixWay'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+          function: 'bakeSixWay'
+  - title: 'flutter3d 1.0.0-rc.1: build-smokePuff (smokePuff)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      function: 'smokePuff'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+          function: 'smokePuff'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-particles-ParticleGlow-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      getter: 'centre'
+      inClass: 'ParticleGlow'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-particles-ParticleSpin-ParticleSpin'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      constructor: ''
+      inClass: 'ParticleSpin'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'randomiseStart'
+        newName: 'randomizeStart'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-particles-ParticleSpin-randomiseStart'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      field: 'randomiseStart'
+      inClass: 'ParticleSpin'
+    changes:
+      - kind: 'rename'
+        newName: 'randomizeStart'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-particles-Emission-spent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      getter: 'spent'
+      inClass: 'Emission'
+    changes:
+      - kind: 'rename'
+        newName: 'isSpent'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-particles-Particle-alive'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      field: 'alive'
+      inClass: 'Particle'
+    changes:
+      - kind: 'rename'
+        newName: 'isAlive'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-particles-ParticleGlow-located'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      getter: 'located'
+      inClass: 'ParticleGlow'
+    changes:
+      - kind: 'rename'
+        newName: 'isLocated'
+  - title: 'flutter3d 1.0.0-rc.1: rc-particles-ParticleGravity-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      constructor: ''
+      inClass: 'ParticleGravity'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'acceleration'
+        style: optional_named
+        argumentValue:
+          expression: '{% acceleration %}'
+          variables:
+            acceleration:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0
+  - title: 'flutter3d 1.0.0-rc.1: fixr-particles-Particle-color'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      field: 'color'
+      inClass: 'Particle'
+    changes:
+      - kind: 'rename'
+        newName: 'linearRgba'
+  - title: 'flutter3d after 1.0.0-rc.1: particles-Particle-age'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_particles/flutter3d_particles.dart']
+      field: 'age'
+      inClass: 'Particle'
+    changes:
+      - kind: 'rename'
+        newName: 'ageSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: particles-Particle-lifetime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_particles/flutter3d_particles.dart']
+      field: 'lifetime'
+      inClass: 'Particle'
+    changes:
+      - kind: 'rename'
+        newName: 'lifetimeSeconds'

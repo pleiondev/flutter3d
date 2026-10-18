@@ -3,6 +3,8 @@
 #
 #   tool/conformance.sh          run the checks and exit non-zero on a failure
 #   tool/conformance.sh --stay   leave the application up with the list on screen
+#   tool/conformance.sh --linux  the same on Linux, through OpenGL ES (under
+#                                xvfb-run on a machine with no display)
 #
 # **Why this is a script and not a test.** Flutter GPU needs Impeller, and a
 # headless `flutter test` does not enable it — the same platform fact that makes
@@ -20,12 +22,27 @@ cd "$(dirname "$0")/.."
 EXAMPLE_DIR="$(pwd)/../flutter3d/example"
 
 STAY=false
+DEVICE=macos
 for arg in "$@"; do
   case "$arg" in
     --stay) STAY=true ;;
+    --linux) DEVICE=linux ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
+
+# **Linux draws through Impeller's OpenGL ES backend, and only when asked.**
+# The embedder keeps Flutter GPU off unless the engine is given
+# `--enable-flutter-gpu`; a debug build reads engine switches from the
+# environment, so the run carries them there. Under Xvfb the driver is Mesa's
+# llvmpipe, which is the strictest GLES this repository meets: it is where a
+# stage reading `gl_VertexID` was refused, before the index became an
+# attribute on that target (`flutter3d_shaders/shaders/lib/vertex_index.glsl`).
+if [[ "$DEVICE" == linux ]]; then
+  export FLUTTER_ENGINE_SWITCHES=2
+  export FLUTTER_ENGINE_SWITCH_1=enable-impeller
+  export FLUTTER_ENGINE_SWITCH_2=enable-flutter-gpu
+fi
 
 # The bundle is impellerc output and only this backend can read it. Without it
 # the application starts and every check fails on a shader it cannot find, which
@@ -46,7 +63,7 @@ if [[ ! -f "$LOADABLE" ]]; then
 fi
 
 if [[ "$STAY" == true ]]; then
-  ( cd "$EXAMPLE_DIR" && exec flutter run -d macos -t lib/conformance_main.dart \
+  ( cd "$EXAMPLE_DIR" && exec flutter run -d "$DEVICE" -t lib/conformance_main.dart \
       --dart-define=stay=true )
   exit $?
 fi
@@ -63,7 +80,7 @@ TIMEOUT=${FLUTTER3D_CONFORMANCE_TIMEOUT:-600}
 LOG="$(mktemp -t flutter3d_conformance)"
 trap 'rm -f "$LOG"' EXIT
 
-( cd "$EXAMPLE_DIR" && exec flutter run -d macos --debug \
+( cd "$EXAMPLE_DIR" && exec flutter run -d "$DEVICE" --debug \
     -t lib/conformance_main.dart ) >"$LOG" 2>&1 &
 PID=$!
 

@@ -22,6 +22,8 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// A kind of device a build writes its own assets for.
@@ -48,11 +50,32 @@ final class DeviceClass {
   /// textures and the full level-of-detail chain.
   static const DeviceClass desktop = DeviceClass._('desktop');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DeviceClass? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every class, cheapest first.
   static const List<DeviceClass> values = <DeviceClass>[phone, web, desktop];
 
+  /// The class named [text].
+  ///
+  /// Throws an [UnknownDeviceClassException] naming the classes there are
+  /// when no class is called that: a name that is not a class is a mistake
+  /// in the text read. [tryParse] is the lookup that answers null.
+  static DeviceClass parse(String text) =>
+      tryParse(text) ?? (throw UnknownDeviceClassException(text));
+
   /// The class named [text], or null when no class is called that.
-  static DeviceClass? parse(String text) {
+  ///
+  /// **Null is "absent", not an error**: this is a lookup by name, for the
+  /// readers that take a class from a file (the build manifest, the device
+  /// memory) and say what to do about an unknown one themselves.
+  static DeviceClass? tryParse(String text) {
     for (final value in values) {
       if (value.name == text) return value;
     }
@@ -67,6 +90,23 @@ final class DeviceClass {
 
   @override
   String toString() => name;
+}
+
+/// A device class name [DeviceClass.parse] does not know.
+final class UnknownDeviceClassException extends Flutter3dFormatException {
+  /// The exception for the unknown name [text].
+  const UnknownDeviceClassException(this.text);
+
+  /// The name that was given.
+  final String text;
+
+  @override
+  String get message =>
+      'unknown device class "$text": expected one of '
+      '${DeviceClass.values.join(', ')}';
+
+  @override
+  String toString() => 'UnknownDeviceClassException: $message';
 }
 
 /// [path] with [deviceClass] put before its extension: `chair.f3d` becomes
@@ -89,6 +129,7 @@ String deviceClassPath(String path, DeviceClass deviceClass) {
 /// is a function a test can hold: the same traits and the same measurement
 /// always pick the same class.
 final class DeviceTraits {
+  /// Traits stated directly; [DeviceTraits.of] reads them off a device.
   const DeviceTraits({
     required this.web,
     required this.samplesBc,
@@ -101,11 +142,13 @@ final class DeviceTraits {
       DeviceTraits(
         web: web,
         samplesBc:
-            device.supportsTextureFormat(TextureFormat.bc1RGBAUNormInt) ||
-            device.supportsTextureFormat(TextureFormat.bc7RGBAUNormInt),
+            device
+                .textureFormatSupport(TextureFormat.bc1RGBAUNormInt)
+                .sampled ||
+            device.textureFormatSupport(TextureFormat.bc7RGBAUNormInt).sampled,
         samplesMobileBlocks:
-            device.supportsTextureFormat(TextureFormat.astc4x4LDR) ||
-            device.supportsTextureFormat(TextureFormat.etc2RGB8UNormInt),
+            device.textureFormatSupport(TextureFormat.astc4x4LDR).sampled ||
+            device.textureFormatSupport(TextureFormat.etc2RGB8UNormInt).sampled,
       );
 
   /// Whether this is a browser.
@@ -147,13 +190,17 @@ final class DeviceTraits {
 /// loading screen is still a phone ten minutes later, hot, and the desktop's
 /// textures would not fit its memory then either.
 final class DeviceClassSelector {
-  const DeviceClassSelector({this.desktopMicros = 8000});
+  /// A selector that takes a probe frame within [desktopLimit] for a
+  /// desktop, 8 ms by default.
+  const DeviceClassSelector({
+    this.desktopLimit = const Duration(microseconds: 8000),
+  });
 
-  /// The slowest a probe frame may be, in microseconds, and still be a
-  /// desktop. Half a sixty-hertz frame: the probe is a small scene, and a
+  /// The slowest a probe frame may be, against the wall clock, and still be
+  /// a desktop. Half a sixty-hertz frame: the probe is a small scene, and a
   /// device that needs more than that for it will not hold the full chain
   /// at its own resolution.
-  final int desktopMicros;
+  final Duration desktopLimit;
 
   /// The class for [traits], given the probe frame took [measuredMicros]
   /// (null when nothing was measured, which leaves the flags to decide
@@ -161,7 +208,8 @@ final class DeviceClassSelector {
   DeviceClass choose(DeviceTraits traits, {int? measuredMicros}) {
     if (traits.web) return DeviceClass.web;
     final byFlags = traits.samplesBc ? DeviceClass.desktop : DeviceClass.phone;
-    final tooSlow = measuredMicros != null && measuredMicros > desktopMicros;
+    final tooSlow =
+        measuredMicros != null && measuredMicros > desktopLimit.inMicroseconds;
     return byFlags == DeviceClass.desktop && tooSlow
         ? DeviceClass.phone
         : byFlags;
@@ -203,7 +251,16 @@ Future<int> measureFrameMicros(
 /// An interface rather than a file, because where an application keeps a
 /// setting is its own business — shared preferences, a save file, a
 /// `localStorage` key — and this package names none of them.
-abstract interface class DeviceClassMemory {
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base class DeviceClassMemory {
+  /// A memory; a subclass says where it keeps the class.
+  const DeviceClassMemory();
+
   /// What [write] last stored, or null when nothing was.
   Future<String?> read();
 
@@ -213,7 +270,9 @@ abstract interface class DeviceClassMemory {
 
 /// A [DeviceClassMemory] that lasts as long as the process — the default, and
 /// what a test uses.
-final class InMemoryDeviceClassMemory implements DeviceClassMemory {
+final class InMemoryDeviceClassMemory extends DeviceClassMemory {
+  /// A memory holding the given class to begin with, or nothing when it is
+  /// null.
   InMemoryDeviceClassMemory([this._value]);
 
   String? _value;
@@ -232,14 +291,21 @@ final class InMemoryDeviceClassMemory implements DeviceClassMemory {
 /// `chosen:desktop` — so clearing an override measures again rather than
 /// keeping the override's answer as if it had been measured.
 final class DeviceClassPicker {
+  /// A picker for a device with [traits], remembering its answer in [memory]
+  /// (in process memory when null) and measuring with [selector].
   DeviceClassPicker({
     required this.traits,
     DeviceClassMemory? memory,
     this.selector = const DeviceClassSelector(),
   }) : memory = memory ?? InMemoryDeviceClassMemory();
 
+  /// What the device can do, as the picker was given it.
   final DeviceTraits traits;
+
+  /// Where the picked class is remembered between runs.
   final DeviceClassMemory memory;
+
+  /// How a measured probe frame becomes a class.
   final DeviceClassSelector selector;
 
   static const String _measured = 'measured:';
@@ -293,13 +359,13 @@ final class DeviceClassPicker {
   /// The class in [text] and whether it was chosen, or null when [text]
   /// holds neither form.
   static (DeviceClass, bool)? _parse(String? text) => switch (text) {
-    final String t when t.startsWith(_chosen) => switch (DeviceClass.parse(
+    final String t when t.startsWith(_chosen) => switch (DeviceClass.tryParse(
       t.substring(_chosen.length),
     )) {
       final DeviceClass c => (c, true),
       null => null,
     },
-    final String t when t.startsWith(_measured) => switch (DeviceClass.parse(
+    final String t when t.startsWith(_measured) => switch (DeviceClass.tryParse(
       t.substring(_measured.length),
     )) {
       final DeviceClass c => (c, false),

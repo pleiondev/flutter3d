@@ -1,0 +1,65 @@
+# The version of each package published at v1.0.0-rc.1.
+# Copied from the snapshots committed at the tag, less two packages whose
+# 1.0.0-rc.1 was never uploaded, so nothing at the tag is a promise anybody
+# holds: `flutter3d_physics_native`, which goes up first as 1.0.0-rc.1 with
+# what the tree holds then, and `flutter3d_demo_content`, gone since.
+flame_flutter3d 1.0.0-rc.1
+flame_flutter3d_audio 1.0.0-rc.1
+flame_multiplayer 1.0.0-rc.1
+flame_multiplayer_dashwire 1.0.0-rc.1
+flutter3d 1.0.0-rc.1
+flutter3d_app 1.0.0-rc.1
+flutter3d_audio 1.0.0-rc.1
+flutter3d_audio_core 1.0.0-rc.1
+flutter3d_build 1.0.0-rc.1
+flutter3d_build_hooks 1.0.0-rc.1
+flutter3d_camera 1.0.0-rc.1
+flutter3d_conformance 1.0.0-rc.1
+flutter3d_conformance_render 1.0.0-rc.1
+flutter3d_core 1.0.0-rc.1
+flutter3d_cpu 1.0.0-rc.1
+flutter3d_editor_core 1.0.0-rc.1
+flutter3d_editor_play 1.0.0-rc.1
+flutter3d_editor_widgets 1.0.0-rc.1
+flutter3d_education 1.0.0-rc.1
+flutter3d_education_lti 1.0.0-rc.1
+flutter3d_effects 1.0.0-rc.1
+flutter3d_elements 1.0.0-rc.1
+flutter3d_fields 1.0.0-rc.1
+flutter3d_foundation 1.0.0-rc.1
+flutter3d_game 1.0.0-rc.1
+flutter3d_game_kit 1.0.0-rc.1
+flutter3d_game_physics 1.0.0-rc.1
+flutter3d_game_platformer 1.0.0-rc.1
+flutter3d_game_racing 1.0.0-rc.1
+flutter3d_game_shooter 1.0.0-rc.1
+flutter3d_game_strategy 1.0.0-rc.1
+flutter3d_game_ui 1.0.0-rc.1
+flutter3d_hardware 1.0.0-rc.1
+flutter3d_hub 1.0.0-rc.1
+flutter3d_impeller 1.0.0-rc.1
+flutter3d_level_scene 1.0.0-rc.1
+flutter3d_lints 1.0.0-rc.1
+flutter3d_matter 1.0.0-rc.1
+flutter3d_mcp 1.0.0-rc.1
+flutter3d_mesh 1.0.0-rc.1
+flutter3d_model_core 1.0.0-rc.1
+flutter3d_net 1.0.0-rc.1
+flutter3d_net_webrtc 1.0.0-rc.1
+flutter3d_particles 1.0.0-rc.1
+flutter3d_physics 1.0.0-rc.1
+flutter3d_plugin_api 1.0.0-rc.1
+flutter3d_plugin_runtime 1.0.0-rc.1
+flutter3d_pointer_lock 0.5.0
+flutter3d_post 1.0.0-rc.1
+flutter3d_samples 1.0.0-rc.1
+flutter3d_shaders 1.0.0-rc.1
+flutter3d_sim 1.0.0-rc.1
+flutter3d_sim_mcp 1.0.0-rc.1
+flutter3d_stereo 1.0.0-rc.1
+flutter3d_testing 1.0.0-rc.1
+flutter3d_voxel 1.0.0-rc.1
+flutter3d_webgl 1.0.0-rc.1
+flutter3d_webgpu 1.0.0-rc.1
+flutter3d_wgpu 1.0.0-rc.1
+pad_input 0.5.0

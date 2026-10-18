@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'mesh_data.dart';
@@ -12,6 +14,8 @@ import 'vertex_layout.dart';
 /// using `List<double>` so the data already sits in the form that goes to the
 /// GPU.
 final class MeshBuilder {
+  /// An empty builder for [layout], with room for [reserveVertices] vertices
+  /// and [reserveIndices] indices before it first grows.
   MeshBuilder(this.layout, {int reserveVertices = 64, int reserveIndices = 128})
     : _floatsPerVertex = layout.floatsPerVertex,
       _positionOffset = layout.floatOffsetOf(VertexLayout.position.name),
@@ -27,6 +31,7 @@ final class MeshBuilder {
     _indices = Uint32List(math.max(3, reserveIndices));
   }
 
+  /// The attributes each vertex is written with, and in which order.
   final VertexLayout layout;
   final int _floatsPerVertex;
   final int _positionOffset;
@@ -42,7 +47,10 @@ final class MeshBuilder {
   int _vertexFloats = 0;
   int _indexCount = 0;
 
+  /// Count of vertices added so far; the index the next one gets.
   int get vertexCount => _vertexFloats ~/ _floatsPerVertex;
+
+  /// Count of indices added so far, three per triangle.
   int get indexCount => _indexCount;
 
   /// Appends a vertex and returns its index.
@@ -64,7 +72,7 @@ final class MeshBuilder {
     Vector3? normal,
     Vector2? texcoord,
     Vector4? tangent,
-    Vector4? color,
+    LinearColor? color,
     Vector4? joints,
     Vector4? weights,
   }) {
@@ -88,28 +96,28 @@ final class MeshBuilder {
       _vertices[base + _texcoordOffset + 1] = texcoord.y;
     }
     if (_tangentOffset >= 0) {
-      final t = tangent ?? kNeutralTangent;
+      final t = tangent ?? neutralTangent;
       _vertices[base + _tangentOffset] = t.x;
       _vertices[base + _tangentOffset + 1] = t.y;
       _vertices[base + _tangentOffset + 2] = t.z;
       _vertices[base + _tangentOffset + 3] = t.w;
     }
     if (_colorOffset >= 0) {
-      final c = color ?? kNeutralColor;
-      _vertices[base + _colorOffset] = c.x;
-      _vertices[base + _colorOffset + 1] = c.y;
-      _vertices[base + _colorOffset + 2] = c.z;
-      _vertices[base + _colorOffset + 3] = c.w;
+      final c = color ?? neutralColor;
+      _vertices[base + _colorOffset] = c.r;
+      _vertices[base + _colorOffset + 1] = c.g;
+      _vertices[base + _colorOffset + 2] = c.b;
+      _vertices[base + _colorOffset + 3] = c.a;
     }
     if (_jointsOffset >= 0) {
-      final j = joints ?? kNeutralJoints;
+      final j = joints ?? neutralJoints;
       _vertices[base + _jointsOffset] = j.x;
       _vertices[base + _jointsOffset + 1] = j.y;
       _vertices[base + _jointsOffset + 2] = j.z;
       _vertices[base + _jointsOffset + 3] = j.w;
     }
     if (_weightsOffset >= 0) {
-      final w = weights ?? kNeutralWeights;
+      final w = weights ?? neutralWeights;
       _vertices[base + _weightsOffset] = w.x;
       _vertices[base + _weightsOffset + 1] = w.y;
       _vertices[base + _weightsOffset + 2] = w.z;
@@ -120,6 +128,8 @@ final class MeshBuilder {
     return base ~/ _floatsPerVertex;
   }
 
+  /// Appends the triangle of vertices [a], [b] and [c], counter-clockwise
+  /// from the front. The indices are not checked against [vertexCount].
   void addTriangle(int a, int b, int c) {
     if (_indexCount + 3 > _indices.length) {
       _indices = _growIndices(_indices, _indexCount + 3);
@@ -135,6 +145,8 @@ final class MeshBuilder {
     addTriangle(a, c, d);
   }
 
+  /// Returns what was added as a [MeshData] whose arrays are views of the
+  /// builder's own, not copies.
   MeshData build() => MeshData(
     layout: layout,
     vertices: Float32List.sublistView(_vertices, 0, _vertexFloats),

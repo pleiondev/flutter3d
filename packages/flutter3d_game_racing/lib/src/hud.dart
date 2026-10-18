@@ -15,12 +15,16 @@ import 'package:flutter/widgets.dart';
 import 'race_state.dart';
 
 /// How a game wants its readouts drawn.
-final class ReadoutStyle {
-  const ReadoutStyle({
+final class RacingReadoutStyle {
+  /// A style drawing in [text], white at 18 by default, with the secondary
+  /// half in [dim].
+  const RacingReadoutStyle({
     this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0),
     this.dim = const Color(0x66FFFFFF),
   });
 
+  /// The style of the number that matters, the `1` of "1 / 3"; the dim
+  /// halves are drawn in it too, recoloured to [dim].
   final TextStyle text;
 
   /// The `/ 3` half of "1 / 3", and anything the driver is not being asked to
@@ -39,16 +43,22 @@ final class ReadoutStyle {
 /// **Draws nothing in a mode that counts no laps.** `RaceMode.freeRoam` has no
 /// lap to be on, and a counter reading "1 / 0" is worse than no counter.
 final class LapReadout extends StatelessWidget {
+  /// The lap [racer] is on in [race], drawn in [style].
   const LapReadout({
     super.key,
     required this.racer,
     required this.race,
-    this.style = const ReadoutStyle(),
+    this.style = const RacingReadoutStyle(),
   });
 
+  /// The car whose lap is shown.
   final RacerProgress racer;
+
+  /// The race, for how many laps it has and whether its mode counts them.
   final RaceState race;
-  final ReadoutStyle style;
+
+  /// How the numbers are drawn.
+  final RacingReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -74,18 +84,26 @@ final class LapReadout extends StatelessWidget {
 /// trial is always first, and a readout saying so is a readout that means
 /// nothing.
 final class PositionReadout extends StatelessWidget {
+  /// [racer]'s place in [race], drawn in [style] with English suffixes
+  /// unless [ordinals] and [otherwise] say otherwise.
   const PositionReadout({
     super.key,
     required this.racer,
     required this.race,
-    this.style = const ReadoutStyle(),
+    this.style = const RacingReadoutStyle(),
     this.ordinals = const <String>['st', 'nd', 'rd'],
     this.otherwise = 'th',
   });
 
+  /// The car whose place is shown.
   final RacerProgress racer;
+
+  /// The race that ranks the field; nothing is drawn while it counts down
+  /// or with fewer than two cars.
   final RaceState race;
-  final ReadoutStyle style;
+
+  /// How the numbers are drawn.
+  final RacingReadoutStyle style;
 
   /// The suffixes for first, second and third. English by default and
   /// replaceable, because a genre package has no business deciding what

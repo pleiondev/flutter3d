@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Records what the player wrote, so a test can read the blended pose.
-final class _Recorder implements AnimationTarget {
+final class _Recorder with AnimationTarget {
   final Vector3 position = Vector3.zero();
   final Quaternion rotation = Quaternion.identity();
   final Vector3 scale = Vector3.all(1.0);
@@ -70,11 +70,11 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('a', 0.0), _still('b', 10.0)],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
       player.apply();
       expect(target.position.x, closeTo(0.0, 1e-6));
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       for (var i = 0; i < 6; i++) {
         player.update(1.0 / 60.0);
       }
@@ -88,9 +88,9 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('a', 0.0), _still('b', 10.0)],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       for (var i = 0; i < 20; i++) {
         player.update(1.0 / 60.0);
       }
@@ -105,9 +105,9 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('a', 0.0), _still('b', 10.0)],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.0);
+      player.crossFadeTo(1, durationSeconds: 0.0);
       player.apply();
 
       expect(player.isCrossFading, isFalse);
@@ -120,13 +120,13 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('a', 0.0), _still('b', 10.0)],
         targets: <AnimationTarget?>[_Recorder()],
-      )..play(1);
+      )..play(index: 1);
 
       player.update(0.3);
-      final before = player.time;
+      final before = player.timeSeconds;
       player.crossFadeTo(1);
 
-      expect(player.time, before);
+      expect(player.timeSeconds, before);
       expect(player.isCrossFading, isFalse);
     });
 
@@ -134,9 +134,9 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('a', 0.0), _still('b', 10.0)],
         targets: <AnimationTarget?>[_Recorder()],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       expect(player.fadeWeight, closeTo(0.0, 1e-9));
 
       player.update(0.1);
@@ -155,11 +155,11 @@ void main() {
           _still('c', 20.0),
         ],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.05);
-      player.crossFadeTo(2, duration: 0.2);
+      player.crossFadeTo(2, durationSeconds: 0.2);
       for (var i = 0; i < 20; i++) {
         player.update(1.0 / 60.0);
       }
@@ -188,9 +188,9 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('narrow', 0.0), wide],
         targets: <AnimationTarget?>[moved, untouched],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(1.0 / 60.0);
       player.apply();
 
@@ -206,9 +206,9 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_turned('a', 0.0), _turned('b', math.pi / 2)],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.1);
       player.apply();
 
@@ -226,9 +226,9 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_turned('a', 3.0), _turned('b', -3.0)],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.1);
       player.apply();
 
@@ -245,14 +245,14 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_turned('a', 1.0), _turned('b', 1.0)],
         targets: <AnimationTarget?>[target],
-      )..play(0);
+      )..play(index: 0);
 
       // Compared against the same clip applied without a blend, so the test
       // says nothing about which way round the angle convention runs.
       player.apply();
       final unblended = target.rotation.rotate(Vector3(0.0, 0.0, -1.0));
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.1);
       player.apply();
       final blended = target.rotation.rotate(Vector3(0.0, 0.0, -1.0));
@@ -268,7 +268,7 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('idle', 0.0), _still('walk', 5.0)],
         targets: <AnimationTarget?>[_Recorder()],
-      )..play(0);
+      )..play(index: 0);
 
       expect(player.crossFadeToNamed('walk'), isTrue);
       expect(player.clipIndex, 1);
@@ -278,7 +278,7 @@ void main() {
       final player = AnimationPlayer(
         clips: <AnimationClip>[_still('idle', 0.0)],
         targets: <AnimationTarget?>[_Recorder()],
-      )..play(0);
+      )..play(index: 0);
 
       expect(player.crossFadeToNamed('somersault'), isFalse);
       expect(player.clipIndex, 0);

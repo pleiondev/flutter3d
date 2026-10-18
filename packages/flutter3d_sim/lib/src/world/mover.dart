@@ -13,18 +13,47 @@ import 'rider.dart';
 ///
 /// Derived from the numbers rather than stored beside them, so there is no way
 /// for the state and the position to disagree.
-enum MoverState {
+///
+/// **An open class with constants, not an enum** (§A.2): a later minor may
+/// add a state — held, jammed — and a `switch` written against four would
+/// stop compiling. A `switch` over this needs a default.
+final class MoverState {
+  const MoverState._(this.name);
+
   /// Sitting where it was authored.
-  closed,
+  static const MoverState closed = MoverState._('closed');
 
   /// On its way to the far end.
-  opening,
+  static const MoverState opening = MoverState._('opening');
 
   /// Sitting at the far end.
-  open,
+  static const MoverState open = MoverState._('open');
 
   /// On its way back.
-  closing,
+  static const MoverState closing = MoverState._('closing');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MoverState? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every state this build knows, in the order the enum declared them.
+  static const List<MoverState> values = <MoverState>[
+    closed,
+    opening,
+    open,
+    closing,
+  ];
+
+  /// Its word in a file and a message.
+  final String name;
+
+  @override
+  String toString() => 'MoverState.$name';
 }
 
 /// A block of level geometry that travels between two places.
@@ -39,6 +68,9 @@ enum MoverState {
 /// second position, because that is what an editor can show as a drag handle
 /// and what survives moving the whole thing three metres left.
 abstract base class Mover extends Mechanism {
+  /// A mover over [collider], resting where the collider is now and going
+  /// [travel] metres when open, at [speed] (two metres a second) and
+  /// holding for [wait] (three seconds). Makes the collider kinematic.
   Mover({
     super.name,
     required this.collider,
@@ -73,9 +105,12 @@ abstract base class Mover extends Mechanism {
 
   /// 0 at [rest], 1 at `rest + travel`.
   double _progress = 0.0;
+
+  /// The 0..1 fraction of [travel] it has covered: 0 at [rest], 1 at
+  /// `rest + travel`.
   double get progress => _progress;
 
-  /// Where the subclass wants it: 0 or 1.
+  /// Where the subclass wants it, as a fraction of [travel]: 0 or 1.
   double goal = 0.0;
 
   /// How long it has been sitting still at whichever end it is at.
@@ -89,12 +124,15 @@ abstract base class Mover extends Mechanism {
   /// needs the dwell time and not merely the state.
   double get heldFor => _held;
 
+  /// Where it is in its trip, worked out from [progress] and [goal].
   MoverState get state {
     if (_progress <= 0.0) return MoverState.closed;
     if (_progress >= 1.0) return MoverState.open;
     return goal > _progress ? MoverState.opening : MoverState.closing;
   }
 
+  /// Whether it has not reached its [goal]; true also while it stalls
+  /// against a body.
   bool get isMoving => _progress != goal;
 
   /// What [isMoving] said when this last reported itself.
@@ -105,7 +143,7 @@ abstract base class Mover extends Mechanism {
   bool _wasMoving = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   void collect(MechanismEvents into) {
@@ -121,7 +159,7 @@ abstract base class Mover extends Mechanism {
   /// kills them through no mistake of theirs. False for a platform, which
   /// should simply stall — a platform that reverses whenever a monster wanders
   /// under it never completes a circuit, and the level stops working.
-  bool get reverseWhenBlocked => true;
+  bool get reversesWhenBlocked => true;
 
   /// Decides where this mover wants to be. The one thing a subclass owes.
   void schedule(double dt);
@@ -138,12 +176,14 @@ abstract base class Mover extends Mechanism {
 
     // A zero-length trip would divide by zero and is meaningless anyway; the
     // validator warns about it, and here it simply arrives.
-    final rate = _span < Tolerance.zeroLength ? double.infinity : speed / _span;
+    final rate = _span < GeometryTolerance.zeroLength
+        ? double.infinity
+        : speed / _span;
     final next = approach(_progress, goal, rate * dt);
 
     _at(next, _candidate);
     if (_isBlocked(_candidate)) {
-      if (reverseWhenBlocked) {
+      if (reversesWhenBlocked) {
         goal = goal > _progress ? 0.0 : 1.0;
       }
       return;
@@ -231,6 +271,7 @@ abstract base class Mover extends Mechanism {
 /// a door with two buttons and a trigger should be locked from all three, and
 /// the alternative is remembering to write the key on each of them.
 final class Door extends Mover {
+  /// A door, locked by [key] when one is given.
   Door({
     super.name,
     required super.collider,
@@ -241,13 +282,17 @@ final class Door extends Mover {
   });
 
   /// Read by the level reader when a document does not say, so the default
-  /// lives in one place rather than in the class and the reader both.
+  /// lives in one place rather than in the class and the reader both. In
+  /// metres per second.
   static const double defaultSpeed = 2.5;
+
+  /// The [Mover.wait] a document gets when it does not say, in seconds.
   static const double defaultWait = 3.0;
 
   /// The key colour this door demands, or null when it opens for anyone.
   final String? key;
 
+  /// Whether it demands a key; it stays locked even once opened.
   bool get isLocked => key != null;
 
   @override
@@ -279,6 +324,7 @@ final class Door extends Mover {
 /// door again holds it open, calling a lift again while it is up sends it back
 /// down. A lift is a toggle; a door is a request.
 final class Lift extends Mover {
+  /// A lift at the lift's default speed and wait.
   Lift({
     super.name,
     required super.collider,
@@ -287,7 +333,11 @@ final class Lift extends Mover {
     super.wait = defaultWait,
   });
 
+  /// The [Mover.speed] a document gets when it does not say, in metres per
+  /// second.
   static const double defaultSpeed = 1.6;
+
+  /// The [Mover.wait] a document gets when it does not say, in seconds.
   static const double defaultWait = 4.0;
 
   @override
@@ -320,6 +370,7 @@ final class Lift extends Mover {
 /// document's vocabulary is not a Dart identifier and every level ever authored
 /// uses it.
 final class MovingPlatform extends Mover {
+  /// A platform that sets off for the far end at once.
   MovingPlatform({
     super.name,
     required super.collider,
@@ -330,12 +381,16 @@ final class MovingPlatform extends Mover {
     goal = 1.0;
   }
 
+  /// The [Mover.speed] a document gets when it does not say, in metres per
+  /// second.
   static const double defaultSpeed = 1.5;
+
+  /// The [Mover.wait] a document gets when it does not say, in seconds.
   static const double defaultWait = 1.5;
 
-  /// A platform stalls rather than reversing — see [Mover.reverseWhenBlocked].
+  /// A platform stalls rather than reversing — see [Mover.reversesWhenBlocked].
   @override
-  bool get reverseWhenBlocked => false;
+  bool get reversesWhenBlocked => false;
 
   @override
   ActivationOutcome activate(Activation by) => const NothingToDo();

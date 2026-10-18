@@ -32,6 +32,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/translate.dart'
+    show BundleSectionFormatException, decodeSectionJson;
 
 /// One vertex input, by the name the engine binds it under.
 ///
@@ -39,14 +41,22 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// vertex layout must state one per attribute — GL derived it from the shader
 /// and the buffer between them, and WebGPU asks the caller.
 final class WebGpuAttribute {
+  /// An attribute the engine binds as [name], read at WGSL
+  /// `@location(location)` in [format].
   const WebGpuAttribute({
     required this.name,
     required this.location,
     required this.format,
   });
 
+  /// The input's name in the engine's GLSL, which `InputAttribute.name`
+  /// matches.
   final String name;
+
+  /// The WGSL `@location` the vertex stage reads the input at.
   final int location;
+
+  /// The per-vertex format the WebGPU vertex layout declares for it.
   final VertexFormat format;
 }
 
@@ -54,14 +64,20 @@ final class WebGpuAttribute {
 ///
 /// Both in the block's own bytes, and both std140 — see [WebGpuBlock].
 final class WebGpuBlockMember {
+  /// A member [name] spanning [sizeInBytes] from [offsetInBytes].
   const WebGpuBlockMember({
     required this.name,
     required this.offsetInBytes,
     required this.sizeInBytes,
   });
 
+  /// The member's name in the GLSL block, which a uniform write names.
   final String name;
+
+  /// Bytes from the start of the block to the member, by std140.
   final int offsetInBytes;
+
+  /// Bytes the member spans, by std140, padding of arrays included.
   final int sizeInBytes;
 }
 
@@ -75,22 +91,44 @@ final class WebGpuBlockMember {
 /// arithmetic against glslang's own `Offset` decorations on every block it
 /// writes, which is the only place the two could ever disagree.
 final class WebGpuBlock {
+  /// A block [name] at `@group(group) @binding(binding)`; an unpacked block
+  /// when [offsetInBinding] and [bindingSizeInBytes] are left out.
   const WebGpuBlock({
     required this.name,
     required this.group,
     required this.binding,
     required this.sizeInBytes,
     required this.members,
-  });
+    this.offsetInBinding = 0,
+    int? bindingSizeInBytes,
+  }) : bindingSizeInBytes = bindingSizeInBytes ?? sizeInBytes;
 
+  /// The block's type name in the GLSL, which `bindUniformBlock` takes.
   final String name;
+
+  /// The WGSL `@group` the block is declared in.
   final int group;
+
+  /// The WGSL `@binding` within [group].
   final int binding;
 
   /// The whole block, rounded up the way std140 rounds a structure up.
   final int sizeInBytes;
 
+  /// The block's members with their std140 offsets, in declaration order.
   final List<WebGpuBlockMember> members;
+
+  /// Where the block starts in the buffer its [binding] reads: nought, but
+  /// for a block of a material's own packed with the others beside it into
+  /// one binding (`packMaterialBlocks`).
+  final int offsetInBinding;
+
+  /// The bytes its [binding] reads: [sizeInBytes], or the whole pack for a
+  /// packed block.
+  final int bindingSizeInBytes;
+
+  /// Whether the block shares its binding with others of a material's own.
+  bool get isPacked => bindingSizeInBytes != sizeInBytes;
 }
 
 /// Which shape of texture a sampler reads.
@@ -99,12 +137,32 @@ final class WebGpuBlock {
 /// where the value ends up: a bind group layout entry has to declare it, and a
 /// layout that says `2d` over a cube view is an error at pipeline creation
 /// rather than a picture that is merely wrong.
+///
+/// The last four arrived with 1.0's texture shapes. A section written before
+/// them names only `2d` and `cube` and decodes unchanged; one that names a
+/// `2d-array` sampler is one this backend can now bind an array texture to.
 enum WebGpuTextureDimension {
+  /// A plain 2D texture, or one face or layer viewed alone.
   twoDimensional('2d'),
-  cube('cube');
+
+  /// A whole cube map, sampled by direction.
+  cube('cube'),
+
+  /// A 1D texture, sampled by one coordinate.
+  oneDimensional('1d'),
+
+  /// A 2D array texture, sampled with a layer index.
+  twoDimensionalArray('2d-array'),
+
+  /// A volume texture, sampled by three coordinates.
+  threeDimensional('3d'),
+
+  /// An array of cube maps, sampled by direction and layer index.
+  cubeArray('cube-array');
 
   const WebGpuTextureDimension(this.gpuName);
 
+  /// The `GPUTextureViewDimension` string the section and the layout use.
   final String gpuName;
 }
 
@@ -116,19 +174,40 @@ enum WebGpuTextureDimension {
 /// engine's `bindTexture('base_color_texture', …)` becomes two bind group
 /// entries, and this record is what says which two.
 final class WebGpuSampler {
+  /// A pair bound as [name], a filtering one unless [comparison] is set.
   const WebGpuSampler({
     required this.name,
     required this.group,
     required this.textureBinding,
     required this.samplerBinding,
     required this.dimension,
+    this.comparison = false,
   });
 
+  /// The GLSL sampler's name, which `bindTexture` takes.
   final String name;
+
+  /// The WGSL `@group` both halves are declared in.
   final int group;
+
+  /// The `@binding` of the texture half within [group].
   final int textureBinding;
+
+  /// The `@binding` of the sampler half within [group].
   final int samplerBinding;
+
+  /// The texture view shape the layout declares for the texture half.
   final WebGpuTextureDimension dimension;
+
+  /// A `texture_depth_*` and a `sampler_comparison` rather than a float
+  /// texture and a filtering sampler — what `SamplerDescriptor.compare` binds
+  /// to. A different layout entry on both halves, so a comparison sampler in
+  /// an ordinary slot is a bind group the browser refuses; the encoder
+  /// refuses the mismatch first, by name.
+  ///
+  /// Written into the section only when true, so a section with none reads
+  /// and writes byte for byte as it did before the field existed.
+  final bool comparison;
 }
 
 /// One shader stage: the WGSL, and what a pipeline needs to know about it.
@@ -137,6 +216,7 @@ final class WebGpuSampler {
 /// is a list rather than a map because a vertex layout is built in location
 /// order and the order is the reflection's to state.
 final class WebGpuStage {
+  /// A stage of [wgsl] with its reflection.
   const WebGpuStage({
     required this.wgsl,
     required this.attributes,
@@ -144,10 +224,35 @@ final class WebGpuStage {
     required this.samplers,
   });
 
+  /// The stage's WGSL source, entry point `webgpuEntryPoint`, as the
+  /// translator wrote it.
   final String wgsl;
+
+  /// The vertex inputs in location order; empty for a fragment stage.
   final List<WebGpuAttribute> attributes;
+
+  /// Every uniform block the WGSL declares, read or not.
   final List<WebGpuBlock> blocks;
+
+  /// Every texture-and-sampler pair the WGSL declares, read or not.
   final List<WebGpuSampler> samplers;
+
+  /// What this stage declares, as the renderer asks a handle's `kept` —
+  /// `P8`.
+  ///
+  /// **Its own lists, because on this backend they are the binding.** The
+  /// pipeline's layout is built from them, so every block and sampler they
+  /// name has to be bound at a draw whether or not the WGSL reads it. The
+  /// engine's library has the same answer from its generated table; a loaded
+  /// one had none, and the renderer fell back to the lighting model's flags —
+  /// which say what a model reads, not what its WGSL declares. A lit material
+  /// from the material language declares the metal-rough map through
+  /// `material_maps.glsl` and reads nothing of it, so the map went unbound
+  /// and the draw was refused.
+  StageBindings get declared => StageBindings(
+    blocks: <String>{for (final block in blocks) block.name},
+    samplers: <String>{for (final sampler in samplers) sampler.name},
+  );
 }
 
 /// What the section decodes to.
@@ -175,22 +280,21 @@ ByteData encodeWebGpuSection({
 
 /// The stages in [bytes].
 ///
-/// Throws [FormatException] when the bytes are not the document above — the
-/// device turns that into a refusal naming the bundle, rather than a pipeline
-/// built from half a reflection.
+/// Throws [BundleSectionFormatException] when the bytes are not the document
+/// above — the device turns that into a refusal naming the bundle, rather
+/// than a pipeline built from half a reflection.
 WebGpuSectionStages decodeWebGpuSection(ByteData bytes) {
-  final text = utf8.decode(
-    bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-  );
-  final document = jsonDecode(text);
+  final document = decodeSectionJson(bytes);
   if (document is! Map<String, dynamic>) {
-    throw const FormatException('the section is not a JSON object');
+    throw const BundleSectionFormatException(
+      'the section is not a JSON object',
+    );
   }
 
   Map<String, WebGpuStage> stages(String kind) {
     final entries = document[kind];
     if (entries is! Map<String, dynamic>) {
-      throw FormatException('the section has no "$kind" object');
+      throw BundleSectionFormatException('the section has no "$kind" object');
     }
     return <String, WebGpuStage>{
       for (final entry in entries.entries)
@@ -236,6 +340,7 @@ Map<String, Object> _stageToJson(WebGpuStage stage) => <String, Object>{
         'texture': sampler.textureBinding,
         'sampler': sampler.samplerBinding,
         'dimension': sampler.dimension.gpuName,
+        if (sampler.comparison) 'comparison': true,
       },
   ],
 };
@@ -276,8 +381,9 @@ WebGpuAttribute _attributeFromJson(String where, Object? value) {
     ),
     format: VertexFormat.values.firstWhere(
       (candidate) => candidate.name == format,
-      orElse: () =>
-          throw FormatException('$where names the vertex format "$format"'),
+      orElse: () => throw BundleSectionFormatException(
+        '$where names the vertex format "$format"',
+      ),
     ),
   );
 }
@@ -330,20 +436,31 @@ WebGpuSampler _samplerFromJson(String where, Object? value) {
     ),
     dimension: WebGpuTextureDimension.values.firstWhere(
       (candidate) => candidate.gpuName == dimension,
-      orElse: () =>
-          throw FormatException('$where names the dimension "$dimension"'),
+      orElse: () => throw BundleSectionFormatException(
+        '$where names the dimension "$dimension"',
+      ),
     ),
+    comparison: switch (json['comparison']) {
+      null => false,
+      final bool flag => flag,
+      _ => throw BundleSectionFormatException(
+        '$where has a sampler whose "comparison" is not a boolean',
+      ),
+    },
   );
 }
 
 Map<String, dynamic> _object(String message, Object? value) =>
-    value is Map<String, dynamic> ? value : throw FormatException(message);
+    value is Map<String, dynamic>
+    ? value
+    : throw BundleSectionFormatException(message);
 
-List<dynamic> _list(String message, Object? value) =>
-    value is List<dynamic> ? value : throw FormatException(message);
+List<dynamic> _list(String message, Object? value) => value is List<dynamic>
+    ? value
+    : throw BundleSectionFormatException(message);
 
 String _string(String message, Object? value) =>
-    value is String ? value : throw FormatException(message);
+    value is String ? value : throw BundleSectionFormatException(message);
 
 int _integer(String message, Object? value) =>
-    value is int ? value : throw FormatException(message);
+    value is int ? value : throw BundleSectionFormatException(message);

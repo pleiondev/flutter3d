@@ -1,8 +1,7 @@
-import 'package:pad_input/pad_input.dart' show PadButton;
-
-import '../input/bindings.dart';
+import '../input/bindings.dart' show InputSource;
 import '../input/pad_actions.dart';
-import 'settings_cubit.dart';
+import '../input/pad_device.dart';
+import 'game_settings.dart';
 
 /// The pad, as a screen reads it rather than as the game does.
 ///
@@ -22,9 +21,11 @@ import 'settings_cubit.dart';
 /// The settings are asked first, for the reason `settingsKeys` gives about the
 /// keyboard: a controller has to be remappable from the controller, which is
 /// the whole point for a player who has one of the two devices.
+///
+/// A screen that reads the pad makes one with `PadPresses()`.
 final class PadPresses {
   /// What was down last frame, so an edge is per button.
-  final Set<PadButton> _held = <PadButton>{};
+  final Set<GamePadButton> _held = <GamePadButton>{};
 
   /// Offers this frame's press to [settings], and says whether anything is
   /// left over for the screen.
@@ -58,8 +59,8 @@ final class PadPresses {
   /// and closing the panel sent the player walking off on their own.
   bool offer(
     PadInput pad,
-    SettingsCubit settings, {
-    PadButton? menuButton,
+    GameSettingsController settings, {
+    GamePadButton? menuButton,
     void Function()? opening,
   }) {
     final held = pad.heldButtons;
@@ -68,13 +69,15 @@ final class PadPresses {
     // anything down", so a player who died holding the accelerator had to let
     // go of everything before Start would register — the edge had already been
     // spent by the button they were still holding.
-    final pressed = held.where((PadButton it) => !_held.contains(it)).toList();
+    final pressed = held
+        .where((GamePadButton it) => !_held.contains(it))
+        .toList();
     _held
       ..clear()
       ..addAll(held);
     if (pressed.isEmpty) return false;
 
-    if (settings.state.waitingFor != null) {
+    if (settings.value.waitingFor != null) {
       settings.capture(InputSource.pad(pressed.first.id));
       return false;
     }
@@ -82,7 +85,7 @@ final class PadPresses {
     if (menuButton != null && pressed.contains(menuButton)) {
       // Only on the way in, matching `settingsKeys`: closing has nothing to
       // let go of, and the game's keys are its own again the moment it does.
-      if (!settings.state.isOpen) opening?.call();
+      if (!settings.value.isOpen) opening?.call();
       settings.toggle();
       return false;
     }

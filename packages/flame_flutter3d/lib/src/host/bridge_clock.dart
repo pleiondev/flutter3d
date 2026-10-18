@@ -28,6 +28,8 @@ import 'bridge_priority.dart';
 /// caller's own game would plausibly use instead, so the order holds
 /// regardless of which of the two ever gets added first.
 final class BridgeClock extends Component {
+  /// A clock calling [onTick] at [BridgePriority.clock], after everything
+  /// else in the game.
   BridgeClock({required this.onTick}) : super(priority: BridgePriority.clock);
 
   /// Called every time Flame updates this component, with Flame's own `dt`

@@ -20,6 +20,7 @@ import 'dart:typed_data';
 /// whole alignment scheme exists for. `STORE` is what every real `.usdz`
 /// this reads was already written with.
 final class UsdzZip {
+  /// An empty archive; entries are added with [store].
   UsdzZip();
 
   final List<_Entry> _entries = <_Entry>[];

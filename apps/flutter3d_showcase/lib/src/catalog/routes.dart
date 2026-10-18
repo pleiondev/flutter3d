@@ -8,14 +8,24 @@
 /// site's generator both read addresses.
 library;
 
+/// The three tabs of a page, in the order the tab bar shows them.
 enum PageTab {
+  /// The running scene with its controls; the tab an address without `tab=`
+  /// opens.
   demo('demo', 'Demo'),
+
+  /// The guide, the page's Markdown with its quoted regions of source.
   steps('steps', 'Step by step'),
+
+  /// The page's demo file, whole.
   source('source', 'Source');
 
   const PageTab(this.key, this.title);
 
+  /// The value of `tab=` in an address.
   final String key;
+
+  /// The label on the tab.
   final String title;
 }
 
@@ -46,17 +56,26 @@ sealed class ShowcaseAddress {
   String get address;
 }
 
+/// The home page, `/`, and where an address nothing matches lands.
 final class HomeAddress extends ShowcaseAddress {
+  /// The home page; it has nothing to carry.
   const HomeAddress();
 
   @override
   String get address => '/';
 }
 
+/// One page's tab, `/p/<id>?tab=steps&step=2`.
 final class PageAddress extends ShowcaseAddress {
+  /// The page [id] on [tab], its demo unless said; [step] is meant for
+  /// [PageTab.steps] and left out of the address when null.
   const PageAddress(this.id, {this.tab = PageTab.demo, this.step});
 
+  /// The page's `Feature.id`. Not checked here: an id the catalog does not
+  /// have is the shell's to turn away.
   final String id;
+
+  /// Which of the page's tabs is open.
   final PageTab tab;
 
   /// The step of the guide to scroll to, from 1.
@@ -74,5 +93,7 @@ final class PageAddress extends ShowcaseAddress {
     ).toString();
   }
 
+  /// The same page on [next]; the step is dropped, since it belongs to the
+  /// guide and not to whatever tab comes next.
   PageAddress onTab(PageTab next) => PageAddress(id, tab: next);
 }

@@ -1,0 +1,18 @@
+// A lighting model in version 3 of the material language that reads the
+// light's own row: its type code, the row's last vec4, and a light type of
+// a plugin's own, told apart by name. Never rewritten once a release has
+// read it.
+f3dmat 3
+material TubeLight {
+  lighttype tube = acme.tube;
+
+  light {
+    let reach = clamp(1.0 - lightParams.x * 0.1, 0.0, 1.0);
+    let engine = step(lightKind, 15.5);
+    return albedo * nDotL * mix(engine, reach, tube);
+  }
+
+  fragment {
+    return vec4(lit, alpha);
+  }
+}

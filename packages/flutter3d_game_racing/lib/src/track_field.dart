@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -9,6 +10,8 @@ import 'track.dart';
 ///
 /// Filled in rather than returned, and reused between steps: this is asked once
 /// per car per step at least, and often four times more when the car has wheels.
+///
+/// A ground field's query fills one the caller made, `GroundSample()`.
 final class GroundSample {
   /// How far along the track the car is, in metres. Feed this back as the hint
   /// on the next step — that is what keeps the answer on the right part of a
@@ -60,7 +63,11 @@ final class GroundSample {
 /// drivable on a test fixture that is one flat plane, and later on whatever a
 /// second kind of track turns out to be. The alternative — a car that reaches
 /// into a [TrackSpline] directly — makes every vehicle test build a circuit.
-abstract interface class GroundField {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class GroundField {
   /// Finds the ground under [position], searching near [nearHint] metres along
   /// the track.
   ///
@@ -78,6 +85,7 @@ abstract interface class GroundField {
 /// construction; outside it, a ray goes down into whatever the level built, and
 /// if that finds nothing the car is in the air over nothing.
 final class TrackField implements GroundField {
+  /// Ground read from [track], and off it from [world] when there is one.
   TrackField({
     required this.track,
     this.world,
@@ -102,6 +110,7 @@ final class TrackField implements GroundField {
   static const int defaultProbeMask =
       Layers.all & ~(RacingLayers.vehicle | RacingLayers.roadTrigger);
 
+  /// The road the ground is read from inside its width and shoulders.
   final TrackSpline track;
 
   /// The level around the track: scenery, run-off, whatever has been built off
@@ -117,17 +126,21 @@ final class TrackField implements GroundField {
 
   /// How far above the car the off-track ray starts, so that a car resting on
   /// the ground still has ground beneath the ray's origin.
+  /// In metres.
   final double probeAbove;
 
   /// How far down the off-track ray reaches before giving up and calling it a
   /// fall.
+  /// In metres.
   final double probeBelow;
 
+  /// The collision layers the off-track ray may hit; [defaultProbeMask],
+  /// everything but the cars and the road's triggers, unless given.
   final int offTrackMask;
 
   @override
   bool sample(Vector3 position, double nearHint, GroundSample out) {
-    final s = track.centre.closestS(
+    final s = track.center.closestS(
       position,
       nearS: nearHint,
       window: searchWindow,

@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -51,7 +52,7 @@ List<VehicleInput> _laps({required int seed, required int steps}) {
   return inputs;
 }
 
-final class _Ground implements GroundField {
+final class _Ground with GroundField {
   @override
   bool sample(Vector3 position, double nearHint, GroundSample out) {
     out
@@ -68,20 +69,20 @@ final class _Ground implements GroundField {
 }
 
 DigestTrace _drive(List<VehicleInput> inputs, {int every = 25}) {
-  const tuning = VehicleTuning();
-  final world = CollisionWorld();
+  const tuning = VehicleSettings();
+  final world = CollisionWorld(properties: racingWorld);
   final car = SphereVehicle(
     world: world,
     ground: _Ground(),
     position: Vector3(0.0, tuning.rideHeight, 0.0),
     tuning: tuning,
-    tyres: Tyres.road,
+    tireSet: TireSet.road,
   );
   final trace = DigestTrace(every: every);
   const dt = 1.0 / 60.0;
 
   for (var step = 1; step <= inputs.length; step++) {
-    car.step(dt, inputs[step - 1]);
+    car.step(VehicleStep(dt: dt, input: inputs[step - 1]));
     world.update();
     trace.observe(step, <String, Object?>{
       'car': car.save(),

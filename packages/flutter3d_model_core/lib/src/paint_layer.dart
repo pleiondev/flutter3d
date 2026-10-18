@@ -1,9 +1,9 @@
 /// [PaintLayer]/[PaintStack]: a stack of paintable layers over one texture,
 /// composited with a fixed set of blend modes — `pro-pt-01`'s own shape.
 ///
-/// **Five modes and no others**, the plan's own list: [BlendMode.normal],
-/// [BlendMode.multiply], [BlendMode.add], [BlendMode.overlay],
-/// [BlendMode.screen] — the same "fixed set, compiler-checked" choice
+/// **Five modes and no others**, the plan's own list: [PaintBlendMode.normal],
+/// [PaintBlendMode.multiply], [PaintBlendMode.add], [PaintBlendMode.overlay],
+/// [PaintBlendMode.screen] — the same "fixed set, compiler-checked" choice
 /// `TextureGraph` (`mat-10`) already made over a node kind, made here over a
 /// blend formula instead.
 ///
@@ -50,8 +50,8 @@ const int paintTileSize = 64;
 /// [LightingModel] is a fixed set of shaders, and that row's own answer is
 /// the shape used here: a `final class` with named `const` instances, the
 /// blend formula itself carried as a field rather than read off a `switch`.
-final class BlendMode {
-  const BlendMode._(this.name, this._blendChannel);
+final class PaintBlendMode {
+  const PaintBlendMode._(this.name, this._blendChannel);
 
   /// Shown in a status line or a test failure; not read by anything that
   /// changes behavior on it.
@@ -78,23 +78,35 @@ final class BlendMode {
 
   /// Plain alpha compositing: this layer's own color, mixed in by its own
   /// alpha over what is beneath it.
-  static const BlendMode normal = BlendMode._('normal', _normal);
+  static const PaintBlendMode normal = PaintBlendMode._('normal', _normal);
 
   /// `top * bottom`, per channel.
-  static const BlendMode multiply = BlendMode._('multiply', _multiply);
+  static const PaintBlendMode multiply = PaintBlendMode._(
+    'multiply',
+    _multiply,
+  );
 
   /// `top + bottom`, clamped to 1, per channel.
-  static const BlendMode add = BlendMode._('add', _add);
+  static const PaintBlendMode add = PaintBlendMode._('add', _add);
 
   /// `bottom < 0.5 ? 2*top*bottom : 1 - 2*(1-top)*(1-bottom)`, per channel —
   /// multiply where the base is dark, screen where it is light.
-  static const BlendMode overlay = BlendMode._('overlay', _overlay);
+  static const PaintBlendMode overlay = PaintBlendMode._('overlay', _overlay);
 
   /// `1 - (1-top)*(1-bottom)`, per channel.
-  static const BlendMode screen = BlendMode._('screen', _screen);
+  static const PaintBlendMode screen = PaintBlendMode._('screen', _screen);
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PaintBlendMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// Every mode this class defines, for a picker to offer.
-  static const List<BlendMode> values = <BlendMode>[
+  static const List<PaintBlendMode> values = <PaintBlendMode>[
     normal,
     multiply,
     add,
@@ -103,7 +115,7 @@ final class BlendMode {
   ];
 
   @override
-  String toString() => 'BlendMode.$name';
+  String toString() => 'PaintBlendMode.$name';
 }
 
 /// One straight-alpha RGBA8 [paintTileSize]×[paintTileSize] tile.
@@ -112,6 +124,10 @@ final class BlendMode {
 /// a mutation of this one, which is the fact [PaintLayer.paintTile]'s own
 /// copy-on-write rests on.
 final class PaintTile {
+  /// A tile holding [pixels].
+  ///
+  /// Asserts that [pixels] is exactly [paintTileSize] squared times four bytes
+  /// long.
   PaintTile(this.pixels)
     : assert(
         pixels.length == paintTileSize * paintTileSize * 4,
@@ -126,12 +142,15 @@ final class PaintTile {
 const List<double> _transparent = <double>[0, 0, 0, 0];
 
 /// One layer of a [PaintStack]: a sparse grid of [PaintTile]s and the
-/// [BlendMode] it composites with.
+/// [PaintBlendMode] it composites with.
 final class PaintLayer {
+  /// A layer [tilesX] by [tilesY] tiles composited by [blendMode], normal
+  /// unless given. [tiles] is copied, so the caller's map stays its own; null
+  /// starts the layer blank.
   PaintLayer({
     required this.tilesX,
     required this.tilesY,
-    this.blendMode = BlendMode.normal,
+    this.blendMode = PaintBlendMode.normal,
     Map<int, PaintTile>? tiles,
   }) : tiles = tiles == null
            ? <int, PaintTile>{}
@@ -140,9 +159,13 @@ final class PaintLayer {
   /// How many tiles wide/tall this layer is. A tile not present in [tiles]
   /// is fully transparent, so a blank layer need not allocate any of them.
   final int tilesX;
+
+  /// How many tiles tall this layer is. See [tilesX].
   final int tilesY;
 
-  final BlendMode blendMode;
+  /// How this layer's colour combines with what is under it in the stack,
+  /// [PaintBlendMode.normal] by default.
+  final PaintBlendMode blendMode;
 
   /// Keyed by `ty * tilesX + tx`. Read through [tileAt] rather than
   /// directly; the key encoding is this class's own business.
@@ -173,7 +196,67 @@ final class PaintLayer {
   }
 }
 
-/// Which tiles differ between [before] and [after], as `(tx, ty)` pairs.
+/// One tile's place in a [PaintLayer]'s grid, counted in tiles: what
+/// [dirtyTilesBetween] answers a list of.
+final class TileCoord {
+  /// The tile in column [x] of row [y].
+  const TileCoord({required this.x, required this.y});
+
+  /// The column, counted from the left in tiles.
+  final int x;
+
+  /// The row, counted from the top in tiles.
+  final int y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TileCoord && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'TileCoord($x, $y)';
+}
+
+/// A rectangle of texels on a paint canvas: what [dirtyRectOf] answers.
+final class TexelRect {
+  /// The rectangle [width] by [height] texels with its top-left at ([x], [y]).
+  const TexelRect({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  /// The left edge, in texels.
+  final int x;
+
+  /// The top edge, in texels.
+  final int y;
+
+  /// How wide it is, in texels.
+  final int width;
+
+  /// How tall it is, in texels.
+  final int height;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TexelRect &&
+      other.x == x &&
+      other.y == y &&
+      other.width == width &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height);
+
+  @override
+  String toString() => 'TexelRect($x, $y, ${width}x$height)';
+}
+
+/// Which tiles differ between [before] and [after], as [TileCoord]s.
 ///
 /// **What copy-on-write is for, read back.** `pro-pt-03`'s stroke replaces
 /// the tiles it touched and shares the rest *by reference*, so `identical`
@@ -185,9 +268,9 @@ final class PaintLayer {
 /// A tile present in one stack and absent from the other counts as changed:
 /// absent is transparent, and a stroke that put paint where there was none
 /// is the ordinary case.
-List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
-  if (after == null) return const <(int, int)>[];
-  final out = <(int, int)>{};
+List<TileCoord> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
+  if (after == null) return const <TileCoord>[];
+  final out = <TileCoord>{};
   for (var i = 0; i < after.layers.length; i++) {
     final PaintLayer now = after.layers[i];
     final PaintLayer? was = before != null && i < before.layers.length
@@ -199,24 +282,22 @@ List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
         final PaintTile? b = now.tileAt(tx, ty);
         if (identical(a, b)) continue;
         if (a == null && b == null) continue;
-        out.add((tx, ty));
+        out.add(TileCoord(x: tx, y: ty));
       }
     }
   }
-  final list = out.toList()
-    ..sort(((int, int) a, (int, int) b) {
-      final int byRow = a.$2.compareTo(b.$2);
-      return byRow != 0 ? byRow : a.$1.compareTo(b.$1);
-    });
-  return list;
+  return out.toList()..sort((TileCoord a, TileCoord b) {
+    final int byRow = a.y.compareTo(b.y);
+    return byRow != 0 ? byRow : a.x.compareTo(b.x);
+  });
 }
 
 /// The texel rectangle [tiles] cover, or null when there are none —
-/// `(x, y, width, height)`, clamped to a canvas of [canvas] texels a side.
-(int, int, int, int)? dirtyRectOf(List<(int, int)> tiles, int canvas) {
+/// clamped to a canvas of [canvas] texels a side.
+TexelRect? dirtyRectOf(List<TileCoord> tiles, int canvas) {
   if (tiles.isEmpty) return null;
   var minX = canvas, minY = canvas, maxX = 0, maxY = 0;
-  for (final (int tx, int ty) in tiles) {
+  for (final TileCoord(x: tx, y: ty) in tiles) {
     minX = tx * paintTileSize < minX ? tx * paintTileSize : minX;
     minY = ty * paintTileSize < minY ? ty * paintTileSize : minY;
     final int right = (tx + 1) * paintTileSize;
@@ -226,21 +307,23 @@ List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
   }
   maxX = maxX > canvas ? canvas : maxX;
   maxY = maxY > canvas ? canvas : maxY;
-  return (minX, minY, maxX - minX, maxY - minY);
+  return TexelRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY);
 }
 
 /// An ordered stack of [PaintLayer]s, bottom ([layers] index 0) to top.
 final class PaintStack {
+  /// A stack of [layers], bottom first.
   const PaintStack(this.layers);
 
+  /// The layers, bottom (index nought) to top.
   final List<PaintLayer> layers;
 
   /// [top] composited over [bottom] by straight-alpha "over" — each color
-  /// channel run through [mode]'s own [BlendMode.blendChannel] first, alpha
-  /// composited the same way regardless of [mode], using [top]'s own alpha
-  /// as coverage.
+  /// channel run through [mode]'s own [PaintBlendMode.blendChannel] first,
+  /// alpha composited the same way regardless of [mode], using [top]'s own
+  /// alpha as coverage.
   static List<double> _over(
-    BlendMode mode,
+    PaintBlendMode mode,
     List<double> top,
     List<double> bottom,
   ) {

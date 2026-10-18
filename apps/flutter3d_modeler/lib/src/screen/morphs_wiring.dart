@@ -36,7 +36,10 @@ extension _MorphsWiring on _ModelerScreenState {
       KeyShape(
         id: id,
         clipIndex: clipIndex,
-        time: KeyTable.timeOfFrame(_frame.value, _history.project.profile.fps),
+        timeSeconds: KeyTable.timeOfFrame(
+          _frame.value,
+          _history.project.profile.fps,
+        ),
       ),
     );
   }

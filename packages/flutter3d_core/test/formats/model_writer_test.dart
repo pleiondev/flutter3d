@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -25,7 +26,7 @@ PlainModelDocument _triangle() {
       normal: Vector3(0.0, 0.0, 1.0),
       texcoord: Vector2(0.0, 0.0),
       tangent: Vector4(1.0, 0.0, 0.0, 1.0),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor.white,
     );
   }
   builder.addTriangle(0, 1, 2);
@@ -44,7 +45,7 @@ PlainModelDocument _triangle() {
 }
 
 /// A format this package does not ship, the way an application adds one.
-final class _Ply implements ModelWriter {
+final class _Ply extends ModelWriter {
   const _Ply();
 
   @override
@@ -57,10 +58,9 @@ final class _Ply implements ModelWriter {
   String get says => 'a scanner\'s point cloud';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) =>
-      ModelWrite(<WrittenFile>[
-        WrittenFile('$baseName.ply', Uint8List.fromList('ply'.codeUnits)),
-      ]);
+  ModelWrite write(ModelWriteContext context) => ModelWrite(<WrittenFile>[
+    WrittenFile('${context.baseName}.ply', Uint8List.fromList('ply'.codeUnits)),
+  ]);
 }
 
 void main() {
@@ -104,42 +104,56 @@ void main() {
       // that moved from the class to the list would change its output.
       final document = _triangle();
       expect(
-        const F3dModelWriter().write(document).files.single.bytes,
+        const F3dModelWriter()
+            .write(ModelWriteContext(document: document))
+            .files
+            .single
+            .bytes,
         F3dWriter(document).write(),
       );
       expect(
-        const GlbModelWriter().write(document).files.single.bytes,
+        const GlbModelWriter()
+            .write(ModelWriteContext(document: document))
+            .files
+            .single
+            .bytes,
         GltfWriter(document).writeGlb(),
       );
       expect(
         const StlModelWriter()
-            .write(document, baseName: 'tri')
+            .write(ModelWriteContext(document: document, baseName: 'tri'))
             .files
             .single
             .bytes,
         StlWriter(document, name: 'tri').write(),
       );
       expect(
-        const StlModelWriter(
-          ascii: true,
-        ).write(document, baseName: 'tri').files.single.bytes,
+        const StlModelWriter(ascii: true)
+            .write(ModelWriteContext(document: document, baseName: 'tri'))
+            .files
+            .single
+            .bytes,
         StlWriter(document, name: 'tri').writeAscii(),
       );
       expect(
         const UsdzModelWriter()
-            .write(document, baseName: 'tri')
+            .write(ModelWriteContext(document: document, baseName: 'tri'))
             .files
             .single
             .bytes,
         UsdzWriter(document, name: 'tri').write(),
       );
-      final obj = const ObjModelWriter().write(document, baseName: 'tri');
+      final obj = const ObjModelWriter().write(
+        ModelWriteContext(document: document, baseName: 'tri'),
+      );
       expect(obj.files.first.bytes, ObjWriter(document, name: 'tri').write());
     });
 
     test('names its first file from the base name and its own suffix', () {
       for (final ModelWriter writer in builtInModelWriters) {
-        final written = writer.write(_triangle(), baseName: 'tri');
+        final written = writer.write(
+          ModelWriteContext(document: _triangle(), baseName: 'tri'),
+        );
         expect(
           written.files.first.name,
           'tri${writer.suffix}',

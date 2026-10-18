@@ -6,18 +6,53 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show ColorRole, ColorRoles;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-/// The colours the HUD draws a carried key in.
-const Map<String, Color> _keyPips = <String, Color>{
+/// The colours the HUD draws a carried key in, by the key's name.
+///
+/// **Brass and iron are the keys this game's levels use**, and the table
+/// had only the three it was first written with: both drew as the same
+/// white mark, so a player holding one could not tell which from the HUD,
+/// whatever their eyes. And colour alone is never all of it — each mark
+/// carries its key's initial too, because `ColorVision.confusions` finds
+/// brass running into red for a deutan and into yellow for a tritan.
+const Map<String, Color> keyPipColours = <String, Color>{
   'blue': Color(0xFF3A6BF2),
   'red': Color(0xFFE52E29),
   'yellow': Color(0xFFF2D133),
+  'brass': Color(0xFFC9A040),
+  'iron': Color(0xFF7F8C99),
 };
 
+/// The colours this game gives meanings to: one per key, each a row in the
+/// settings a player can change. See `ColorRoles`.
+///
+/// **And what can hurt you, and what can be picked up** — `N9`. Under the
+/// high-contrast look the crypt goes grey and these two are the colours left
+/// in it, ringed round every living monster and every pickup that is not a
+/// key (a key is ringed in its own colour). Okabe and Ito's vermillion and
+/// bluish green, which stay apart from each other for every common kind of
+/// colour blindness; a player who runs one into a key's colour moves it here.
+final ColorRoles dungeonColours = ColorRoles(<ColorRole>[
+  for (final MapEntry(key: name, value: color) in keyPipColours.entries)
+    ColorRole(
+      'key.$name',
+      '${name[0].toUpperCase()}${name.substring(1)} key',
+      color,
+    ),
+  const ColorRole('monster', 'Monsters', Color(0xFFD55E00)),
+  const ColorRole('pickup', 'Pickups', Color(0xFF009E73)),
+]);
+
+/// The heads-up display: health, armour, the weapon and its ammunition, the
+/// keys carried, the kills and the level's last message, with a debug line
+/// of the frame rate, the steps and the voices.
 class Hud extends StatelessWidget {
+  /// A display of what the screen hands it this frame; it reads nothing
+  /// itself.
   const Hud({
     super.key,
     required this.captured,
@@ -39,14 +74,23 @@ class Hud extends StatelessWidget {
     required this.message,
     required this.messageOpacity,
     required this.keys,
-    required this.armour,
+    required this.armor,
     required this.pouches,
     required this.powers,
+    this.keyColours = keyPipColours,
   });
 
+  /// Whether the pointer is captured, or needs no capturing; while it is not,
+  /// the display asks for a click to play.
   final bool captured;
+
+  /// Frames drawn a second, smoothed, for the debug line.
   final double fps;
+
+  /// Simulation steps taken since the level began, for the debug line.
   final int steps;
+
+  /// Steps the loop dropped rather than simulated, for the debug line.
   final int dropped;
 
   /// Whether the machine is not keeping up.
@@ -64,8 +108,14 @@ class Hud extends StatelessWidget {
   /// Particles alive. The same job the voice count does for sound: the only
   /// number that separates "never emitted" from "emitted and not drawn".
   final int particles;
+
+  /// Where the player's body is, in metres, for the debug line.
   final Vector3 position;
+
+  /// Whether the player's body is standing on something, for the debug line.
   final bool grounded;
+
+  /// The weapon in hand.
   final WeaponDef weapon;
 
   /// Negative when the weapon needs none.
@@ -74,9 +124,17 @@ class Hud extends StatelessWidget {
   /// Fades from one to zero after a shot connected.
   final double hitFlash;
 
+  /// Fades from one to zero after the player was hurt; the red over the
+  /// screen.
   final double painFlash;
+
+  /// The player's health, drawn as a bar and a number.
   final Health health;
+
+  /// Everything the crawl has killed, across every level of it.
   final int kills;
+
+  /// Monsters still alive on this level.
   final int monstersLeft;
 
   /// The last thing the level said — a locked door, a key collected.
@@ -88,7 +146,8 @@ class Hud extends StatelessWidget {
   /// What the player is carrying, drawn as coloured pips.
   final Set<String> keys;
 
-  final double armour;
+  /// The player's armour, drawn beside [health].
+  final double armor;
 
   /// Every pouch, not only the one in use: a player deciding whether to switch
   /// needs to see what switching would cost.
@@ -96,6 +155,10 @@ class Hud extends StatelessWidget {
 
   /// Seconds left on whatever is running.
   final Map<String, double> powers;
+
+  /// The colour each carried key is marked in — the player's choice from
+  /// [dungeonColours], or [keyPipColours] as the game has them.
+  final Map<String, Color> keyColours;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +313,7 @@ class Hud extends StatelessWidget {
             ),
 
           // Armour beside health, in the corner the eye already goes to.
-          if (armour > 0.0)
+          if (armor > 0.0)
             Align(
               alignment: Alignment.bottomLeft,
               child: Padding(
@@ -264,7 +327,7 @@ class Hud extends StatelessWidget {
                       style: TextStyle(color: Colors.white38, fontSize: 12.0),
                     ),
                     Text(
-                      '${armour.round()}',
+                      '${armor.round()}',
                       style: const TextStyle(
                         color: Color(0xFF8FC6E8),
                         fontSize: 34.0,
@@ -343,8 +406,19 @@ class Hud extends StatelessWidget {
                           height: 22.0,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              color: _keyPips[key] ?? Colors.white70,
+                              color: keyColours[key] ?? Colors.white70,
                               borderRadius: BorderRadius.circular(3.0),
+                            ),
+                            child: Center(
+                              child: Text(
+                                key.isEmpty ? '' : key[0].toUpperCase(),
+                                key: ValueKey<String>('key-pip:$key'),
+                                style: const TextStyle(
+                                  color: Color(0xDD101010),
+                                  fontSize: 11.0,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ),

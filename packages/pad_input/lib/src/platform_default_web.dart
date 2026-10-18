@@ -38,6 +38,8 @@ GamepadPlatform defaultGamepadPlatform() => WebGamepad();
 /// it, which is why the acceptance checklist for this package says so: on the
 /// web, press a button before expecting a pad.
 final class WebGamepad extends GamepadPlatform {
+  /// Subscribes to the window's gamepad, focus and visibility events for the
+  /// life of the page.
   WebGamepad() {
     _listen('gamepadconnected', (web.Event _) => _announce(true));
     _listen('gamepaddisconnected', (web.Event _) => _announce(false));
@@ -67,12 +69,14 @@ final class WebGamepad extends GamepadPlatform {
   Stream<PadConnection> get connectionChanges => _connections.stream;
 
   @override
-  void read(PadSnapshot out) => readPad(0, out);
+  void read(PadSnapshot out) => readPad(PadReadContext(index: 0, out: out));
 
   /// The [index]th controller the browser vouches for, in the order it
   /// lists them: a second player's is the second standard pad.
   @override
-  void readPad(int index, PadSnapshot out) {
+  void readPad(PadReadContext context) {
+    final index = context.index;
+    final out = context.out;
     final pad = _current(index);
     if (pad == null) {
       out.disconnect();
@@ -83,7 +87,7 @@ final class WebGamepad extends GamepadPlatform {
       // last frame before the tab went away, repeated for as long as it stays
       // away.
       out.clear();
-      out.connected = true;
+      out.isConnected = true;
       return;
     }
 

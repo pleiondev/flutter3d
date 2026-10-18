@@ -27,11 +27,12 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' show Aabb3;
 
 /// One object, as the accessibility layer will meet it.
 @immutable
 final class SemanticObject {
+  /// An object read as [label] at [bounds]; unselected and not actionable
+  /// unless said otherwise.
   const SemanticObject({
     required this.id,
     required this.label,
@@ -73,6 +74,8 @@ final class SemanticObject {
 /// only the widget knows how big the viewport turned out to be.
 @immutable
 final class SceneAnnouncement {
+  /// [node] announced as [label]; unselected and not actionable unless
+  /// said otherwise.
   const SceneAnnouncement({
     required this.id,
     required this.label,
@@ -82,8 +85,14 @@ final class SceneAnnouncement {
     this.onTap,
   });
 
+  /// The semantics key, carried to [SemanticObject.id].
   final Object id;
+
+  /// What a screen reader reads out, carried to [SemanticObject.label].
   final String label;
+
+  /// What activating it does, when the label does not say; carried to
+  /// [SemanticObject.hint].
   final String? hint;
 
   /// What to announce. Its `subtreeBounds` is the box that gets projected, so
@@ -91,7 +100,12 @@ final class SceneAnnouncement {
   /// person exploring by touch expects of a group.
   final SceneNode node;
 
+  /// Whether it is the current selection; carried to
+  /// [SemanticObject.selected].
   final bool selected;
+
+  /// What activating it does, or null for an object only read out; carried
+  /// to [SemanticObject.onTap].
   final VoidCallback? onTap;
 }
 
@@ -135,6 +149,7 @@ List<SemanticObject> semanticObjectsFor(
 /// give a screen reader the window-sized target *and* the objects, and the
 /// window-sized one is what touch exploration finds first.
 final class SceneSemantics extends StatelessWidget {
+  /// [objects] published over [child]; enabled unless said otherwise.
   const SceneSemantics({
     required this.objects,
     required this.child,
@@ -142,7 +157,12 @@ final class SceneSemantics extends StatelessWidget {
     super.key,
   });
 
+  /// What the screen reader meets, each at its own bounds; an empty list
+  /// publishes nothing.
   final List<SemanticObject> objects;
+
+  /// The picture underneath, its own semantics excluded while [objects]
+  /// are published.
   final Widget child;
 
   /// Switched off, this is `child` and nothing else — not an empty overlay.

@@ -50,6 +50,9 @@ import 'nav_grid.dart';
 
 /// The distance to the goal from everywhere, and which way is downhill.
 final class FlowField {
+  /// A field over [grid] for a body [minClearance] cells wide and
+  /// [minHeadroom] metres tall, jumping with [jump] when given. Nothing is
+  /// reachable until the first sweep.
   FlowField(
     this.grid, {
     this.minClearance = 1,
@@ -69,14 +72,21 @@ final class FlowField {
   }
 
   /// The most goals one sweep takes: [_source] is a byte per cell.
-  static const int maxGoals = 127;
+  ///
+  /// **A getter, not a constant**, because it is a limit of this build and
+  /// not a promise: a `const` is copied into the code that reads it, so a
+  /// wider source column in a later release would leave every caller
+  /// compiled against 127.
+  static int get maxGoals => _maxGoals;
+  static const int _maxGoals = 127;
 
+  /// The walk grid the field is swept over, one cost per cell.
   final NavGrid grid;
 
   /// How wide the body is, in cells. See [NavGrid.clearanceForRadius].
   final int minClearance;
 
-  /// How tall the body is. Zero accepts anything the grid baked.
+  /// How tall the body is, in metres. Zero accepts anything the grid baked.
   final double minHeadroom;
 
   /// How far the body jumps, or null for one that never leaves the ground.
@@ -120,6 +130,9 @@ final class FlowField {
   /// error. 10 and 14 are the usual pair: 14/10 is within half a percent of √2.
   static const int _straight = 10;
   static const int _diagonal = 14;
+
+  /// The cost of a cell no route reaches: far above any real route, ten
+  /// to a straight step and fourteen to a diagonal.
   static const int unreachable = 1 << 29;
 
   /// What a jump costs over and above its distance: two cells' worth, so a
@@ -148,9 +161,11 @@ final class FlowField {
   final List<int> _resolved = <int>[];
   final List<Vector3> _single = <Vector3>[Vector3.zero()];
 
-  final Vector3 _centre = Vector3.zero();
+  final Vector3 _center = Vector3.zero();
   final CellHeap _heap = CellHeap();
 
+  /// Whether this field's body can stand in cell [index]: walkable, wide
+  /// enough (or a link's end) and tall enough.
   bool fits(int index) =>
       grid.isWalkable(index) &&
       (grid.clearanceAt(index) >= minClearance || _linkEnds.contains(index)) &&
@@ -351,8 +366,8 @@ final class FlowField {
     if (linked >= 0) {
       // Downhill from here is through the air: aim at the landing, and let
       // [jumpAt] tell the caller that walking there will not do.
-      grid.centreOf(grid.jumpLinks[linked].to, _centre);
-      out.setValues(_centre.x - from.x, 0.0, _centre.z - from.z);
+      grid.centerOf(grid.jumpLinks[linked].to, _center);
+      out.setValues(_center.x - from.x, 0.0, _center.z - from.z);
       if (out.length2 < 1e-8) return false;
       out.normalize();
       return true;
@@ -370,11 +385,11 @@ final class FlowField {
     if (dx == 0 && dz == 0) return false;
 
     final next = (grid.cellZ(cell) + dz) * grid.columns + grid.cellX(cell) + dx;
-    grid.centreOf(next, _centre);
+    grid.centerOf(next, _center);
     // Towards the next cell's centre rather than along the raw eight-way
     // offset: an agent that walks the offsets moves in staircases, and one
     // that aims at centres moves in a line whenever the cells are in one.
-    out.setValues(_centre.x - from.x, 0.0, _centre.z - from.z);
+    out.setValues(_center.x - from.x, 0.0, _center.z - from.z);
     if (out.length2 < 1e-8) return false;
     out.normalize();
     return true;

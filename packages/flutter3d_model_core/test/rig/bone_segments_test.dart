@@ -1,7 +1,7 @@
 /// `anim-33d`'s own `boneSegmentsOf`: a [RetargetRig] read as
 /// [BoneSegment]s, addressed the same local way [WeightPair.joint] already
 /// is everywhere else — including the "more nodes than joints" case
-/// `RigBuildOptions.controllers` adds (`rig_template.dart`), read here
+/// `RigBuildSettings.controllers` adds (`rig_template.dart`), read here
 /// without a project at all.
 ///
 ///     dart test test/rig/bone_segments_test.dart
@@ -9,7 +9,7 @@ library;
 
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// [actual] equals [expected] within [tolerance] — `Matrix4`/`Vector3` are
 /// both `Float32List`-backed, so a position composed through a few chained

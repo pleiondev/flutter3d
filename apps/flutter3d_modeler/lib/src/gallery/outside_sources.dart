@@ -72,12 +72,12 @@ List<GalleryItem> parseKhronosIndex(Object? body, RemoteSource source) {
     final Object? binary = variants['glTF-Binary'];
     if (binary is! String) continue;
 
-    final ({String? artist, GalleryLicence? licence}) terms = _khronosTerms(
+    final ({String? artist, GalleryLicence? license}) terms = _khronosTerms(
       legal,
     );
-    final GalleryLicence? licence = terms.licence;
-    if (licence == null) continue;
-    if (licence.requiresAttribution &&
+    final GalleryLicence? license = terms.license;
+    if (license == null) continue;
+    if (license.requiresAttribution &&
         (terms.artist == null || terms.artist!.isEmpty)) {
       continue;
     }
@@ -91,8 +91,8 @@ List<GalleryItem> parseKhronosIndex(Object? body, RemoteSource source) {
             'A glTF sample asset — what this repository\'s own decoders '
             'are tested against.',
         category: categoryFor(name),
-        licence: licence,
-        author: licence.requiresAttribution ? terms.artist : null,
+        license: license,
+        author: license.requiresAttribution ? terms.artist : null,
         downloadUrl: khronosModelUrl(name, binary),
       ),
     );
@@ -101,18 +101,18 @@ List<GalleryItem> parseKhronosIndex(Object? body, RemoteSource source) {
 }
 
 /// The first legal entry that names a licence this build knows.
-({GalleryLicence? licence, String? artist}) _khronosTerms(Object? legal) {
-  if (legal is! List<Object?>) return (licence: null, artist: null);
+({GalleryLicence? license, String? artist}) _khronosTerms(Object? legal) {
+  if (legal is! List<Object?>) return (license: null, artist: null);
   for (final Object? entry in legal) {
     if (entry is! Map<String, Object?>) continue;
     final Object? said = entry['license'];
     if (said is! String) continue;
-    final GalleryLicence? licence = licenceNamed(said);
-    if (licence == null) continue;
+    final GalleryLicence? license = licenceNamed(said);
+    if (license == null) continue;
     final Object? artist = entry['artist'];
-    return (licence: licence, artist: artist is String ? artist : null);
+    return (license: license, artist: artist is String ? artist : null);
   }
-  return (licence: null, artist: null);
+  return (license: null, artist: null);
 }
 
 /// What a catalogue's own licence string means here, or null for one this

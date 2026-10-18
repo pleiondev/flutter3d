@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show Severity;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -57,6 +58,7 @@ String fixLabelFor(AppLocalizations l, MeshIssueKind kind) => switch (kind) {
 
 /// The mesh's own health, a row per thing that is wrong.
 class MeshHealthPanel extends StatelessWidget {
+  /// A row for each of [issues], or a line saying there are none.
   const MeshHealthPanel({
     super.key,
     required this.issues,
@@ -116,10 +118,11 @@ class _Row extends StatelessWidget {
     final AppLocalizations l = AppLocalizations.of(context);
     // The same three levels the status line and the console paint in, for the
     // same reason: an error is the one row somebody has to notice.
-    final Color colour = switch (issue.severity) {
-      IssueSeverity.error => theme.colorScheme.error,
-      IssueSeverity.warning => theme.colorScheme.tertiary,
-      IssueSeverity.note => theme.colorScheme.onSurfaceVariant,
+    final Color color = switch (issue.severity) {
+      Severity.error => theme.colorScheme.error,
+      Severity.warning => theme.colorScheme.tertiary,
+      // A note, and any level added after these three.
+      _ => theme.colorScheme.onSurfaceVariant,
     };
     final String? tool = fixToolFor(issue.kind);
     return SizedBox(
@@ -141,7 +144,7 @@ class _Row extends StatelessWidget {
                       issue.message,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(color: colour),
+                      style: theme.textTheme.bodySmall?.copyWith(color: color),
                     ),
                   ),
                 ),

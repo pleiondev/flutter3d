@@ -9,9 +9,12 @@
 #
 # What it does NOT do, stated so the gap is not mistaken for coverage:
 #
-#   * The Impeller half of the golden set. Those seventy-eight scenes render through
+#   * The Impeller half of the golden set. Those 96 scenes render through
 #     flutter_gpu and need a real device, so they run from
-#     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
+#     packages/flutter3d/tool/golden.sh on a machine with a GPU: every night
+#     in .github/workflows/nightly.yml, on the self-hosted `impeller` runner,
+#     with the conformance harness, the plugin's GPU checks and pacing on the
+#     Galaxy A55 beside them. The software
 #     half runs here, and cross_backend_test.dart compares the two committed
 #     reference sets with no device at all — which is the question that
 #     actually matters.
@@ -23,20 +26,54 @@
 #   * Frame pacing. tool/pacing.sh plays a recorded run through Impeller and
 #     fails on any frame over 50 ms, which needs a GPU; .github/workflows/ci.yml
 #     runs it in a macOS job of its own, and its report lives in doc/pacing/.
+#     The nightly holds the A55 to p99 ≤ 33.3 ms on three demos.
+#   * The wgpu sidecar on Direct3D 12. Its compute checks need Windows, so
+#     .github/workflows/ci.yml's `wgpu-warp` job runs them on `windows-latest`
+#     through WARP, the software Direct3D 12 adapter, with no GPU.
+#   * Builds of every application. .github/workflows/ci.yml's `build` job
+#     builds what tool/build_apps.sh --matrix prints, one runner a cell.
 #   * The Android and iOS builds. They are compiled, but not by this script:
 #     .github/workflows/ci.yml has a job apiece, because one wants an Android
 #     toolchain and the other only builds on macOS, and a script that asked a
 #     Linux developer for both would be a script that fails for everybody. The
 #     web build below is here rather than there for the opposite reason —
 #     anything that runs `flutter` can do it.
+#
+# Two ways to run part of it:
+#
+#   tool/ci.sh --dry-run             every step's name and command, run none
+#   tool/ci.sh --only 'tool|root'    the steps whose name matches, the rest
+#                                    named as skipped
+#
+# `--dry-run` is how a change to this file, or to the workflow that calls it,
+# is proved to resolve without forty minutes of suites; `--only` is the step
+# that went red, run again by its own name.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+
+DRY_RUN=false
+ONLY=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=true; shift ;;
+    --only) ONLY="$2"; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
 
 FAILED=()
 step() {
   local name="$1"; shift
+  if [[ -n "$ONLY" ]] && ! [[ "$name" =~ $ONLY ]]; then
+    [[ "$DRY_RUN" == true ]] || echo "── $name (skipped: not --only)"
+    return
+  fi
   echo ""
   echo "── $name"
+  if [[ "$DRY_RUN" == true ]]; then
+    echo "   $*"
+    return
+  fi
   if ! "$@"; then
     FAILED+=("$name")
   fi
@@ -65,9 +102,27 @@ step "structure" dart run tool/structure.dart
 # and it is one commit. Second in the order for the same reason the structure
 # scan is first: it needs no packages resolved and finishes in under two
 # seconds.
-step "format" dart format --output=none --set-exit-if-changed packages apps tool
+# Tracked files only: a test run leaves copies of sources under an ignored
+# `build/`, and those are nobody's style.
+step "format" bash -c 'git ls-files -z -- "packages/*.dart" "apps/*.dart" "tool/*.dart" | xargs -0 dart format --output=none --set-exit-if-changed'
 
 step "pub get" flutter pub get
+
+# **The one structure rule that needs the workspace resolved.** The API
+# snapshots are parsed by the analyzer, which `tool/api` depends on, so on a
+# fresh runner the scan above had nothing to run it with and said nothing.
+# Asked again here by name, the shader-freshness way, where it cannot skip.
+# The words match two rules: the API's, and the MCP tools' and VM
+# extensions' — `api/<package>.mcp` and `.vm`, written by the same tool.
+step "api snapshots" dart run tool/structure.dart --only 'snapshot its package commits'
+
+# **Every Dart block of the docs, analyzed against today's API.** `migrate`
+# and `dart fix` reach a user's code and never the pages that taught it, so
+# a rename left its old spelling on the site with nothing to say so. Here
+# rather than in the structure scan because it needs the workspace resolved
+# and takes about a minute and a half; a block that is not meant to compile
+# says so with ` ```dart fragment `.
+step "doc blocks" in_dir tool/api dart run api_snapshot:doc_blocks
 
 # The shader bundle is gitignored and its format is tied to the SDK version, so
 # a fresh checkout has none. A test asserts it was built — deliberately a
@@ -90,6 +145,14 @@ step "shaders" in_dir packages/flutter3d_impeller dart run bin/build_shader_bund
 # engine's bundle and declared as an asset, so the example does not build
 # without it; the `loaded-shader` golden is what loads it.
 step "example shaders" in_dir packages/flutter3d/example ./tool/build_shaders.sh
+
+# The sample plugin's bundle for its GPU harness, gitignored and declared as
+# an asset the same way: without it `analyze` warns that the asset is missing.
+step "plugin example shaders" in_dir packages/flutter3d_plugin_runtime/example/gpu dart run tool/build_bundle.dart
+
+# The water's material, which `flutter3d_effects`' own hook compiles on every
+# application build — and which `dart test` there, which runs no hook, reads.
+step "effects materials" in_dir packages/flutter3d_effects dart run tool/build_materials.dart
 
 # **And the one structure rule that could not fire where the scan runs.** The
 # bundle is gitignored, so a fresh checkout has none and the freshness rule
@@ -168,7 +231,33 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
 # `H6`: the compute stages, from their own manifest, through the same glslang
 # and naga. The same shape of check: regenerate, and fail on any difference.
-step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_compute_shaders.dart'
+step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/src/engine_compute_shaders.dart'
+
+# **The HLSL lint: every engine stage through the road a Direct3D 12 backend
+# would take.** The same glslang and naga as the two steps above, naga writing
+# HLSL this time, then DXC compiling it at shader model 6.0. Nothing reads HLSL
+# yet; this holds that the stages are already text the strictest HLSL compiler
+# accepts. Without DXC the naga half still runs and says DXC was skipped; under
+# CI (`CI` is set) a missing DXC is a failure, because ci.yml installs it.
+step "hlsl lint" in_dir packages/flutter3d_shaders dart run tool/hlsl_lint.dart ${CI:+--require-dxc}
+
+# **Impeller on Linux, through OpenGL ES (D56).** Linux drew nothing through
+# Impeller for as long as the engine's stages read `gl_VertexID`, which GLSL
+# ES 1.00 does not have; they read the index from an attribute on that target
+# now, and this is the run that says the driver agrees. The conformance harness
+# under Xvfb, which is Mesa's llvmpipe: no GPU, and the strictest GLES the
+# repository meets. Linux only, and on Linux it fails rather than skips
+# without `xvfb-run` and the GTK headers, for the reason the shader steps
+# above give.
+if [[ "$(uname -s)" == Linux ]]; then
+  step "impeller on linux" bash -c '
+    command -v xvfb-run >/dev/null || { echo "needs xvfb-run (apt install xvfb)"; exit 1; }
+    pkg-config --exists gtk+-3.0 || { echo "needs the GTK 3 headers (apt install libgtk-3-dev)"; exit 1; }
+    (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart >/dev/null) &&
+    (cd packages/flutter3d/example && ./tool/build_shaders.sh >/dev/null) &&
+    xvfb-run -a packages/flutter3d_impeller/tool/conformance.sh --linux
+  '
+fi
 
 # `G1`: the engine's data tables are generated and seeded, so running the
 # generator again must write the same bytes the test pins by hash.
@@ -204,6 +293,20 @@ step "publish check" bash tool/publish_check.sh
 # a tutorial step a reader cannot follow.
 step "modeller screenshots" dart run tool/publish_modeler_screenshots.dart --check
 
+# **WCAG 2.2 at level AA, wherever it is promised.** The widgets around a
+# game, the lesson viewer and the pendulum lab each carry
+# `test/accessibility_test.dart`, which mounts their screens at a large text
+# size and asks Flutter's guidelines for labelled targets, target size and
+# text contrast. Found by that path, one name everywhere. Each suite runs
+# again in the loops below; this step is here so a broken promise is named
+# as one, "accessibility flutter3d_game_ui", rather than as one red line
+# among a package's two hundred tests. The structure rule `a package that
+# promises WCAG AA keeps it` holds the list and checks this step is here.
+for dir in packages/*/ apps/*/; do
+  [ -f "$dir/test/accessibility_test.dart" ] || continue
+  step "accessibility $(basename "$dir")" in_dir "$dir" flutter test test/accessibility_test.dart
+done
+
 # **Which packages are plain Dart is not this script's knowledge.** It named
 # four of them here and `tool/structure/repository.dart` named the same four,
 # and the two lists were free to disagree: a fifth plain package added there
@@ -212,15 +315,12 @@ step "modeller screenshots" dart run tool/publish_modeler_screenshots.dart --che
 # `--flat-dart` prints the list the rules are held to, so there is one list.
 FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
 
-# **What this loop does not cover, said here because here is where somebody
-# would look for it.** It walks `packages/`, and the six programs under `tool/`
-# carry suites of their own that nothing in this script runs: `convert_asset`
-# (13), `skills` (13), `init` (18), `tutorial` (29), `godot_check` (11) and
-# `webgpu_spike` (which needs `flutter test`, not `dart test` — its fixtures
-# reach for `flutter_test`, so a loop over `tool/` would want the same split
-# this one has). `godot_check`'s run in the `godot` job in
-# .github/workflows/ci.yml; the other five are a hole, found on 2026-09-17 and
-# left named rather than quietly half-fixed.
+# It walks `packages/`; the programs under `tool/` have a loop of their own
+# below, after the services.
+# The addons were packages one directory down, in `packages/addons/`, until
+# 1.0.0-rc.1 merged them into `flutter3d_game_kit`, `flutter3d_game_ui`,
+# `flutter3d_camera` and `flutter3d_post`, which this loop walks like the
+# rest; a suite in `test/<library>/` is found by the `find` below.
 for package in packages/*/; do
   name="$(basename "$package")"
   # Matched on the files rather than on the directory, for the reason the
@@ -242,13 +342,21 @@ for package in packages/*/; do
   # Flutter and nothing has yet needed it to, so it is not in `flatDartPackages`
   # — see that table for why a rule kept for nobody is a rule that gets deleted
   # — but its suite runs the way its callers do all the same.
+  # `flutter3d_audio_core` likewise: it names no Flutter since 1.0.0-rc.1
+  # and has no caller without the SDK, but `flutter test` would not run a
+  # package that does not depend on it.
   if [ "$name" = "flutter3d_physics" ] ||
+     [ "$name" = "flutter3d_audio_core" ] ||
      printf '%s\n' "$FLAT_DART" | grep -qx "$name"; then
     step "test $name" in_dir "$package" dart test
   else
     step "test $name" in_dir "$package" flutter test
   fi
 done
+
+# The chemistry bench, which `packages/education/` held until 1.0.0-rc.1, is
+# `flutter3d_education`'s example now, and its suite runs in the loop over
+# `packages/*/example/` further down.
 
 # **The models service, which the loop above cannot see.** `cloud/server` is a
 # service rather than a package, so it sits outside `packages/` and outside the
@@ -262,6 +370,13 @@ step "analyze cloud/server" in_dir cloud/server dart analyze --fatal-infos
 step "migrations cloud/server" in_dir cloud/server dart run tool/embed_migrations.dart --check
 step "test cloud/server" in_dir cloud/server dart test -x db
 
+# **The share server, built here rather than inside the test that starts it.**
+# The platformer's `share_ghost_test.dart` races a ghost through it, and its
+# packages' native build hooks take minutes on a runner that has never run
+# them — minutes that used to sit inside one test's setUpAll. Built before the
+# applications' loop below, so that test only starts it.
+step "build share server" bash tool/build_share_server.sh
+
 # **The lessons service, same reason as the models one above.** `edu-02`'s own
 # public page and iframe embed for a lesson document — `flutter3d_lessons`,
 # serving `lessons.pleion.dev` — sat here with nobody running its `pub get`,
@@ -272,7 +387,7 @@ step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --f
 step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
 
 # **The LTI service, the third of the same kind.** `lti-03`'s own launch
-# endpoint over `flutter3d_lti` — outside the workspace like the two above,
+# endpoint over `flutter3d_education_lti`, outside the workspace like the two above,
 # and named here for the same reason: a service nothing runs is a service
 # nobody finds out about until it is deployed.
 step "pub get cloud/lti/server" in_dir cloud/lti/server dart pub get
@@ -282,7 +397,32 @@ step "test cloud/lti/server" in_dir cloud/lti/server dart test
 # **The release dashboard judges the same scripts this one runs**, so a change
 # to how it reads a result is a change to what "green" means on its page.
 step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos
-step "test tool/release_dashboard" in_dir tool/release_dashboard dart test
+
+# **Every program under `tool/` with a suite, found the way the packages
+# are.** Until 1.0.0-rc.1 this script named two of them and a comment named
+# the five it did not run — `convert_asset`, `skills`, `init`, `tutorial`,
+# `godot_check` — as a hole. The first run of the loop found two of the five
+# red: a skill that taught a class renamed at 1.0, and `init`'s pubspec
+# still expecting 0.7.1. A loop rather than a list, so the next program is
+# run the day it is committed. `dart test` unless the pubspec names the
+# Flutter SDK (`webgpu_spike`, whose fixtures reach for `flutter_test`).
+for suite in tool/*/; do
+  [ -f "$suite/pubspec.yaml" ] || continue
+  [ -n "$(find "$suite/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
+  if grep -q 'sdk: flutter' "$suite/pubspec.yaml"; then
+    step "test tool/$(basename "$suite")" in_dir "$suite" flutter test
+  else
+    step "test tool/$(basename "$suite")" in_dir "$suite" dart test
+  fi
+done
+
+# **The root's own suite**: the structure rules under `dart test`, which a
+# check that only knows to call `dart test` at the root asks the same
+# questions the first step of this script does, and the tests of the release
+# scripts beside this one (`pacing.sh --fail-on`, the build matrix, the
+# nightly badge, the release checklist). The rules run twice in one job for
+# that, a few minutes, and the alternative is a root suite nothing runs.
+step "test root" dart test
 
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against
@@ -309,13 +449,13 @@ step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter te
 # that table is the one file in the package both platforms have to agree about.
 step "test flutter3d_webgpu (browser)" in_dir packages/flutter3d_webgpu flutter test --platform chrome
 
-# **The same trap, one package over.** `pointer_lock` grew a web backend — the
+# **The same trap, one package over.** `flutter3d_pointer_lock` grew a web backend — the
 # browser has had `requestPointerLock` all along and this package was answering
 # "unsupported" for it — and its tests are `@TestOn('browser')` for the reason
 # the WebGL ones are: `dart:js_interop` is not a library the VM has. The loop
 # above skips them and reports the package green off its platform-agnostic
 # files.
-step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
+step "test flutter3d_pointer_lock (browser)" in_dir packages/flutter3d_pointer_lock flutter test --platform chrome
 
 # **The package whose whole job is a choice, asked to make it on the platform
 # where there is now more than one answer.** The backend choice, now part of
@@ -333,15 +473,16 @@ step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --p
 # browser run before anything is filtered.
 step "test flutter3d_app (browser)" in_dir packages/flutter3d_app flutter test --platform chrome test/backend_choice_test.dart test/backend_choice_web_test.dart
 
-# **The WebGPU spike, which the loops above cannot reach.** It is a workspace
-# member under `tool/` rather than a package or an application — see its own
-# README for why — so nothing named by a wildcard finds it, and a spike nobody
-# runs is a spike whose answer nobody can trust. Both platforms: the VM run holds
-# the translation tables and the README's count, and the browser run compiles the
-# `dart:js_interop` half and draws the triangle where the machine has a GPU. Under
-# two seconds apiece, and the browser run reports rather than fails where there is
-# no WebGPU.
-step "test webgpu_spike" in_dir tool/webgpu_spike flutter test
+# The level editor's web build (P11): the page's disk — session storage, the
+# download — and that a browser build picks it. Named, for the same reason as
+# above: the editor's other tests reach `dart:io`.
+step "test flutter3d_editor (browser)" in_dir apps/flutter3d_editor flutter test --platform chrome test/disk_web_test.dart
+
+# **The WebGPU spike in the browser.** Its VM run is in the loop over `tool/`
+# above, which holds the translation tables and the README's count; this
+# compiles the `dart:js_interop` half and draws the triangle where the machine
+# has a GPU. Under two seconds, and it reports rather than fails where there
+# is no WebGPU.
 step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platform chrome
 
 # **The simulation is platform-agnostic Dart, and that is exactly why it needed
@@ -360,10 +501,35 @@ step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platf
 # the slower place to do that.
 step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
 step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
+# The browser's model decoder in a Web Worker: compiled the way an
+# application compiles it and held to the in-place decode of the same bytes.
+# Its files are `@TestOn('browser')` under `test/web/`, so the core's VM run
+# above skips them; the directory is named because the rest of the suite
+# reaches `dart:io`.
+step "test flutter3d_core (browser)" in_dir packages/flutter3d_core dart test -p chrome test/web/
+# The browser's own WebAssembly under a plugin's Wasm module, step and render
+# alike, held to what the interpreter answers. `@TestOn('browser')`, so the
+# VM run above skips it, and named because the rest of the suite reaches
+# `dart:io`.
+step "test flutter3d_plugin_runtime (browser)" in_dir packages/flutter3d_plugin_runtime \
+  dart test -p chrome test/wasm_browser_test.dart
+# The native physics core as WebAssembly, under both web compilers: the
+# shared scene to the native library's hash, on one thread and on four Web
+# Workers, and flutter3d_physics' bodies on it through NativeDynamics. The second needs SharedArrayBuffer, which tool/chrome_sab.sh asks
+# Chrome for; the test runner's pages are not cross-origin isolated.
+for compiler in dart2js dart2wasm; do
+  step "test flutter3d_physics_native (browser, $compiler)" in_dir packages/flutter3d_physics_native \
+    dart test -p chrome -c "$compiler" test/web_core_test.dart test/web_dynamics_test.dart
+  step "test flutter3d_physics_native (browser threads, $compiler)" in_dir packages/flutter3d_physics_native \
+    env CHROME_EXECUTABLE="$PWD/packages/flutter3d_physics_native/tool/chrome_sab.sh" \
+    dart test -p chrome -c "$compiler" test/web_threads_test.dart
+done
 # The game layer's input files, named for the reason the application layer's
 # are above: the saves, the settings document and the timeline's service
 # extensions beside them reach `dart:io`.
-step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome test/accommodations_test.dart test/bindings_test.dart test/desktop_input_test.dart test/game_config_test.dart test/pad_actions_test.dart test/playing_test.dart test/touch_controls_test.dart test/touch_verbs_test.dart
+step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome test/accommodations_test.dart test/bindings_test.dart test/desktop_input_test.dart test/game_config_test.dart test/pad_actions_test.dart test/playing_test.dart
+# The touch controls moved to the game's widgets with their tests.
+step "test flutter3d_game_ui (browser)" in_dir packages/flutter3d_game_ui flutter test --platform chrome test/touch/touch_controls_test.dart test/touch/touch_verbs_test.dart
 
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
@@ -375,6 +541,27 @@ for example in packages/*/example/; do
   [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$(dirname "$example")") example" in_dir "$example" flutter test
 done
+
+# The examples written as from outside the repository: the outside sample
+# plugin, which holds the default simulation to a racing tape recorded
+# before fields and subsystems, and earns the plugin suite's badge; the
+# reference backend, `flutter3d_backend_null`, which passes the conformance
+# suite on published libraries alone and is what `flutter3d create plugin
+# --kind backend` copies; and the cookbook, whose test builds each of its
+# twenty recipes and draws a frame of it on the software rasteriser. The
+# structure rule "the repository lists agree with the workspace" holds every
+# one of them to the workspace and to this loop, and the `analyze` step
+# above reads them as it reads every member.
+for example in examples/*/; do
+  [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
+  step "test $(basename "$example")" in_dir "$example" flutter test
+done
+
+# Every kind `flutter3d create plugin` writes, generated against this tree,
+# analysed, and its own unit and conformance tests run: a template is a
+# string nobody compiles until somebody creates a plugin from it.
+step "plugin templates compile" bash -c \
+  'packages/flutter3d_build/tool/compile_plugin_kinds.sh "$(mktemp -d)"'
 
 # **The `golden` tag runs in its own CI job, not here.**
 #
@@ -418,6 +605,16 @@ done
 step "build web (wasm)" in_dir apps/flutter3d_demo_dungeon \
   flutter build web --wasm --release
 
+# **The 0.8.5 corpus, migrated and analysed.** Every app, every package's
+# example and the Dart of the site's guide pages at the tag `v0.8.5`, each
+# moved by `flutter3d migrate` onto this tree and analysed: an error the
+# migration neither fixed nor marked with its TODO is a break the migration
+# table does not carry, and fails the step. Tens of minutes, most of them
+# `dart fix` resolving each project; it needs the tag in the checkout (a
+# fetch with tags), and reports land in the scratch directory it names.
+step "migrate the 0.8.5 corpus" bash -c \
+  'packages/flutter3d_build/tool/migrate_corpus.sh "$(mktemp -d)"'
+
 # **The benchmarks, compiled rather than run.**
 #
 # `qa-13` of `doc/model-editor-plan.md` asks for the modeller's numbers to be an
@@ -441,7 +638,30 @@ step "benchmarks compile" bash -c '
   (cd packages/flutter3d && dart compile exe tool/bench/bench.dart -o "$out/engine" >/dev/null)
 '
 
+# **The benchmarks that are tests, run where they are asked for by name.**
+# Every suite above holds a test to a minute, and a benchmark is minutes by
+# nature, so each package's dart_test.yaml skips the `benchmark` tag and the
+# loops above report those tests as skipped. This runs them, so what they
+# assert — a redraw costs more than a skip, a repeated stroke costs what the
+# first did — is still checked on every commit. The 4K frame's own threshold
+# is for one named machine and skips itself where CI is set.
+#
+# The frame's allocations on the software backend are their own step, because
+# they are the one benchmark held to a baseline: 31 draw calls exactly, and
+# the objects the engine and the rasteriser allocate for a warm frame within
+# a tenth of the numbers `frame_allocation_benchmark_test.dart` writes down.
+# Counts, not timings, so a shared runner measures them as well as a desk
+# does. It runs `flutter test --enable-vmservice --tags benchmark
+# --run-skipped test/frame_allocation_benchmark_test.dart` in
+# `packages/flutter3d`, and fails a run that counted nothing.
+step "benchmark frame allocations (cpu)" bash tool/benchmarks.sh allocations
+step "benchmarks" bash tool/benchmarks.sh tagged
+
 echo ""
+if [[ "$DRY_RUN" == true ]]; then
+  echo "dry run: nothing was run"
+  exit 0
+fi
 if [ ${#FAILED[@]} -eq 0 ]; then
   echo "all green"
   exit 0

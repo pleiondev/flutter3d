@@ -47,7 +47,8 @@ Future<Uint8List> _draw(
     fallbackNormal: it.normal,
   );
 
-  final world = Scene(name: sceneName)..ambientIntensity = ambient;
+  final world = Scene(name: sceneName)
+    ..ambientIntensity = ambient * LightNode.defaultIntensity;
   for (final node in room(it.device)) {
     world.add(node);
   }
@@ -65,7 +66,7 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: world,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       bloom: BloomSettings(enabled: scene.bloom),
       shadows: ShadowSettings(enabled: scene.shadows),
@@ -77,9 +78,8 @@ Future<Uint8List> _draw(
           : const AmbientOcclusionSettings(enabled: false),
     ),
   );
-  final pixels = await it.device.readPixels(frame.frame);
-  expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(frame.frame);
+  return pixels.buffer.asUint8List();
 }
 
 /// Pixels where [b] is brighter than [a] by more than a channel of noise, and

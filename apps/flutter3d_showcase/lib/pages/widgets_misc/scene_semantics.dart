@@ -8,17 +8,19 @@ import 'package:flutter/widgets.dart' show Size, SizedBox;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `scene-semantics` page: two wheels, each an accessibility node where
+/// the camera projects it. Its check is that both project to a node, left to
+/// the left, and that the overlay carries both.
 final class SceneSemanticsDemo extends ShowcaseDemo {
   late final MeshNode _leftWheel;
   late final MeshNode _rightWheel;
 
   @override
   Scene build(DemoContext context) {
-    final material = Material(
+    final material = RenderMaterial(
       name: 'wheel',
-      baseColor: Vector4(0.3, 0.3, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.3, 1.0),
     );
     _leftWheel = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -34,7 +36,7 @@ final class SceneSemanticsDemo extends ShowcaseDemo {
       ..add(_leftWheel)
       ..add(_rightWheel)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

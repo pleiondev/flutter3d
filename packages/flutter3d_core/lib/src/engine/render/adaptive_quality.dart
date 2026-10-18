@@ -46,13 +46,16 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'quality_table.dart';
+import 'render_hooks.dart';
 import 'render_settings.dart';
 
 /// What the controller aims at, and how cautiously.
 final class AdaptiveQualitySettings {
+  /// The controller off; switched on, it aims at a 60 Hz frame with a tenth
+  /// to spare.
   const AdaptiveQualitySettings({
     this.enabled = false,
-    this.budgetMicros = 16667,
+    this.budget = const Duration(microseconds: 16667),
     this.headroom = 0.9,
     this.climbHeadroom = 0.75,
     this.climbFrames = 30,
@@ -60,8 +63,7 @@ final class AdaptiveQualitySettings {
     this.correctionSmoothing = 0.02,
     this.motionThreshold = 0.0,
     this.motionScale = 0.7,
-  }) : assert(budgetMicros > 0),
-       assert(
+  }) : assert(
          climbHeadroom < headroom && headroom <= 1.0,
          'climbing has to want more room than staying, or the quality '
          'oscillates across the one margin where they meet',
@@ -70,12 +72,36 @@ final class AdaptiveQualitySettings {
        assert(smoothing > 0.0 && smoothing <= 1.0),
        assert(correctionSmoothing >= 0.0 && correctionSmoothing <= 1.0);
 
+  /// A copy with the given fields replaced.
+  AdaptiveQualitySettings copyWith({
+    bool? enabled,
+    Duration? budget,
+    double? headroom,
+    double? climbHeadroom,
+    int? climbFrames,
+    double? smoothing,
+    double? correctionSmoothing,
+    double? motionThreshold,
+    double? motionScale,
+  }) => AdaptiveQualitySettings(
+    enabled: enabled ?? this.enabled,
+    budget: budget ?? this.budget,
+    headroom: headroom ?? this.headroom,
+    climbHeadroom: climbHeadroom ?? this.climbHeadroom,
+    climbFrames: climbFrames ?? this.climbFrames,
+    smoothing: smoothing ?? this.smoothing,
+    correctionSmoothing: correctionSmoothing ?? this.correctionSmoothing,
+    motionThreshold: motionThreshold ?? this.motionThreshold,
+    motionScale: motionScale ?? this.motionScale,
+  );
+
   /// Off by default: an application that has not asked for its settings to
   /// move should not find them moving.
   final bool enabled;
 
-  /// The frame time aimed at, in microseconds. 16667 is sixty a second.
-  final int budgetMicros;
+  /// The frame time aimed at, against the wall clock. 16667 microseconds is
+  /// sixty a second.
+  final Duration budget;
 
   /// A row is kept while its estimate is under this share of the budget.
   /// The tenth left over is what a row's time can grow in one frame without
@@ -97,10 +123,38 @@ final class AdaptiveQualitySettings {
 
   /// Screen motion, as [screenMotion] measures it, above which the picture
   /// is taken to be moving too fast to resolve. Nought is never.
+  /// A fraction of the screen's width.
   final double motionThreshold;
 
   /// The largest render scale a row may have while in motion.
   final double motionScale;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AdaptiveQualitySettings &&
+          other.enabled == enabled &&
+          other.budget == budget &&
+          other.headroom == headroom &&
+          other.climbHeadroom == climbHeadroom &&
+          other.climbFrames == climbFrames &&
+          other.smoothing == smoothing &&
+          other.correctionSmoothing == correctionSmoothing &&
+          other.motionThreshold == motionThreshold &&
+          other.motionScale == motionScale;
+
+  @override
+  int get hashCode => Object.hash(
+    enabled,
+    budget,
+    headroom,
+    climbHeadroom,
+    climbFrames,
+    smoothing,
+    correctionSmoothing,
+    motionThreshold,
+    motionScale,
+  );
 }
 
 /// Chooses a [QualityRow] of [table] each frame.
@@ -108,10 +162,35 @@ final class AdaptiveQualitySettings {
 /// Holds its own state: feed it every frame's time and read [row], or pass
 /// the application's settings through [apply].
 final class AdaptiveQuality {
-  AdaptiveQuality(this.table, [this.settings = const AdaptiveQualitySettings()])
-    : _correction = List<double>.filled(table.rows.length, 1.0);
+  /// A controller choosing rows of [table] under [settings].
+  ///
+  /// Asserts a budget above nought.
+  AdaptiveQuality(
+    this.table, {
+    this.settings = const AdaptiveQualitySettings(),
+    this.policy,
+    this.hooks,
+  }) : assert(
+         settings.budget > Duration.zero,
+         'a budget of nothing fits no row',
+       ),
+       _correction = List<double>.filled(table.rows.length, 1.0);
 
+  /// An application's own rule for the next row, asked once the engine's
+  /// has chosen and answering for it where it answers at all (D22b). Null
+  /// for the engine's rule alone, or for the policies of [hooks].
+  final QualityPolicy? policy;
+
+  /// The hooks of the renderer this controller chooses for
+  /// (`Renderer.hooks`): the quality policies plugins registered there
+  /// (`RenderHooks.addQualityPolicy`) are asked after [policy], in their
+  /// dependency order, null passing to the next. Null asks none.
+  final RenderHooks? hooks;
+
+  /// The measured rows the controller chooses between.
   final QualityTable table;
+
+  /// What the controller aims at, and how cautiously.
   final AdaptiveQualitySettings settings;
 
   /// Microseconds per unit of cost, or null before the first frame.
@@ -142,7 +221,33 @@ final class AdaptiveQuality {
   /// the next. [motion] is how fast the picture moves, see [screenMotion].
   ///
   /// Disabled, this sits at full quality and forgets what it measured.
+  ///
+  /// With a [policy], or a quality policy among [hooks], the row the first
+  /// of them to answer gives instead of the one the engine's rule chose.
   QualityRow recordFrame(int micros, {double motion = 0.0}) {
+    final current = _index;
+    final chosen = _recordFrame(micros, motion: motion);
+    final policy = this.policy;
+    final registered = hooks?.qualityPolicy;
+    if ((policy == null && registered == null) || !settings.enabled) {
+      return chosen;
+    }
+    final context = QualityContext(
+      table: table,
+      micros: micros,
+      motion: motion,
+      current: current,
+      choice: _index,
+    );
+    final picked = policy?.choose(context) ?? registered?.choose(context);
+    if (picked == null) return chosen;
+    _index = picked.clamp(0, table.rows.length - 1);
+    _climbCount = 0;
+    _climbTarget = -1;
+    return row;
+  }
+
+  QualityRow _recordFrame(int micros, {required double motion}) {
     if (!settings.enabled) {
       _load = null;
       _correction.fillRange(0, _correction.length, 1.0);
@@ -171,7 +276,7 @@ final class AdaptiveQuality {
           : load + settings.smoothing * (corrected - load);
     }
 
-    final budget = settings.budgetMicros.toDouble();
+    final budget = settings.budget.inMicroseconds.toDouble();
     final moving =
         settings.motionThreshold > 0.0 && motion > settings.motionThreshold;
     // Never below the table's own smallest scale, or nothing would be left.

@@ -20,14 +20,17 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Everything the runner can be driven by, on a device with no keyboard.
 class TouchRunner extends StatelessWidget {
+  /// The touch controls writing [state], with a sprint button that calls
+  /// [onSprint].
   const TouchRunner({super.key, required this.state, required this.onSprint});
 
+  /// What the sticks and buttons write, and the runner reads.
   final InputState state;
 
   /// Flips the sprint. The screen above owns the call so that it can rebuild:

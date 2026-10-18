@@ -1,76 +1,274 @@
-/// A frame-graph node that owns a pass and draws something.
+/// The one place a frame is extended: a node that owns a pass, placed at a
+/// [RenderAnchor] through `RendererSteps.addNode`, and the view-aware frame
+/// context every node and contributor is handed.
 ///
 /// Split from [FrameGraphNode] so the scheduling half stays free of GPU types:
 /// `frame_graph.dart` works out the order, the culling and the lifetimes with
-/// no device in sight and thirty-one unit tests to show for it, and this is
-/// where that meets a render pass.
+/// no device in sight, and this is where that meets a render pass.
+///
+/// **One way to add a pass, since 1.0.** Before it there were five:
+/// `Renderer.addContributor`, `Renderer.addNode` with a `FramePhase`,
+/// `RenderNodeRegistry`, `RendererSteps.addNode(at:)` and `FullscreenEffect`
+/// registering itself. Now a pass is a [RenderNode] added with
+/// `RendererSteps.addNode` (at its [RenderNode.defaultAnchor], or at any
+/// anchor, the engine's or a plugin's own); a `FullscreenEffect` is one such
+/// node; and draws that belong *inside* the engine's own passes — particles,
+/// splats — are a `PassContributor` added through the same registry with
+/// `RendererSteps.addContributor`. Both are handed a [FrameContext].
 ///
 /// A node **owns** its pass, which is the difference between it and a
-/// [PassContributor]. A contributor is handed a pass and draws into it; a node
-/// builds its own, so handing it one would be meaningless — and for a while it
-/// was worse than meaningless, because the overlay stage was handed the scene's
-/// pass after that pass's command buffer had already been submitted.
-///
-/// That is why [NodeFrame] carries no pass. It is not an omission.
+/// `PassContributor`. A contributor is handed a pass and draws into it; a node
+/// builds its own, so handing it one would be meaningless. That is why
+/// [RenderFrame] carries no pass. It is not an omission.
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show RenderAnchor, WorldPosition;
+import 'package:vector_math/vector_math.dart' as vm;
+
+import '../scene/projection.dart' show PixelJitter, jitterOffset;
+import 'engine_light_units.dart' show nitsPerEngineUnit;
 import 'frame_graph.dart';
 import 'frame_resources.dart';
+import 'frame_view.dart';
 import 'pass_contributor.dart';
+import 'render_view.dart';
 import 'renderer.dart';
 
-/// Everything a node is given to build its pass from.
+/// What every node and contributor is told about the frame it is drawing in:
+/// the view, its matrices and jitter, the clock, and the device.
 ///
-/// No pass, deliberately — see the note on [RenderNode]. The scene's colour is
-/// here instead, because a node that draws over the world needs to read what
-/// the world came out as, and that is a resource rather than a pass.
-final class NodeFrame {
-  NodeFrame({
+/// **View-aware since 1.0** (rendering review, Must 5). A node used to be
+/// handed a device, the resources and a size, and had to find the camera on
+/// its own; one that wanted the projection, the jitter the temporal resolve
+/// drew with, or how long the renderer had been running had nowhere to ask.
+/// Every one of those is here, for the frame's [view].
+abstract base class FrameContext {
+  /// The context of a frame drawn on [device] at [width] × [height] with
+  /// [settings], through [view] — null for a frame with no camera, such as
+  /// `Renderer.renderPost`'s.
+  FrameContext({
     required this.device,
-    required this.resources,
     required this.services,
-    required this.state,
     required this.settings,
     required this.width,
     required this.height,
-    this.sceneColor,
-  });
+    this.view,
+    this.frameIndex = 0,
+    this.timeSeconds = 0.0,
+    this.origin = WorldPosition.origin,
+    List<FrameView>? views,
+    this.viewIndex = 0,
+  }) : _views = views == null ? null : List<FrameView>.unmodifiable(views);
 
-  /// The backend, which is how a node opens the pass it owns.
+  /// The backend: how a node opens the pass it owns.
   ///
-  /// Where the pass itself would be if a node were a contributor. It arrives as
-  /// a value rather than being reached for, which is what makes a node's
-  /// drawing assertable by a test: hand it a recording device and the pass it
-  /// built, its attachments and its draws are all readable with no GPU in the
-  /// room. See `test/node_encoding_test.dart`.
+  /// It arrives as a value rather than being reached for, which is what makes
+  /// a node's drawing assertable by a test: hand it a recording device and
+  /// the pass it built, its attachments and its draws are all readable with
+  /// no GPU in the room.
   final GraphicsDevice device;
 
-  /// The textures behind this frame's declared resources.
+  /// What the renderer does for a node: drawing the scene into a pass, and
+  /// drawing a full-screen stage.
+  final RenderServices services;
+
+  /// The settings this frame is drawn with.
+  final RenderSettings settings;
+
+  /// The size of what is being drawn into, in pixels.
+  final int width;
+
+  /// See [width].
+  final int height;
+
+  /// The view this frame is drawn through — the first of the `render` call's
+  /// — or null for a frame with no camera.
+  final CameraView? view;
+
+  /// Every view of this frame, in order: one for a frame drawn through one
+  /// camera, two for a stereo pair or a headset's eyes, none for a frame
+  /// with no camera (D20).
+  ///
+  /// Each carries its own matrices, viewport and the view-projection it drew
+  /// through the frame before. A renderer makes them from its `render`
+  /// call's views; an XR session fills them from the runtime's poses and
+  /// asymmetric projections (`FrameView.posed`), and a node reads them the
+  /// same way either way. Without views handed in, the one view made from
+  /// [view].
+  late final List<FrameView> views =
+      _views ??
+      <FrameView>[
+        if (view case final view?)
+          FrameView.ofCameraView(view, aspect: _aspectOf(view)),
+      ];
+  final List<FrameView>? _views;
+
+  /// Which of [views] this node or contributor is drawing for, from nought.
+  /// A pass that draws once per view is handed each index in turn; the
+  /// matrices below are that view's.
+  final int viewIndex;
+
+  /// The view of [views] at [viewIndex], or null for a frame with no camera.
+  FrameView? get frameView =>
+      viewIndex < views.length ? views[viewIndex] : null;
+
+  /// The unjittered view-projection this frame's view drew through the
+  /// frame before — what a temporal effect of a plugin's reprojects by
+  /// (D20). [unjitteredViewProjection] when the view has no past: a
+  /// velocity of zero. Identity without a view.
+  vm.Matrix4 get previousViewProjection =>
+      frameView?.previousViewProjection ?? vm.Matrix4.identity();
+
+  /// [id] as the view at [viewIndex] keeps it: [id] for the first view,
+  /// `<name>#<index>` for each other one — see `FrameView.resourceFor`. What
+  /// a node that keeps a history per view reads and provides.
+  ResourceId perView(ResourceId id) => FrameView.resourceFor(id, viewIndex);
+
+  /// How many frames the renderer has drawn before this one.
+  final int frameIndex;
+
+  /// Nits in one unit of `hdr_color` and of every light value a shader
+  /// works in: what a stage that adds light in nits divides by, and what
+  /// one that reports the picture in nits multiplies by. `hdr_color` is
+  /// linear and before exposure. Frozen within 1.x ("Frame resources a stage
+  /// reads" in `docs/CONTRACTS.md`).
+  double get nitsPerHdrUnit => nitsPerEngineUnit;
+
+  /// Seconds since the renderer drew its first frame — the clock an
+  /// animated effect reads.
+  final double timeSeconds;
+
+  /// Where the scene's own space starts in the world (`Scene.origin`): what
+  /// a node that holds a [WorldPosition] subtracts to draw it. Every matrix
+  /// and position a frame hands out is in that scene space (see "Space" in
+  /// `docs/CONTRACTS.md`).
+  final WorldPosition origin;
+
+  FramePassState _state = FramePassState();
+
+  /// Counts one draw a node or contributor issued itself, in the frame's
+  /// report (`FrameResult.drawCalls`), with the [triangles] and [instances]
+  /// it drew when it knows them.
+  void noteDraw({int triangles = 0, int instances = 0}) {
+    _state
+      ..drawCalls += 1
+      ..triangles += triangles
+      ..instances += instances;
+  }
+
+  /// How many draws the frame has issued so far.
+  int get drawCalls => _state.drawCalls;
+
+  /// Says that a pipeline of the caller's own is bound now, so the next
+  /// thing the renderer draws binds its own again rather than trusting the
+  /// one it last bound — what a contributor calls after binding a pipeline.
+  void invalidatePipeline() => _state.invalidatePipeline();
+
+  /// The [frameView]'s view matrix: world (the scene's space) to eye.
+  /// Identity without a view.
+  vm.Matrix4 get viewMatrix => frameView?.viewMatrix ?? vm.Matrix4.identity();
+
+  /// The [frameView]'s projection at its own aspect, without the jitter.
+  /// Identity without a view.
+  vm.Matrix4 get projection =>
+      frameView?.projectionMatrix ?? vm.Matrix4.identity();
+
+  /// [projection] times [viewMatrix]: the unjittered view-projection.
+  vm.Matrix4 get unjitteredViewProjection => projection * viewMatrix;
+
+  /// The inverse of [unjitteredViewProjection]: clip space back to the
+  /// scene's space, for a node that reconstructs positions from depth.
+  vm.Matrix4 get inverseViewProjection =>
+      vm.Matrix4.copy(unjitteredViewProjection)..invert();
+
+  /// The sub-pixel offset the temporal resolve drew this frame's scene with,
+  /// in pixels; zero when temporal anti-aliasing is off.
+  PixelJitter get jitter {
+    final temporal = settings.antiAlias.temporal;
+    if (!temporal.enabled) return PixelJitter.none;
+    return jitterOffset(frameIndex, temporal.sequenceLength);
+  }
+
+  double _aspectOf(CameraView view) {
+    final fraction = view.viewportFraction;
+    final w = width * fraction.width;
+    final h = height * fraction.height;
+    return h <= 0.0 ? 1.0 : w / h;
+  }
+}
+
+/// What the renderer hands the passes it runs, and nobody else needs. Not
+/// exported by `flutter3d_core.dart`.
+extension FrameContextInternals on FrameContext {
+  /// Counters the whole frame shares. A node that binds its own pipeline
+  /// must say so through [FramePassState.invalidatePipeline], or the next
+  /// thing drawn will trust a stale answer.
+  FramePassState get state => _state;
+
+  /// Shares [state] with the rest of the frame: the renderer hands every
+  /// pass of a frame the one set of counters.
+  set state(FramePassState state) => _state = state;
+}
+
+/// Everything a node is given to build its pass from: the [FrameContext],
+/// and the frame's resources.
+///
+/// No pass, deliberately — see the note on [RenderNode]. The scene's colour is
+/// here instead, because a node that draws over the world needs to read what
+/// the world came out as, and that is a resource rather than a pass. What
+/// was `NodeFrame` before 1.0.
+final class RenderFrame extends FrameContext {
+  /// A frame for a node to draw in; the renderer's to make.
+  RenderFrame({
+    required super.device,
+    required this.resources,
+    required super.services,
+    required super.settings,
+    required super.width,
+    required super.height,
+    super.view,
+    super.frameIndex,
+    super.timeSeconds,
+    super.origin,
+    super.views,
+    super.viewIndex,
+    this.sceneColor,
+    this.placement,
+  });
+
+  /// Where the node runs, as the frame's placer answered the request it
+  /// made with `FrameGraphBuilder.place` — a `ComputeNodePlacement` for a
+  /// `ComputePlacementRequest` — or null for a node that asked nothing.
+  final Object? placement;
+
+  /// The textures and buffers behind this frame's declared resources: what
+  /// a node reads and writes by the [ResourceId]s it declared.
   ///
   /// Handed in rather than held by the node, which is not a style choice: the
   /// node has to exist before the graph can be compiled, and the resources
   /// cannot exist until it is. A node that stored them could not be built.
   final FrameResources resources;
 
-  final RenderServices services;
-
-  /// Counters the whole frame shares. A node that binds its own pipeline must
-  /// say so through [FramePassState.invalidatePipeline], or the next thing
-  /// drawn will trust a stale answer.
-  final FramePassState state;
-
-  final RenderSettings settings;
-
-  final int width;
-  final int height;
-
-  /// The HDR target the scene was drawn into.
+  /// The HDR target the scene was drawn into, for a node that declared it.
   final TextureHandle? sceneColor;
+
+  /// The unjittered view-projection, as a node drawing into the world needs
+  /// it: [projection] times [viewMatrix].
+  vm.Matrix4 get viewProjection => unjitteredViewProjection;
 }
 
-/// Something that declares what it touches, owns a pass, and draws it.
+/// Something that declares what it touches, owns a pass, and draws it — the
+/// one kind of pass an application or a plugin adds to a frame, with
+/// `RendererSteps.addNode`.
+///
+/// What it touches is [reads] and [writes] of [ResourceId]s: textures, and
+/// since 1.0 buffers too (`FrameResources.provideBuffer` and `buffer`), so a
+/// compute pass that fills a buffer a later draw reads is ordered by the
+/// graph like any other producer and consumer.
 abstract base class RenderNode extends FrameGraphNode {
+  /// A node; a subclass declares what it touches.
   const RenderNode();
 
   /// Draws this node's part of the frame.
@@ -78,98 +276,65 @@ abstract base class RenderNode extends FrameGraphNode {
   /// Called only if the graph kept it: a node whose outputs nobody reads is
   /// never asked, which is the difference between an effect that is switched
   /// off and an effect that costs a pass and is then discarded.
-  void execute(NodeFrame frame);
+  void execute(RenderFrame frame);
 
-  /// Where this node belongs, when whoever registers it does not say —
-  /// `gfx-28n`.
+  /// Where this node goes when whoever adds it does not say —
+  /// `RendererSteps.addNode` without `at`.
   ///
-  /// [FramePhase.overlay] for anything that does not know better, which is
-  /// what every node registered before this existed was getting anyway. What
-  /// it buys is that a node built for the *finished* picture can say so once,
-  /// in its own constructor, instead of relying on every caller to pass an
-  /// argument they have no way of knowing is load-bearing — and the failure
-  /// when they do not is the one [FramePhase.present] was added to fix: a
-  /// pass that runs, costs its time, and is overwritten.
-  FramePhase get preferredPhase => FramePhase.overlay;
+  /// [RenderAnchor.afterScene] for anything that does not know better: the
+  /// scene is drawn in HDR and nothing has been tone mapped, which is where
+  /// light belongs. A node built for the finished picture — a colour grade,
+  /// a vignette, a watermark — says [RenderAnchor.beforePresent] here once,
+  /// in its own class, instead of relying on every caller to know. (It was
+  /// `preferredPhase` before 1.0.)
+  RenderAnchor get defaultAnchor => RenderAnchor.afterScene;
+
+  /// How often the frame runs this node: [ViewRuns.perView], once for each
+  /// of the frame's views with `FrameContext.viewIndex` set to it, unless
+  /// the node says [ViewRuns.once].
+  ///
+  /// **Per view by default, because a pass of a plugin's usually draws what
+  /// a camera sees.** A stereo pair, a headset's eyes, a split screen: a
+  /// node that reads `frame.viewMatrix`, `frame.frameView` or
+  /// `frame.perView(id)` is handed each view in turn and draws each. A node
+  /// that works on the whole picture or on no view at all — a compute step,
+  /// a full-screen pass over the finished frame, a copy into a headset's
+  /// layers that walks `frame.views` itself — runs once, with `viewIndex`
+  /// 0. A frame with no camera runs every node once.
+  ///
+  /// Read for the nodes placed through `RendererSteps`; the engine's own
+  /// passes walk the views themselves.
+  ViewRuns get viewRuns => ViewRuns.perView;
 }
 
-/// Where in the frame an application's node is registered.
+/// How often a frame runs a [RenderNode]: [perView] or [once].
 ///
-/// Not a priority number — the thing the frame graph exists to replace — and
-/// not an ordering the graph could derive either. Registration order is what
-/// turns a chain of writes to one name into a chain of versions, so *where* a
-/// node is registered decides which version it reads, and no declaration a node
-/// could make would say that on its own.
-///
-/// Two positions, because there are two, and each is defined by what has
-/// already been drawn when the node runs.
-enum FramePhase {
-  /// Before the post chain: the scene is drawn, in HDR, and nothing has been
-  /// tone mapped.
-  ///
-  /// Where every application node went before this enum existed, and still the
-  /// default. A node here writes light — decals, a held weapon, anything that
-  /// belongs to the world and should bloom and tone map with it.
-  overlay,
+/// **An open set**, a class with constants rather than an enum, so a way of
+/// running a later minor adds (once per view group, once per eye pair)
+/// breaks no `switch` written against these two.
+final class ViewRuns {
+  const ViewRuns._(this.name);
 
-  /// After the composite: the image is tone mapped, sRGB, and is what the
-  /// caller is about to be handed.
-  ///
-  /// Registration here was impossible rather than merely awkward, which is the
-  /// gap this closes. Registered in the [overlay] slot, a node declaring
-  /// `reads: [frame]` bound to a version the composite had not written yet;
-  /// declaring only `writes: [frame]` put it *first*, where the composite then
-  /// overwrote it with `LoadAction.dontCare`. So the pass ran, cost its time,
-  /// and left nothing — the failure mode that looks exactly like working code.
-  ///
-  /// A node here reads display-referred colour. Anything physical — a light, a
-  /// glow, anything meant to blow out — belongs in [overlay]; this is for
-  /// things that are honestly about the finished picture: a colour grade, a
-  /// vignette, a letterbox, a watermark.
-  present,
-}
+  /// Once for each of the frame's views, `FrameContext.viewIndex` naming it.
+  static const ViewRuns perView = ViewRuns._('perView');
 
-/// The nodes a renderer runs, and the order it runs them in.
-///
-/// Ordering *within* a phase is derived by the frame graph from what each node
-/// declares, not by a priority number — that is the whole reason the graph
-/// exists. What a phase decides is something the graph cannot: which of the
-/// engine's own passes have already produced their versions. This holds the
-/// set; `Renderer` compiles it.
-final class RenderNodeRegistry {
-  final List<RenderNode> _nodes = <RenderNode>[];
-  final Map<RenderNode, FramePhase> _phases = <RenderNode, FramePhase>{};
+  /// Once a frame, with `FrameContext.viewIndex` 0.
+  static const ViewRuns once = ViewRuns._('once');
 
-  List<RenderNode> get all => List<RenderNode>.unmodifiable(_nodes);
+  /// Every way of running this version names.
+  static const List<ViewRuns> values = <ViewRuns>[perView, once];
 
-  /// The nodes registered for [phase], in the order they were added.
-  List<RenderNode> of(FramePhase phase) => <RenderNode>[
-    for (final node in _nodes)
-      if ((_phases[node] ?? FramePhase.overlay) == phase) node,
-  ];
-
-  int get length => _nodes.length;
-
-  /// Registers [node], in [phase] or in the one the node asks for.
-  ///
-  /// `gfx-28n` made the argument optional rather than defaulted: it used to
-  /// default to [FramePhase.overlay], which is still what a node that says
-  /// nothing gets, and now a node that knows where it belongs is not
-  /// overridden by a caller who left the argument off. Passing one explicitly
-  /// still wins, because a caller who names a phase means it.
-  T add<T extends RenderNode>(T node, {FramePhase? phase}) {
-    _nodes.add(node);
-    _phases[node] = phase ?? node.preferredPhase;
-    return node;
+  /// The way called [name], or null for one this version does not know.
+  static ViewRuns? byName(String name) {
+    for (final runs in values) {
+      if (runs.name == name) return runs;
+    }
+    return null;
   }
 
-  bool remove(RenderNode node) {
-    _phases.remove(node);
-    return _nodes.remove(node);
-  }
+  /// The stable name.
+  final String name;
 
-  void clear() {
-    _phases.clear();
-    _nodes.clear();
-  }
+  @override
+  String toString() => 'ViewRuns.$name';
 }

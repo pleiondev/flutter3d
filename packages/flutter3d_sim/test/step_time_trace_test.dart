@@ -17,7 +17,7 @@ void main() {
         trace.observe(step, step.toDouble());
       }
       expect(trace.steps, <int>[1, 2, 3, 4, 5]);
-      expect(trace.millis, <double>[1.0, 2.0, 3.0, 4.0, 5.0]);
+      expect(trace.seconds, <double>[1.0, 2.0, 3.0, 4.0, 5.0]);
     });
 
     test('keeps only every Nth step when asked', () {
@@ -32,8 +32,8 @@ void main() {
       final trace = StepTimeTrace();
       expect(trace.isEmpty, isTrue);
       expect(trace.worstStep, isNull);
-      expect(trace.worstMillis, isNull);
-      expect(trace.meanMillis, isNull);
+      expect(trace.worstSeconds, isNull);
+      expect(trace.meanSeconds, isNull);
       trace.observe(1, 5.0);
       expect(trace.isEmpty, isFalse);
     });
@@ -51,11 +51,11 @@ void main() {
       });
       expect(result, 4999950000);
       expect(trace.steps, <int>[1]);
-      expect(trace.millis.single, greaterThanOrEqualTo(0.0));
+      expect(trace.seconds.single, greaterThanOrEqualTo(0.0));
     });
   });
 
-  group('worstStep, worstMillis and meanMillis', () {
+  group('worstStep, worstSeconds and meanSeconds', () {
     test('name the spike, not just its size', () {
       final trace = StepTimeTrace()
         ..observe(1, 2.0)
@@ -63,8 +63,8 @@ void main() {
         ..observe(3, 3.0);
 
       expect(trace.worstStep, 2, reason: 'step 2 cost the most');
-      expect(trace.worstMillis, 9.5);
-      expect(trace.meanMillis, closeTo((2.0 + 9.5 + 3.0) / 3, 1e-9));
+      expect(trace.worstSeconds, 9.5);
+      expect(trace.meanSeconds, closeTo((2.0 + 9.5 + 3.0) / 3, 1e-9));
     });
 
     test('names the first spike when two steps tie', () {
@@ -90,7 +90,7 @@ void main() {
 
       expect(read.every, written.every);
       expect(read.steps, written.steps);
-      expect(read.millis, written.millis);
+      expect(read.seconds, written.seconds);
     });
 
     test('refuses a trace with mismatched steps and costs', () {

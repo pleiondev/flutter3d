@@ -15,11 +15,12 @@
 /// a click on the palette already does, so the result also undoes, and an
 /// agent could reach the same document through the five MCP tools those
 /// commands already have (proven in
-/// `packages/flutter3d_editor_mcp/test/lesson_authoring_mcp_test.dart`).
+/// `packages/flutter3d_mcp/test/editor/lesson_authoring_mcp_test.dart`).
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_education/lesson.dart' show orderedSteps;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef, Level;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
@@ -42,9 +43,12 @@ EntityDef? _findSequence(Level level, {String? name}) {
   return null;
 }
 
+/// The selected step's fields, edited in place.
 final class StepPanel extends StatelessWidget {
+  /// A panel over [editing], telling [onChanged] what each edit did.
   const StepPanel({super.key, required this.editing, required this.onChanged});
 
+  /// The document whose selected step is shown.
   final Editing editing;
 
   /// Told what happened, the same shape `EditorInspector.onChanged` takes —

@@ -12,7 +12,7 @@
 ///
 /// **Two libraries sit beside this one, and this one exports both.**
 /// `package:flutter3d_core/geometry.dart` is the mesh vocabulary —
-/// `MeshData`, `VertexLayout`, shapes, tangents, morph targets, `Ray` — and
+/// `MeshData`, `VertexLayout`, shapes, tangents, morph targets, `LocalRay` — and
 /// `package:flutter3d_core/formats.dart` is what a model arrives in and leaves
 /// in — `ModelDocument`, the glTF/OBJ/STL/`.f3d`/USDZ readers and writers, the
 /// FBX refusal, the image and KTX2 codecs. They were two packages of their own
@@ -20,8 +20,9 @@
 /// Dart package costs such a caller nothing it does not import, so a caller
 /// that wants only one of them imports only that library.
 ///
-/// `flutter3d` re-exports this package whole and stays the thin shell three
-/// things could not leave: `BundleAssetSource` (names `rootBundle`),
+/// `flutter3d` re-exports this package by name — what an application spells,
+/// not every format table — and stays the thin shell three things could not
+/// leave: `BundleAssetSource` (names `rootBundle`),
 /// `assetUriResolver` (the same), and `defaultImageDecoder` (names
 /// `dart:ui`) — plus `ModelAsset` and `bindMaterial`/`loadMaterial`, which
 /// default to that decoder and stayed beside it so every existing caller of
@@ -30,16 +31,17 @@
 /// handing it a decoder of its own.
 library;
 
-// The graphics vocabulary and this package's own two libraries, re-exported
-// because this package's API is written in their words — a `RenderNode` is
-// handed a `GraphicsDevice`, a `MeshNode` holds a `MeshData` — and a caller
-// should not have to add an import to spell the type of something this
-// package handed them. The formats library's `Ktx2Texture` is hidden: the
-// engine's own, below, carries a `TextureFormat` rather than a raw `vkFormat`.
-export 'package:flutter3d_hardware/flutter3d_hardware.dart';
-
+// This package's own two libraries, below. The foundation, the graphics
+// vocabulary and the plugin API its API is written in are not re-exported:
+// a caller that spells a `GraphicsDevice`, a `LinearColor` or a
+// `RenderAnchor` depends on the package that declares it, or on
+// `flutter3d`, whose barrel names what an application spells. The formats
+// library's `Ktx2Texture` is hidden: the engine's own, below, carries a
+// `TextureFormat` rather than a raw `vkFormat`.
 export 'formats.dart' hide Ktx2Texture;
 export 'geometry.dart';
+// The formats this package writes, for an engine's `FormatRegistry`.
+export 'src/core_formats.dart';
 // Animation: clips, tracks, sampling, playback. A clip, a track and the mask
 // a layer is filtered through are the formats library's, because a clip is
 // something a `.glb` carries and a program that reads one has no scene to
@@ -48,6 +50,13 @@ export 'src/engine/animation/animation.dart';
 export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
 export 'src/engine/animation/baked_poses.dart';
+// The animation graph, N1: typed parameters, a state machine over clips, and
+// the fixed-step evaluation that turns them into a `Pose`.
+export 'src/engine/animation/graph/animation_goals.dart';
+export 'src/engine/animation/graph/animation_graph.dart';
+export 'src/engine/animation/graph/animation_graph_json.dart';
+export 'src/engine/animation/graph/animation_parameters.dart';
+export 'src/engine/animation/graph/animation_state_machine.dart';
 export 'src/engine/animation/inverse_kinematics.dart';
 export 'src/engine/animation/pose.dart';
 export 'src/engine/animation/skin_blend.dart';
@@ -61,6 +70,7 @@ export 'src/engine/assets/device_class.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
 export 'src/engine/assets/image_decoder.dart';
 export 'src/engine/assets/ktx2/ktx2.dart';
+export 'src/engine/assets/memory_budget.dart';
 export 'src/engine/assets/model_loader.dart';
 export 'src/engine/assets/model_part.dart';
 export 'src/engine/assets/model_writer.dart';
@@ -68,72 +78,103 @@ export 'src/engine/assets/packed_maps.dart';
 export 'src/engine/assets/pointer_targets.dart';
 export 'src/engine/assets/resource_cache.dart';
 export 'src/engine/assets/texture_upload.dart';
+export 'src/engine/assets/web_decode_worker.dart' show WebDecodeWorker;
 // `device_mesh.dart` holds the two types that have met a device —
 // `DeviceMesh` and its buffers — and named `flutter3d_hardware` already, so
 // nothing about it is more Flutter-shaped for living here than the render
 // graph is.
 export 'src/engine/geometry/device_mesh.dart';
 // Rendering.
+export 'src/engine/platform/files.dart' show isMissingFile;
+export 'src/engine/platform/platform_feature.dart';
 export 'src/engine/render/adaptive_quality.dart';
 export 'src/engine/render/adaptive_scale.dart';
 export 'src/engine/render/cluster_draws.dart';
+export 'src/engine/render/compute_step.dart'
+    hide
+        inexactOperationsIn,
+        kernelNeeds,
+        placeComputeRequest,
+        prepareForThisFrame;
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
+export 'src/engine/render/device_resources.dart';
+export 'src/engine/render/draw_journal.dart' hide engineDrawJournal;
 export 'src/engine/render/empty_frame.dart';
 export 'src/engine/render/environment_map.dart';
 export 'src/engine/render/field_pass.dart';
+export 'src/engine/render/field_upload.dart';
 export 'src/engine/render/frame_capture.dart';
 export 'src/engine/render/frame_graph.dart';
-export 'src/engine/render/frame_history.dart';
+export 'src/engine/render/frame_history.dart'
+    hide FrameHistoryInternals, engineFrameHistory;
 export 'src/engine/render/frame_plan.dart';
-export 'src/engine/render/frame_resources.dart';
+export 'src/engine/render/frame_resources.dart' hide FrameResourcesInternals;
+export 'src/engine/render/frame_view.dart';
 export 'src/engine/render/frame_work_budget.dart';
 export 'src/engine/render/fullscreen_effect.dart';
 export 'src/engine/render/key_sort.dart';
-export 'src/engine/render/material.dart';
+export 'src/engine/render/light_types.dart' hide LightTypesInternals;
+export 'src/engine/render/lighting_model_addon.dart';
+export 'src/engine/render/material.dart'
+    hide RenderMaterialInternals, engineMaterialSortIds;
+export 'src/engine/render/memory_report.dart';
 export 'src/engine/render/mesh_overlay.dart';
+export 'src/engine/render/mirror_view.dart';
 export 'src/engine/render/pass_contribution.dart';
-export 'src/engine/render/pass_contributor.dart';
+export 'src/engine/render/pass_contributor.dart'
+    hide ContributorRegistry, FramePassState, newReactiveFrame;
+export 'src/engine/render/photo_capture.dart';
+export 'src/engine/render/physical_sky.dart' show PhysicalSky, PhysicalSkyRay;
+export 'src/engine/render/pipeline_nodes.dart';
 export 'src/engine/render/probe_faces.dart';
 export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/quality_table.dart';
-export 'src/engine/render/render_list.dart';
-export 'src/engine/render/render_node.dart';
-export 'src/engine/render/render_view.dart';
-export 'src/engine/render/renderer.dart';
+export 'src/engine/render/render_hooks.dart' hide RenderHooksInternals;
+export 'src/engine/render/render_list.dart' hide DrawItem, RenderList;
+export 'src/engine/render/render_node.dart' hide FrameContextInternals;
+export 'src/engine/render/render_step_addon.dart';
+export 'src/engine/render/render_view.dart' hide CameraViewInternals;
+export 'src/engine/render/renderer.dart'
+    hide RendererInternals, RendererStepsTakeovers, RenderStepInternals;
 export 'src/engine/render/shadow_slots.dart';
 export 'src/engine/render/sky_settings.dart';
 export 'src/engine/render/splat_contributor.dart';
 export 'src/engine/render/splat_lod.dart';
 export 'src/engine/render/splat_sort.dart';
+export 'src/engine/render/splat_sort_gpu.dart';
+export 'src/engine/render/view_layers.dart';
 export 'src/engine/render/view_model_node.dart';
 // The scene graph and everything that walks it.
 export 'src/engine/scene/atmosphere.dart';
 export 'src/engine/scene/bvh.dart';
 export 'src/engine/scene/camera_node.dart';
+export 'src/engine/scene/decal_node.dart';
 export 'src/engine/scene/free_look.dart';
 export 'src/engine/scene/impostor_node.dart';
 export 'src/engine/scene/instanced_mesh_node.dart';
 export 'src/engine/scene/irradiance_field.dart';
 export 'src/engine/scene/irradiance_gather.dart';
-export 'src/engine/scene/light_buffer.dart';
 export 'src/engine/scene/light_node.dart';
 export 'src/engine/scene/line_strip_node.dart';
 export 'src/engine/scene/lod_group.dart';
 export 'src/engine/scene/mesh_node.dart';
 export 'src/engine/scene/morph_state.dart';
-export 'src/engine/scene/occlusion/hi_z_occlusion.dart';
+export 'src/engine/scene/occlusion/hi_z_occlusion.dart' hide engineHiZOcclusion;
 export 'src/engine/scene/occlusion/occlusion_buffer.dart';
 export 'src/engine/scene/occlusion/occlusion_test.dart';
 export 'src/engine/scene/occlusion/software_occlusion.dart';
 export 'src/engine/scene/orbit_controller.dart';
+export 'src/engine/scene/planar_reflector_node.dart';
 export 'src/engine/scene/posed_mesh.dart';
 export 'src/engine/scene/projection.dart';
 export 'src/engine/scene/raycaster.dart';
 export 'src/engine/scene/reflection_probe_node.dart';
-export 'src/engine/scene/scene.dart';
-export 'src/engine/scene/scene_graph.dart';
-export 'src/engine/scene/scene_node.dart';
+export 'src/engine/scene/scene.dart' hide SceneRegistry;
+export 'src/engine/scene/scene_binding.dart';
+export 'src/engine/scene/scene_graph.dart' hide LightBuffer, ShaderLightType;
+export 'src/engine/scene/scene_node.dart'
+    hide noteSceneChange, sceneAncestorWalks, sceneChangeEpoch;
 export 'src/engine/scene/scene_spheres.dart';
 export 'src/engine/scene/screen_bounds.dart';
 export 'src/engine/scene/skeleton.dart';

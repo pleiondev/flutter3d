@@ -28,8 +28,10 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 /// What is left of the original reason to keep this smaller than the other two
 /// demos is fill rate, which is real and which this still buys.
 ///
-/// Read only when [kFixedResolution].
+/// Read only when [fixedResolution].
 const int kRenderWidth = 960;
+
+/// The height of that browser frame, in pixels: [kRenderWidth]'s 16:9.
 const int kRenderHeight = 540;
 
 /// The shadow atlas this build can afford.
@@ -39,13 +41,16 @@ const int kRenderHeight = 540;
 /// still covers the near road, which is the only part a chase camera sees in any
 /// detail.
 ///
-/// **Branched on [kFixedResolution] rather than on `kIsWeb`.** They are true
+/// **Branched on [fixedResolution] rather than on `kIsWeb`.** They are true
 /// together, and the question being asked is the one the backend already
 /// answers: a build that renders to a fixed internal target is the build whose
 /// fill rate is worth economising. Asking `kIsWeb` would be asking a second
 /// question that has to keep agreeing with the first.
-const int kShadowCascades = kFixedResolution ? 2 : 3;
-const int kShadowResolution = kFixedResolution ? 1024 : 2048;
+const int kShadowCascades = fixedResolution ? 2 : 3;
+
+/// The side of one cascade's tile in that atlas, in texels: 1024 in a build
+/// with a fixed frame, 2048 elsewhere. See [kShadowCascades] for why.
+const int kShadowResolution = fixedResolution ? 1024 : 2048;
 
 /// Whether the player's bodywork gets its reflection probe.
 ///

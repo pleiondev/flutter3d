@@ -22,8 +22,10 @@ import '../model_document.dart';
 /// winding is what [StlLoader]'s own `StlNormals.recomputed` already
 /// treats as the trustworthy half of a file it reads.
 final class StlWriter {
+  /// A writer for [document], naming the solid [name].
   StlWriter(this.document, {this.name = 'model'});
 
+  /// The model written; read, never changed.
   final ModelDocument document;
 
   /// Written into the binary header's free text and the ASCII `solid` line.

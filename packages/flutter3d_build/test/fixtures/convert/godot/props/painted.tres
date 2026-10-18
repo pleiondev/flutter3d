@@ -1,0 +1,14 @@
+[gd_resource type="ORMMaterial3D" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://props/wood.png" id="1_orm"]
+
+[resource]
+albedo_color = Color(0.2, 0.5, 0.9, 1)
+orm_texture = ExtResource("1_orm")
+transparency = 2
+alpha_scissor_threshold = 0.4
+cull_mode = 2
+emission_enabled = true
+emission = Color(1, 0.5, 0, 1)
+emission_energy_multiplier = 2.0
+rim_enabled = true

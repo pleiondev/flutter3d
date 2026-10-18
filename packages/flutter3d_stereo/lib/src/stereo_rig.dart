@@ -1,9 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
-
-import 'head_pose.dart';
 
 /// Which eye.
 ///
@@ -15,8 +12,25 @@ import 'head_pose.dart';
 final class Eye {
   const Eye._(this.index, this.label);
 
+  /// The left eye: index nought, drawn in the left half of a target.
   static const Eye left = Eye._(0, 'left');
+
+  /// The right eye: index one, drawn in the right half of a target.
   static const Eye right = Eye._(1, 'right');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Eye> values = <Eye>[left, right];
+
+  /// The value whose [label] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static Eye? byName(String name) {
+    for (final value in values) {
+      if (value.label == name) return value;
+    }
+    return null;
+  }
 
   /// In the order a projection layer lists them, which is also the order the
   /// halves of a target run in.
@@ -25,6 +39,7 @@ final class Eye {
   /// Where this eye sits in a runtime's view list.
   final int index;
 
+  /// A lower-case name for logs and [toString], such as `left`.
   final String label;
 
   @override
@@ -43,6 +58,9 @@ final class Eye {
 /// The eyes are children of the head so that an interpupillary distance is
 /// stated once, in metres, in the space where metres mean something.
 final class StereoRig {
+  /// A rig with its eyes [interpupillaryDistance] apart (metres) and
+  /// clipping from [near] to [far] (metres); its stage is called [name], or
+  /// `stage` when null.
   StereoRig({
     this.interpupillaryDistance = 0.064,
     this.near = 0.05,
@@ -61,11 +79,15 @@ final class StereoRig {
   /// Where the tracker says the head is, relative to [stage].
   final SceneNode head = SceneNode(name: 'head');
 
-  /// The distance between the eyes, in metres. The average adult is around
-  /// 63 mm; a headset states its own and should overwrite this.
+  /// The distance between the eyes, in metres: 0.064 by default. Adults
+  /// average 63 to 64 mm (Dodgson 2004 gives a mean of 63 mm, wider for
+  /// men than women); a headset states its own and should overwrite this.
   final double interpupillaryDistance;
 
+  /// Each eye's near clip plane, in metres from the eye.
   final double near;
+
+  /// Each eye's far clip plane, in metres from the eye.
   final double far;
 
   final CameraNode _left = CameraNode(name: 'eye.left');
@@ -76,22 +98,33 @@ final class StereoRig {
   /// headset's business; a phone's is the screen's.
   bool _projectionsAreGiven = false;
 
+  /// Returns the camera node for [eye], a child of [head].
   CameraNode camera(Eye eye) => identical(eye, Eye.left) ? _left : _right;
 
-  /// The pair, side by side in one target.
+  /// The pair, side by side in one target: two [CameraView]s kept for the
+  /// rig's life, so each eye keeps its own last frame for the reprojection
+  /// (the history is per view since 1.0, not per camera).
   ///
   /// Left in the left half, right in the right, which is the arrangement a
   /// projection layer expects and the one a phone in a holder needs.
-  late final List<RenderView> views = <RenderView>[
-    RenderView(
+  late final List<CameraView> views = <CameraView>[
+    CameraView(
       camera: _left,
       viewportFraction: const ViewportRect(0.0, 0.0, 0.5, 1.0),
     ),
-    RenderView(
+    CameraView(
       camera: _right,
       viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
     ),
   ];
+
+  /// Gives back what the two views own — the history each renderer kept
+  /// for each eye (item 26: a view is an object, and each eye is one).
+  void dispose() {
+    for (final view in views) {
+      view.dispose();
+    }
+  }
 
   void _placeEyes() {
     final half = interpupillaryDistance / 2.0;
@@ -100,9 +133,9 @@ final class StereoRig {
   }
 
   /// Points the head where the tracker says it is.
-  void applyHead(HeadPose pose) {
+  void applyHead(RigidPose pose) {
     head
-      ..setRotation(pose.rotation)
+      ..setRotation(pose.orientation)
       ..setPosition(pose.position.x, pose.position.y, pose.position.z);
   }
 
@@ -134,12 +167,12 @@ final class StereoRig {
   void fitToViewport({
     required int width,
     required int height,
-    double verticalFieldOfView = 1.0,
+    double fovY = 1.0,
   }) {
     if (_projectionsAreGiven) return;
     final aspect = height <= 0 ? 1.0 : (width / 2) / height;
     final projection = OffAxisProjection.symmetric(
-      fovYRadians: verticalFieldOfView,
+      fovY: fovY,
       aspect: aspect,
       near: near,
       far: far,
@@ -169,7 +202,7 @@ final class StereoRig {
     return result;
   }
 
-  /// The angle each eye sees vertically, for anything sizing against the frame.
-  double get verticalFieldOfView =>
-      _left.projection.verticalFieldOfView ?? math.pi / 4;
+  /// The angle each eye sees vertically, in radians, for anything sizing
+  /// against the frame.
+  double get fovY => _left.projection.verticalFieldOfView ?? math.pi / 4;
 }

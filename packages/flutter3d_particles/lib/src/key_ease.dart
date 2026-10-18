@@ -9,6 +9,8 @@
 ///
 /// `base` so a shape added here later is inherited rather than missing.
 final class KeyEase {
+  /// The ease called [name] that travels by [shape]. Equal to every other
+  /// ease of the same [name], whatever its shape.
   const KeyEase(this.name, this.shape);
 
   /// What it is called, in a saved effect and in a debug overlay. Identity:
@@ -33,6 +35,19 @@ final class KeyEase {
   /// settles reads wrong with linear segments, because the corner at the top of
   /// the curve is visible as a crease in the motion.
   static const KeyEase smooth = KeyEase('smooth', _smooth);
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<KeyEase> values = <KeyEase>[step, linear, smooth];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static KeyEase? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   bool operator ==(Object other) => other is KeyEase && other.name == name;

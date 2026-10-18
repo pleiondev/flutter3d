@@ -191,7 +191,7 @@ void main() {
         final document = _oneSurfaceDocument(mesh);
         final writer = GltfWriter(document, compressGeometry: true);
         writer.writeGlb();
-        expect(writer.usedGeometryQuantization, isFalse);
+        expect(writer.didQuantizeGeometry, isFalse);
       },
     );
 
@@ -201,7 +201,7 @@ void main() {
       final document = _oneSurfaceDocument(mesh);
       final writer = GltfWriter(document, compressGeometry: true);
       final bytes = writer.writeGlb();
-      expect(writer.usedGeometryQuantization, isTrue);
+      expect(writer.didQuantizeGeometry, isTrue);
 
       final container = GlbContainer.parse(bytes);
       final used = (container.json['extensionsUsed'] as List?)?.cast<String>();
@@ -296,7 +296,7 @@ void main() {
         compressGeometry: true,
       );
       withTriangles.writeGlb();
-      expect(withTriangles.usedVertexCacheReordering, isTrue);
+      expect(withTriangles.didReorderVertexCache, isTrue);
 
       final empty = GltfWriter(
         _oneSurfaceDocument(
@@ -309,7 +309,7 @@ void main() {
         compressGeometry: true,
       );
       empty.writeGlb();
-      expect(empty.usedVertexCacheReordering, isFalse);
+      expect(empty.didReorderVertexCache, isFalse);
     });
 
     test('compressGeometry lowers the average cache miss ratio of a written '

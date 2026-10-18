@@ -8,18 +8,25 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 typedef _SplatRow = ({
   Vector3 position,
-  Vector3 colour,
+  Vector3 color,
   double opacity,
   double scale,
 });
 
+/// The `gaussian-splats` page: a small Gaussian cloud written to binary PLY,
+/// read back and drawn. Its check is that the cloud is drawn, in GPU order
+/// exactly when the GPU sort is asked for and available.
 final class GaussianSplatsDemo extends ShowcaseDemo {
   late final SplatCloud _cloud;
   late final SplatContributor _contributor;
+  late final GraphicsDevice _device;
+
+  /// Whether the splats are sorted on the GPU where the device can; the CPU
+  /// sorts them otherwise.
+  bool gpuSort = true;
 
   static const int _count = 35;
 
@@ -42,7 +49,7 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
             0.4 * math.sin(i * 0.6),
             (i ~/ 7 - 2) * 0.5,
           ),
-          colour: Vector3(
+          color: Vector3(
             0.3 + 0.5 * (i / _count),
             0.4,
             0.9 - 0.5 * (i / _count),
@@ -59,21 +66,54 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
     // #endregion decode
 
     // #region contributor
-    _contributor = context.renderer.addContributor(SplatContributor(_cloud));
+    _contributor = context.renderer.renderSteps.addContributor(
+      SplatContributor(_cloud),
+    );
     // #endregion contributor
+    _device = context.device;
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.4, 0.46, 0.6)
-      ..ambientIntensity = 0.24
+      ..ambientColor = LinearColor(0.4, 0.46, 0.6)
+      ..ambientIntensity = 0.24 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'key', intensity: 1.2)
+        LightNode(name: 'key', intensity: 1.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
     return scene;
   }
 
   @override
+  void update(DemoContext context, double dt) {
+    // #region gpu
+    // On by default: the device sorts where it can compute, the CPU
+    // everywhere else. Off sorts on the CPU even where the device could.
+    _contributor.gpuSort = gpuSort;
+    // #endregion gpu
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    ToggleControl(
+      'GPU sort',
+      value: () => gpuSort,
+      onChanged: (bool v) => gpuSort = v,
+    ),
+  ];
+
+  @override
   void verify(Scene scene, FrameResult frame) {
+    // #region gpu-check
+    // The cloud was drawn in the GPU's order exactly when the toggle is on
+    // and this device can run the sort: never on the software device, which
+    // has no compute.
+    final bool gpuExpected = gpuSort && SplatGpuSort.availableOn(_device);
+    if (_contributor.didDrawGpuOrder != gpuExpected) {
+      throw StateError(
+        'drew in the GPU order: ${_contributor.didDrawGpuOrder}, '
+        'expected $gpuExpected',
+      );
+    }
+    // #endregion gpu-check
     // #region check
     final Int32List order = _cloud.sortedBackToFront(
       Vector3(0.0, 0.0, -5.0),
@@ -125,7 +165,7 @@ Uint8List _splatPlyBytes(List<_SplatRow> rows) {
   // The inverse of `splatChannel` and `splatOpacity`: a readable 0..1 colour
   // and probability, converted back to the coefficient and the logit the
   // file stores.
-  double coefficientFor(double channel01) => (channel01 - 0.5) / kSplatShC0;
+  double coefficientFor(double channel01) => (channel01 - 0.5) / splatShC0;
   double logitFor(double probability) =>
       math.log(probability / (1.0 - probability));
   void writeFloat(double value) {
@@ -137,9 +177,9 @@ Uint8List _splatPlyBytes(List<_SplatRow> rows) {
     writeFloat(row.position.x);
     writeFloat(row.position.y);
     writeFloat(row.position.z);
-    writeFloat(coefficientFor(row.colour.x));
-    writeFloat(coefficientFor(row.colour.y));
-    writeFloat(coefficientFor(row.colour.z));
+    writeFloat(coefficientFor(row.color.x));
+    writeFloat(coefficientFor(row.color.y));
+    writeFloat(coefficientFor(row.color.z));
     writeFloat(logitFor(row.opacity));
     writeFloat(math.log(row.scale));
     writeFloat(math.log(row.scale));

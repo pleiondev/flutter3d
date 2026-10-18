@@ -27,13 +27,14 @@ import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
 import 'package:flutter3d_core/src/engine/scene/light_node.dart';
 import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 TextureHandle _texel(FakeBackend device) => device.createTexture(
-  const RenderTargetSpec(
+  const RenderTargetDescriptor(
     width: 1,
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
@@ -62,22 +63,22 @@ Renderer _renderer(FakeBackend device) => Renderer.create(
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
-      Material(name: 'block'),
+      RenderMaterial(name: 'block'),
       name: 'block',
     )..setPosition(meshAt, 0.0, 0.0),
   );
 
-  for (var i = 0; i < LightBuffer.maxLights; i++) {
+  for (var i = 0; i < LightNode.maxLights; i++) {
     scene.add(
       LightNode(name: 'west$i', type: LightType.point)
-        ..intensity = 5.0
+        ..intensity = 5.0 * LightNode.defaultIntensity
         ..range = 6.0
         ..setPosition(-40.0 + i * 0.25, 2.0, 0.0),
     );
   }
   scene.add(
     LightNode(name: 'east', type: LightType.point)
-      ..intensity = 5.0
+      ..intensity = 5.0 * LightNode.defaultIntensity
       ..range = 6.0
       ..setPosition(0.0, 2.0, 0.0),
   );
@@ -115,7 +116,7 @@ Renderer _renderer(FakeBackend device) => Renderer.create(
     width: 128,
     height: 96,
     scene: built.scene,
-    views: <RenderView>[RenderView(camera: built.camera)],
+    views: <CameraView>[CameraView(camera: built.camera)],
   );
   return _fragInfo(device);
 }
@@ -135,8 +136,8 @@ void main() {
 
     // The other end of the same room, where the eight are the right answer.
     final west = _draw(meshAt: -40.0);
-    expect(west.count, LightBuffer.maxLights.toDouble());
-    for (var i = 0; i < LightBuffer.maxLights; i++) {
+    expect(west.count, LightNode.maxLights.toDouble());
+    for (var i = 0; i < LightNode.maxLights; i++) {
       expect(west.positions[i * 4], lessThan(-30.0));
     }
   });
@@ -163,7 +164,7 @@ void main() {
       width: 128,
       height: 96,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
     );
 
     // `ShadowDistance` is only ever paired in the cube atlas pass, so a

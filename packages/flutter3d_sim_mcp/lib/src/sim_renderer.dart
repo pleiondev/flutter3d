@@ -1,5 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show WorldPosition;
+import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -17,17 +20,33 @@ final class SimRenderer {
 
   final DiagnosticRenderer _frames;
 
+  /// The width of every picture, in pixels: the diagnostic renderer's.
   static const int width = DiagnosticRenderer.width;
+
+  /// The height of every picture, in pixels: the diagnostic renderer's.
   static const int height = DiagnosticRenderer.height;
 
+  /// Loads the level at [levelPath] to draw, spawning what [registry]
+  /// spawns, and reading every file it names inside [root], or inside the
+  /// project around the level when [root] is null.
   static Future<SimRenderer> open(
     String levelPath, {
     required EntityRegistry registry,
+    ProjectRoot? root,
   }) async => SimRenderer._(
-    await DiagnosticRenderer.open(levelPath, registry: registry),
+    await DiagnosticRenderer.open(levelPath, registry: registry, root: root),
   );
 
-  /// A PNG, looking from [at] in the direction [aim] points.
+  /// A PNG, looking from [at] — in the scene's own space — in the
+  /// direction [aim] points.
   Future<Uint8List> frame({required Vector3 at, required Vector3 aim}) async =>
       (await _frames.frame(at: at, aim: aim)).png;
+
+  /// A PNG, looking from [eye], a place in the world, in the direction [aim]
+  /// points: [DiagnosticRenderer.frameFrom], which keeps the scene's origin
+  /// near the eye.
+  Future<Uint8List> frameFrom({
+    required WorldPosition eye,
+    required Vector3 aim,
+  }) async => (await _frames.frameFrom(eye: eye, aim: aim)).png;
 }

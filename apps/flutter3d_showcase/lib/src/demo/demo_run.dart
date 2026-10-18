@@ -7,11 +7,12 @@
 /// through here, so what a test proves about a page is what the person sees.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/capability_report.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
+/// One visit to a page, started: the demo, the context it was given and the
+/// scene it built, ready to be stepped and drawn.
 final class DemoRun {
   DemoRun._(this.demo, this.context, this.scene);
 
@@ -21,9 +22,9 @@ final class DemoRun {
   /// contexts and a page that opened its own would leak one per visit.
   static Future<DemoRun> start(GraphicsDevice device, ShowcaseDemo demo) async {
     final CameraNode camera = CameraNode(name: 'eye');
-    final RenderView view = RenderView(
+    final CameraView view = CameraView(
       camera: camera,
-      clearColor: Vector4(0.05, 0.05, 0.07, 1.0),
+      clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );
     final OrbitController orbit = OrbitController(
       camera,
@@ -53,14 +54,22 @@ final class DemoRun {
     return DemoRun._(demo, context, scene);
   }
 
+  /// The page being shown.
   final ShowcaseDemo demo;
+
+  /// What [demo] was given to build itself with; the same context is handed to
+  /// every call on it for the whole visit.
   final DemoContext context;
+
+  /// The scene [demo] built, with the context's camera added to it.
   final Scene scene;
 
+  /// Steps the page by [dt] seconds, before the next [render].
   void update(double dt) => demo.update(context, dt);
 
   /// One frame at [width] by [height] pixels.
   FrameResult render(int width, int height) {
+    demo.resize(context, width, height);
     context.orbit.syncProjectionDepth(context.camera);
     return context.renderer.render(
       width: width,
@@ -72,5 +81,8 @@ final class DemoRun {
   }
 
   /// Gives back what the renderer holds. The device stays open.
-  void dispose() => context.renderer.dispose();
+  void dispose() {
+    demo.dispose();
+    context.renderer.dispose();
+  }
 }

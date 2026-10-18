@@ -18,7 +18,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _Sink implements MorphSink {
+final class _Sink with MorphSink {
   List<double> last = const <double>[];
 
   @override
@@ -76,11 +76,11 @@ void main() {
         _holding('sad', 0, <double>[0.0, 1.0]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player.seek(0.0);
       expect(sink.last, <double>[1.0, 0.0]);
 
-      player.crossFadeTo(1, duration: 1.0);
+      player.crossFadeTo(1, durationSeconds: 1.0);
       player.update(0.5);
       expect(sink.last[0], closeTo(0.5, 1e-6));
       expect(sink.last[1], closeTo(0.5, 1e-6));
@@ -101,8 +101,8 @@ void main() {
         _holding('angry', 0, <double>[1.0]),
       ], sink);
 
-      player.play(0);
-      player.crossFadeTo(1, duration: 1.0);
+      player.play(index: 0);
+      player.crossFadeTo(1, durationSeconds: 1.0);
       player.update(0.5);
 
       expect(sink.last, <double>[1.0]);
@@ -120,7 +120,7 @@ void main() {
         _holding('wince', 0, <double>[0.0, 0.5]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player.addLayer(AnimationLayer(clip: 1));
       player.seek(0.0);
 
@@ -135,7 +135,7 @@ void main() {
         _holding('blink', 0, <double>[1.0]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player.addLayer(AnimationLayer(clip: 1, weight: 0.25));
       player.seek(0.0);
 
@@ -153,7 +153,7 @@ void main() {
         _holding('b', 0, <double>[0.7]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player
         ..addLayer(AnimationLayer(clip: 1))
         ..addLayer(AnimationLayer(clip: 2));
@@ -171,7 +171,7 @@ void main() {
         _holding('overdriven', 0, <double>[1.4]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player.seek(0.0);
 
       expect(sink.last.single, closeTo(1.4, 1e-6));
@@ -189,7 +189,7 @@ void main() {
         _holding('smile', 0, <double>[0.8]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player.addLayer(AnimationLayer(clip: 1));
       player.seek(0.0);
 
@@ -208,7 +208,7 @@ void main() {
         _holding('b', 0, <double>[0.2]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player
         ..addLayer(AnimationLayer(clip: 1))
         ..addLayer(AnimationLayer(clip: 2));
@@ -224,7 +224,7 @@ void main() {
         _holding('blink', 0, <double>[0.9]),
       ], sink);
 
-      player.play(0);
+      player.play(index: 0);
       player.addLayer(
         AnimationLayer(clip: 1, mask: AnimationMask(const <int>{7})),
       );

@@ -6,7 +6,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 
@@ -23,11 +22,14 @@ const List<int> _binaryMagic = <int>[
 /// A `ModelDecoder` for Autodesk's FBX — the skeleton this package's own
 /// `pubspec.yaml` describes: recognises the format, and says plainly that
 /// reading one is not built here yet.
-final class FbxDecoder implements ModelDecoder {
+final class FbxDecoder extends ModelDecoder {
+  /// The decoder; it holds no state, so one const instance serves.
   const FbxDecoder();
 
   @override
-  bool handles(String fileName, Uint8List bytes) {
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
     if (fileName.toLowerCase().endsWith('.fbx')) return true;
     if (bytes.length >= _binaryMagic.length) {
       var matches = true;
@@ -57,12 +59,8 @@ final class FbxDecoder implements ModelDecoder {
   }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async {
-    throw const FormatException(
+  Future<ModelDocument> decode(ModelDecodeContext context) async {
+    throw const FbxFormatException(
       'FBX files are recognised but not yet read: this decoder is a '
       'skeleton (fmt-29d), and the reader (fmt-24/25) has not landed. '
       'Re-export as glTF/GLB in the meantime.',

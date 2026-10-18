@@ -95,6 +95,8 @@ Iterable<int> liveElements(EditMesh mesh, ElementLevel level) sync* {
           if (seen.add(edge)) yield edge;
         }
       }
+    default:
+      throw UnsupportedError('a half-edge mesh has no $level elements');
   }
 }
 
@@ -109,12 +111,13 @@ Iterable<int> liveElements(EditMesh mesh, ElementLevel level) sync* {
 /// a mesh with two hundred thousand of them. So the two facts a caller can
 /// want on their own have names of their own, and [describeElements] is what
 /// gathers all of them at once.
-Vector3? elementCentre(EditMesh mesh, ElementLevel level, int id) =>
+Vector3? elementCenter(EditMesh mesh, ElementLevel level, int id) =>
     switch (level) {
       ElementLevel.vertex => _liveVertex(mesh, id) ? mesh.positionOf(id) : null,
       ElementLevel.face =>
-        _liveFace(mesh, id) ? _centre(mesh, mesh.verticesOf(id)) : null,
+        _liveFace(mesh, id) ? _center(mesh, mesh.verticesOf(id)) : null,
       ElementLevel.edge => _edgeMidpoint(mesh, id),
+      _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
     };
 
 /// Which way [id] of [level] faces, or null when nothing decides it: a vertex
@@ -125,6 +128,7 @@ Vector3? elementNormal(EditMesh mesh, ElementLevel level, int id) =>
         _liveVertex(mesh, id) ? _vertexNormal(mesh, id) : null,
       ElementLevel.face => _liveFace(mesh, id) ? mesh.normalOf(id) : null,
       ElementLevel.edge => _describeEdge(mesh, id)?.normal,
+      _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
     };
 
 bool _liveVertex(EditMesh mesh, int id) =>
@@ -152,12 +156,13 @@ DescribedElement? _describe(EditMesh mesh, ElementLevel level, int id) =>
             ? null
             : (
                 id: id,
-                at: _centre(mesh, mesh.verticesOf(id)),
+                at: _center(mesh, mesh.verticesOf(id)),
                 normal: mesh.normalOf(id),
                 area: mesh.areaOf(id),
                 length: null,
               ),
       ElementLevel.edge => _describeEdge(mesh, id),
+      _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
     };
 
 DescribedElement? _describeEdge(EditMesh mesh, int id) {
@@ -214,7 +219,7 @@ Vector3? _averaged(List<Vector3> normals) {
   return sum.length2 < 1e-12 ? null : (sum..normalize());
 }
 
-Vector3 _centre(EditMesh mesh, List<int> vertices) {
+Vector3 _center(EditMesh mesh, List<int> vertices) {
   if (vertices.isEmpty) return Vector3.zero();
   final sum = Vector3.zero();
   for (final int vertex in vertices) {

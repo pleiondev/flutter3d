@@ -17,9 +17,13 @@ import 'edit_mesh.dart';
 /// them, and [toVertexAttributes] is the trip back down to what `setSkin`
 /// wants.
 final class WeightPair {
+  /// [joint]'s pull of [weight] on a vertex.
   const WeightPair(this.joint, this.weight);
 
+  /// The index of the joint in the skin's joint list.
   final int joint;
+
+  /// The joint's 0..1 share of the vertex.
   final double weight;
 
   @override

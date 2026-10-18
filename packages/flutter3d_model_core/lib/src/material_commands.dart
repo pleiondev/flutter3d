@@ -16,6 +16,8 @@ part of 'command.dart';
 /// its row, and a row that is always appended is a row a caller can predict
 /// without being handed one back.
 final class AddMaterial extends ModelCommand {
+  /// A step appending a blank material called [materialName], painting object
+  /// [assignTo] with it when one is given.
   const AddMaterial({this.materialName, this.assignTo});
 
   /// What the table shows for it.
@@ -79,8 +81,11 @@ final class AddMaterial extends ModelCommand {
 /// [ModelObject], `identical` to the one before, the way every other edit here
 /// leaves what it did not touch alone.
 final class RemoveMaterial extends ModelCommand {
+  /// A step removing material [index]; every later material moves down one row.
   const RemoveMaterial(this.index);
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material.
   final int index;
 
   @override
@@ -126,6 +131,10 @@ final class RemoveMaterial extends ModelCommand {
         skeletons: project.skeletons,
         clips: project.clips,
         lighting: project.lighting,
+        animationGraphs: project.animationGraphs,
+        unknown: project.unknown,
+        unknownSections: project.unknownSections,
+        rights: project.rights,
       ),
     );
   }
@@ -133,8 +142,10 @@ final class RemoveMaterial extends ModelCommand {
 
 /// Copies a material to a new row, for a variant that starts from it.
 final class DuplicateMaterial extends ModelCommand {
+  /// A step appending a copy of material [index].
   const DuplicateMaterial(this.index);
 
+  /// Row of the material copied. [apply] refuses a row with no material.
   final int index;
 
   @override
@@ -173,18 +184,33 @@ final class DuplicateMaterial extends ModelCommand {
 /// Texture slots are not among them; those are [SetTexture]'s, because a slot
 /// takes an image and a sampler together and a single value cannot carry both.
 final class SetMaterialField extends ModelCommand {
+  /// A step setting [field] of material [index] to [value], looking a
+  /// `lightingModel` up in [lightingModels] when given.
   const SetMaterialField({
     required this.index,
     required this.field,
     required this.value,
+    this.lightingModels,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material.
   final int index;
+
+  /// Name of the field, as `.fmat` spells it. [apply] refuses a name that is
+  /// not a material field, or a [value] of the wrong shape for it.
   final String field;
 
   /// A number, a string, a bool, or a list of three or four numbers,
   /// depending on [field]. See `_fieldSet` for which.
   final Object? value;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) a
+  /// `lightingModel` value is looked up in, so a plugin's model can be
+  /// chosen; null looks among the built-in ones alone. Not written with the
+  /// command: whoever reads it back hands the table again
+  /// (`modelCommandFromJson`).
+  final LightingModels? lightingModels;
 
   @override
   String get name => 'setMaterialField';
@@ -205,7 +231,12 @@ final class SetMaterialField extends ModelCommand {
       return Outcome.refused('there is no material $index');
     }
     final ProjectMaterial material = project.materials[index];
-    final SurfaceMaterial? next = _fieldSet(material.surface, field, value);
+    final SurfaceMaterial? next = _fieldSet(
+      material.surface,
+      field,
+      value,
+      lightingModels ?? LightingModels.shipped,
+    );
     if (next == null) {
       return Outcome.refused(
         '"$field" is not a material field, or its value is the wrong shape',
@@ -232,8 +263,12 @@ final class SetMaterialField extends ModelCommand {
 /// [AddMaterial] hands a material a blank [SurfaceMaterial] before anything
 /// edits it field by field.
 final class SetMaterialGraph extends ModelCommand {
+  /// A step putting [graph] on material [materialIndex], or taking its graph
+  /// off when [graph] is null.
   const SetMaterialGraph({required this.materialIndex, this.graph});
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material.
   final int materialIndex;
 
   /// The new graph, or null to take one off a material entirely.
@@ -288,8 +323,13 @@ final class SetMaterialGraph extends ModelCommand {
 /// both times, and the second bake reuses the first's row rather than
 /// appending a duplicate the file would carry forever.
 final class BakeTextureGraph extends ModelCommand {
+  /// A step baking material [materialIndex]'s graph at [size] texels a side,
+  /// 1024 unless given.
   const BakeTextureGraph({required this.materialIndex, this.size = 1024});
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, a material with no graph, an invalid graph and one that
+  /// feeds no slot.
   final int materialIndex;
 
   /// The square a graph bakes to. Synchronous — a command's own [apply]
@@ -430,6 +470,8 @@ const List<String> _textureSlots = <String>[
 
 /// Points a material's texture slot at an image, or clears it.
 final class SetTexture extends ModelCommand {
+  /// A step pointing [slot] of material [materialIndex] at image [imageIndex]
+  /// with [sampling], or clearing the slot when [imageIndex] is null.
   const SetTexture({
     required this.materialIndex,
     required this.slot,
@@ -437,6 +479,8 @@ final class SetTexture extends ModelCommand {
     this.sampling = const TextureSampling(),
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, an image index with no image and an unknown [slot].
   final int materialIndex;
 
   /// One of [_textureSlots].
@@ -446,6 +490,8 @@ final class SetTexture extends ModelCommand {
   /// paint the slot with nothing.
   final int? imageIndex;
 
+  /// How the slot samples the image: linear, mipmapped and repeating unless
+  /// given.
   final TextureSampling sampling;
 
   @override
@@ -462,8 +508,8 @@ final class SetTexture extends ModelCommand {
     'magLinear': sampling.magLinear,
     'minLinear': sampling.minLinear,
     'useMipmaps': sampling.useMipmaps,
-    'wrapS': sampling.wrapS.name,
-    'wrapT': sampling.wrapT.name,
+    'wrapS': textureWrapWord(sampling.wrapS),
+    'wrapT': textureWrapWord(sampling.wrapT),
   };
 
   @override
@@ -533,13 +579,19 @@ final class SetTexture extends ModelCommand {
 /// `toModelDocument` then writes out unchanged: the table it copies across
 /// never held a duplicate to begin with.
 final class AddImage extends ModelCommand {
+  /// A step adding [bytes] as an image called [imageName] of [mimeType].
   const AddImage({required this.bytes, this.imageName, this.mimeType});
 
+  /// The encoded image, as a file holds it. [apply] refuses empty bytes, and
+  /// adds nothing when an identical image is already in the project.
   final Uint8List bytes;
 
   /// Not `name` in [arguments], for the reason [AddMaterial.materialName]
   /// gives.
   final String? imageName;
+
+  /// The image's media type, such as `image/png`, or null to leave it to the
+  /// bytes.
   final String? mimeType;
 
   @override
@@ -575,8 +627,12 @@ final class AddImage extends ModelCommand {
 
 /// Paints one object with a material, or takes its paint off.
 final class AssignMaterial extends ModelCommand {
+  /// A step painting object [id] with material [to], or unpainting it when [to]
+  /// is null.
   const AssignMaterial({required this.id, required this.to});
 
+  /// The object painted. [apply] refuses when the project has no such object or
+  /// [to] names no material.
   final int id;
 
   /// The material's row, or null to leave the object unpainted.
@@ -637,14 +693,31 @@ final class AssignMaterial extends ModelCommand {
 /// edits by the same names, and "link" ought to mean the file's whole look,
 /// minus only the one part this row does not resolve.
 final class LinkMaterialFile extends ModelCommand {
-  const LinkMaterialFile({required this.index, required this.path, this.bytes});
+  /// A step linking material [index] to the `.fmat` at [path], adopting the
+  /// look in [bytes] when given.
+  const LinkMaterialFile({
+    required this.index,
+    required this.path,
+    this.bytes,
+    this.lightingModels,
+  });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and [bytes] that do not read as a material.
   final int index;
+
+  /// Where the `.fmat` lives, relative to the project, stored as given.
   final String path;
 
   /// The `.fmat` already read from disk, or null to link without adopting a
   /// look yet.
   final Uint8List? bytes;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) [bytes] are
+  /// read against, so a file drawn with a plugin's model reads as that
+  /// model; null reads against the built-in ones alone. Not written with the
+  /// command, as [SetMaterialField.lightingModels] is not.
+  final LightingModels? lightingModels;
 
   @override
   String get name => 'linkMaterialFile';
@@ -670,8 +743,8 @@ final class LinkMaterialFile extends ModelCommand {
     if (read != null) {
       final MaterialDocument document;
       try {
-        document = readFmat(read, name: path);
-      } on FormatException catch (error) {
+        document = readFmat(read, name: path, lightingModels: lightingModels);
+      } on FmatFormatException catch (error) {
         return Outcome.refused(
           '$path did not read as a material: ${error.message}',
         );
@@ -722,8 +795,12 @@ final class LinkMaterialFile extends ModelCommand {
 /// commands ever touch it. Only [ProjectMaterial.fmat] is cleared, the same
 /// null [ProjectMaterial.withFmat]'s own doc comment already describes.
 final class EmbedMaterial extends ModelCommand {
+  /// A step embedding material [index], keeping its look and forgetting its
+  /// file.
   const EmbedMaterial(this.index);
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material not linked to a file.
   final int index;
 
   @override
@@ -770,7 +847,7 @@ const Object _unset = Object();
 SurfaceMaterial _surfaceWith(
   SurfaceMaterial s, {
   Object? name = _unset,
-  Vector4? baseColor,
+  LinearColor? baseColor,
   double? metallic,
   double? roughness,
   TextureBinding? baseColorTexture,
@@ -785,7 +862,7 @@ SurfaceMaterial _surfaceWith(
   double? occlusionStrength,
   TextureBinding? emissiveTexture,
   bool setEmissiveTexture = false,
-  Vector3? emissive,
+  LinearColor? emissive,
   double? emissiveStrength,
   SurfaceAlphaMode? alphaMode,
   double? alphaCutoff,
@@ -819,6 +896,8 @@ SurfaceMaterial _surfaceWith(
   extensions: identical(extensions, _unset)
       ? s.extensions
       : extensions as MaterialExtensions?,
+  physicalMaterial: s.physicalMaterial,
+  materialVersion: s.materialVersion,
 );
 
 /// [s] with [field] set to [value], or null when [field] is not a field or
@@ -826,10 +905,16 @@ SurfaceMaterial _surfaceWith(
 ///
 /// The shapes: `name` is a string or null; `baseColor` and `emissive` are four
 /// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names;
-/// `lightingModel` is one of [LightingModel.builtIn]'s `shaderName`s or null
-/// to clear it; every other field is a number or, for `doubleSided`/`unlit`,
-/// a bool.
-SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
+/// `lightingModel` is a model [models] names (`LightingModels.named`: a
+/// built-in one in any case, a plugin's by its name or stage) or null to
+/// clear it; every other field is a number or, for `doubleSided`/`unlit`, a
+/// bool.
+SurfaceMaterial? _fieldSet(
+  SurfaceMaterial s,
+  String field,
+  Object? value,
+  LightingModels models,
+) {
   switch (field) {
     case 'name':
       return value == null || value is String
@@ -839,7 +924,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return switch (_doubles(value, 4)) {
         final List<double> c => _surfaceWith(
           s,
-          baseColor: Vector4(c[0], c[1], c[2], c[3]),
+          baseColor: LinearColor.fromSrgb(c[0], c[1], c[2], c[3]),
         ),
         _ => null,
       };
@@ -859,7 +944,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return switch (_doubles(value, 3)) {
         final List<double> c => _surfaceWith(
           s,
-          emissive: Vector3(c[0], c[1], c[2]),
+          emissive: LinearColor(c[0], c[1], c[2]),
         ),
         _ => null,
       };
@@ -868,11 +953,10 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
           ? _surfaceWith(s, emissiveStrength: value.toDouble())
           : null;
     case 'alphaMode':
-      if (value is! String) return null;
-      for (final SurfaceAlphaMode mode in SurfaceAlphaMode.values) {
-        if (mode.name == value) return _surfaceWith(s, alphaMode: mode);
-      }
-      return null;
+      return switch (alphaModeOf(value)) {
+        final SurfaceAlphaMode mode => _surfaceWith(s, alphaMode: mode),
+        null => null,
+      };
     case 'alphaCutoff':
       return value is num
           ? _surfaceWith(s, alphaCutoff: value.toDouble())
@@ -884,25 +968,23 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
     case 'lightingModel':
       if (value == null) return _surfaceWith(s, lightingModel: null);
       if (value is! String) return null;
-      for (final LightingModel model in LightingModel.builtIn) {
-        if (model.shaderName == value) {
-          return _surfaceWith(s, lightingModel: model);
-        }
-      }
-      return null;
+      return switch (models.named(value)) {
+        final LightingModel model => _surfaceWith(s, lightingModel: model),
+        null => null,
+      };
     default:
       return null;
   }
 }
 
-/// The wrap mode [json] names, [TextureWrap.repeat] for anything else — the
+/// The wrap mode [json] names, [SamplerAddressMode.repeat] for anything else — the
 /// same fallback `_readSampling` in `project_format.dart` gives, because a
 /// sampler that does not say how it wraps is one nothing has ever asked to
 /// wrap unusually.
-TextureWrap _wrapNamed(Object? json) => switch (json) {
-  'clampToEdge' => TextureWrap.clampToEdge,
-  'mirroredRepeat' => TextureWrap.mirroredRepeat,
-  _ => TextureWrap.repeat,
+SamplerAddressMode _wrapNamed(Object? json) => switch (json) {
+  'clampToEdge' => SamplerAddressMode.clampToEdge,
+  'mirroredRepeat' => SamplerAddressMode.mirror,
+  _ => SamplerAddressMode.repeat,
 };
 
 /// Whether [a] and [b] hold the same bytes.

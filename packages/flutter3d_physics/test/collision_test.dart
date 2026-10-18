@@ -22,16 +22,36 @@ final class _Recorder with CollisionListener {
   final List<String> events = <String>[];
 
   @override
-  void onCollisionStart(Collider self, Collider other) =>
-      events.add('start:${other.userData}');
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
+    events.add('start:${other.userData}');
+  }
 
   @override
-  void onCollision(Collider self, Collider other) =>
-      events.add('stay:${other.userData}');
+  void onCollision(CollisionContext context) {
+    final other = context.other;
+    events.add('stay:${other.userData}');
+  }
 
   @override
-  void onCollisionEnd(Collider self, Collider other) =>
-      events.add('end:${other.userData}');
+  void onCollisionEnd(CollisionContext context) {
+    final other = context.other;
+    events.add('end:${other.userData}');
+  }
+}
+
+/// Writes `self/other` of every start it is told, and keeps the context.
+final class _Selves with CollisionListener {
+  _Selves(this.told, this.contexts);
+
+  final List<String> told;
+  final Set<CollisionContext> contexts;
+
+  @override
+  void onCollisionStart(CollisionContext context) {
+    contexts.add(context);
+    told.add('${context.self.userData}/${context.other.userData}');
+  }
 }
 
 void main() {
@@ -594,7 +614,7 @@ void main() {
       );
     });
 
-    test('but opposing pushes still both count', () {
+    test('but opposing pushes of two statics still both count', () {
       // **Not an oversight, and the crushing test caught it.** Written as "only
       // what is still needed along this normal", the second of two opposing
       // pushes overwrites the first — so a body being closed on by a platform
@@ -623,6 +643,38 @@ void main() {
         closeTo(0.1, 1e-6),
         reason: 'the two faces did not net out: ${correction.y}',
       );
+    });
+
+    test('a static holds against a mover closing on it', () {
+      // Two statics net out (above); a floor and a platform coming down do
+      // not, because a net jumps the body across the middle of the gap every
+      // step, and once the gap is shut the middle is under the floor.
+      // Mutation: drop the static-wins rule in `depenetrate` and the first
+      // correction nets to a tenth downward; drop the `moverOnly` give-back
+      // and the second sets the body 0.4 m into the floor.
+      final world = CollisionWorld();
+      world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(10.0, 1.0, 10.0));
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(5.0, 0.5, 5.0)),
+          position: Vector3(0.0, 2.0, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      world.update();
+      final half = Vector3(0.5, 0.9, 0.5);
+      final correction = Vector3.zero();
+
+      // Inside both: 0.1 m into the floor, 0.2 m into the platform.
+      world.depenetrate(Vector3(0.0, 0.8, 0.0), half, correction);
+      expect(correction.y, closeTo(0.1, 1e-6));
+
+      // Standing on the floor, the platform 0.4 m into the head: pushed out
+      // of the platform only as far as the floor allows, which is nowhere.
+      platform.moveTo(Vector3(0.0, 1.9, 0.0));
+      world.update();
+      world.depenetrate(Vector3(0.0, 0.9, 0.0), half, correction);
+      expect(correction.y, closeTo(0.0, 1e-6));
     });
 
     test('reports nothing when clear', () {
@@ -707,6 +759,36 @@ void main() {
         other.events.where((String e) => e == 'start:player'),
         hasLength(1),
       );
+    });
+
+    test('each side of a pair is told its own collider as self, through the '
+        'one context the world reuses', () {
+      // Mutation: set the reused context once per pair rather than once per
+      // side, and the second listener is told the first one's collider as
+      // its own.
+      final told = <String>[];
+      final contexts = <CollisionContext>{};
+      final monster = _Selves(told, contexts);
+      world.add(
+        Collider(
+          shape: CollisionBox(Vector3.all(0.5)),
+          position: Vector3.zero(),
+          kind: ColliderKind.kinematic,
+          layer: _Layer.monster,
+          listener: monster,
+          userData: 'monster',
+        ),
+      );
+      walker.listener = _Selves(told, contexts);
+
+      walker.moveTo(Vector3.zero());
+      world.update();
+
+      expect(
+        told.where((String t) => !t.contains('zone')),
+        unorderedEquals(<String>['player/monster', 'monster/player']),
+      );
+      expect(contexts, hasLength(1), reason: 'one context, reused');
     });
 
     test('layers keep unrelated colliders from reporting each other', () {
@@ -886,4 +968,47 @@ void main() {
       );
     });
   });
+
+  test('rays cast elsewhere are handed each query in the one context the '
+      'world reuses', () {
+    // Mutation: leave a field of the reused query as the last ray set it,
+    // and the second ray reaches as far as the first.
+    final rays = _Rays();
+    final world = CollisionWorld()..rays = rays;
+    final ignored = Collider(shape: CollisionSphere(0.1));
+    world.raycast(
+      Vector3(1.0, 2.0, 3.0),
+      Vector3(0.0, -1.0, 0.0),
+      5.0,
+      RayHit(),
+      mask: _Layer.world,
+      ignore: ignored,
+    );
+    world.raycast(Vector3.zero(), Vector3(1.0, 0.0, 0.0), 9.0, RayHit());
+
+    expect(rays.asked, <String>[
+      '(1.0, 2.0, 3.0) 5.0 1 true',
+      '(0.0, 0.0, 0.0) 9.0 ${Layers.all} false',
+    ]);
+    expect(rays.queries, hasLength(1), reason: 'one query, reused');
+  });
+}
+
+/// Rays that meet nothing and write down what each query asked.
+final class _Rays extends WorldRays {
+  final List<String> asked = <String>[];
+  final Set<RayQuery> queries = <RayQuery>{};
+
+  @override
+  bool raycast(RayQuery query) {
+    queries.add(query);
+    final o = query.origin;
+    // Fixed digits: the browser writes 1.0 as "1".
+    String d(double v) => v.toStringAsFixed(1);
+    asked.add(
+      '(${d(o.x)}, ${d(o.y)}, ${d(o.z)}) ${d(query.maxDistance)} '
+      '${query.mask} ${query.ignore != null}',
+    );
+    return false;
+  }
 }

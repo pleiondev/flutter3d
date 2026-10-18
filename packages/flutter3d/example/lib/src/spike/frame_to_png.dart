@@ -30,6 +30,7 @@ final class FrameToPng {
   static const String _pathKey = 'FLUTTER3D_CAPTURE';
   static const String _frameKey = 'FLUTTER3D_CAPTURE_FRAME';
 
+  /// Where the PNG is written, from `FLUTTER3D_CAPTURE`.
   final String path;
 
   /// Which frame to grab. Late enough that the model has loaded and the
@@ -83,11 +84,7 @@ final class FrameToPng {
 
   Future<void> _write(GraphicsDevice device, TextureHandle frame) async {
     try {
-      final pixels = await device.readPixels(frame);
-      if (pixels == null) {
-        stderr.writeln('frame capture: the frame read back as nothing');
-        exit(2);
-      }
+      final pixels = await device.readback(frame);
       final png = await encodePng(pixels, frame.width, frame.height);
       if (png == null) {
         stderr.writeln('frame capture: the image encoded to nothing');
@@ -111,11 +108,11 @@ final class FrameToPng {
 /// A comma-separated list rather than a flag per overlay: the point is to name
 /// a scenario in one define, and an unknown name is a typo worth reporting
 /// rather than silently ignoring.
-DebugDrawOptions debugDrawFromEnvironment() {
+DebugDrawSettings debugDrawFromEnvironment() {
   const spec = String.fromEnvironment('FLUTTER3D_DEBUG_DRAW');
-  if (spec.isEmpty) return const DebugDrawOptions();
+  if (spec.isEmpty) return const DebugDrawSettings();
 
-  var options = const DebugDrawOptions();
+  var options = const DebugDrawSettings();
   for (final raw in spec.split(',')) {
     switch (raw.trim().toLowerCase()) {
       case '':
@@ -131,7 +128,7 @@ DebugDrawOptions debugDrawFromEnvironment() {
       case 'frusta':
         options = options.copyWith(cameraFrustums: true);
       case 'all':
-        options = const DebugDrawOptions(
+        options = const DebugDrawSettings(
           bounds: true,
           normals: true,
           lightGizmos: true,

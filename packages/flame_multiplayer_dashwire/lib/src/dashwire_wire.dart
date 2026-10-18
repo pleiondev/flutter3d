@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dashwire/dashwire.dart';
 import 'package:flame_multiplayer/flame_multiplayer.dart';
@@ -15,17 +16,32 @@ import 'package:flame_multiplayer/flame_multiplayer.dart';
 /// **JSON in UTF-8 on the wire,** the shape every message here already has.
 /// A payload that is not one — something else on the same connection — is
 /// passed over, not thrown on.
-final class DashwireWire implements PeerWire {
+///
+/// **Bytes as they are** ([sendBytes]): a payload whose first byte is
+/// [bytesTag], nought, and the bytes after it. JSON never starts with that
+/// byte, so the two cannot be taken for each other; a machine that sent its
+/// bytes as base64 inside a JSON frame is heard as bytes all the same.
+final class DashwireWire extends PeerWire {
+  /// A wire over [connection], listening to its messages from now on.
   DashwireWire(this.connection) {
     _subscription = connection.messages.listen(_hear);
   }
 
+  /// The dashwire connection this sends on and hears from. While it is
+  /// closed, sends are dropped and [state] is [WireState.closed].
   final WireConnection connection;
-  late final StreamSubscription<NetMessage> _subscription;
-  void Function(Map<String, Object?> message)? _listener;
 
   @override
-  void send(Map<String, Object?> message, {bool reliable = true}) {
+  WireState get state => connection.isOpen ? WireState.open : WireState.closed;
+  late final StreamSubscription<NetMessage> _subscription;
+
+  /// The first byte of a payload that carries bytes rather than JSON.
+  static const int bytesTag = 0;
+
+  @override
+  void send(PeerSend context) {
+    final message = context.message;
+    final reliable = context.reliable;
     if (!connection.isOpen) return;
     connection.send(
       reliable ? Channel.reliable : Channel.unreliable,
@@ -34,20 +50,35 @@ final class DashwireWire implements PeerWire {
   }
 
   @override
-  void listen(void Function(Map<String, Object?> message) onMessage) =>
-      _listener = onMessage;
+  void sendBytes(PeerSendBytes context) {
+    final bytes = context.bytes;
+    final reliable = context.reliable;
+    if (!connection.isOpen) return;
+    final payload = Uint8List(bytes.length + 1)
+      ..[0] = bytesTag
+      ..setRange(1, bytes.length + 1, bytes);
+    connection.send(reliable ? Channel.reliable : Channel.unreliable, payload);
+  }
 
   void _hear(NetMessage message) {
+    final payload = message.payload;
+    if (payload.isNotEmpty && payload[0] == bytesTag) {
+      deliverBytes(PeerBytesDelivery(bytes: Uint8List.sublistView(payload, 1)));
+      return;
+    }
     final Object? decoded;
     try {
-      decoded = jsonDecode(utf8.decode(message.payload));
+      decoded = jsonDecode(utf8.decode(payload));
     } on FormatException {
       return;
     }
-    if (decoded is Map<String, Object?>) _listener?.call(decoded);
+    if (decoded is Map<String, Object?>) {
+      deliver(PeerDelivery(message: decoded));
+    }
   }
 
   /// Stops listening and closes the connection.
+  @override
   Future<void> close() async {
     await _subscription.cancel();
     await connection.close();

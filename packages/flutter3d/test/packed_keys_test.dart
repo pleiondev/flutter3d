@@ -51,7 +51,7 @@ void main() {
     });
 
     test('a key using every available bit still orders correctly', () {
-      // kSortKeyBits is 43, which is why the web form can keep the key in a
+      // sortKeyBits is 43, which is why the web form can keep the key in a
       // double and stay exact. A key wider than that would silently round
       // there, and two draws that differ only in their lowest bits would swap
       // — visible in back-to-front mode as transparent surfaces blending in the
@@ -60,7 +60,7 @@ void main() {
       // shift on the web and would quietly make this test check a much smaller
       // number — which is the same trap the sort key itself fell into.
       var top = 1;
-      for (var i = 0; i < kSortKeyBits; i++) {
+      for (var i = 0; i < sortKeyBits; i++) {
         top *= 2;
       }
       top -= 1;
@@ -80,15 +80,15 @@ void main() {
     test('the largest payload survives a round trip', () {
       final keys = PackedKeys()
         ..ensure(1)
-        ..setEntry(0, 1, kMaxPayload)
+        ..setEntry(0, 1, maxPayload)
         ..sort(1);
-      expect(keys.payloadAt(0), kMaxPayload);
+      expect(keys.payloadAt(0), maxPayload);
     });
   });
 
   group('sizing', () {
     test('growing past the initial capacity keeps working', () {
-      // 300 crosses both the default capacity of 128 and kRadixThreshold, so
+      // 300 crosses both the default capacity of 128 and radixThreshold, so
       // the native form takes its radix path here and the small-count path in
       // the tests above.
       final keys = PackedKeys()..ensure(300);

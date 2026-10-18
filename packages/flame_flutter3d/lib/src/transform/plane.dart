@@ -24,18 +24,44 @@
 /// which is worse than a name one character longer.
 library;
 
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bridge_space.dart';
 
 /// Which flutter3d axis a [BridgePlane] holds constant.
-enum PlaneAxis {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class PlaneAxis {
+  const PlaneAxis._(this.name);
+
   /// A ground plane: Y is constant, Flame's `y` becomes flutter3d's Z.
-  y,
+  static const PlaneAxis y = PlaneAxis._('y');
 
   /// A backdrop: Z is constant, Flame's `y` becomes flutter3d's Y.
-  z,
+  static const PlaneAxis z = PlaneAxis._('z');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<PlaneAxis> values = <PlaneAxis>[y, z];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static PlaneAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'PlaneAxis.$name';
 }
 
 /// Maps a Flame [Vector2] to and from a flutter3d [Vector3], and a Flame
@@ -44,7 +70,9 @@ enum PlaneAxis {
 /// A plane is defined by which flutter3d axis stays fixed at [constant] —
 /// [PlaneAxis.y] for a ground plane's height, [PlaneAxis.z] for a backdrop's
 /// depth — and Flame's `x`/`y` become whichever two flutter3d axes are left.
-final class BridgePlane implements BridgeSpace {
+final class BridgePlane with BridgeSpace {
+  /// The plane where [axis] stays at [constant], Flame's `y` unflipped
+  /// unless [flipY] is set.
   const BridgePlane({
     required this.axis,
     required this.constant,
@@ -69,7 +97,8 @@ final class BridgePlane implements BridgeSpace {
   /// Which flutter3d axis stays fixed at [constant].
   final PlaneAxis axis;
 
-  /// The flutter3d coordinate held constant across the whole plane.
+  /// The flutter3d coordinate held constant across the whole plane, in
+  /// metres.
   final double constant;
 
   /// Negates Flame's `y` before it becomes a flutter3d coordinate. See
@@ -85,6 +114,9 @@ final class BridgePlane implements BridgeSpace {
     return switch (axis) {
       PlaneAxis.y => Vector3(flat.x, held, y),
       PlaneAxis.z => Vector3(flat.x, y, held),
+      _ => throw UnsupportedError(
+        'a bridge plane cannot hold $axis constant yet',
+      ),
     };
   }
 
@@ -98,6 +130,8 @@ final class BridgePlane implements BridgeSpace {
         out.setValues(x, held, down);
       case PlaneAxis.z:
         out.setValues(x, down, held);
+      default:
+        throw UnsupportedError('a bridge plane cannot hold $axis constant yet');
     }
   }
 
@@ -117,6 +151,9 @@ final class BridgePlane implements BridgeSpace {
     final Vector2 flat = switch (axis) {
       PlaneAxis.y => Vector2(point.x, point.z),
       PlaneAxis.z => Vector2(point.x, point.y),
+      _ => throw UnsupportedError(
+        'a bridge plane cannot hold $axis constant yet',
+      ),
     };
     return flipY ? Vector2(flat.x, -flat.y) : flat;
   }
@@ -126,6 +163,9 @@ final class BridgePlane implements BridgeSpace {
   Vector3 get normal => switch (axis) {
     PlaneAxis.y => Vector3(0.0, 1.0, 0.0),
     PlaneAxis.z => Vector3(0.0, 0.0, 1.0),
+    _ => throw UnsupportedError(
+      'a bridge plane cannot hold $axis constant yet',
+    ),
   };
 
   /// A flutter3d rotation turning [angle] radians about this plane's normal,
@@ -146,11 +186,9 @@ final class BridgePlane implements BridgeSpace {
   /// about Z, to `(cos φ, sin φ, 0)`. Matching those to [to3d]'s direction
   /// gives `φ` below.
   Quaternion rotationFor(double angle) {
-    final double phi = switch (axis) {
-      PlaneAxis.y => flipY ? angle : -angle,
-      PlaneAxis.z => flipY ? -angle : angle,
-    };
-    return Quaternion.axisAngle(normal, phi);
+    final out = Quaternion.identity();
+    rotationInto(angle, out);
+    return out;
   }
 
   /// [rotationFor] into [out], without making a quaternion.
@@ -158,6 +196,9 @@ final class BridgePlane implements BridgeSpace {
     final double phi = switch (axis) {
       PlaneAxis.y => flipY ? angle : -angle,
       PlaneAxis.z => flipY ? -angle : angle,
+      _ => throw UnsupportedError(
+        'a bridge plane cannot hold $axis constant yet',
+      ),
     };
     final double half = Portable.sin(phi / 2.0);
     final double w = Portable.cos(phi / 2.0);
@@ -166,6 +207,8 @@ final class BridgePlane implements BridgeSpace {
         out.setValues(0.0, half, 0.0, w);
       case PlaneAxis.z:
         out.setValues(0.0, 0.0, half, w);
+      default:
+        throw UnsupportedError('a bridge plane cannot hold $axis constant yet');
     }
   }
 
@@ -187,6 +230,9 @@ final class BridgePlane implements BridgeSpace {
     final double sinComponent = switch (axis) {
       PlaneAxis.y => -turned.z,
       PlaneAxis.z => turned.y,
+      _ => throw UnsupportedError(
+        'a bridge plane cannot hold $axis constant yet',
+      ),
     };
     // `Portable.atan2`, not `dart:math`'s: this can run inside a bridged
     // game's own deterministic step (a synced actor's rotation read back for
@@ -198,6 +244,9 @@ final class BridgePlane implements BridgeSpace {
     return switch (axis) {
       PlaneAxis.y => flipY ? measured : -measured,
       PlaneAxis.z => flipY ? -measured : measured,
+      _ => throw UnsupportedError(
+        'a bridge plane cannot hold $axis constant yet',
+      ),
     };
   }
 }

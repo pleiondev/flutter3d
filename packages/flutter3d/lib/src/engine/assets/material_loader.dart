@@ -1,13 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dException, MaterialParameters;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'default_image_decoder.dart';
-
-// `Ktx2Texture` hidden: `flutter3d.dart` re-exports this package's own thin
-// wrapper of the same name from `ktx2/ktx2.dart` instead — see its doc
-// comment (`ap-01`).
-export 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 
 /// A reader for a material format the engine does not ship.
 ///
@@ -22,38 +20,90 @@ export 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 /// text. Moving it to an isolate would cost more in sending than it saves, and
 /// the isolate is what forces a model decoder to be sendable — a constraint
 /// there is no reason to inherit here.
-abstract interface class MaterialDecoder {
-  /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
-  /// the whole file, so a decoder with no useful suffix can sniff it.
-  bool handles(String fileName, Uint8List bytes);
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base class MaterialDecoder {
+  /// A decoder; a subclass says what it reads.
+  const MaterialDecoder();
 
-  /// Reads [bytes] into a document. Throws [FormatException] on a file it
-  /// claimed and could not read.
-  MaterialDocument decode(Uint8List bytes, String fileName);
+  /// Whether this decoder wants the file [MaterialProbe] names.
+  bool handles(MaterialProbe probe);
+
+  /// Reads [MaterialDecodeContext.bytes] into a document. Throws a
+  /// `Flutter3dFormatException` of its own on a file it claimed and could
+  /// not read.
+  MaterialDocument decode(MaterialDecodeContext context);
+}
+
+/// What [MaterialDecoder.handles] is asked about: a file, by name and
+/// bytes.
+///
+/// **One object, so a minor can hand a decoder more** — where the file came
+/// from, the scene's lighting — without breaking a decoder written against
+/// 1.0.
+final class MaterialProbe {
+  /// A probe for the file named [fileName] holding [bytes].
+  const MaterialProbe({required this.fileName, required this.bytes});
+
+  /// The file's name; may be empty.
+  final String fileName;
+
+  /// The whole file, so a decoder with no useful suffix can sniff it.
+  final Uint8List bytes;
+}
+
+/// What [MaterialDecoder.decode] is handed: the file it claimed.
+///
+/// One object for the reason [MaterialProbe] gives.
+final class MaterialDecodeContext {
+  /// The claimed file's [bytes], under [fileName].
+  const MaterialDecodeContext({required this.bytes, required this.fileName});
+
+  /// The whole file.
+  final Uint8List bytes;
+
+  /// The file's name; may be empty.
+  final String fileName;
 }
 
 /// Reads the material at [source], with no device involved.
 ///
 /// Split from [bindMaterial] for the reason the model path is: reading is pure
-/// and testable with no Flutter binding, and uploading is neither.
+/// and testable with no Flutter binding, and uploading is neither. [read]
+/// is what the file is read with: progress and a cancel signal
+/// ([AssetRead]).
+///
+/// [lightingModels] is the engine's table, `Renderer.lightingModels`: a
+/// `.fmat` naming a plugin's lit model reads as that model, and one naming
+/// a model of a plugin this engine has not installed is refused, naming the
+/// plugin. Null reads against the built-in models alone, as a tool with no
+/// engine does.
 Future<MaterialDocument> loadMaterialDocument(
   AssetSource source, {
   List<MaterialDecoder> decoders = const <MaterialDecoder>[],
+  AssetRead read = AssetRead.whole,
+  LightingModels? lightingModels,
 }) async {
-  final bytes = await source.read();
+  final bytes = await read.readFrom(source);
   final fileName = source.fileName;
   for (final decoder in decoders) {
-    if (decoder.handles(fileName, bytes)) {
-      return decoder.decode(bytes, fileName);
+    if (decoder.handles(MaterialProbe(fileName: fileName, bytes: bytes))) {
+      return decoder.decode(
+        MaterialDecodeContext(bytes: bytes, fileName: fileName),
+      );
     }
   }
   if (!fileName.toLowerCase().endsWith('.fmat') && !isFmat(bytes)) {
-    throw FormatException(
+    throw FmatFormatException(
       '$fileName is not a material this engine reads. Pass a MaterialDecoder '
       'for it, or convert it to .fmat.',
     );
   }
-  return readFmat(bytes, name: fileName);
+  return readFmat(bytes, name: fileName, lightingModels: lightingModels);
 }
 
 /// Turns a read material into one the renderer can draw with.
@@ -75,18 +125,40 @@ Future<MaterialDocument> loadMaterialDocument(
 /// undecodable image gets.
 ///
 /// **An extra texture slot keeps its image and loses its sampler**, and says
-/// so in [warnings] when the file asked for one. [Material.extraTextures] is
+/// so in [warnings] when the file asked for one. [RenderMaterial.extraTextures] is
 /// names to handles: a slot invented for an application's own shader has no
 /// field here to hang a sampler off, so the encoder binds it with the
 /// device's default. Only whether it carries a mip chain survives, because
 /// that is part of the texture rather than of the sampler.
-Future<Material> bindMaterial(
+///
+/// [name] is what the material is called once bound, the file's own name by
+/// default. A level passes the name its surfaces use for it, because that is
+/// the one a tool addresses it by (`ext.flutter3d.material.set`).
+///
+/// **Parameters are lifted to the material's own version** (D45). [programs]
+/// are the materials written in the material language this engine draws
+/// with, by name (`HotMaterials.programs`, or `parseMaterial` of each
+/// source). When the model the material is drawn with is one of them, the
+/// values the file sets were written for its `materialVersion` (1 when it
+/// names none) and are carried to the program's own version through its
+/// `updates` (`MaterialProgram.lift`), so a value renamed in a later version
+/// reaches the member it is now called. A value for a parameter the program
+/// no longer has is left out, and a file from a newer version of the
+/// material keeps its values as written; each says so in [warnings].
+///
+/// [codecs] is the image formats the engine's plugins brought
+/// (`ModelDecoders.textureCodecs`): an image the material names in one of
+/// them is read by its codec before the engine's own decoders.
+Future<RenderMaterial> bindMaterial(
   MaterialDocument document, {
   required GraphicsDevice device,
   required AssetUriResolver resolveUri,
+  String? name,
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
+  Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
+  TextureCodecs? codecs,
 }) async {
   // Keyed on the path **and on whether it carries a chain**, for the reason
   // spelled out where a model does the same: the chain is part of the texture,
@@ -94,7 +166,7 @@ Future<Material> bindMaterial(
   // handed whichever answer the first of them asked for.
   final cache = <(int, bool), TextureHandle?>{};
 
-  Future<(TextureHandle?, SamplerOptions?)> resolve(
+  Future<(TextureHandle?, SamplerDescriptor?)> resolve(
     TextureBinding? binding,
   ) async {
     if (binding == null) return (null, null);
@@ -109,16 +181,23 @@ Future<Material> bindMaterial(
       } catch (_) {
         bytes = null;
       }
-      final uploaded = bytes == null
-          ? null
-          : await uploadEncodedImage(
-              device,
-              bytes,
-              decodeImage: decodeImage,
-              sampling: binding.sampling,
-              report: (message) =>
-                  warnings?.add('${document.images[index]}: $message'),
-            );
+      TextureHandle? uploaded;
+      if (bytes != null) {
+        try {
+          uploaded = await uploadEncodedImage(
+            device,
+            bytes,
+            decodeImage: decodeImage,
+            codecs: codecs,
+            sampling: binding.sampling,
+            report: (message) =>
+                warnings?.add('${document.images[index]}: $message'),
+          );
+        } on Flutter3dException catch (refused) {
+          // One texture costs a texture, not the material.
+          warnings?.add('${document.images[index]}: ${refused.message}');
+        }
+      }
       if (uploaded == null) {
         warnings?.add(
           '${document.images[index]} could not be read; the '
@@ -165,7 +244,7 @@ Future<Material> bindMaterial(
   final (occlusion, occlusionSampler) = await resolve(surface.occlusionTexture);
   final (emissive, emissiveSampler) = await resolve(surface.emissiveTexture);
 
-  // Extras keep no sampler, and the file may ask for one. `Material`'s map is
+  // Extras keep no sampler, and the file may ask for one. `RenderMaterial`'s map is
   // `String -> TextureHandle`: the encoder binds these by name with the
   // device's default, because a slot named for an application's own shader
   // has no field here to hang a sampler off. A `.fmat` that writes
@@ -191,14 +270,15 @@ Future<Material> bindMaterial(
     }
   }
 
-  return Material(
-    name: surface.name,
-    lighting:
-        document.lighting ??
-        (surface.lightingModel ??
-                (surface.unlit ? LightingModel.unlit : lighting))
-            .withLayers(surface.extensions),
-    baseColor: surface.baseColor.clone(),
+  final model =
+      document.lighting ??
+      (surface.lightingModel ??
+              (surface.unlit ? LightingModel.unlit : lighting))
+          .withLayers(surface.extensions);
+  return RenderMaterial(
+    name: name ?? surface.name,
+    lighting: model,
+    baseColor: surface.baseColor,
     metallic: surface.metallic,
     roughness: surface.roughness,
     albedo: albedo,
@@ -213,12 +293,18 @@ Future<Material> bindMaterial(
     occlusionStrength: surface.occlusionStrength,
     emissiveTexture: emissive,
     emissiveSampler: emissiveSampler,
-    emissive: surface.emissive.clone(),
-    emissiveStrength: surface.emissiveStrength,
+    emissive: surface.emissive,
+    // A file's strength is glTF's, a multiple of the factor; the material's
+    // is nits, and one of the file's was always drawn at the old unit's.
+    emissiveStrength:
+        surface.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     alphaMode: switch (surface.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
       SurfaceAlphaMode.blend => MaterialAlphaMode.blend,
+      _ => throw UnsupportedError(
+        'no material alpha mode draws ${surface.alphaMode} yet',
+      ),
     },
     alphaCutoff: surface.alphaCutoff,
     doubleSided: surface.doubleSided,
@@ -228,21 +314,75 @@ Future<Material> bindMaterial(
     sheenMap: sheen?.texture,
     sheenMapSampler: sheen?.sampler,
     parameterBlock: document.parameterBlock,
-    parameters: document.parameters,
+    // A map of the material's own: the document's may be a constant.
+    parameters: MaterialParameters.over(<String, Float32List>{
+      ..._liftedParameters(document, programs[model.shaderName], warnings),
+    }),
     extraTextures: extra,
+    physicalMaterial: surface.physicalMaterial,
   );
 }
 
+/// [document]'s parameter values carried to [program]'s version, or as
+/// written when it is drawn with no program or sets none — see
+/// [bindMaterial].
+Map<String, Float32List> _liftedParameters(
+  MaterialDocument document,
+  MaterialProgram? program,
+  List<String>? warnings,
+) {
+  final written = document.parameters;
+  if (program == null || written.isEmpty) return written;
+  final from = document.surface.materialVersion ?? 1;
+  final Map<String, List<double>> lifted;
+  try {
+    lifted = program.lift(<String, List<double>>{
+      for (final MapEntry(:key, :value) in written.entries) key: value,
+    }, from: from);
+  } on MaterialVersionException catch (error) {
+    warnings?.add(
+      'its parameter values cannot be carried to this build\'s '
+      '${error.material}, so the material keeps its own: ${error.message}',
+    );
+    return written;
+  }
+  final declared = <String>{
+    for (final parameter in program.parameters) parameter.name,
+  };
+  for (final key in lifted.keys) {
+    if (!declared.contains(key)) {
+      warnings?.add(
+        'it gives "$key", which ${program.name} at version '
+        '${program.version} does not have, so it is left out',
+      );
+    }
+  }
+  return <String, Float32List>{
+    for (final MapEntry(:key, :value) in lifted.entries)
+      if (declared.contains(key)) key: Float32List.fromList(value),
+  };
+}
+
 /// Reads and binds in one call, which is what an application usually wants.
-Future<Material> loadMaterial(
+/// [programs] lifts the parameters as [bindMaterial] says; [lightingModels]
+/// is what the file is read against, as [loadMaterialDocument] says, and
+/// [codecs] what its images are decoded with, as [bindMaterial] says.
+Future<RenderMaterial> loadMaterial(
   AssetSource source, {
   required GraphicsDevice device,
   List<MaterialDecoder> decoders = const <MaterialDecoder>[],
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
+  Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
+  LightingModels? lightingModels,
+  TextureCodecs? codecs,
 }) async {
-  final document = await loadMaterialDocument(source, decoders: decoders);
+  final document = await loadMaterialDocument(
+    source,
+    decoders: decoders,
+    lightingModels: lightingModels,
+  );
   warnings?.addAll(document.warnings);
   return bindMaterial(
     document,
@@ -251,6 +391,8 @@ Future<Material> loadMaterial(
     lighting: lighting,
     warnings: warnings,
     decodeImage: decodeImage,
+    programs: programs,
+    codecs: codecs,
   );
 }
 
@@ -258,7 +400,7 @@ Future<Material> loadMaterial(
 ///
 /// **The one conversion from a decoded material to a drawable one.** Every
 /// decoder in the repository produces a [SurfaceMaterial] and the renderer takes
-/// a [Material]; between them sits this, and there is one of it because the
+/// a [RenderMaterial]; between them sits this, and there is one of it because the
 /// mapping is long, dull and easy to get subtly wrong — an alpha mode dropped, a
 /// sampler taken from the wrong slot — in a way that shows up as a picture
 /// nobody can explain rather than as an error.
@@ -273,11 +415,11 @@ Future<Material> loadMaterial(
 /// rebuilding one material after an edit re-uploads nothing at all.
 ///
 /// [transformsAtSampler] carries the maps' `KHR_texture_transform`s into
-/// [Material.textureTransforms] and draws a metal-rough material with the
+/// [RenderMaterial.textureTransforms] and draws a metal-rough material with the
 /// layered model, which reads them — `C8`. For a caller that does not bake
 /// them into the coordinates; see `ModelAsset.fromDocument`, which decides.
 /// A material another model draws gets none, since no other stage reads them.
-Future<Material> bindSurfaceMaterial(
+Future<RenderMaterial> bindSurfaceMaterial(
   SurfaceMaterial source, {
   LightingModel lighting = LightingModel.pbr,
   bool transformsAtSampler = false,
@@ -293,7 +435,7 @@ Future<Material> bindSurfaceMaterial(
   /// A slot the file does not declare comes back null and the renderer binds
   /// a neutral texture instead, which is why nothing here has to record
   /// "this material has no normal map".
-  Future<(TextureHandle?, SamplerOptions?)> resolve(
+  Future<(TextureHandle?, SamplerDescriptor?)> resolve(
     TextureBinding? binding,
   ) async {
     if (binding == null) return (null, null);
@@ -332,10 +474,10 @@ Future<Material> bindSurfaceMaterial(
   final atSampler =
       transformsAtSampler && identical(model, LightingModel.pbrLayered);
 
-  return Material(
+  return RenderMaterial(
     name: source.name,
     lighting: model,
-    baseColor: source.baseColor.clone(),
+    baseColor: source.baseColor,
     metallic: source.metallic,
     roughness: source.roughness,
     albedo: albedo,
@@ -350,12 +492,16 @@ Future<Material> bindSurfaceMaterial(
     occlusionStrength: source.occlusionStrength,
     emissiveTexture: emissive,
     emissiveSampler: emissiveSampler,
-    emissive: source.emissive.clone(),
-    emissiveStrength: source.emissiveStrength,
+    emissive: source.emissive,
+    emissiveStrength:
+        source.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     alphaMode: switch (source.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
       SurfaceAlphaMode.blend => MaterialAlphaMode.blend,
+      _ => throw UnsupportedError(
+        'no material alpha mode draws ${source.alphaMode} yet',
+      ),
     },
     alphaCutoff: source.alphaCutoff,
     doubleSided: source.doubleSided,
@@ -371,5 +517,6 @@ Future<Material> bindSurfaceMaterial(
                 map: transform.clone(),
           }
         : null,
+    physicalMaterial: source.physicalMaterial,
   );
 }

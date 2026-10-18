@@ -22,7 +22,7 @@
 /// ## Why not `flutter3d_game`
 ///
 /// The candidate named `flutter3d_game` and `flutter3d_bridge`, and the
-/// spike does not depend on either. `flutter3d_game` brings `pointer_lock`,
+/// spike does not depend on either. `flutter3d_game` brings `flutter3d_pointer_lock`,
 /// `pad_input`, `flutter3d_audio` and `flutter3d_particles` with it — four
 /// packages, two of them native plugins — into an application that has to
 /// keep building for the web and inside a macOS sandbox. What Play actually
@@ -42,12 +42,14 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:vector_math/vector_math.dart' show Vector2, Vector3, Vector4;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 
 import '../staging.dart';
 import 'play_template.dart';
@@ -106,6 +108,8 @@ final class PlaySession {
           position: Vector3(0.0, -0.5, 0.0),
         ),
       );
+    // The character walks on the run's physics, as a game's does.
+    usePhysics().attach(world);
     return PlaySession._(
       stage,
       template,
@@ -118,9 +122,16 @@ final class PlaySession {
   /// the `SceneSync` that keeps the document's own objects in it.
   final ModelerStage stage;
 
+  /// Which game the document is walked through: the controls, the body and
+  /// the camera it brings.
   final PlayTemplate template;
 
   final CollisionWorld _world;
+
+  /// What the body walks in, for a test that asks which physics it is on.
+  @visibleForTesting
+  CollisionWorld get world => _world;
+
   final CharacterController _body;
 
   /// Which way the body faces, in radians about world up.
@@ -215,10 +226,10 @@ final class PlaySession {
         depth: kPlayFloor,
       ).toEditMesh().toMeshData(),
     ),
-    engine.Material(
+    engine.RenderMaterial(
       name: 'play-floor',
       lighting: LightingModel.pbr,
-      baseColor: Vector4(0.34, 0.35, 0.37, 1.0),
+      baseColor: LinearColor.fromSrgb(0.34, 0.35, 0.37, 1.0),
       roughness: 0.9,
     ),
     name: 'floor',

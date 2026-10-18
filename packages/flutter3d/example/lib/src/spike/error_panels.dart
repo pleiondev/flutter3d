@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Shown in place of the scene surface when the current model failed to load.
 class LoadErrorPanel extends StatelessWidget {
+  /// A panel saying [message].
   const LoadErrorPanel({super.key, required this.message});
 
+  /// Why the model failed to load.
   final String message;
 
   @override
@@ -30,9 +32,13 @@ class LoadErrorPanel extends StatelessWidget {
 
 /// Shown for the whole page when the renderer itself failed to start.
 class ErrorPanel extends StatelessWidget {
+  /// A panel showing [error] and, when given, [stack].
   const ErrorPanel({super.key, required this.error, this.stack});
 
+  /// What the renderer threw while starting.
   final Object error;
+
+  /// Where it threw, when known.
   final StackTrace? stack;
 
   @override

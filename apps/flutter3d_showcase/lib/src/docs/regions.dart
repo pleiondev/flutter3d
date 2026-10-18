@@ -12,7 +12,7 @@
 /// A region is a pair of comment lines:
 ///
 ///     // #region light  Point a sun at it
-///     final sun = LightNode(intensity: 3.0);
+///     final sun = LightNode(intensity: 3.0 * LightNode.defaultIntensity);
 ///     // #endregion light
 ///
 /// Names are `[a-z0-9-]+`. Regions may nest and may not overlap. The marker
@@ -21,8 +21,11 @@ library;
 
 /// A region the file does not have, or markers that do not pair up.
 final class RegionError implements Exception {
+  /// An error saying [message].
   const RegionError(this.message);
 
+  /// What is wrong: the region that is missing, or the marker that does not
+  /// pair up.
   final String message;
 
   @override
@@ -37,16 +40,21 @@ bool _isMarker(String line) => _start.hasMatch(line) || _end.hasMatch(line);
 /// One region as it was found: its lines with the markers of every region
 /// taken out, and the (zero-based) line it starts on in the whole file.
 final class Region {
+  /// A region called [name], titled [title], from [firstLine] up to
+  /// [lastLine].
   const Region(this.name, this.title, this.firstLine, this.lastLine);
 
+  /// The name on the marker lines, `[a-z0-9-]+`.
   final String name;
 
   /// What follows the name on the marker line, or empty.
   final String title;
 
-  /// The line after the start marker, and the line of the end marker,
-  /// zero-based in the file.
+  /// The line after the start marker, zero-based in the file.
   final int firstLine;
+
+  /// The line of the end marker, zero-based in the file: the region's lines
+  /// are [firstLine] up to but not including it.
   final int lastLine;
 }
 

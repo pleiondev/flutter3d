@@ -13,7 +13,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'support/fake_graphics_backend.dart';
 
@@ -110,12 +109,12 @@ void main() {
       final rig = _rig();
       final playback = TimelinePlayback(player: rig.player, fps: 30.0)..play(0);
       playback.pause();
-      final timeBefore = rig.player.time;
+      final timeBefore = rig.player.timeSeconds;
 
       playback.tick(0.5);
 
       // Mutation: call `player.update` regardless of `_playback.status`.
-      expect(rig.player.time, timeBefore);
+      expect(rig.player.timeSeconds, timeBefore);
     },
   );
 

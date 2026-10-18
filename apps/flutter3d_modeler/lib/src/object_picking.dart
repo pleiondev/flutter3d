@@ -26,10 +26,10 @@ import 'package:flutter3d/flutter3d.dart';
 /// `X` and has to survive somebody adding a fourth arrow, so it cannot be a
 /// string comparison; `SceneNode.layerMask` is the field that already exists
 /// for saying what kind of node this is, it is already consulted by
-/// `RenderView`, and it travels with the node when the node is reparented.
+/// `CameraView`, and it travels with the node when the node is reparented.
 ///
 /// [service] is bit 30 and not bit 1 because the low bits are spoken for:
-/// `RenderView.layerMask` is how a split viewport shows one thing on the left
+/// `CameraView.layerMask` is how a split viewport shows one thing on the left
 /// and another on the right, and those views will be assigned bits from the
 /// bottom. A picking flag sitting at bit 1 would be a flag somebody reroutes a
 /// viewport with by accident. Bit 31 is left alone too — this application runs
@@ -99,6 +99,8 @@ sealed class PickResult {
 /// that compared nodes would hold the same object twice, highlight it twice
 /// and offer two transform gizmos for it.
 final class PickedObject extends PickResult {
+  /// A pick of [node], mapped to the document's [id] when a document was
+  /// asked.
   const PickedObject(this.node, {this.id});
 
   /// The node the renderer answered with: the leaf that was rasterised.
@@ -137,6 +139,7 @@ final class PickedObject extends PickResult {
 /// to whatever happens to be behind it. So the click is refused, and the
 /// selection it did not describe is left exactly as it was.
 final class PickedService extends PickResult {
+  /// A refused pick, naming the [node] that was drawn there.
   const PickedService(this.node);
 
   /// The node that was drawn there. The tag that got it refused may be on this

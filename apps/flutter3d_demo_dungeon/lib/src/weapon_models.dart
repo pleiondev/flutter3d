@@ -2,8 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 
 /// A small room for the weapon in the player's hands to reflect.
 ///
@@ -22,7 +21,7 @@ import 'package:vector_math/vector_math.dart';
 ({TextureHandle texture, int levels})? studioEnvironment(
   GraphicsDevice device,
 ) {
-  if (!device.supportsCubeTextures) return null;
+  if (!device.features.has(DeviceFeature.cubeTextures)) return null;
   const size = 16;
 
   final faces = <ByteData>[];
@@ -62,7 +61,7 @@ import 'package:vector_math/vector_math.dart';
     faces: faces,
     mipLevels: chain,
   );
-  return texture == null ? null : (texture: texture, levels: levels);
+  return (texture: texture, levels: levels);
 }
 
 /// The models fetched by `tool/fetch_weapons.py`, by weapon name.
@@ -155,18 +154,18 @@ Future<Map<String, SceneNode>> dungeonWeaponModels(
 //
 // Lighter than the dielectric it replaces: a metal's colour is its reflectance,
 // not its diffuse albedo, and gunmetal reflects a good deal more than 0.30.
-final Material _metal = Material(
-  baseColor: Vector4(0.56, 0.57, 0.60, 1.0),
+final RenderMaterial _metal = RenderMaterial(
+  baseColor: LinearColor.fromSrgb(0.56, 0.57, 0.60, 1.0),
   metallic: 1.0,
   roughness: 0.35,
   lighting: LightingModel.pbr,
 );
-final Material _grip = Material(
-  baseColor: Vector4(0.29, 0.21, 0.16, 1.0),
+final RenderMaterial _grip = RenderMaterial(
+  baseColor: LinearColor.fromSrgb(0.29, 0.21, 0.16, 1.0),
   roughness: 0.75,
 );
-final Material _skin = Material(
-  baseColor: Vector4(0.52, 0.36, 0.28, 1.0),
+final RenderMaterial _skin = RenderMaterial(
+  baseColor: LinearColor.fromSrgb(0.52, 0.36, 0.28, 1.0),
   roughness: 0.7,
 );
 
@@ -188,5 +187,5 @@ final class _Part {
 
   final Vector3 offset;
   final Vector3 size;
-  final Material material;
+  final RenderMaterial material;
 }

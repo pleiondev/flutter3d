@@ -8,6 +8,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// — without this class knowing what an entity is: it only ever compared
 /// two JSON trees and wrote down where they first stopped matching.
 final class SnapshotDivergence {
+  /// The divergence at [step] and [path], with each side's value there.
   const SnapshotDivergence({
     required this.step,
     required this.path,
@@ -26,7 +27,12 @@ final class SnapshotDivergence {
   /// on one side, a list on the other).
   final String path;
 
+  /// What the first run's snapshot (`a` of [diffRuns]) holds at [path], as
+  /// `firstDifferingPath` reports it.
   final Object? expected;
+
+  /// What the second run's snapshot (`b` of [diffRuns]) holds at [path],
+  /// as `firstDifferingPath` reports it.
   final Object? found;
 
   @override
@@ -78,44 +84,4 @@ SnapshotDivergence? diffRuns({
     expected: path.a,
     found: path.b,
   );
-}
-
-/// A path into JSON-shaped values ([Map], [List], or a primitive) leading
-/// to the first leaf where [a] and [b] differ, or null if they are equal —
-/// exported so a caller that already has two full snapshots and already
-/// knows which step to compare (a golden test disagreeing on one recorded
-/// step, say) can ask this question directly, without going through
-/// [diffRuns]'s digest-narrowing at all.
-({String path, Object? a, Object? b})? firstDifferingPath(
-  Object? a,
-  Object? b, [
-  String prefix = '',
-]) {
-  if (a is Map && b is Map) {
-    final keys = <Object?>{...a.keys, ...b.keys}.toList()
-      ..sort((x, y) => x.toString().compareTo(y.toString()));
-    for (final key in keys) {
-      final childPrefix = prefix.isEmpty ? '$key' : '$prefix.$key';
-      final result = firstDifferingPath(a[key], b[key], childPrefix);
-      if (result != null) return result;
-    }
-    return null;
-  }
-  if (a is List && b is List) {
-    final shorter = a.length < b.length ? a.length : b.length;
-    for (var i = 0; i < shorter; i++) {
-      final result = firstDifferingPath(a[i], b[i], '$prefix[$i]');
-      if (result != null) return result;
-    }
-    if (a.length != b.length) {
-      return (
-        path: prefix.isEmpty ? '<length>' : '$prefix.<length>',
-        a: a.length,
-        b: b.length,
-      );
-    }
-    return null;
-  }
-  if (a != b) return (path: prefix, a: a, b: b);
-  return null;
 }

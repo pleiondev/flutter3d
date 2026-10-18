@@ -36,6 +36,8 @@ const MonsterState patrolling = MonsterState('patrolling');
 /// it in, which is deliberate: a guard that goes calmly back to its beat after
 /// being shot at is a guard nobody believes.
 final class PatrolBrain extends ChaseBrain {
+  /// A brain walking [route], starting [patrolling]; asserts the route has
+  /// at least two points.
   PatrolBrain({
     required super.def,
     required super.shot,
@@ -76,16 +78,22 @@ final class PatrolBrain extends ChaseBrain {
   int leg = 0;
 
   /// How long this monster has been standing at the point it reached.
+  /// In seconds.
   double waited = 0.0;
 
   final Vector3 _target = Vector3.zero();
+
+  /// On its beat is at rest: sight, a noise and pain wake it as they wake
+  /// one standing.
+  @override
+  bool get isResting => state == patrolling || super.isResting;
 
   @override
   void act(Mind it) {
     super.act(it);
     if (state != patrolling) return;
 
-    final here = it.actor.position;
+    final here = it.actor.body?.position;
     if (here == null) return;
 
     _target.setFrom(route[leg % route.length]);

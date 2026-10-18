@@ -17,7 +17,9 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 
+/// The choice between the autosave and the file as it was last saved.
 class RecoveryDialog extends StatelessWidget {
+  /// The dialog; [show] is the way to put it on screen and get the answer.
   const RecoveryDialog({super.key});
 
   /// Shows the dialog and answers what was chosen: `true` for the autosave,

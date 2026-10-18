@@ -8,6 +8,7 @@
 /// refusal is added, so it is the place a test of one belongs.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -16,7 +17,7 @@ TextureHandle _texture({
   StorageMode storageMode = StorageMode.devicePrivate,
   int sampleCount = 1,
   TextureType type = TextureType.texture2D,
-}) => TextureHandle(
+}) => wrapTexture(
   backend: 'not a texture',
   width: 8,
   height: 6,
@@ -134,5 +135,29 @@ void main() {
         reason: '$region',
       );
     }
+  });
+
+  test('a whole sRGB texture is not converted, so it is refused too', () {
+    // A backend asks `readbackConverts` first and converts when it says yes,
+    // so a whole sRGB twin answered yes slipped past the refusal its region
+    // meets: WebGPU on Chrome converted it rather than saying why not.
+    //
+    // Mutation: drop the sRGB test from `readbackConverts` — a whole twin
+    // converts again, and the first expectation fails.
+    for (final format in <TextureFormat>[
+      TextureFormat.r8g8b8a8UNormIntSRGB,
+      TextureFormat.b8g8r8a8UNormIntSRGB,
+    ]) {
+      expect(readbackConverts(_texture(format: format)), isFalse);
+      expect(
+        () => readbackRegionOf(_texture(format: format), null),
+        _refusalNaming('sRGB'),
+      );
+    }
+    // A whole float texture still converts.
+    expect(
+      readbackConverts(_texture(format: TextureFormat.r16g16b16a16Float)),
+      isTrue,
+    );
   });
 }

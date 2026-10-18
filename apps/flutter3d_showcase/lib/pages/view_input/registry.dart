@@ -7,6 +7,7 @@ library;
 import 'package:flutter3d_showcase/pages/view_input/free_look.dart';
 import 'package:flutter3d_showcase/pages/view_input/off_axis_projection.dart';
 import 'package:flutter3d_showcase/pages/view_input/orbit_controller.dart';
+import 'package:flutter3d_showcase/pages/view_input/photo_mode.dart';
 import 'package:flutter3d_showcase/pages/view_input/pixel_picking.dart';
 import 'package:flutter3d_showcase/pages/view_input/projections.dart';
 import 'package:flutter3d_showcase/pages/view_input/raycast.dart';
@@ -14,6 +15,8 @@ import 'package:flutter3d_showcase/pages/view_input/screen_bounds.dart';
 import 'package:flutter3d_showcase/pages/view_input/tiled_render.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> viewInputDemos = <String, DemoBuilder>{
   'projections': ProjectionsDemo.new,
   'off-axis-projection': OffAxisProjectionDemo.new,
@@ -23,4 +26,5 @@ final Map<String, DemoBuilder> viewInputDemos = <String, DemoBuilder>{
   'raycast': RaycastDemo.new,
   'pixel-picking': PixelPickingDemo.new,
   'screen-bounds': ScreenBoundsDemo.new,
+  'photo-mode': PhotoModeDemo.new,
 };

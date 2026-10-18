@@ -8,9 +8,14 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `skinning` page: a banner bound to two joints and bent by the tip one.
+/// Its check skins the same vertices on the CPU with `SkinBlend` and fails if
+/// the drawn banner did not follow the tip.
 final class SkinningDemo extends ShowcaseDemo {
+  /// How far the tip joint bends, from 0 to 1, where 1 is 1.4 radians, a little
+  /// under a right angle. The "Bend" slider writes it, and the check expects
+  /// the banner to have left its bind pose by as much.
   double bend = 0.5;
 
   static const double _depth = 2.4;
@@ -59,9 +64,9 @@ final class SkinningDemo extends ShowcaseDemo {
     // #endregion weights
 
     // #region mesh
-    final Material fabric = Material(
+    final RenderMaterial fabric = RenderMaterial(
       name: 'banner',
-      baseColor: Vector4(0.82, 0.24, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.82, 0.24, 0.2, 1.0),
       roughness: 0.7,
       doubleSided: true,
     );
@@ -75,7 +80,7 @@ final class SkinningDemo extends ShowcaseDemo {
     return Scene()
       ..add(banner)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
   }

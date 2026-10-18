@@ -22,6 +22,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -36,6 +37,13 @@ _startAndConnect() async {
     '-v',
     'test/fixtures/timeline_target.dart',
   ], workingDirectory: Directory.current.path);
+  // Killed however the test ends, a wait below that never finished included.
+  addTearDown(process.kill);
+  var exited = false;
+  final exitCode = process.exitCode.then((code) {
+    exited = true;
+    return code;
+  });
 
   // **Both streams are read for as long as the process lives.** This used to
   // stop reading stdout once the URI turned up and never read stderr at all.
@@ -69,16 +77,21 @@ _startAndConnect() async {
       .transform(const LineSplitter())
       .listen((line) => keep('stderr: $line'));
 
-  final httpUri = await uriFound.future.timeout(
-    const Duration(seconds: 30),
-    onTimeout: () {
-      process.kill();
-      throw StateError(
-        'the fixture never printed a VM service uri within 30s; '
+  // **Waited for by what the fixture says, not by a clock of its own.** This
+  // gave the URI 30 seconds, which was 4 runs in 4 alone and too few under a
+  // full CI run: the nested `flutter test` runs the build hooks and compiles
+  // the engine before it prints anything, and under load that alone took
+  // longer. The fixture is ready when it prints the URI and has failed when
+  // it exits first; how long either may take is the test's own timeout.
+  final httpUri = await Future.any(<Future<String>>[
+    uriFound.future,
+    exitCode.then(
+      (code) => throw StateError(
+        'the fixture exited with $code before it printed a VM service uri; '
         'its last lines:\n${tail.join('\n')}',
-      );
-    },
-  );
+      ),
+    ),
+  ]);
 
   // `package:vm_service` speaks WebSocket; the printed uri is http(s).
   final wsUri = httpUri
@@ -89,6 +102,7 @@ _startAndConnect() async {
     service,
     'ext.flutter3d.timeline.status',
     tail: tail,
+    exited: () => exited,
   );
 
   return (process: process, service: service, isolateId: isolateId);
@@ -108,13 +122,15 @@ _startAndConnect() async {
 ///
 /// [tail] is the fixture's latest output, quoted when nothing turns up, so a
 /// failure here says where the fixture stopped rather than only that it did.
+/// It asks until the fixture answers or [exited]; a fixture that is slow to
+/// start under load is bounded by the test's own timeout, not by a clock here.
 Future<String> _isolateWith(
   VmService service,
   String extension, {
   required List<String> tail,
+  required bool Function() exited,
 }) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 30));
-  while (DateTime.now().isBefore(deadline)) {
+  while (!exited()) {
     final vm = await service.getVM();
     for (final ref in vm.isolates ?? const <IsolateRef>[]) {
       final isolate = await service.getIsolate(ref.id!);
@@ -123,8 +139,8 @@ Future<String> _isolateWith(
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
   throw StateError(
-    'no isolate registered $extension within 30s; '
-    'the fixture\'s last lines:\n${tail.join('\n')}',
+    'the fixture exited before an isolate registered $extension; '
+    'its last lines:\n${tail.join('\n')}',
   );
 }
 
@@ -148,7 +164,7 @@ void main() {
       'ext.flutter3d.timeline.status',
       isolateId: target.isolateId,
     );
-    expect(_decode(statusBefore), <String, Object?>{'paused': false});
+    expect(_decode(statusBefore), containsPair('paused', false));
 
     final paused = await target.service.callServiceExtension(
       'ext.flutter3d.timeline.pause',
@@ -160,7 +176,7 @@ void main() {
       'ext.flutter3d.timeline.status',
       isolateId: target.isolateId,
     );
-    expect(_decode(statusAfter), <String, Object?>{'paused': true});
+    expect(_decode(statusAfter), containsPair('paused', true));
 
     // stepOnce refuses when the timeline is not paused, from the outside
     // exactly as it does from a direct call — proved by asking for a
@@ -237,5 +253,223 @@ void main() {
     final bugReportJson = _decode(bugReport);
     expect(bugReportJson.containsKey('x'), isTrue);
     expect(bugReportJson.containsKey('step'), isTrue);
-  }, timeout: const Timeout(Duration(seconds: 60)));
+    // Three minutes like the rest of the file: the fixture's start is inside
+    // it, and under a full CI run the start alone outlasted a minute.
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('a level sent from outside the process branches the run when it '
+      'moves a brush, is refused when it changed on the way, and the next '
+      'edit goes as a patch', () async {
+    final target = await _startAndConnect();
+    addTearDown(() {
+      target.service.dispose();
+      target.process.kill();
+    });
+    // A keyframe or two to branch from.
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    final moved = <String, Object?>{
+      'version': 1,
+      'brushes': <Object?>[
+        <String, Object?>{
+          'at': <double>[3, 0, 0],
+          'size': <double>[1, 1, 1],
+          'material': 'stone',
+        },
+      ],
+    };
+    final document = jsonEncode(moved);
+    final hash = Level.fromJson(moved).digestHex;
+
+    final applied = _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.level.apply',
+        isolateId: target.isolateId,
+        args: <String, String>{'document': document, 'hash': hash},
+      ),
+    );
+    expect(applied['swappedAt'], isA<int>());
+    expect((applied['diff']! as Map<String, Object?>)['simulation'], <Object?>[
+      'brushes',
+    ]);
+
+    final history = _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.timeline.history',
+        isolateId: target.isolateId,
+      ),
+    );
+    expect(
+      (history['commands']! as List<Object?>).last,
+      'level:${applied['swappedAt']}:$hash',
+    );
+
+    await expectLater(
+      target.service.callServiceExtension(
+        'ext.flutter3d.level.apply',
+        isolateId: target.isolateId,
+        args: <String, String>{'document': document, 'hash': 'deadbeef'},
+      ),
+      throwsA(isA<RPCError>()),
+    );
+
+    // The next edit goes as a patch against the level the game now has; the
+    // same patch again is made against a level the game no longer has, and
+    // is answered with the code that tells the editor to send it whole.
+    final fogged = <String, Object?>{...moved, 'fogDensity': 0.04};
+    final patch = jsonEncode(
+      LevelPatch.between(Level.fromJson(moved), Level.fromJson(fogged)),
+    );
+    final patched = _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.level.patch',
+        isolateId: target.isolateId,
+        args: <String, String>{'patch': patch},
+      ),
+    );
+    expect(patched['swappedAt'], isNull);
+    expect((patched['diff']! as Map<String, Object?>)['fog'], isTrue);
+
+    await expectLater(
+      target.service.callServiceExtension(
+        'ext.flutter3d.level.patch',
+        isolateId: target.isolateId,
+        args: <String, String>{'patch': patch},
+      ),
+      throwsA(
+        isA<RPCError>().having(
+          (RPCError error) => error.code,
+          'code',
+          LevelPatch.staleCode,
+        ),
+      ),
+    );
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test(
+    'a tunable set and a replay after reload, from outside the process',
+    () async {
+      final target = await _startAndConnect();
+      addTearDown(() {
+        target.service.dispose();
+        target.process.kill();
+      });
+      await Future<void>.delayed(const Duration(seconds: 2));
+
+      Future<Map<String, Object?>> call(
+        String method, [
+        Map<String, String>? args,
+      ]) async => _decode(
+        await target.service.callServiceExtension(
+          method,
+          isolateId: target.isolateId,
+          args: args,
+        ),
+      );
+
+      expect(await call('ext.flutter3d.cvar.list'), <String, Object?>{
+        'tunables': <String, Object?>{
+          'speed': <String, Object?>{'value': 1.0, 'default': 1.0},
+        },
+      });
+      expect(
+        await call('ext.flutter3d.cvar.set', <String, String>{
+          'name': 'speed',
+          'value': '2.5',
+        }),
+        <String, Object?>{},
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(
+        (((await call('ext.flutter3d.cvar.list'))['tunables']!
+                as Map<String, Object?>)['speed']!
+            as Map<String, Object?>)['value'],
+        2.5,
+      );
+      await expectLater(
+        call('ext.flutter3d.cvar.set', <String, String>{
+          'name': 'gravity',
+          'value': '1',
+        }),
+        throwsA(isA<RPCError>()),
+      );
+
+      // Nothing reloaded, so the replay makes the same run: the tune is on the
+      // tape and the tunables are in the snapshot.
+      final replay = await call(
+        'ext.flutter3d.timeline.replayUnderNewCode',
+        <String, String>{'seconds': '1'},
+      );
+      expect(replay['fromStep'], isA<int>());
+      expect(replay['divergence'], isNull);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test('N4: scrub, read the tracks, go back, and branch, from outside the '
+      'process', () async {
+    final target = await _startAndConnect();
+    addTearDown(() {
+      target.service.dispose();
+      target.process.kill();
+    });
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    Future<Map<String, Object?>> call(
+      String verb, [
+      Map<String, String>? args,
+    ]) async => _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.timeline.$verb',
+        isolateId: target.isolateId,
+        args: args,
+      ),
+    );
+
+    // Mutation: scrub without the pause check. The fixture's loop then
+    // steps the scrubbed state and the window below moves under it.
+    final refused = await call('scrubTo', <String, String>{'step': '10'});
+    expect(refused['moved'], isFalse);
+    expect(refused['refusal'], contains('pause'));
+
+    await call('pause');
+    final window = await call('status');
+    final present = window['step']! as int;
+    final oldest = window['oldest']! as int;
+    expect(present, greaterThan(oldest));
+
+    final scrub = oldest + (present - oldest) ~/ 2;
+    expect(await call('scrubTo', <String, String>{'step': '$scrub'}), {
+      'moved': true,
+      'step': scrub,
+    });
+    expect((await call('status'))['scrubbedAt'], scrub);
+
+    final tracks = await call('tracks');
+    expect(tracks['first'], oldest);
+    expect(tracks['last'], present);
+    final lane =
+        ((tracks['entities']! as Map<String, Object?>)['toy']!
+                as Map<String, Object?>)['x']!
+            as List<Object?>;
+    expect(lane, isNotEmpty, reason: 'the toy moves every step');
+
+    expect(await call('returnToPresent'), {'returned': true});
+    expect((await call('status'))['scrubbedAt'], isNull);
+
+    await call('scrubTo', <String, String>{'step': '$scrub'});
+    expect(await call('branchHere'), {'moved': true, 'step': scrub});
+    final after = await call('status');
+    expect(after['step'], scrub);
+    expect(after['paused'], isTrue);
+
+    final history = (await call('history'))['commands']! as List<Object?>;
+    expect(history, <String>[
+      'paused',
+      'scrubbed:$scrub',
+      'returned',
+      'scrubbed:$scrub',
+      'branched:$scrub',
+    ]);
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }

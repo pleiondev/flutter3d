@@ -8,7 +8,7 @@ final device = CpuDevice(
   height: 160,
   shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
-final pixels = await device.readPixels(frame);
+final pixels = await device.readback(frame);
 ```
 
 Two things use it. The golden images are drawn with it, so a machine with no
@@ -32,7 +32,7 @@ step beside the count.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

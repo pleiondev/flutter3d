@@ -61,7 +61,7 @@ void main() {
       ]),
     );
     for (final node in ready.nodes.values) {
-      expect(node.visible, isTrue, reason: 'nothing has been torn down yet');
+      expect(node.isVisible, isTrue, reason: 'nothing has been torn down yet');
     }
   });
 
@@ -70,31 +70,31 @@ void main() {
     () async {
       final ready = await _opened();
       ready.player.next(); // step-2: "Снимаем крышку клапанов"
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
 
-      expect(ready.nodes['valve-cover']!.visible, isFalse);
-      expect(ready.nodes['engine-block']!.visible, isTrue);
-      expect(ready.nodes['air-filter']!.visible, isTrue);
-      expect(ready.nodes['spark-plug']!.visible, isTrue);
+      expect(ready.nodes['valve-cover']!.isVisible, isFalse);
+      expect(ready.nodes['engine-block']!.isVisible, isTrue);
+      expect(ready.nodes['air-filter']!.isVisible, isTrue);
+      expect(ready.nodes['spark-plug']!.isVisible, isTrue);
     },
   );
 
   test('by the last step, everything but the block has been removed', () async {
     final ready = await _opened();
     // Each step's own hidden list only names what changes *that* step —
-    // `applyLessonStepToCamera`'s own doc comment: a name a step does not
+    // `applyLessonStepTo`'s own doc comment: a name a step does not
     // mention is left exactly as the previous step left it. So a real
     // viewer applies every step it passes through, not just the last one it
     // lands on.
     for (var i = 0; i < 4; i++) {
       ready.player.next();
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
     }
 
     expect(ready.player.current?.name, 'step-5');
-    expect(ready.nodes['engine-block']!.visible, isTrue);
-    expect(ready.nodes['valve-cover']!.visible, isFalse);
-    expect(ready.nodes['air-filter']!.visible, isFalse);
-    expect(ready.nodes['spark-plug']!.visible, isFalse);
+    expect(ready.nodes['engine-block']!.isVisible, isTrue);
+    expect(ready.nodes['valve-cover']!.isVisible, isFalse);
+    expect(ready.nodes['air-filter']!.isVisible, isFalse);
+    expect(ready.nodes['spark-plug']!.isVisible, isFalse);
   });
 }

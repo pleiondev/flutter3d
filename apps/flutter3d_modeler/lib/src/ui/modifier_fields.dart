@@ -13,7 +13,7 @@
 /// moment the hint names it.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
@@ -23,15 +23,20 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 /// [onSet] takes `SetModifierField`'s own vocabulary — the field's name and
 /// the value in the shape that command reads back: an `int` for an
 /// [IntHint], a `double` for a [DoubleHint], a three-element `List<double>`
-/// for a [Vector3Hint], the enum's own name for an [EnumHint].
+/// for a [Vector3Hint], the enum's own name for a [ChoiceHint].
 class ModifierFields extends StatelessWidget {
+  /// The fields of [modifier].
   const ModifierFields({
     super.key,
     required this.modifier,
     required this.onSet,
   });
 
+  /// The modifier whose hinted fields are shown.
   final Modifier modifier;
+
+  /// A field was committed: its key and the value in the type its hint asks
+  /// for.
   final void Function(String field, Object? value) onSet;
 
   /// What the field is called in the panel — the hint's key with its camel
@@ -98,7 +103,7 @@ class ModifierFields extends StatelessWidget {
           semanticLabel: label,
           value: ((valueOf(field) as num?) ?? 0).toDouble(),
           step: step ?? 0.1,
-          unit: unit == 'm' ? NumberUnit.metres : NumberUnit.plain,
+          unit: unit == 'm' ? NumberUnit.meters : NumberUnit.plain,
           onChanged: (double to) => onSet(field, to),
         );
       case BoolHint():
@@ -109,7 +114,7 @@ class ModifierFields extends StatelessWidget {
           value: valueOf(field) == true,
           onChanged: (bool to) => onSet(field, to),
         );
-      case EnumHint(:final values):
+      case ChoiceHint(:final values):
         final String now = '${valueOf(field)}';
         return Row(
           children: <Widget>[
@@ -166,7 +171,7 @@ class ModifierFields extends StatelessWidget {
                           value: now.length > axis ? now[axis] : 0,
                           step: step ?? 0.1,
                           unit: unit == 'm'
-                              ? NumberUnit.metres
+                              ? NumberUnit.meters
                               : NumberUnit.plain,
                           onChanged: (double to) => onSet(field, <double>[
                             for (var each = 0; each < 3; each++)
@@ -181,6 +186,11 @@ class ModifierFields extends StatelessWidget {
             ),
           ],
         );
+      default:
+        // A hint a later release adds has no control here yet: the field is
+        // shown with its value, read-only, rather than left out.
+        final Object shown = valueOf(field) ?? '\u2014';
+        return Text('$label: $shown');
     }
   }
 }

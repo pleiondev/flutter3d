@@ -25,7 +25,10 @@ import 'package:pad_input/pad_input.dart';
 
 void main() => runApp(const GamepadExampleApp());
 
+/// The example as an application: [home] in a dark [MaterialApp].
 class GamepadExampleApp extends StatelessWidget {
+  /// The application on [home], which is the shared pad's screen unless a test
+  /// hands in another.
   const GamepadExampleApp({super.key, this.home = const PadScreen()});
 
   /// The screen to show. An argument only so a test can hand in a screen wired
@@ -40,7 +43,10 @@ class GamepadExampleApp extends StatelessWidget {
   );
 }
 
+/// The state of one gamepad, as the platform reports it: its sticks,
+/// triggers and buttons.
 class PadScreen extends StatefulWidget {
+  /// A screen watching [pad], or the shared gamepad when it is null.
   const PadScreen({super.key, this.pad});
 
   /// The pad to watch. Injected by the test; the app uses the shared one.
@@ -83,7 +89,7 @@ class _PadScreenState extends State<PadScreen>
 
   @override
   Widget build(BuildContext context) {
-    final connected = _snapshot.connected;
+    final connected = _snapshot.isConnected;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gamepad'),
@@ -233,29 +239,29 @@ class _StickPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centre = size.center(Offset.zero);
+    final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2 - 4;
     canvas.drawCircle(
-      centre,
+      center,
       radius,
       Paint()
         ..style = PaintingStyle.stroke
         ..color = Colors.white24,
     );
     canvas.drawLine(
-      Offset(centre.dx - radius, centre.dy),
-      Offset(centre.dx + radius, centre.dy),
+      Offset(center.dx - radius, center.dy),
+      Offset(center.dx + radius, center.dy),
       Paint()..color = Colors.white12,
     );
     canvas.drawLine(
-      Offset(centre.dx, centre.dy - radius),
-      Offset(centre.dx, centre.dy + radius),
+      Offset(center.dx, center.dy - radius),
+      Offset(center.dx, center.dy + radius),
       Paint()..color = Colors.white12,
     );
     // Y is not flipped: a pad reports positive downwards and so does a screen,
     // so the dot goes where the thumb is.
     canvas.drawCircle(
-      centre + Offset(x * radius, y * radius),
+      center + Offset(x * radius, y * radius),
       7,
       Paint()..color = Colors.lightBlueAccent,
     );

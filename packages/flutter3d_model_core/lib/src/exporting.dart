@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import 'command.dart';
 import 'credits.dart';
@@ -38,44 +39,78 @@ import 'selection.dart';
 /// `builtInModelWriters` carries, so STL and USDZ were written, tested and
 /// unreachable from the application that ships them. `exporting_test.dart`
 /// holds the two lists against each other both ways round, the same way
-/// `flutter3d_model_mcp`'s own tool table is held against its command names:
+/// `flutter3d_mcp/model.dart`'s own tool table is held against its command names:
 /// a writer added there without a member here is a failing test rather than
 /// a format nobody can pick.
-enum ExportFormat {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ExportFormat {
+  const ExportFormat._(this.name, this.writer);
+
   /// The engine's own container: every surface, material, image, node and
   /// animation this repository knows how to write.
-  f3d(F3dModelWriter()),
+  static const ExportFormat f3d = ExportFormat._('f3d', F3dModelWriter());
 
   /// Wavefront OBJ with its `.mtl` beside it. The oldest thing every tool
   /// reads, and the least it can carry: triangles, a placement baked into
   /// them, and a Phong approximation of each material.
-  obj(ObjModelWriter()),
+  static const ExportFormat obj = ExportFormat._('obj', ObjModelWriter());
 
   /// A self-contained glTF binary — `fmt-06`'s own `GltfWriter`, the format
   /// most of the rest of the world actually opens. Everything OBJ cannot
   /// carry survives this one: the node tree, materials with textures,
   /// skins and animation.
-  glb(GlbModelWriter()),
+  static const ExportFormat glb = ExportFormat._('glb', GlbModelWriter());
 
   /// Binary STL: triangles and nothing else — no colour, no hierarchy, no
   /// names. What a printer and most CAD tools want, and `ux-18`'s own
   /// reason for being here: the writer has existed since `fmt-09` and this
   /// menu did not offer it, so the one format a person with a 3D printer
   /// came for was the one they could not choose.
-  stl(StlModelWriter()),
+  static const ExportFormat stl = ExportFormat._('stl', StlModelWriter());
 
   /// The same triangles as text. Larger by several times and readable in an
   /// editor, which is occasionally exactly what somebody needs.
-  stlAscii(StlModelWriter(ascii: true)),
+  static const ExportFormat stlAscii = ExportFormat._(
+    'stlAscii',
+    StlModelWriter(ascii: true),
+  );
 
   /// USDZ, for Quick Look on an Apple device — geometry only so far, which
   /// is what the writer's own sentence says and what this menu repeats.
-  usdz(UsdzModelWriter());
+  static const ExportFormat usdz = ExportFormat._('usdz', UsdzModelWriter());
 
-  const ExportFormat(this.writer);
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ExportFormat> values = <ExportFormat>[
+    f3d,
+    obj,
+    glb,
+    stl,
+    stlAscii,
+    usdz,
+  ];
 
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ExportFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The writer that turns a project into this format's bytes.
   final ModelWriter writer;
 
+  /// The file suffix the writer gives its main file, dot included, such as
+  /// `.glb`.
   String get suffix => writer.suffix;
 
   /// What a picker calls this one — `ux-18`.
@@ -98,7 +133,11 @@ enum ExportFormat {
   bool get carriesLods => switch (this) {
     f3d || glb => true,
     obj || stl || stlAscii || usdz => false,
+    _ => throw UnsupportedError('no export path for $this'),
   };
+
+  @override
+  String toString() => 'ExportFormat.$name';
 }
 
 /// How a texture's pixels are written — mat-30's own row: "an encoder …, an
@@ -111,9 +150,15 @@ enum ExportFormat {
 /// compressed format at all — see `ktx2_texture_export_test.dart`). `.f3d` is
 /// this engine's own container with its own loader, so it is the one place a
 /// choice made here does not have to satisfy anybody else's reader.
-enum TextureEncoding {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureEncoding {
+  const TextureEncoding._(this.name);
+
   /// What every writer already did before this option existed.
-  png,
+  static const TextureEncoding png = TextureEncoding._('png');
 
   /// BC3 for a texture with any translucent texel, BC1 otherwise — the same
   /// per-image choice `fmt-22`'s own encoders were built and PSNR-verified
@@ -128,16 +173,38 @@ enum TextureEncoding {
   /// guessed at: the bytes still decode to the same channel values a real
   /// GPU would sample, only without the sampler's own automatic gamma
   /// decode a `_SRGB` format would have asked for.
-  ktx2,
+  static const TextureEncoding ktx2 = TextureEncoding._('ktx2');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureEncoding> values = <TextureEncoding>[png, ktx2];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureEncoding? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureEncoding.$name';
 }
 
 /// One file an export produced.
 final class ExportFile {
+  /// A file called [name] holding [bytes].
   const ExportFile(this.name, this.bytes);
 
   /// The name to offer the save panel, suffix and all.
   final String name;
 
+  /// The file's whole contents, ready to write as they are.
   final Uint8List bytes;
 
   @override
@@ -148,14 +215,16 @@ final class ExportFile {
 ///
 /// **Three cases rather than bytes-or-null**, because the third one is the
 /// point. A project that will not export cleanly is neither a success nor a
-/// failure: it is a question for the person, and the compiler asking about all
-/// three is what stops a caller writing a file that quietly lost an object.
-sealed class ExportResult {
+/// failure: it is a question for the person. The set is open (a later release
+/// may answer "partly written"), so a `switch` over a result ends with a
+/// wildcard that writes nothing and says what came back.
+abstract final class ExportResult {
   const ExportResult();
 }
 
 /// The bytes, and what was lost on the way.
 final class ExportWritten extends ExportResult {
+  /// A written export of [files], with [warnings] naming what was lost.
   const ExportWritten(this.files, this.warnings);
 
   /// One for `.f3d`, two for OBJ — the `.obj` and its `.mtl`. In the order they
@@ -168,8 +237,10 @@ final class ExportWritten extends ExportResult {
 
 /// Nothing to write, and why.
 final class ExportRefused extends ExportResult {
+  /// A refusal saying [because].
   const ExportRefused(this.because);
 
+  /// One sentence saying why there is nothing to write.
   final String because;
 
   @override
@@ -182,6 +253,7 @@ final class ExportRefused extends ExportResult {
 /// A refusal that could not be overridden would be this file deciding what
 /// somebody's model is for.
 final class ExportBlocked extends ExportResult {
+  /// A blocked export listing [issues].
   const ExportBlocked(this.issues);
 
   /// The errors from `ExportReadiness`, worst first. Warnings are not here —
@@ -218,7 +290,7 @@ ModelProject bakeAllTransforms(ModelProject project) {
     final outcome = ApplyTransform(
       object.id,
     ).apply(next, ProjectSelection.none);
-    if (outcome.ok) next = outcome.project!;
+    if (outcome.isOk) next = outcome.project!;
   }
   return next;
 }
@@ -286,7 +358,7 @@ ExportResult planExport(
   if (!force && !readiness.canExport) {
     return ExportBlocked(<ExportIssue>[
       for (final ExportIssue issue in readiness.issues)
-        if (issue.severity == ExportSeverity.error) issue,
+        if (issue.severity == Severity.error) issue,
     ]);
   }
 
@@ -310,7 +382,9 @@ ExportResult planExport(
       format == ExportFormat.f3d && textureEncoding == TextureEncoding.ktx2
       ? _withKtx2Textures(document)
       : document;
-  final ModelWrite written = format.writer.write(encoded, baseName: name);
+  final ModelWrite written = format.writer.write(
+    ModelWriteContext(document: encoded, baseName: name),
+  );
 
   // Said once, here, rather than per object: OBJ has no node tree at all, so a
   // hierarchy does not survive it and every child comes back at the place its
@@ -361,6 +435,10 @@ ModelProject _withoutModifiers(ModelProject project) => ModelProject(
   skeletons: project.skeletons,
   clips: project.clips,
   lighting: project.lighting,
+  animationGraphs: project.animationGraphs,
+  unknown: project.unknown,
+  unknownSections: project.unknownSections,
+  rights: project.rights,
 );
 
 /// [project] with nothing in it but [keep] and everything hanging under
@@ -408,6 +486,10 @@ ModelProject _narrowedTo(ModelProject project, Set<int> keep) {
     skeletons: project.skeletons,
     clips: project.clips,
     lighting: project.lighting,
+    animationGraphs: project.animationGraphs,
+    unknown: project.unknown,
+    unknownSections: project.unknownSections,
+    rights: project.rights,
   );
 }
 
@@ -491,8 +573,15 @@ final class _ImagesOverride extends ModelDocument {
 /// padding, the same way a GPU's own compressed-texture upload path treats
 /// a non-block-sized mip.
 EncodedImage _encodeAsKtx2(EncodedImage image) {
-  final decoded = decodePng(image.bytes) ?? decodeJpeg(image.bytes);
-  if (decoded == null) return image;
+  final DecodedImage decoded;
+  try {
+    decoded = isPng(image.bytes)
+        ? decodePng(image.bytes)
+        : decodeJpeg(image.bytes);
+  } on ImageFormatException {
+    // Neither format this package decodes: the image is carried over as-is.
+    return image;
+  }
 
   final width = decoded.width;
   final height = decoded.height;

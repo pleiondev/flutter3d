@@ -9,13 +9,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
+/// The `screen-bounds` page: a cube, a sphere and a pillar moving about, each
+/// ringed by the rectangle its box lands on. Its check is that each is in
+/// front of the camera, inside its own rectangle, which is not degenerate.
 final class ScreenBoundsDemo extends ShowcaseDemo {
+  /// Which thing is ringed: 0 the cube, 1 the sphere, 2 the pillar, 3 all
+  /// three.
   int ringed = 3;
 
   late final CameraNode _camera;
@@ -26,7 +30,7 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
   double _clock = 0.0;
 
   static const List<String> _names = <String>['cube', 'sphere', 'pillar'];
-  static const List<Color> _colours = <Color>[
+  static const List<Color> _colors = <Color>[
     Color(0xFFFFB03B),
     Color(0xFF5CD6FF),
     Color(0xFFFF6B9A),
@@ -43,10 +47,10 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _camera = context.camera;
-    f3d.Material colour(String name, double r, double g, double b) =>
-        f3d.Material(
+    f3d.RenderMaterial color(String name, double r, double g, double b) =>
+        f3d.RenderMaterial(
           name: name,
-          baseColor: Vector4(r, g, b, 1.0),
+          baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
           roughness: 0.6,
         );
     _cube = MeshNode(
@@ -54,12 +58,12 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3.all(1.2)).build(),
       ),
-      colour('cube', 0.8, 0.55, 0.3),
+      color('cube', 0.8, 0.55, 0.3),
       name: 'cube',
     );
     _sphere = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(radius: 0.7).build()),
-      colour('sphere', 0.35, 0.65, 0.8),
+      color('sphere', 0.35, 0.65, 0.8),
       name: 'sphere',
     );
     _pillar = MeshNode(
@@ -67,20 +71,20 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(0.6, 2.4, 0.6)).build(),
       ),
-      colour('pillar', 0.8, 0.4, 0.55),
+      color('pillar', 0.8, 0.4, 0.55),
       name: 'pillar',
     )..setPosition(0.0, 1.2, -1.6);
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             const PlaneShape(width: 12.0, depth: 12.0).build(),
           ),
-          colour('floor', 0.36, 0.4, 0.38),
+          color('floor', 0.36, 0.4, 0.38),
           name: 'floor',
         ),
       )
@@ -88,7 +92,7 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
       ..add(_sphere)
       ..add(_pillar)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
     _place();
@@ -198,9 +202,9 @@ final class ScreenBoundsDemo extends ShowcaseDemo {
       if (bounds.left >= bounds.right || bounds.top >= bounds.bottom) {
         throw StateError('${_names[which]} got a degenerate rectangle');
       }
-      final Vector3 centre = _boxOf(which).center;
+      final Vector3 center = _boxOf(which).center;
       final Vector4 clip = viewProjection.transformed(
-        Vector4(centre.x, centre.y, centre.z, 1.0),
+        Vector4(center.x, center.y, center.z, 1.0),
       );
       final double x = (clip.x / clip.w * 0.5 + 0.5) * width;
       final double y = (0.5 - clip.y / clip.w * 0.5) * height;
@@ -241,7 +245,7 @@ final class _RingPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.0
-          ..color = ScreenBoundsDemo._colours[i],
+          ..color = ScreenBoundsDemo._colors[i],
       );
       final TextPainter label = TextPainter(
         text: TextSpan(
@@ -250,7 +254,7 @@ final class _RingPainter extends CustomPainter {
               '${bounds.left.round()},${bounds.top.round()}  '
               '${rect.width.round()}x${rect.height.round()}',
           style: TextStyle(
-            color: ScreenBoundsDemo._colours[i],
+            color: ScreenBoundsDemo._colors[i],
             fontSize: 11.0,
             fontFamily: 'RobotoMono',
           ),

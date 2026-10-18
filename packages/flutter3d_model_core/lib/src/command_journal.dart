@@ -45,13 +45,17 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show LightingModels;
+
 import 'command.dart';
 import 'history.dart';
 import 'project.dart';
+import 'project_wire.dart';
 
 /// One JSON Lines record, and the one way back into a project from nothing
 /// but that record.
 final class CommandJournal {
+  /// An empty journal, before its first line.
   CommandJournal();
 
   final List<String> _lines = <String>[];
@@ -91,7 +95,10 @@ final class CommandJournal {
   void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
     _writeOpenBegins();
     _lines.add(
-      jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
+      jsonEncode(<String, Object?>{
+        ...command.toJson(),
+        'author': stepAuthorWord(author),
+      }),
     );
   }
 
@@ -217,7 +224,15 @@ final class CommandJournal {
   /// dropped.** That is not a garbled journal; it is the ordinary shape of one
   /// that stops mid-drag — the exact moment `doc-17` exists to recover from —
   /// and everything recorded before the crash is still a real edit.
-  static JournalReplay replay(Uint8List bytes, ModelProject initial) {
+  ///
+  /// [lightingModels] is the engine's table a command naming a lighting
+  /// model is read against (`modelCommandFromJson`); null reads the
+  /// built-in models alone.
+  static JournalReplay replay(
+    Uint8List bytes,
+    ModelProject initial, {
+    LightingModels? lightingModels,
+  }) {
     final history = ModelHistory(initial);
     final lines = utf8.decode(bytes).split('\n');
     // How tall the undo stack was when the open transaction began — what a
@@ -261,7 +276,10 @@ final class CommandJournal {
           continue;
       }
 
-      final ModelCommand? command = modelCommandFromJson(parsed);
+      final ModelCommand? command = modelCommandFromJson(
+        parsed,
+        lightingModels: lightingModels,
+      );
       if (command == null) {
         return JournalReplay.refused(
           'line ${i + 1} names a command this build does not know',
@@ -297,13 +315,20 @@ final class CommandJournal {
 final class JournalReplay {
   const JournalReplay._(this.history, this.refused);
 
+  /// A replay that ended in [history].
   factory JournalReplay.ok(ModelHistory history) =>
       JournalReplay._(history, null);
 
+  /// A replay that stopped, with [said] naming the line and why.
   factory JournalReplay.refused(String said) => JournalReplay._(null, said);
 
+  /// What the replay built, undo stack included, or null when it was refused.
   final ModelHistory? history;
+
+  /// The sentence naming the line that stopped the replay and why, or null when
+  /// every line replayed.
   final String? refused;
 
-  bool get ok => refused == null;
+  /// Whether every line replayed, so [history] is not null.
+  bool get isOk => refused == null;
 }

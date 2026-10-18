@@ -101,8 +101,14 @@ extension _FileHandling on _ModelerScreenState {
     // The document a new session starts with: one cube, so the first thing on
     // screen is a thing rather than an empty grid.
     final opening3 = ModelHistory(_ModelerScreenState._newProject());
+    // The stored settings, before the device: the keymap, the navigation
+    // and the snap steps are read from the first frame.
+    final stored = await _settingsStore.read();
+    if (!mounted) return;
+    _settings = stored;
+    _transformSession.snapSteps = _snapStepsOf(stored);
     try {
-      // The size a web build's canvas is created at: `kFixedResolution` is
+      // The size a web build's canvas is created at: `fixedResolution` is
       // true there, so this is the resolution the browser scales from —
       // the screen's own logical size, so a canvas fits it from the first
       // frame rather than starting at a guess and reopening immediately
@@ -121,7 +127,11 @@ extension _FileHandling on _ModelerScreenState {
                 .round()
                 .clamp(1, 8192)
                 .toInt();
-      final device = await openDevice(width: width, height: height);
+      final device = await openDevice(
+        width: width,
+        height: height,
+        registry: modelerDevices,
+      );
       if (!mounted) return;
       _device = device;
       _deviceWidth = width;
@@ -235,7 +245,7 @@ extension _FileHandling on _ModelerScreenState {
                 (
                   String tool,
                   Map<String, Object?> arguments,
-                  ({bool did, String says, Uint8List? png}) answer,
+                  answer,
                   Duration elapsed,
                 ) => _cubit.agentToolCalled(
                   AgentToolCall(
@@ -356,7 +366,7 @@ extension _FileHandling on _ModelerScreenState {
   }
 
   /// `ui-16`'s own import screen, threaded between a decoded [ModelDocument]
-  /// and the [ImportOptions] `fromModelDocument` reads — a saved project
+  /// and the [ImportSettings] `fromModelDocument` reads — a saved project
   /// skips straight past this, since it is not a model to be asked about.
   ///
   /// **Refused before decoding is a refusal, not a screen.** `ui-16`'s own
@@ -404,7 +414,7 @@ extension _FileHandling on _ModelerScreenState {
     return openDocument(
       document,
       device: device,
-      options: ImportOptions(scale: choice.unit.scale, upAxis: choice.upAxis),
+      options: ImportSettings(scale: choice.unit.scale, upAxis: choice.upAxis),
     ).then(
       (OpenedModel opened) => OpenedModel(
         _applyImportCleanup(opened.project, choice),
@@ -435,11 +445,11 @@ extension _FileHandling on _ModelerScreenState {
     for (final object in project.objects) {
       if (only != null && !only.contains(object.id)) continue;
       if (object.geometry case ImportedGeometry(:final data)) {
-        final (mesh, _, _) = importMeshData(
+        final ImportedMesh(:mesh) = importMeshData(
           data,
           weldEpsilon: weldEpsilonFor(weld: choice.weld),
         );
-        if (choice.fixNormals) mesh.makeConsistent();
+        if (choice.fixNormals) mesh.ensureConsistent();
         if (choice.triangulate) {
           triangulateFaces(mesh, Selection.all(mesh, ElementLevel.face));
         }
@@ -454,7 +464,7 @@ extension _FileHandling on _ModelerScreenState {
   /// `tut-08`'s own "Import" action: a second file's own objects merged into
   /// the document already open, rather than replacing it.
   ///
-  /// **The same tested seam `flutter3d_model_mcp`'s own `ModelSession.
+  /// **The same tested seam `flutter3d_mcp/model.dart`'s own `ModelSession.
   /// import` already runs, reachable by a person now instead of only by an
   /// agent over MCP.** `import_into_test.dart` is what proves `importInto`
   /// itself; this is the picker, the import screen and the undo step around
@@ -515,7 +525,10 @@ extension _FileHandling on _ModelerScreenState {
       final report = importInto(
         before,
         document,
-        options: ImportOptions(scale: choice.unit.scale, upAxis: choice.upAxis),
+        options: ImportSettings(
+          scale: choice.unit.scale,
+          upAxis: choice.upAxis,
+        ),
       );
       if (report.counts.objects == 0) {
         _cubit.say('${picked.name} has nothing this reader could place');
@@ -638,7 +651,7 @@ extension _FileHandling on _ModelerScreenState {
     // that has to be re-imported again the moment they want to. The first
     // surface, because a link is to one object and a file that grew a second
     // mesh is a file to import rather than to re-read.
-    final (EditMesh mesh, _, _) = importMeshData(
+    final ImportedMesh(:mesh) = importMeshData(
       read,
       weldEpsilon: weldEpsilonFor(weld: true),
     );
@@ -731,7 +744,7 @@ extension _FileHandling on _ModelerScreenState {
         _history.project,
         // `doc-31d`'s own `history` parameter: null is what leaves the
         // section out of the file entirely, the same way `ModelSession.save`
-        // already does it in `flutter3d_model_mcp`.
+        // already does it in `flutter3d_mcp/model.dart`.
         history: choice.includeHistory ? _history : null,
       );
     } on ArgumentError catch (error) {
@@ -880,9 +893,7 @@ extension _FileHandling on _ModelerScreenState {
       case ExportRefused(:final String because):
         _cubit.say(because, important: true);
       case ExportBlocked():
-        // Unreachable: the branch above either forced or returned. Named rather
-        // than defaulted, so that adding a case to `ExportResult` is a compile
-        // error here instead of a silent nothing.
+        // Unreachable: the branch above either forced or returned.
         _cubit.say('not exported', important: true);
       case ExportWritten(
         :final List<ExportFile> files,
@@ -915,6 +926,9 @@ extension _FileHandling on _ModelerScreenState {
             _cubit.note(line);
           }
         }
+      default:
+        // A result a later release adds says what it is rather than nothing.
+        _cubit.say('not exported: $planned', important: true);
     }
   }
 
@@ -1225,7 +1239,7 @@ extension _FileHandling on _ModelerScreenState {
   Future<void> _showStartScreen({bool atLaunch = false}) async {
     final device = _device;
     if (device == null || _state is! ModelerReady) return;
-    final recent = RecentModels().read(exists: pathExists);
+    final recent = await RecentModels().read(exists: pathExists);
     if (!mounted) return;
     final choice = await showStartScreen(
       context,
@@ -1284,9 +1298,13 @@ extension _FileHandling on _ModelerScreenState {
       _transformSession.snapSteps = _snapStepsOf(chosen);
     });
     _cubit.workspace(chosen.workspace);
-    if (!_settingsStore.write(chosen)) {
-      _cubit.say('Settings could not be saved', important: true);
-    }
+    unawaited(
+      _settingsStore.write(chosen).then((bool kept) {
+        if (!kept && mounted) {
+          _cubit.say('Settings could not be saved', important: true);
+        }
+      }),
+    );
   }
 
   /// `ux-42`: each card lands in the state its tutorial case starts from.
@@ -1347,7 +1365,7 @@ extension _FileHandling on _ModelerScreenState {
       // A browser's own PickedFile has no path — nothing to remember there,
       // and RecentModels reads that the same way a first launch does.
       if (picked.path case final String path) {
-        RecentModels().remember(path, exists: pathExists);
+        await RecentModels().remember(path, exists: pathExists);
       }
     } catch (error) {
       if (mounted) _cubit.say('could not open it: $error');
@@ -1371,7 +1389,7 @@ extension _FileHandling on _ModelerScreenState {
     // and the unit and the cleanup are questions about it either way.
     await _openBytes(name, bytes, device);
     if (!mounted) return;
-    RecentModels().remember(path, exists: pathExists);
+    await RecentModels().remember(path, exists: pathExists);
   }
 
   /// "New project" from the start screen, with the profile picked there.

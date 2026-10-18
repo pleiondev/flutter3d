@@ -114,7 +114,7 @@ void main() {
       return <int>[
         for (var i = 0; i < count; i++)
           view.getUint32(
-            kF3dHeaderBytes + i * kF3dSectionEntryBytes,
+            f3dHeaderBytes + i * f3dSectionEntryBytes,
             Endian.little,
           ),
       ];
@@ -202,8 +202,8 @@ void main() {
       final view = ByteData.sublistView(bytes);
       final kinds = sectionKinds(bytes);
       view.setUint32(
-        kF3dHeaderBytes +
-            kinds.indexOf(F3dSection.lodErrors) * kF3dSectionEntryBytes,
+        f3dHeaderBytes +
+            kinds.indexOf(F3dSection.lodErrors) * f3dSectionEntryBytes,
         0xFFFF,
         Endian.little,
       );

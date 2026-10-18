@@ -61,12 +61,17 @@ extension _F3dGeometry on F3dDocument {
       );
     }
 
-    return MeshData(
-      layout: _layouts[layoutIndex],
-      vertices: _floats(vertexOffset, vertexBytes ~/ 4),
-      indices: _uint32s(indexOffset, indexBytes ~/ 4),
-      morphTargets: _morphTargets[index] ?? const <MorphTarget>[],
-      clusters: _clusters[index],
+    final vertices = _floats(vertexOffset, vertexBytes ~/ 4);
+    final indices = _uint32s(indexOffset, indexBytes ~/ 4);
+    return _built(
+      'meshes[$index]',
+      () => MeshData(
+        layout: _layouts[layoutIndex],
+        vertices: vertices,
+        indices: indices,
+        morphTargets: _morphTargets[index] ?? const <MorphTarget>[],
+        clusters: _clusters[index],
+      ),
     );
   });
 
@@ -78,7 +83,7 @@ extension _F3dGeometry on F3dDocument {
     final table = _table(F3dSection.clusters, F3dRecord.clusters);
     final clusters = <int, MeshClusters>{};
     for (var i = 0; i < table.count; i++) {
-      final o = table.offset + i * F3dRecord.clusters;
+      final o = _at(F3dSection.clusters, i, F3dRecord.clusters);
       final meshIndex = _view.getUint32(o, Endian.little);
       final count = _view.getUint32(o + 4, Endian.little);
       try {
@@ -92,9 +97,12 @@ extension _F3dGeometry on F3dDocument {
             count * MeshClusters.floatsPerCluster,
           ),
         );
-      } on ArgumentError catch (error) {
-        throw F3dFormatException(
-          'clusters[$i] for meshes[$meshIndex] is malformed: ${error.message}',
+      } on ArgumentError catch (error, stack) {
+        Error.throwWithStackTrace(
+          F3dFormatException(
+            'clusters[$i] for meshes[$meshIndex] is malformed: ${error.message}',
+          ),
+          stack,
         );
       }
     }
@@ -115,7 +123,7 @@ extension _F3dGeometry on F3dDocument {
     final grouped = <int, List<MorphTarget>>{};
 
     for (var i = 0; i < table.count; i++) {
-      final o = table.offset + i * F3dRecord.morphTarget;
+      final o = _at(F3dSection.morphTargets, i, F3dRecord.morphTarget);
       final meshIndex = _view.getUint32(o, Endian.little);
       final vertexCount = _view.getUint32(o + 12, Endian.little);
       final flags = _view.getUint32(o + 28, Endian.little);
@@ -147,7 +155,7 @@ extension _F3dGeometry on F3dDocument {
     return Map<int, List<double>>.fromEntries(<MapEntry<int, List<double>>>[
       for (var i = 0; i < table.count; i++)
         () {
-          final o = table.offset + i * F3dRecord.morphWeights;
+          final o = _at(F3dSection.morphWeights, i, F3dRecord.morphWeights);
           return MapEntry<int, List<double>>(
             _view.getUint32(o, Endian.little),
             _floats(

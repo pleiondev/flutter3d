@@ -18,6 +18,8 @@ library;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'as_written.dart';
+
 typedef Row = Map<String, Object?>;
 
 /// A rectangle on the ground, `(x0, x1, z0, z1)`, that filling may not stand
@@ -67,7 +69,9 @@ final class PlatformKit {
   /// refuse the document — but at load, in front of a player.
   static void _checkRamp(String ramp) {
     if (!ramps.contains(ramp)) {
-      throw GeneratorRefused('ramp "$ramp" is not one of ${ramps.join(', ')}');
+      throw GeneratorException(
+        'ramp "$ramp" is not one of ${ramps.join(', ')}',
+      );
     }
   }
 
@@ -100,7 +104,7 @@ final class PlatformKit {
     final z1 = at[2] + size[2] / 2;
     for (final (cx0, cx1, cz0, cz1) in clear) {
       if (x0 < cx1 && x1 > cx0 && z0 < cz1 && z1 > cz0) {
-        throw GeneratorRefused('filling at $at size $size sits on the route');
+        throw GeneratorException('filling at $at size $size sits on the route');
       }
     }
     brushes.add(<String, Object?>{
@@ -339,13 +343,13 @@ final class PlatformKit {
     'at': roundedVector(at),
   });
 
-  /// A key on the floor. [colour] is the word a gate names to ask for it.
-  void key(String name, List<num> at, String colour) =>
+  /// A key on the floor. [color] is the word a gate names to ask for it.
+  void key(String name, List<num> at, String color) =>
       entities.add(<String, Object?>{
         'type': 'key',
         'name': name,
         'at': roundedVector(at),
-        'color': colour,
+        'color': color,
         'material': 'brass',
         'model': 'assets_src/models/key.glb',
       });
@@ -361,7 +365,7 @@ final class PlatformKit {
   void gate(
     String name,
     List<num> at,
-    String colour, {
+    String color, {
     List<num> size = const <num>[4.0, 5.0, 2.0],
     List<num>? travel,
     num? lintel,
@@ -370,7 +374,7 @@ final class PlatformKit {
     final head = at[1] + size[1] / 2.0;
     final sunk = switch (lintel) {
       null => null,
-      final top when top < head - 0.01 => throw GeneratorRefused(
+      final top when top < head - 0.01 => throw GeneratorException(
         'gate "$name" is ${size[1]} m tall in a wall '
         '${top - at[1] + size[1] / 2.0} m tall: the door is taller than the '
         'wall it is set into',
@@ -398,7 +402,7 @@ final class PlatformKit {
       'travel': roundedVector(moves),
       'speed': 6.0,
       'wait': 0.0,
-      'key': colour,
+      'key': color,
       'material': 'brass',
     });
   }
@@ -418,12 +422,12 @@ final class PlatformKit {
 
   static Row pointLight(
     List<num> at,
-    List<num> colour, {
+    List<num> color, {
     num intensity = 26.0,
     num range = 44.0,
   }) => <String, Object?>{
     'at': roundedVector(at),
-    'color': colour,
+    'color': color,
     'intensity': intensity,
     'range': range,
   };
@@ -572,7 +576,7 @@ final class PlatformKit {
   }) {
     final walledIn = _buried();
     if (walledIn.isNotEmpty) {
-      throw GeneratorRefused(
+      throw GeneratorException(
         '${walledIn.length} things a player is meant to reach are inside '
         'solid brushes:\n${walledIn.join('\n')}',
       );
@@ -589,6 +593,6 @@ final class PlatformKit {
       'entities': <Row>[...entities, ..._filling],
       if (next != null && next.isNotEmpty) 'next': next,
     };
-    return '${DocumentText.compact(document)}\n';
+    return '${DocumentText.compact(asWritten(document))}\n';
   }
 }

@@ -6,11 +6,17 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `soft-shadows` page: a pole and a slab on the ground, lit by a sun or
+/// a lamp of a size. Its check is that the light that is on drew its shadow.
 final class SoftShadowsDemo extends ShowcaseDemo {
+  /// The sun's angular radius in radians, 0 to 0.2, shown in degrees.
   double sunRadius = 0.05;
+
+  /// The lamp's radius in metres, 0 to 0.6.
   double lampRadius = 0.3;
+
+  /// Which light casts: 0 the sun, 1 the lamp.
   int lightChoice = 0;
 
   late final LightNode _sun;
@@ -26,15 +32,15 @@ final class SoftShadowsDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
+      baseColor: LinearColor.fromSrgb(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
-    final Material clay = Material(
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
 
@@ -78,12 +84,15 @@ final class SoftShadowsDemo extends ShowcaseDemo {
     // #endregion casters
 
     // #region lights
-    _sun = LightNode(name: 'sun', intensity: 3.0, castsShadow: true)
-      ..setLocalForward(Vector3(-0.55, -0.7, -0.35));
+    _sun = LightNode(
+      name: 'sun',
+      intensity: 3.0 * LightNode.defaultIntensity,
+      castsShadow: true,
+    )..setLocalForward(Vector3(-0.55, -0.7, -0.35));
     _lamp = LightNode(
       name: 'lamp',
       type: LightType.point,
-      intensity: 60.0,
+      intensity: 60.0 * LightNode.defaultIntensity,
       range: 20.0,
     )..setPosition(2.5, 3.2, 2.5);
     scene
@@ -98,10 +107,10 @@ final class SoftShadowsDemo extends ShowcaseDemo {
     final bool lamp = lightChoice == 1;
     _sun
       ..castsShadow = !lamp
-      ..intensity = lamp ? 0.0 : 3.0;
+      ..intensity = lamp ? 0.0 : 3.0 * LightNode.defaultIntensity;
     _lamp
       ..castsShadow = lamp
-      ..intensity = lamp ? 60.0 : 0.0;
+      ..intensity = lamp ? 60.0 * LightNode.defaultIntensity : 0.0;
   }
 
   @override

@@ -1,23 +1,15 @@
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'flipbook.dart';
 import 'particle_system.dart';
 import 'six_way.dart';
 
-/// Draws every live particle as one batch of camera-facing quads.
-///
-/// inside the scene pass rather than after it, so particles are depth-tested
-/// against the world — a spark behind a pillar has to be hidden by it — and so
-/// they land in the HDR target where the bloom can pick the bright ones up,
-/// which is most of what makes an explosion read as light.
-///
-/// Depth write is off and blending is additive. Additive is what removes the
-/// need to sort: addition is commutative, so a thousand particles in one
-/// unsorted batch composite correctly, and one draw call covers all of them.
 /// How particles are drawn: additive, unculled, depth-tested but never written.
 ///
 /// Depth write off, and it means it. That sentence was untrue for most of this
@@ -54,7 +46,23 @@ const PassState _kSixWayState = PassState(
   depthCompare: CompareFunction.less,
 );
 
+/// Draws every live particle of [particles] as one batch of camera-facing
+/// quads inside the scene pass, depth-tested against the world and never
+/// depth-written: added unsorted, or with a [sixWay] sheet lit and drawn
+/// over what is behind it, farthest first.
+///
+/// Inside the scene pass rather than after it, so particles are depth-tested
+/// against the world — a spark behind a pillar has to be hidden by it — and so
+/// they land in the HDR target where the bloom can pick the bright ones up,
+/// which is most of what makes an explosion read as light.
+///
+/// Depth write is off and blending is additive. Additive is what removes the
+/// need to sort: addition is commutative, so a thousand particles in one
+/// unsorted batch composite correctly, and one draw call covers all of them.
 final class ParticleContributor extends PassContributor {
+  /// A contributor drawing [particles] as procedural discs unless given a
+  /// [texture], a [flipbook] or a [sixWay] sheet, with hard edges unless
+  /// [softness] says. Asserts that [softness] is not negative.
   ParticleContributor(
     this.particles, {
     this.texture,
@@ -63,6 +71,7 @@ final class ParticleContributor extends PassContributor {
     this.softness = 0.0,
   }) : assert(softness >= 0.0, 'a softness is a distance, and never below 0');
 
+  /// The pool drawn: four vertices per live particle, rebuilt each frame.
   final ParticleSystem particles;
 
   /// A sprite for every particle, or null for the procedural disc.
@@ -119,6 +128,18 @@ final class ParticleContributor extends PassContributor {
 
   @override
   bool get isActive => particles.aliveCount > 0;
+
+  /// Every live particle's quad, however it faces or turns: a cube of
+  /// half-side √½ of its size about its centre holds the corners — the same
+  /// in every view, since the quads are in scene space.
+  @override
+  vm.Aabb3 boundsFor(CameraView view) => particles.boundsOf(_billboard);
+
+  /// What a billboard of size one can cover: its half-diagonal on each axis.
+  static final vm.Aabb3 _billboard = vm.Aabb3.minMax(
+    vm.Vector3.all(-math.sqrt1_2),
+    vm.Vector3.all(math.sqrt1_2),
+  );
 
   @override
   bool get readsSceneDepth => softness > 0.0;
@@ -182,18 +203,33 @@ final class ParticleContributor extends PassContributor {
     // Without it a distant flame stays vivid against a wall that has faded
     // into the murk, which is the one place a viewer notices fog is missing.
     final fog = frame.settings.fog;
-    final colour = fog.resolvedColor;
-    _fog[0] = colour.x;
-    _fog[1] = colour.y;
-    _fog[2] = colour.z;
-    _fog[3] = fog.density;
-    view.camera.readWorldPosition(_eye);
+    final color = fog.resolvedColor;
+    _fog[0] = color.r;
+    _fog[1] = color.g;
+    _fog[2] = color.b;
+    view.camera.readViewOrigin(_eye);
+    // The air as thick as it is at the camera, and how fast it thins
+    // upwards: the stage integrates a height fog along the ray as the lit
+    // stages' `ApplyFog` does — `P5`.
+    _fog[3] = fog.densityAt(_eye.y);
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
+    _eyeData[3] = fog.resolvedHeightFalloff;
+    // The view axis and the lens, so the stage measures the fog from the
+    // eye's plane through an orthographic camera rather than in rings round a
+    // point the picture does not depend on — `P7`.
+    view.camera.readForward(_eye);
+    _forwardData
+      ..[0] = _eye.x
+      ..[1] = _eye.y
+      ..[2] = _eye.z;
+    _projectionData[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
     encoder.bindUniformBlock(fragmentShader, 'FogInfo', <String, Float32List>{
       'fog': _fog,
       'eye': _eyeData,
+      'forward': _forwardData,
+      'projection': _projectionData,
     });
 
     if (sheet != null && lights != null) {
@@ -214,16 +250,16 @@ final class ParticleContributor extends PassContributor {
         fragmentShader,
         'particle_texture',
         sprite,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       );
     }
 
     encoder.draw();
-    frame.state.drawCalls++;
+    frame.noteDraw();
 
     // The pipeline tracker describes the mesh pipelines only, and this pass
     // just replaced whatever it thought was bound.
-    frame.state.invalidatePipeline();
+    frame.invalidatePipeline();
     developer.Timeline.finishSync();
   }
 
@@ -258,7 +294,7 @@ final class ParticleContributor extends PassContributor {
 
   /// Fills the quad buffers for [view]'s camera and returns how many
   /// particles they hold.
-  int _writeQuads(RenderView view) {
+  int _writeQuads(CameraView view) {
     final capacity = particles.capacity;
     final vertices = _vertices ??= Float32List(
       capacity * ParticleSystem.floatsPerParticle,
@@ -324,8 +360,14 @@ final class ParticleContributor extends PassContributor {
     _sixWayRight.setAll(0, _right.storage);
     _sixWayUp.setAll(0, _up.storage);
     _sixWayForward.setAll(0, _forward.storage);
-    _sixWayEmission.setAll(0, sheet.emission.storage);
-    _sixWayAmbient.setAll(0, sheet.ambient.storage);
+    _sixWayEmission
+      ..[0] = sheet.emission.r
+      ..[1] = sheet.emission.g
+      ..[2] = sheet.emission.b;
+    _sixWayAmbient
+      ..[0] = sheet.ambient.r
+      ..[1] = sheet.ambient.g
+      ..[2] = sheet.ambient.b;
     encoder.bindUniformBlock(stage, 'SixWayInfo', <String, Float32List>{
       'right': _sixWayRight,
       'up': _sixWayUp,
@@ -340,21 +382,35 @@ final class ParticleContributor extends PassContributor {
         stage,
         'six_way_positive',
         sheet.positive,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       )
       ..bindTexture(
         stage,
         'six_way_negative',
         sheet.negative,
-        sampler: SamplerOptions.trilinearRepeat,
+        sampler: SamplerDescriptor.trilinearRepeat,
       );
 
     // One selection for the whole batch, as an instanced mesh gets one for
     // its bounds: a cloud of smoke is local, and the stage reads a light's
     // falloff per fragment, so near and far puffs still differ.
-    final radius = particles.boundsInto(_centre);
-    lights.bind(encoder, stage, centre: _centre, radius: radius);
+    final radius = particles.boundsInto(_center);
+    final bind = _lightBind ??= LightBindRequest(
+      encoder: encoder,
+      stage: stage,
+      center: _center,
+      radius: radius,
+    );
+    lights.bind(
+      bind
+        ..encoder = encoder
+        ..stage = stage
+        ..radius = radius,
+    );
   }
+
+  /// What the lights are bound by, kept so a frame allocates none.
+  LightBindRequest? _lightBind;
 
   /// The scene's depth and what a soft stage reads it by: the texel a
   /// fragment is on, and the axis and eye its depths are measured from.
@@ -362,7 +418,7 @@ final class ParticleContributor extends PassContributor {
     GraphicsDevice device,
     PassEncoder encoder,
     ShaderHandle stage,
-    RenderView view,
+    CameraView view,
     TextureHandle depth,
   ) {
     view.camera.readForward(_axis);
@@ -392,7 +448,7 @@ final class ParticleContributor extends PassContributor {
         stage,
         'scene_depth_texture',
         depth,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 
@@ -464,17 +520,29 @@ final class ParticleContributor extends PassContributor {
   int? _reactiveDevice;
   PipelineHandle? _reactivePipeline;
 
+  /// Forgets the device the pipelines were keyed on, which drops them all:
+  /// the next frame links them again from the reloaded stages.
+  @override
+  void relinkShaders() {
+    _pipelines.clear();
+    _pipelineDevice = null;
+    _reactivePipeline = null;
+    _reactiveDevice = null;
+  }
+
   final Set<String> _missing = <String>{};
 
   final Float32List _fog = Float32List(4);
   final Float32List _eyeData = Float32List(4);
+  final Float32List _forwardData = Float32List(4);
+  final Float32List _projectionData = Float32List(4);
   final vm.Vector3 _eye = vm.Vector3.zero();
   Float32List? _vertices;
   Uint32List? _indices;
   final vm.Vector3 _right = vm.Vector3.zero();
   final vm.Vector3 _up = vm.Vector3.zero();
   final vm.Vector3 _forward = vm.Vector3.zero();
-  final vm.Vector3 _centre = vm.Vector3.zero();
+  final vm.Vector3 _center = vm.Vector3.zero();
   final Float32List _sixWayRight = Float32List(4);
   final Float32List _sixWayUp = Float32List(4);
   final Float32List _sixWayForward = Float32List(4);

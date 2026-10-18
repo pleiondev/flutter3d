@@ -1,0 +1,31 @@
+# The public API of pointer_lock.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:pointer_lock/pointer_lock.dart
+
+enum CaptureState
+  values: released, captured
+
+final class PointerLock
+  Future<void> capture()
+  Future<void> dispose()
+  Future<void> release()
+  Offset takeDelta()
+  PointerLock({PointerLockPlatform? platform})
+  Stream<CaptureState> get onStateChanged
+  bool get isCaptured
+  bool get isSupported
+  static Future<void> disposeInstance()
+  static PointerLock get instance
+
+abstract base class PointerLockPlatform extends PlatformInterface
+  PointerLockPlatform()
+  abstract Future<void> capture()
+  abstract Future<void> release()
+  abstract Future<void> reset()
+  abstract Stream<CaptureState> get stateChanges
+  abstract Stream<Offset> get deltas
+  abstract bool get isSupported
+  static PointerLockPlatform get instance
+  static set instance(PointerLockPlatform instance)

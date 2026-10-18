@@ -18,7 +18,9 @@
 /// ever goes up is the one thing that survives both.
 library;
 
-import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'dart:typed_data';
+
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
@@ -41,7 +43,46 @@ import 'texture_budget.dart';
 /// person typed — "Store demo build" — and a rule that wants to know whether
 /// it is looking at a phone has no business parsing that string. `target` is
 /// the three words a rule can switch on; the name is the one a person reads.
-enum ProfileTarget { desktop, mobile, web }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ProfileTarget {
+  const ProfileTarget._(this.name);
+
+  /// A desktop or laptop build, the default target.
+  static const ProfileTarget desktop = ProfileTarget._('desktop');
+
+  /// A phone or tablet build; [ProjectProfile.mobile] is its preset.
+  static const ProfileTarget mobile = ProfileTarget._('mobile');
+
+  /// A browser build; a profile for it sets [TextureBudget.web] alongside.
+  static const ProfileTarget web = ProfileTarget._('web');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ProfileTarget> values = <ProfileTarget>[
+    desktop,
+    mobile,
+    web,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ProfileTarget? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ProfileTarget.$name';
+}
 
 /// The limits a project is being built against.
 ///
@@ -51,6 +92,9 @@ enum ProfileTarget { desktop, mobile, web }
 /// warns by one fixed number is a modeller that either cries wolf or says
 /// nothing. `ExportReadiness` measures the project against this.
 final class ProjectProfile {
+  /// A profile with the desktop limits: 500 000 triangles, 64 joints, four
+  /// influences per vertex, 4096-texel textures, triangles required and the
+  /// desktop texture budget, unless given.
   const ProjectProfile({
     this.name = 'desktop',
     this.target = ProfileTarget.desktop,
@@ -93,11 +137,26 @@ final class ProjectProfile {
     textures: TextureBudget.mobile,
   );
 
+  /// What a person called the profile, as readiness messages quote it.
   final String name;
+
+  /// The kind of machine the profile is for, the word a rule switches on.
   final ProfileTarget target;
+
+  /// Triangles the whole project may draw, a count; above it readiness warns.
   final int maxTriangles;
+
+  /// Joints one skeleton may hold, a count no higher than the skinning shader's
+  /// 64.
   final int maxJoints;
+
+  /// Joint influences one vertex may carry, a count no higher than the four a
+  /// vertex stores.
   final int maxInfluences;
+
+  /// Widest or tallest texture the target device creates, in texels. Readiness
+  /// warns about a morphing mesh with more vertices than this, since its morph
+  /// texture needs one column per vertex.
   final int maxTextureSize;
 
   /// A budget in bytes across every texture at once, or null for none
@@ -172,7 +231,7 @@ final class ProjectProfile {
   ///
   /// **`doc-13`'s row asks for this "from `MaterialHint`"; that reference went
   /// stale the moment Г4/Ж2 (2026-09-09) closed `MaterialHint` to the material
-  /// panel and put a new sealed `ParamHint` in core for everything else** —
+  /// panel and put a new `ParamHint` in core for everything else** —
   /// see `syn-01`. Built from `ParamHint` instead, the same type
   /// `ModelCommand.hints` uses, rather than the type the row names. Named
   /// `profileHints` rather than `hints` to match the plan row's own
@@ -196,7 +255,7 @@ final class ProjectProfile {
   /// generic row: a small dedicated picker over the three presets, not a
   /// `HintRow` this map would have to invent a new `ParamHint` case for.
   Map<String, ParamHint> get profileHints => {
-    'target': EnumHint([...ProfileTarget.values.map((t) => t.name)]),
+    'target': ChoiceHint([...ProfileTarget.values.map((t) => t.name)]),
     'maxTriangles': const IntHint(min: 1000, max: 2000000, step: 1000),
     'maxJoints': const IntHint(min: 1, max: 64),
     // 4, not the 8 this used to say: a vertex's own storage is four slots —
@@ -297,7 +356,7 @@ final class ProjectProfile {
 
 /// What an object is made of.
 ///
-/// **Three cases and a compiler that asks about all of them.** A cylinder that
+/// **A case per kind of geometry, and an operation per case.** A cylinder that
 /// still knows it is a cylinder can have its segment count changed; the same
 /// cylinder after somebody has pulled one of its faces cannot, and there is no
 /// honest way to answer "set segments to 32" for it. A model read out of a glTF
@@ -307,8 +366,9 @@ final class ProjectProfile {
 ///
 /// The alternative — one geometry class with three nullable fields — is a class
 /// where every operation begins by working out which of the three it is holding
-/// and half of them get it wrong.
-sealed class Geometry {
+/// and half of them get it wrong. The set is open (a curve or a volume could
+/// be next), so a `switch` over a geometry ends with a wildcard that refuses.
+abstract final class Geometry {
   const Geometry();
 
   /// How many triangles this draws as, for the budget.
@@ -328,8 +388,11 @@ sealed class Geometry {
 
 /// A shape that still knows its own parameters.
 final class ParametricGeometry extends Geometry {
+  /// A geometry built from [shape].
   ParametricGeometry(this.shape);
 
+  /// The shape and the parameters it is built from; the triangle and vertex
+  /// counts are cached from it.
   final ParametricShape shape;
 
   int? _triangles;
@@ -344,8 +407,10 @@ final class ParametricGeometry extends Geometry {
 
 /// A mesh with its topology, being edited.
 final class EditedGeometry extends Geometry {
+  /// A geometry holding [mesh].
   const EditedGeometry(this.mesh);
 
+  /// The editable mesh, a journal mutated in place by mesh commands.
   final EditMesh mesh;
 
   /// Faces rather than triangles would be the cheaper answer and the wrong one:
@@ -369,8 +434,10 @@ final class EditedGeometry extends Geometry {
 
 /// Buffers as they arrived, with no topology behind them.
 final class ImportedGeometry extends Geometry {
+  /// A geometry holding [data] as it was read.
   const ImportedGeometry(this.data);
 
+  /// The buffers as the file gave them, never written to.
   final MeshData data;
 
   @override
@@ -381,7 +448,7 @@ final class ImportedGeometry extends Geometry {
 }
 
 /// No geometry at all — a named point for something else to hang off of, the
-/// way an empty in Blender or a `Marker3D` in Godot works.
+/// way an empty in Blender works.
 ///
 /// **The same shape an imported "group" already is.** `project_document.dart`
 /// has always kept an object with nothing in it as a node with no surface —
@@ -390,6 +457,7 @@ final class ImportedGeometry extends Geometry {
 /// purpose, and a file's own empty group now reads back as one too, since
 /// there is nothing left to tell the two apart once the mesh is gone.
 final class SocketGeometry extends Geometry {
+  /// An empty geometry: a socket draws nothing.
   const SocketGeometry();
 
   @override
@@ -407,6 +475,9 @@ final class SocketGeometry extends Geometry {
 /// it a viewport either re-uploads everything every frame or compares meshes to
 /// find out, and the second is more expensive than the upload.
 final class ModelObject {
+  /// An object [id] called [name] with [geometry] at [transform], at version
+  /// one, at the top level and with every list empty and every flag at its
+  /// default unless given.
   const ModelObject({
     required this.id,
     required this.name,
@@ -419,7 +490,7 @@ final class ModelObject {
     this.skeletonIndex,
     this.shapeSet = const ShapeSet(),
     this.shapeDrivers = const <ShapeDriver>[],
-    this.lods = const <LodSpec>[],
+    this.lods = const <LodSettings>[],
     this.simulationCache,
     this.visible = true,
     this.locked = false,
@@ -483,7 +554,11 @@ final class ModelObject {
   /// Stable for the life of the object, and not reused after a delete.
   final int id;
 
+  /// What the outliner shows and a command can find the object by.
   final String name;
+
+  /// What the object draws: a parametric shape, an edited mesh, imported
+  /// buffers or nothing.
   final Geometry geometry;
 
   /// Local to [parent], or to the world when there is none.
@@ -530,7 +605,7 @@ final class ModelObject {
   /// case of a mesh nobody has asked to simplify; `LodMeshCache` is what
   /// turns one of these into an actual mesh, keyed by [version] so an edit
   /// to [geometry] regenerates exactly the entries that are now stale.
-  final List<LodSpec> lods;
+  final List<LodSettings> lods;
 
   /// This object's own baked simulation frames — `pro-sim-03`'s own row.
   /// Null for almost every object, the ordinary case of one nobody has run
@@ -546,6 +621,7 @@ final class ModelObject {
   /// **The version moves here rather than at the call sites**, so that an edit
   /// which forgets to bump it is an edit that cannot be written: there is no
   /// other way to make a changed object.
+  // ignore: avoid-incomplete-copy-with, the id never changes and the version only moves on, as the doc comment says.
   ModelObject copyWith({
     String? name,
     Geometry? geometry,
@@ -558,7 +634,7 @@ final class ModelObject {
     bool clearSkeletonIndex = false,
     ShapeSet? shapeSet,
     List<ShapeDriver>? shapeDrivers,
-    List<LodSpec>? lods,
+    List<LodSettings>? lods,
     SimulationCache? simulationCache,
     bool clearSimulationCache = false,
     bool? visible,
@@ -612,23 +688,107 @@ typedef SourceLink = ({String path, String sha});
 /// credit.** A name alone leaves whoever reads the exported file unable to
 /// find the original or the terms; the licence and its URL are what make
 /// the line answerable.
-typedef ModelCredit = ({
+///
+/// A class rather than a record, so a credit can later carry more of what
+/// a licence asks for (a copyright line, the changes made) without
+/// breaking a reader.
+final class ModelCredit {
+  /// A credit for [title] by [author] under [license], found at [url].
+  const ModelCredit({
+    required this.title,
+    required this.author,
+    required this.license,
+    required this.url,
+  });
+
   /// What the thing is called where it came from.
-  String title,
+  final String title;
 
   /// Who to credit. Never empty — `gal-01` refuses an item that asks for
   /// a credit and names nobody.
-  String author,
+  final String author;
 
   /// The licence's own name, as the card showed it.
-  String licence,
+  final String license;
 
   /// Where the licence text is.
-  String url,
-});
+  final String url;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModelCredit &&
+      other.title == title &&
+      other.author == author &&
+      other.license == license &&
+      other.url == url;
+
+  @override
+  int get hashCode => Object.hash(title, author, license, url);
+
+  @override
+  String toString() =>
+      'ModelCredit(title: $title, author: $author, license: $license, '
+      'url: $url)';
+}
+
+/// A section of a `.f3dproj` this build does not read, kept to be written
+/// back: its kind, its bytes, the count its directory entry gave and its
+/// flags (`F3dSectionFlags`, from version 3; 0 before).
+///
+/// A section with [flags] set makes the file version 3, the version whose
+/// directory carries them; without, a project writes version 2, which every
+/// 1.0 reader opens.
+final class ProjectExtraSection {
+  /// A section of [kind] holding a copy of [bytes], with [count] and [flags]
+  /// nought unless given.
+  ProjectExtraSection({
+    required this.kind,
+    required Uint8List bytes,
+    this.count = 0,
+    this.flags = 0,
+  }) : bytes = Uint8List.fromList(bytes);
+
+  /// The section's kind: never one of `ProjectSection.known`.
+  final int kind;
+
+  /// The section's bytes, a copy of what was handed in.
+  final Uint8List bytes;
+
+  /// The count the directory entry gave: records in [bytes] for a table.
+  final int count;
+
+  /// `F3dSectionFlags` bits.
+  final int flags;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProjectExtraSection &&
+      other.kind == kind &&
+      other.count == count &&
+      other.flags == flags &&
+      _sameBytes(other.bytes, bytes);
+
+  @override
+  int get hashCode => Object.hash(kind, count, flags, Object.hashAll(bytes));
+
+  static bool _sameBytes(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  String toString() =>
+      'ProjectExtraSection(kind: $kind, ${bytes.length} bytes, '
+      'count: $count, flags: 0x${flags.toRadixString(16)})';
+}
 
 /// The document.
-final class ModelProject implements ModelProjectView {
+final class ModelProject with ModelProjectView {
+  /// A project with the desktop profile and nothing in it, next id one, unless
+  /// given.
   const ModelProject({
     this.profile = const ProjectProfile(),
     this.objects = const <ModelObject>[],
@@ -638,9 +798,25 @@ final class ModelProject implements ModelProjectView {
     this.skeletons = const <ProjectSkeleton>[],
     this.clips = const <ProjectClip>[],
     this.lighting = const SceneLighting(),
+    this.animationGraphs = const <String, Map<String, Object?>>{},
+    this.unknown = const <String, Object?>{},
+    this.unknownSections = const <ProjectExtraSection>[],
+    this.rights,
   });
 
+  /// The limits the project is measured against, the desktop profile by
+  /// default.
   final ProjectProfile profile;
+
+  /// Who made the project and on what terms: its copyright, its author and
+  /// its licence (`DocumentAsset.copyright`, `author`, `license`; the rest
+  /// of a `DocumentAsset` is not kept). Null when nothing says.
+  ///
+  /// **The project's own, beside the credits its objects owe**
+  /// ([ModelObject.credit]): a model opened from a file that said whose it
+  /// was keeps saying so ([fromModelDocument]), through the project's file
+  /// and into what it exports, a `.f3d` or a glTF.
+  final DocumentAsset? rights;
 
   /// What the objects are painted with. [ModelObject.materialSlots] indexes
   /// this; a slot that indexes nothing is drawn in the viewport's own default,
@@ -666,6 +842,31 @@ final class ModelProject implements ModelProjectView {
   /// reopening puts back the lighting of that step. This comment said for a
   /// while that it was not written at all, which was true.
   final SceneLighting lighting;
+
+  /// The characters' animation graphs, by name, each as
+  /// `AnimationGraphJson.encode` writes it — checked when set by
+  /// `SetAnimationGraph`, kept as JSON so a project file and its history
+  /// carry them as they carry any other table, and written into an export's
+  /// root `extras`, where a game reads them with `AnimationGraphJson
+  /// .graphsIn`.
+  final Map<String, Map<String, Object?>> animationGraphs;
+
+  /// The manifest's keys this build does not read, as the file had them:
+  /// written back unchanged when the project is saved, so a project a later
+  /// minor wrote and this one opened and saved keeps what the later one
+  /// added (`docs/CONTRACTS.md`, "Unknown keys are kept").
+  ///
+  /// Carried through every edit — each command builds its project from the
+  /// one before with this map — and empty for a project made here. A key this
+  /// build writes itself never lands here, and one here never overrides it.
+  final Map<String, Object?> unknown;
+
+  /// The file's sections this build does not read, as the file had them,
+  /// in its order: written back when the project is saved, flags and all,
+  /// so a section a later minor added survives a save by this one, as
+  /// [unknown] does for the manifest's keys. Carried through every edit the
+  /// way [unknown] is, and empty for a project made here.
+  final List<ProjectExtraSection> unknownSections;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -709,6 +910,8 @@ final class ModelProject implements ModelProjectView {
     return true;
   }
 
+  /// Triangles drawn across every object, a count, as
+  /// [ProjectProfile.maxTriangles] is measured.
   int get triangleCount => objects.fold(
     0,
     (int sum, ModelObject o) => sum + o.geometry.triangleCount,
@@ -749,6 +952,10 @@ final class ModelProject implements ModelProjectView {
       skeletons: skeletons,
       clips: clips,
       lighting: lighting,
+      animationGraphs: animationGraphs,
+      unknown: unknown,
+      unknownSections: unknownSections,
+      rights: rights,
     );
   }
 
@@ -766,6 +973,10 @@ final class ModelProject implements ModelProjectView {
     skeletons: skeletons,
     clips: clips,
     lighting: lighting,
+    animationGraphs: animationGraphs,
+    unknown: unknown,
+    unknownSections: unknownSections,
+    rights: rights,
   );
 
   /// This project without the object [id], and without anything under it.
@@ -805,6 +1016,10 @@ final class ModelProject implements ModelProjectView {
       skeletons: skeletons,
       clips: clips,
       lighting: lighting,
+      animationGraphs: animationGraphs,
+      unknown: unknown,
+      unknownSections: unknownSections,
+      rights: rights,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -812,6 +1027,10 @@ final class ModelProject implements ModelProjectView {
     );
   }
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is and [clearRights] sets [rights] to null. Objects and [nextId] are not
+  /// here: they change through [added], [withObject] and [removed].
+  // ignore: avoid-incomplete-copy-with, objects change through added, withObject and removed, which keep nextId honest.
   ModelProject copyWith({
     ProjectProfile? profile,
     List<ProjectMaterial>? materials,
@@ -819,6 +1038,11 @@ final class ModelProject implements ModelProjectView {
     List<ProjectSkeleton>? skeletons,
     List<ProjectClip>? clips,
     SceneLighting? lighting,
+    Map<String, Map<String, Object?>>? animationGraphs,
+    Map<String, Object?>? unknown,
+    List<ProjectExtraSection>? unknownSections,
+    DocumentAsset? rights,
+    bool clearRights = false,
   }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
@@ -828,6 +1052,10 @@ final class ModelProject implements ModelProjectView {
     skeletons: skeletons ?? this.skeletons,
     clips: clips ?? this.clips,
     lighting: lighting ?? this.lighting,
+    animationGraphs: animationGraphs ?? this.animationGraphs,
+    unknown: unknown ?? this.unknown,
+    unknownSections: unknownSections ?? this.unknownSections,
+    rights: clearRights ? null : (rights ?? this.rights),
   );
 
   @override

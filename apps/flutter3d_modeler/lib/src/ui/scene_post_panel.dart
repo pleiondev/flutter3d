@@ -18,6 +18,7 @@ import '../../../l10n/app_localizations.dart';
 
 /// Bloom, and exposure.
 final class ScenePostPanel extends StatelessWidget {
+  /// The panel over [post] and [exposure].
   const ScenePostPanel({
     super.key,
     required this.post,
@@ -26,12 +27,16 @@ final class ScenePostPanel extends StatelessWidget {
     required this.onExposureChanged,
   });
 
+  /// The project's post-processing; this panel reads whether bloom is on.
   final ScenePostSettings post;
 
   /// `SceneLighting.exposure`.
   final double exposure;
 
+  /// Bloom was switched on or off.
   final ValueChanged<bool> onBloomChanged;
+
+  /// A new exposure was typed.
   final ValueChanged<double> onExposureChanged;
 
   @override

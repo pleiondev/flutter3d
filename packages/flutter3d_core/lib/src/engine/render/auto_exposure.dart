@@ -19,6 +19,11 @@ import 'dart:typed_data';
 
 /// How the frame's own brightness decides its exposure.
 final class AutoExposureSettings {
+  /// Auto exposure off; switched on, it holds the exposure between 0.25 and
+  /// 8 and meters the 80th to 98th percentile towards 0.18.
+  ///
+  /// Asserts a positive range and percentiles in order between nought and
+  /// one.
   const AutoExposureSettings({
     this.enabled = false,
     this.minExposure = 0.25,
@@ -36,6 +41,8 @@ final class AutoExposureSettings {
              lowPercentile < highPercentile,
        );
 
+  /// Whether the exposure follows the frame. Off by default, which leaves
+  /// `RenderSettings.exposure` as it is.
   final bool enabled;
 
   /// Where the exposure stops, whatever the frame says.
@@ -45,7 +52,17 @@ final class AutoExposureSettings {
   /// anything has drawn — into a blown-out one the moment something appears.
   /// The defaults span five stops in all, from about two and a half below the
   /// engine's own 1.6 to about two and a half above it.
+  ///
+  /// **In EV100 that is about 7.6 to 12.6** (`PhysicalCamera.ev100ForExposure`:
+  /// 0.25 is EV100 12.6, 8.0 is 7.6): a lit interior to a bright overcast
+  /// day. A noon in the sun meters near EV100 15 and asks for an exposure
+  /// near 0.05, which the default floor stops five times short of, so an
+  /// outdoor game that meters real daylight sets [minExposure] lower —
+  /// 0.02 reaches EV100 16. The defaults stay where they are because every
+  /// game that switched the meter on was tuned inside them.
   final double minExposure;
+
+  /// A linear multiplier, as [minExposure] is.
   final double maxExposure;
 
   /// How quickly the exposure *rises*, once the scene has gone dark, and how
@@ -60,11 +77,20 @@ final class AutoExposureSettings {
   /// merely waits. `double.infinity` is allowed and means at once, which is
   /// what a frame that has to be the same every time it is drawn asks for.
   final double speedUp;
+
+  /// Per second, as [speedUp].
   final double speedDown;
 
   /// What the metered brightness is exposed *to*, in linear light before the
   /// tone curve: 0.18 is the photographer's middle grey, and lands where the
-  /// Neutral tone mapper leaves midtones alone.
+  /// Neutral tone mapper leaves midtones alone. A ratio of white.
+  ///
+  /// It is not quite what a camera's reflected-light meter does. One
+  /// calibrated at K = 12.5 sets EV100 to log2(L·100/12.5), and the
+  /// saturation-based exposure the renderer draws with (white at
+  /// `1.2 × 2^EV100` nits) then puts the metered luminance at about 0.104 of
+  /// white: 0.18 is some 0.8 of a stop brighter than that camera, by choice,
+  /// for a picture whose lit band sits in the curve's middle.
   final double target;
 
   /// Which of the frame's texels count, as fractions of the histogram.
@@ -78,6 +104,8 @@ final class AutoExposureSettings {
   /// corridor with nothing lit in view and the band is dim, so the exposure
   /// climbs and the corridor can be seen; that is the whole of the effect.
   final double lowPercentile;
+
+  /// A 0..1 fraction of the histogram, as [lowPercentile] is.
   final double highPercentile;
 
   /// Whether each view meters its own part of the frame — `gfx-22n`.
@@ -94,6 +122,8 @@ final class AutoExposureSettings {
   /// always was.
   final bool perView;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   AutoExposureSettings copyWith({
     bool? enabled,
     double? minExposure,
@@ -114,6 +144,33 @@ final class AutoExposureSettings {
     lowPercentile: lowPercentile ?? this.lowPercentile,
     highPercentile: highPercentile ?? this.highPercentile,
     perView: perView ?? this.perView,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AutoExposureSettings &&
+          other.enabled == enabled &&
+          other.minExposure == minExposure &&
+          other.maxExposure == maxExposure &&
+          other.speedUp == speedUp &&
+          other.speedDown == speedDown &&
+          other.target == target &&
+          other.lowPercentile == lowPercentile &&
+          other.highPercentile == highPercentile &&
+          other.perView == perView;
+
+  @override
+  int get hashCode => Object.hash(
+    enabled,
+    minExposure,
+    maxExposure,
+    speedUp,
+    speedDown,
+    target,
+    lowPercentile,
+    highPercentile,
+    perView,
   );
 }
 
@@ -139,6 +196,8 @@ abstract final class ExposureMeter {
   /// why the floor sits well below anything a lit scene reaches — a byte of
   /// zero is "black", not "dark".
   static const double floorStops = -10.0;
+
+  /// In stops (EV).
   static const double rangeStops = 16.0;
 
   /// The stop a byte of [encoded] stands for.
@@ -263,9 +322,11 @@ abstract final class ExposureMeter {
 /// two later — and the adapter is what turns that into something the frame
 /// being drawn can use without lurching.
 final class ExposureAdapter {
+  /// An adapter starting at the exposure [initial].
   ExposureAdapter({required double initial}) : value = initial;
 
   /// The exposure the composite uses now.
+  /// A linear multiplier.
   double value;
 
   /// What the last metered frame asked for, or null before any frame has been

@@ -13,8 +13,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _width = 48;
 const int _height = 32;
@@ -34,7 +34,7 @@ typedef _Staged = ({
   CpuDevice device,
   Renderer renderer,
   Scene scene,
-  RenderView view,
+  CameraView view,
 });
 
 _Staged _staged() {
@@ -49,9 +49,9 @@ _Staged _staged() {
   final box =
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+            baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           ),
         )
         ..setPosition(0.0, 0.0, -4.0)
@@ -63,7 +63,10 @@ _Staged _staged() {
     device: device,
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    view: CameraView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+    ),
   );
 }
 
@@ -75,7 +78,7 @@ _Staged _staged() {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: settings,
   );
   final hdr = it.device.readHdrPixels(result.frame);

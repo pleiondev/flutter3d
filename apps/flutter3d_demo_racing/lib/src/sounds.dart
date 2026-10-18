@@ -14,6 +14,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 
+/// Every sound the racing game plays, as one definition each, and [all], the
+/// bank they are loaded from.
 abstract final class Sounds {
   /// The engine, recorded at a third of the revs and at most of them.
   ///
@@ -22,8 +24,12 @@ abstract final class Sounds {
   /// revs the files were written at. `tool/make_sounds.py` prints them when it
   /// runs, and they are the same two numbers.
   static const double lowRevs = 0.35;
+
+  /// The revs, as a fraction of the most, that [engineHigh] was recorded at.
   static const double highRevs = 0.85;
 
+  /// The engine low in its range, looped and recorded at [lowRevs]; blended
+  /// with [engineHigh] by how hard the car is revving.
   static const SoundDef engineLow = SoundDef(
     name: 'engine-low',
     asset: 'assets/sounds/engine_low.wav',
@@ -32,6 +38,7 @@ abstract final class Sounds {
     attenuation: InverseRolloff(reference: 12.0, maximum: 260.0),
   );
 
+  /// The engine high in its range, looped and recorded at [highRevs].
   static const SoundDef engineHigh = SoundDef(
     name: 'engine-high',
     asset: 'assets/sounds/engine_high.wav',
@@ -40,7 +47,7 @@ abstract final class Sounds {
     attenuation: InverseRolloff(reference: 12.0, maximum: 260.0),
   );
 
-  /// Tyres letting go. Driven by how far the car is sliding, so it is one loop
+  /// TireSet letting go. Driven by how far the car is sliding, so it is one loop
   /// held at a volume rather than a sound played on an event.
   static const SoundDef skid = SoundDef(
     name: 'skid',
@@ -60,6 +67,8 @@ abstract final class Sounds {
     attenuation: InverseRolloff(reference: 10.0, maximum: 140.0),
   );
 
+  /// One beep of the countdown, heard at the same loudness wherever the camera
+  /// is.
   static const SoundDef count = SoundDef(
     name: 'count',
     asset: 'assets/sounds/count.wav',
@@ -68,6 +77,8 @@ abstract final class Sounds {
     attenuation: NoAttenuation(),
   );
 
+  /// The start, played when the lights go out; the loudest cue, and above the
+  /// countdown in priority.
   static const SoundDef go = SoundDef(
     name: 'go',
     asset: 'assets/sounds/go.wav',
@@ -76,6 +87,7 @@ abstract final class Sounds {
     attenuation: NoAttenuation(),
   );
 
+  /// A lap completed by the player.
   static const SoundDef lap = SoundDef(
     name: 'lap',
     asset: 'assets/sounds/lap.wav',
@@ -84,6 +96,7 @@ abstract final class Sounds {
     attenuation: NoAttenuation(),
   );
 
+  /// A lap that beat the player's best, played in place of [lap].
   static const SoundDef best = SoundDef(
     name: 'best',
     asset: 'assets/sounds/best.wav',
@@ -92,6 +105,8 @@ abstract final class Sounds {
     attenuation: NoAttenuation(),
   );
 
+  /// A checkpoint passed by the player; quiet and low in priority, since one
+  /// comes every few seconds.
   static const SoundDef checkpoint = SoundDef(
     name: 'checkpoint',
     asset: 'assets/sounds/checkpoint.wav',
@@ -100,6 +115,9 @@ abstract final class Sounds {
     attenuation: NoAttenuation(),
   );
 
+  /// A car struck hard enough to throw sparks ([Reactions.scrapeAbove]), its
+  /// pitch varied a little each time so that a run of knocks does not sound
+  /// like one sample repeated.
   static const SoundDef bump = SoundDef(
     name: 'bump',
     asset: 'assets/sounds/bump.wav',
@@ -135,14 +153,16 @@ abstract final class Sounds {
 /// does the distance and the panning, and SoLoud is asked for nothing it cannot
 /// do.
 final class CarVoice {
+  /// Starts [vehicle]'s engine, skid and rumble loops in [scene] at the car's
+  /// position, the skid and rumble silent until [update] hears a reason.
   CarVoice({required AudioScene scene, required this.vehicle})
     : _engine = BlendedLoop(
         scene: scene,
         bands: const <LoopBand>[
-          LoopBand(sound: Sounds.engineLow, centre: Sounds.lowRevs, width: 0.5),
+          LoopBand(sound: Sounds.engineLow, center: Sounds.lowRevs, width: 0.5),
           LoopBand(
             sound: Sounds.engineHigh,
-            centre: Sounds.highRevs,
+            center: Sounds.highRevs,
             width: 0.5,
           ),
         ],
@@ -151,6 +171,8 @@ final class CarVoice {
       _skid = scene.play(Sounds.skid, vehicle.position)..gain = 0.0,
       _rumble = scene.play(Sounds.rumble, vehicle.position)..gain = 0.0;
 
+  /// The car this voice follows: where its sounds are placed, and what its
+  /// revs and slips are read from.
   final VehicleController vehicle;
 
   /// The engine's own mix, for a test or a debug readout.
@@ -160,8 +182,8 @@ final class CarVoice {
   /// an answer only for whichever band happens to be audible.
   BlendedLoop get engine => _engine;
   final BlendedLoop _engine;
-  final SoundEmitter _skid;
-  final SoundEmitter _rumble;
+  final AudioEmitter _skid;
+  final AudioEmitter _rumble;
 
   /// How sideways the tyres have to be before they are heard at all.
   static const double _skidFrom = 0.12;
@@ -184,7 +206,7 @@ final class CarVoice {
     final sideways = vehicle.slipAngle.abs();
     final spinning = vehicle.slipRatio.abs();
     final sliding = math.max(sideways, spinning * 0.7);
-    final loudness = vehicle.grounded
+    final loudness = vehicle.isGrounded
         ? ((sliding - _skidFrom) / (_skidTo - _skidFrom)).clamp(0.0, 1.0)
         : 0.0;
     // Quiet at a crawl: a car turning in the pit lane is not squealing, whatever
@@ -197,10 +219,12 @@ final class CarVoice {
       ..position.setFrom(vehicle.position);
 
     _rumble
-      ..gain = offRoad && vehicle.grounded ? moving : 0.0
+      ..gain = offRoad && vehicle.isGrounded ? moving : 0.0
       ..position.setFrom(vehicle.position);
   }
 
+  /// Stops all three loops. Call it when the car leaves the race or the scene
+  /// is torn down.
   void stop() {
     _engine.stop();
     _skid.stop();

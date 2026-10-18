@@ -46,6 +46,8 @@ import 'theme.dart';
 /// "Сбросить позу" link, 74 logical pixels tall — the row height `Полоса 74`
 /// names.
 class BendSliderBar extends StatefulWidget {
+  /// A bar over [joint], bending it between [minDegrees] and [maxDegrees]
+  /// around [axis] from its rest pose.
   const BendSliderBar({
     super.key,
     required this.joint,
@@ -70,7 +72,7 @@ class BendSliderBar extends StatefulWidget {
   /// The rest/reference data [jointIndex] is read against. Never mutated by
   /// this widget: [Pose] itself is scene-graph-free, and only [joint] (a
   /// live [SceneNode]) ever changes here.
-  final Pose pose;
+  final AnimationPose pose;
 
   /// The skeleton [joint] belongs to, read only for [Skeleton.poseVersion]
   /// after a change — never mutated directly.
@@ -83,7 +85,10 @@ class BendSliderBar extends StatefulWidget {
   /// rather than here.
   final Vector3? axis;
 
+  /// The slider's lower end, in degrees from the rest pose.
   final double minDegrees;
+
+  /// The slider's upper end, in degrees from the rest pose.
   final double maxDegrees;
 
   /// What the bar reads as: `Elbow`, `Knee L`.

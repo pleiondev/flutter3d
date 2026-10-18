@@ -1,37 +1,76 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "edu-05b unsupported-kind fixture",
   "brushes": [
-    { "at": [0.0, -0.5, 0.0], "size": [4.0, 1.0, 4.0], "material": "floor" }
+    {
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        4.0,
+        1.0,
+        4.0
+      ],
+      "material": "floor",
+      "id": "c1184a76"
+    }
   ],
   "materials": {
-    "floor": { "baseColor": [0.4, 0.4, 0.4, 1.0], "roughness": 0.9 }
+    "floor": {
+      "baseColor": [
+        0.4,
+        0.4,
+        0.4,
+        1.0
+      ],
+      "roughness": 0.9
+    }
   },
   "entities": [
     {
       "type": "edu_data_source",
       "name": "line-rpm",
-      "kind": "mqtt"
+      "props": {
+        "kind": "mqtt"
+      },
+      "id": "26d71d58"
     },
     {
       "type": "edu_sequence",
       "name": "reading",
-      "title": "Unsupported source",
-      "steps": ["step-1"]
+      "props": {
+        "title": "Unsupported source",
+        "steps": [
+          "step-1"
+        ]
+      },
+      "id": "ac7ec4e5"
     },
     {
       "type": "edu_step",
       "name": "step-1",
-      "at": [0.0, 1.6, 3.0],
+      "at": [
+        0.0,
+        1.6,
+        3.0
+      ],
       "yaw": 3.1416,
-      "caption": "No adapter for this kind",
-      "bindings": [
-        {
-          "source": "line-rpm",
-          "path": "value",
-          "target": "nothing.material.emissiveStrength"
-        }
-      ]
+      "props": {
+        "caption": "No adapter for this kind",
+        "bindings": [
+          {
+            "source": "line-rpm",
+            "path": "value",
+            "target": "nothing.material.emissiveStrength"
+          }
+        ]
+      },
+      "id": "276b7407"
     }
   ]
 }

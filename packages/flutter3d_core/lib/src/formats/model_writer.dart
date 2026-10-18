@@ -25,11 +25,13 @@ import 'usdz/usdz_writer.dart';
 
 /// One file a write produced.
 final class WrittenFile {
+  /// The file [name] holding [bytes].
   const WrittenFile(this.name, this.bytes);
 
   /// The name to give it, suffix and all — `table.obj`, `table.mtl`.
   final String name;
 
+  /// The file's contents, whole.
   final Uint8List bytes;
 
   @override
@@ -38,6 +40,7 @@ final class WrittenFile {
 
 /// What one write produced.
 final class ModelWrite {
+  /// A write that produced [files], with no [warnings] unless given.
   const ModelWrite(this.files, {this.warnings = const <String>[]});
 
   /// In the order they should be written: the file that names the others
@@ -55,7 +58,16 @@ final class ModelWrite {
 /// sentence for a menu and the write itself. Everything a format needs beyond
 /// that — OBJ's material library, a GLB's geometry compression — belongs to
 /// the implementation, which is what lets one caller write any of them.
-abstract interface class ModelWriter {
+///
+/// **Extended outside this package, and stays so through 1.x.** A base class
+/// rather than an interface (decision 5 of `tasks/1.0-api-review.md`): a
+/// member added in a minor arrives with a default body, so a writer written
+/// against 1.0 keeps compiling. Write `extends`, on a `final` or `base`
+/// class.
+abstract base class ModelWriter {
+  /// A writer; `const` so one can be a constant.
+  const ModelWriter();
+
   /// What an agent, a command line or a request asks for: `glb`, `obj`,
   /// `stlAscii`. Stable, because it is typed by people and stored in scripts.
   String get name;
@@ -66,28 +78,55 @@ abstract interface class ModelWriter {
   /// One line for a menu, in the words a person recognises.
   String get says;
 
-  /// [document] as files, named from [baseName].
-  ModelWrite write(ModelDocument document, {String baseName = 'model'});
+  /// [ModelWriteContext.document] as files, named from
+  /// [ModelWriteContext.baseName].
+  ModelWrite write(ModelWriteContext context);
+}
+
+/// What [ModelWriter.write] is handed.
+///
+/// **One object, so a minor can hand a writer more** — compression, a
+/// target profile — without breaking a writer written against 1.0.
+final class ModelWriteContext {
+  /// A request to write [document] as files named from [baseName].
+  const ModelWriteContext({required this.document, this.baseName = 'model'});
+
+  /// What is written.
+  final ModelDocument document;
+
+  /// The name the files are named from, without a suffix.
+  final String baseName;
 }
 
 /// A writer whose files this package can also read, so a write can be checked
 /// by reading it back — what `exportChecked` does.
 ///
-/// **A second interface rather than a method every writer owes.** USDZ has no
+/// **A subclass rather than a method every writer owes.** USDZ has no
 /// reader here, and a `readBack` that threw for it would be a writer breaking
 /// the contract it was typed as; a writer that can be checked says so by what
-/// it implements.
-abstract interface class CheckedModelWriter implements ModelWriter {
+/// it extends.
+///
+/// **Extended outside this package, and stays so through 1.x.** A base class
+/// rather than an interface (decision 5 of `tasks/1.0-api-review.md`): a
+/// member added in a minor arrives with a default body, so a writer written
+/// against 1.0 keeps compiling. Write `extends`, on a `final` or `base`
+/// class.
+abstract base class CheckedModelWriter extends ModelWriter {
+  /// A checked writer; `const` so one can be a constant.
+  const CheckedModelWriter();
+
   /// The document [written] reads back as.
   Future<ModelDocument> readBack(ModelWrite written);
 
   /// How far a number may move on the way through: `0.0` for a binary format,
   /// the printed precision for a text one.
+  /// The unit is that of the number compared.
   double get tolerance;
 }
 
 /// `.f3d`, the engine's own container.
-final class F3dModelWriter implements CheckedModelWriter {
+final class F3dModelWriter extends CheckedModelWriter {
+  /// The writer; it holds no state, so one const instance serves.
   const F3dModelWriter();
 
   @override
@@ -100,8 +139,11 @@ final class F3dModelWriter implements CheckedModelWriter {
   String get says => 'the engine container';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
-    final writer = F3dWriter(document);
+  ModelWrite write(ModelWriteContext context) {
+    final ModelWriteContext(:document, :baseName) = context;
+    // A `.f3d` read back is written with its bundle and its tools' sections,
+    // so "download .f3d" of an opened bundle keeps them.
+    final writer = F3dWriter.carrying(document);
     final bytes = writer.write();
     return ModelWrite(<WrittenFile>[
       WrittenFile('$baseName$suffix', bytes),
@@ -112,12 +154,14 @@ final class F3dModelWriter implements CheckedModelWriter {
   Future<ModelDocument> readBack(ModelWrite written) async =>
       F3dDocument.parse(written.files.first.bytes);
 
+  /// The unit is that of the number compared.
   @override
   double get tolerance => 0.0;
 }
 
 /// A self-contained glTF binary.
-final class GlbModelWriter implements CheckedModelWriter {
+final class GlbModelWriter extends CheckedModelWriter {
+  /// A writer that leaves the geometry as it is unless [compressGeometry].
   const GlbModelWriter({this.compressGeometry = false});
 
   /// See [GltfWriter.compressGeometry].
@@ -133,7 +177,9 @@ final class GlbModelWriter implements CheckedModelWriter {
   String get says => 'a glTF binary most other tools open';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
     final writer = GltfWriter(document, compressGeometry: compressGeometry);
     final bytes = writer.writeGlb();
     return ModelWrite(<WrittenFile>[
@@ -145,13 +191,15 @@ final class GlbModelWriter implements CheckedModelWriter {
   Future<ModelDocument> readBack(ModelWrite written) =>
       GltfLoader().load(written.files.first.bytes);
 
+  /// The unit is that of the number compared.
   @override
   double get tolerance => 0.0;
 }
 
 /// Wavefront OBJ, with its `.mtl` beside it when the document names a
 /// material.
-final class ObjModelWriter implements CheckedModelWriter {
+final class ObjModelWriter extends CheckedModelWriter {
+  /// The writer; it holds no state, so one const instance serves.
   const ObjModelWriter();
 
   @override
@@ -164,7 +212,9 @@ final class ObjModelWriter implements CheckedModelWriter {
   String get says => 'triangles that every tool reads';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
     final writer = ObjWriter(document, name: baseName);
     final obj = writer.write();
     final mtl = writer.writeMaterialLibrary();
@@ -191,12 +241,14 @@ final class ObjModelWriter implements CheckedModelWriter {
 
   /// [ObjWriter.decimals]' own precision: a decimal text format rounds on the
   /// way out by design.
+  /// The unit is that of the number compared.
   @override
   double get tolerance => 5e-6;
 }
 
 /// STL, binary or ASCII.
-final class StlModelWriter implements CheckedModelWriter {
+final class StlModelWriter extends CheckedModelWriter {
+  /// A writer of binary STL, or of text when [ascii].
   const StlModelWriter({this.ascii = false});
 
   /// Whether to write `solid … endsolid` text rather than the binary form.
@@ -214,7 +266,9 @@ final class StlModelWriter implements CheckedModelWriter {
       : 'a triangle soup a slicer reads';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) {
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
     final writer = StlWriter(document, name: baseName);
     final bytes = ascii ? writer.writeAscii() : writer.write();
     return ModelWrite(<WrittenFile>[
@@ -228,13 +282,15 @@ final class StlModelWriter implements CheckedModelWriter {
 
   /// Zero either way: the ASCII form prints each number at the shortest
   /// length that reads back to the same float.
+  /// The unit is that of the number compared.
   @override
   double get tolerance => 0.0;
 }
 
 /// `.usdz` — geometry only, the spike [UsdzWriter] describes. Not a
 /// [CheckedModelWriter]: nothing here reads a `.usdz`.
-final class UsdzModelWriter implements ModelWriter {
+final class UsdzModelWriter extends ModelWriter {
+  /// The writer; it holds no state, so one const instance serves.
   const UsdzModelWriter();
 
   @override
@@ -247,13 +303,16 @@ final class UsdzModelWriter implements ModelWriter {
   String get says => 'geometry for Quick Look, no materials yet';
 
   @override
-  ModelWrite write(ModelDocument document, {String baseName = 'model'}) =>
-      ModelWrite(<WrittenFile>[
-        WrittenFile(
-          '$baseName$suffix',
-          UsdzWriter(document, name: baseName).write(),
-        ),
-      ]);
+  ModelWrite write(ModelWriteContext context) {
+    final document = context.document;
+    final baseName = context.baseName;
+    return ModelWrite(<WrittenFile>[
+      WrittenFile(
+        '$baseName$suffix',
+        UsdzWriter(document, name: baseName).write(),
+      ),
+    ]);
+  }
 }
 
 /// Every writer this package ships, in the order a menu would offer them.

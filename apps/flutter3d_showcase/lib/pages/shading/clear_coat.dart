@@ -5,15 +5,22 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `clear-coat` page: bare red paint beside the same paint under a clear
+/// coat. Its check is that the coated one is on the layered model with a
+/// coat.
 final class ClearCoatDemo extends ShowcaseDemo {
+  /// How strong the clear coat is, 0 to 1.
   double coat = 1.0;
+
+  /// The coat's roughness, 0 to 1.
   double coatRoughness = 0.15;
+
+  /// The paint's roughness under it, 0.05 to 1, the same on both spheres.
   double paintRoughness = 0.6;
 
-  late final Material _bare;
-  late final Material _coated;
+  late final RenderMaterial _bare;
+  late final RenderMaterial _coated;
 
   @override
   void configureView(DemoContext context) {
@@ -26,16 +33,16 @@ final class ClearCoatDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region paint
-    _bare = Material(
+    _bare = RenderMaterial(
       name: 'bare paint',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
       roughness: paintRoughness,
     );
-    _coated = Material(
+    _coated = RenderMaterial(
       name: 'coated paint',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
       roughness: paintRoughness,
       extensions: MaterialExtensions(
         clearcoat: coat,
@@ -50,11 +57,11 @@ final class ClearCoatDemo extends ShowcaseDemo {
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 0.15
+      ..ambientIntensity = 0.15 * LightNode.defaultIntensity
       ..add(MeshNode(ball, _bare, name: 'bare')..setPosition(-0.6, 0.0, 0.0))
       ..add(MeshNode(ball, _coated, name: 'coated')..setPosition(0.6, 0.0, 0.0))
       ..add(
-        LightNode(name: 'key', intensity: 3.0)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
     // #endregion spheres

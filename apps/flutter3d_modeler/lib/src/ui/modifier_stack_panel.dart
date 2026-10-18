@@ -67,6 +67,8 @@ List<({String label, Modifier modifier})> addableModifiers(
 
 /// The active object's own stack, empty or not.
 final class ModifierStackPanel extends StatelessWidget {
+  /// A panel over [slots]; the optional callbacks leave their controls out
+  /// when null.
   const ModifierStackPanel({
     super.key,
     required this.slots,
@@ -81,6 +83,7 @@ final class ModifierStackPanel extends StatelessWidget {
     this.trianglesOut,
   });
 
+  /// The held object's modifiers, in the order they run.
   final List<ModifierSlot> slots;
 
   /// The modifier at [index] had its viewport switch flipped.
@@ -114,6 +117,8 @@ final class ModifierStackPanel extends StatelessWidget {
   /// the triangles the stack leaves. Both null hides the line — a caller
   /// with no evaluator behind it, and every object with no stack.
   final int? trianglesIn;
+
+  /// The triangles the stack leaves, beside [trianglesIn].
   final int? trianglesOut;
 
   static String _labelOf(Modifier modifier) => switch (modifier) {
@@ -122,6 +127,7 @@ final class ModifierStackPanel extends StatelessWidget {
     SmoothModifier() => 'Smooth',
     SubdivisionModifier() => 'Subdivision',
     BooleanModifier() => 'Boolean',
+    _ => 'Modifier',
   };
 
   @override

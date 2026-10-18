@@ -7,7 +7,7 @@
 /// the question.
 part of 'renderer.dart';
 
-final class _ContributorLights implements ContributorLights {
+final class _ContributorLights with ContributorLights {
   _ContributorLights(this._renderer);
 
   final Renderer _renderer;
@@ -31,12 +31,8 @@ final class _ContributorLights implements ContributorLights {
   void end() => _frame = null;
 
   @override
-  void bind(
-    PassEncoder encoder,
-    ShaderHandle stage, {
-    required vm.Vector3 centre,
-    required double radius,
-  }) {
+  void bind(LightBindRequest request) {
+    final LightBindRequest(:encoder, :stage, :center, :radius) = request;
     final frame = _frame;
     if (frame == null) return;
     final renderer = _renderer;
@@ -53,7 +49,7 @@ final class _ContributorLights implements ContributorLights {
       draw = _draw
         ..gatherNearFrom(
           frame,
-          centre,
+          center,
           radius,
           // With cells a light that leaves the slots is still in the tail,
           // as for a mesh.

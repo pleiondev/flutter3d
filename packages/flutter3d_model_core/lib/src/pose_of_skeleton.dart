@@ -16,7 +16,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/flutter3d_core.dart' show Pose;
+import 'package:flutter3d_core/flutter3d_core.dart' show AnimationPose;
 import 'package:vector_math/vector_math.dart';
 
 import 'project.dart';
@@ -45,7 +45,7 @@ import 'world_transform.dart';
 ///
 /// A joint id [ModelProject] does not hold reads as the identity transform,
 /// the same tolerance [worldTransformOf] itself has for one.
-Pose poseOf(ModelProject project, ProjectSkeleton skeleton) {
+AnimationPose poseOf(ModelProject project, ProjectSkeleton skeleton) {
   final joints = skeleton.joints;
   final localIndexOf = <int, int>{
     for (var i = 0; i < joints.length; i++) joints[i]: i,
@@ -88,7 +88,7 @@ Pose poseOf(ModelProject project, ProjectSkeleton skeleton) {
     scales[i * 3 + 2] = scale.z;
   }
 
-  return Pose(
+  return AnimationPose(
     parents: parents,
     restTranslations: translations,
     restRotations: rotations,

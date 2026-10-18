@@ -51,7 +51,13 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+// The spike reads what only the backend knows: the context's colour format
+// and the flutter_gpu name for it, its own business since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_impeller/src/gpu_formats.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_impeller/src/gpu_texture.dart'
+    show defaultColorFormatOfContext;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -65,6 +71,8 @@ import 'surface_probe_report.dart';
 /// can reuse at once, and the pool it would report is not the pool a real
 /// frame sees.
 final class ImageSurfaceProbe extends StatefulWidget {
+  /// A probe running each present path for [frames] frames at [width] by
+  /// [height], then calling [onDone].
   const ImageSurfaceProbe({
     super.key,
     required this.onDone,
@@ -73,6 +81,7 @@ final class ImageSurfaceProbe extends StatefulWidget {
     this.height = 800,
   });
 
+  /// Called once with everything the probe measured.
   final void Function(SurfaceProbeReport report) onDone;
 
   /// Frames per path. Two seconds on a 120 Hz display and four at sixty —
@@ -83,6 +92,8 @@ final class ImageSurfaceProbe extends StatefulWidget {
   /// The frame size, in pixels. A window's worth rather than a golden's, so a
   /// texture costs what one costs.
   final int width;
+
+  /// The frame height, in pixels, beside [width].
   final int height;
 
   @override
@@ -169,21 +180,21 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
 
   /// The colour frame [i] clears to. Every channel moves on its own period,
   /// so a frame shown in place of its neighbour would read back wrong.
-  static vm.Vector4 _colourOf(int i) =>
+  static vm.Vector4 _colorOf(int i) =>
       vm.Vector4(((i % 7) + 1) / 8, ((i % 5) + 1) / 6, ((i % 3) + 1) / 4, 1.0);
 
   /// One clear-only pass into [target], the same for every path.
-  static gpu.CommandBuffer _clearTo(gpu.Texture target, vm.Vector4 colour) {
+  static gpu.CommandBuffer _clearTo(gpu.Texture target, vm.Vector4 color) {
     final buffer = gpu.gpuContext.createCommandBuffer();
     buffer.createRenderPass(
       gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(texture: target, clearValue: colour),
+        gpu.ColorAttachment(texture: target, clearValue: color),
       ),
     );
     return buffer;
   }
 
-  /// Whether the centre texel of [image] is [colour], within the rounding an
+  /// Whether the centre texel of [image] is [color], within the rounding an
   /// eight-bit channel allows.
   ///
   /// Called once per phase, on the last image it made, after its loop has
@@ -191,16 +202,16 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
   /// what it cannot is the compositor reading a texture being written. The
   /// read goes back through the same texture this side owns; there is no
   /// path from here to the pixels Flutter put on screen.
-  static Future<bool> _holds(ui.Image image, vm.Vector4 colour) async {
+  static Future<bool> _holds(ui.Image image, vm.Vector4 color) async {
     final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     if (bytes == null) return false;
     final offset = ((image.height ~/ 2) * image.width + image.width ~/ 2) * 4;
     bool near(int channel, double want) =>
         (bytes.getUint8(offset + channel) - (want * 255).round()).abs() <= 3;
-    return near(0, colour.r) &&
-        near(1, colour.g) &&
-        near(2, colour.b) &&
-        near(3, colour.a);
+    return near(0, color.r) &&
+        near(1, color.g) &&
+        near(2, color.b) &&
+        near(3, color.a);
   }
 
   /// The renderer's own arrangement, reduced to its mechanism: a list of
@@ -231,7 +242,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
     final interval = <int>[];
     final between = Stopwatch()..start();
     var lastImage = _shown;
-    var lastColour = _colourOf(0);
+    var lastColour = _colorOf(0);
     gpu.Texture? presentedLast;
 
     for (var i = 0; i < widget.frames; i++) {
@@ -255,10 +266,10 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
         );
         owned.add(target);
       }
-      final colour = _colourOf(i);
+      final color = _colorOf(i);
       _clearTo(
         target,
-        colour,
+        color,
       ).submit(completionCallback: (_) => settled.add(target));
       final mint = Stopwatch()..start();
       final minted = target.asImage();
@@ -268,7 +279,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       step.add(clock.elapsedMicroseconds);
       image.add(mint.elapsedMicroseconds);
       lastImage = minted;
-      lastColour = colour;
+      lastColour = color;
       presentedLast = target;
       await _show(minted, '$name ${i + 1}/${widget.frames}');
       if (!mounted) break;
@@ -319,7 +330,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
     final backing = <int>[];
     final between = Stopwatch()..start();
     var lastImage = _shown;
-    var lastColour = _colourOf(0);
+    var lastColour = _colorOf(0);
     var note = '';
 
     for (var i = 0; i < widget.frames; i++) {
@@ -327,9 +338,9 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       between.reset();
       final clock = Stopwatch()..start();
 
-      final colour = _colourOf(i);
+      final color = _colorOf(i);
       final frame = surface.acquireNextFrame();
-      final drew = _clearTo(frame.colorTexture, colour);
+      final drew = _clearTo(frame.colorTexture, color);
       // What `present` returns is dropped on purpose. In flutter_gpu 3.47
       // `GpuImageSurfaceFrame.present` ends with
       // `return GpuPresentStatus.success;` — the value is a constant in the
@@ -366,7 +377,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       image.add(mint.elapsedMicroseconds);
       backing.add(surface.debugBackingTextureCount);
       lastImage = minted;
-      lastColour = colour;
+      lastColour = color;
       if (churn) _churn();
       await _show(minted, '$name ${i + 1}/${widget.frames}');
       if (!mounted) break;
@@ -455,7 +466,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
 
     Future<ui.Image?> draw(int i, String phase) async {
       final frame = surface.acquireNextFrame();
-      final drew = _clearTo(frame.colorTexture, _colourOf(i));
+      final drew = _clearTo(frame.colorTexture, _colorOf(i));
       frame.present(drew);
       drew.submit();
       final minted = surface.currentImage;
@@ -486,7 +497,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
     }
 
     final lastImage = after.isEmpty ? null : after.last;
-    final lastColour = _colourOf(_kResizeFrames + after.length - 1);
+    final lastColour = _colorOf(_kResizeFrames + after.length - 1);
     return ResizeOutcome(
       backingBefore: backingBefore,
       backingJustAfter: backingJustAfter,

@@ -4,7 +4,9 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show WorldPosition;
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 void main() {
@@ -43,5 +45,37 @@ void main() {
     final ears = AudioListener()
       ..aimAlong(Vector3.zero(), Vector3(0.0, -1.0, 0.0));
     expect(ears.forward.length, closeTo(1.0, 1e-9));
+  });
+
+  test('a place in the world is heard relative to the origin named', () {
+    // Twenty kilometres out, where float32 has run out of centimetres: the
+    // offset from the scene's origin is taken in doubles, and only the small
+    // difference narrowed, so the ears and a sound a metre away stay a metre
+    // apart.
+    //
+    // Mutation: narrow `at` to a Vector3 first and subtract the origin after.
+    //
+    // `origin` is required on both `placeAt`s, so a call cannot forget it.
+    // Mutation, checked with `dart analyze`: give it back its default of the
+    // world's origin — the fourteen placements in `audio_model_test.dart`
+    // compiled without naming one, and a game whose loop had moved its origin
+    // would hear every sound from where the camera was kilometres ago.
+    const origin = WorldPosition(20000.0, 0.0, -20000.0);
+    final ears = AudioListener()
+      ..placeAt(
+        const WorldPosition(20000.25, 1.75, -20000.5),
+        Vector3(0.0, 0.0, -2.0),
+        origin: origin,
+      );
+    final drum = AudioEmitter(
+      sound: const SoundDef(name: 'drum', asset: 'drum.wav'),
+    )..placeAt(const WorldPosition(20001.25, 1.75, -20000.5), origin: origin);
+
+    expect(ears.position.x, closeTo(0.25, 1e-6));
+    expect(ears.position.y, closeTo(1.75, 1e-6));
+    expect(ears.position.z, closeTo(-0.5, 1e-6));
+    expect(ears.forward.length, closeTo(1.0, 1e-6), reason: 'normalised');
+    expect(ears.right.x, closeTo(1.0, 1e-6));
+    expect((drum.position - ears.position).length, closeTo(1.0, 1e-6));
   });
 }

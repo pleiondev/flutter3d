@@ -36,6 +36,8 @@ typedef SimulationCacheState = ({int frames, int baked, bool running});
 /// Screen 11's own panel: the kind, its parameters, what it collides with,
 /// and what is pinned.
 class SimulationPanel extends StatelessWidget {
+  /// The panel over one simulation's settings; it holds nothing, and every
+  /// change goes out through a callback.
   const SimulationPanel({
     super.key,
     required this.kind,
@@ -52,14 +54,21 @@ class SimulationPanel extends StatelessWidget {
 
   /// Which kind is chosen, by [kinds]' own names.
   final String kind;
+
+  /// A kind chip was picked, with the kind's name from [kinds].
   final ValueChanged<String> onKind;
 
   /// The chosen kind's own numbers, in the order they are shown.
   final Map<String, double> parameters;
+
+  /// The parameter called [name] was dragged to [value], on its `0..1`
+  /// slider.
   final void Function(String name, double value) onParameter;
 
   /// Objects this simulation collides with, by name, and whether each is on.
   final Map<String, bool> colliders;
+
+  /// The collider called [name] was switched on or off.
   final void Function(String name, bool on) onCollider;
 
   /// How many vertices hold the simulation up now.
@@ -69,7 +78,11 @@ class SimulationPanel extends StatelessWidget {
   /// take.
   final int selectedCount;
 
+  /// Pin the vertices selected in the viewport. The button is disabled while
+  /// nothing is selected.
   final VoidCallback onPinSelection;
+
+  /// Unpin every vertex. The button is disabled while nothing is pinned.
   final VoidCallback onClearPins;
 
   /// The three kinds `pro-sim-02`/`pro-sim-03` between them can bake.
@@ -157,6 +170,7 @@ class SimulationPanel extends StatelessWidget {
 /// The strip under the viewport: a transport over the baked cache, and what
 /// there is of it.
 class SimulationBar extends StatelessWidget {
+  /// The strip over [cache], with [frame] on screen.
   const SimulationBar({
     super.key,
     required this.cache,
@@ -168,16 +182,28 @@ class SimulationBar extends StatelessWidget {
     required this.onClearCache,
   });
 
+  /// How many frames the bake covers, how many are baked so far, and whether
+  /// a bake is running.
   final SimulationCacheState cache;
 
   /// Which frame is on screen.
   final int frame;
+
+  /// The scrub bar was dragged to this frame.
   final ValueChanged<int> onSeek;
 
+  /// Whether the baked frames are playing back; the button shows pause while
+  /// they are.
   final bool playing;
+
+  /// Play or pause the cache. Disabled until a frame is baked.
   final VoidCallback onPlayPause;
 
+  /// Start baking the simulation into the cache. Disabled while a bake is
+  /// running.
   final VoidCallback onBake;
+
+  /// Throw away every baked frame. Disabled while nothing is baked.
   final VoidCallback onClearCache;
 
   @override

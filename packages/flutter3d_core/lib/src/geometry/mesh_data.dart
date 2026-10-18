@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'mesh_clusters.dart';
@@ -11,32 +13,40 @@ export 'morph_target.dart';
 
 /// Opaque white: a vertex colour multiplies the surface, so this is the value
 /// that changes nothing.
-final Vector4 kNeutralColor = Vector4(1.0, 1.0, 1.0, 1.0);
+const LinearColor neutralColor = LinearColor.white;
 
 /// Every vertex bound to joint zero.
 ///
-/// Paired with [kNeutralWeights], this leaves a vertex following the first
+/// Paired with [neutralWeights], this leaves a vertex following the first
 /// joint rigidly, which is what an unrigged vertex in a skinned mesh should do.
-final Vector4 kNeutralJoints = Vector4(0.0, 0.0, 0.0, 0.0);
+final Vector4 neutralJoints = Vector4(0.0, 0.0, 0.0, 0.0);
 
 /// All the influence on the first joint.
 ///
 /// Not all zeros: weights that sum to zero collapse the vertex to the origin,
 /// so a mesh missing WEIGHTS_0 would implode rather than simply not deform.
-final Vector4 kNeutralWeights = Vector4(1.0, 0.0, 0.0, 0.0);
+final Vector4 neutralWeights = Vector4(1.0, 0.0, 0.0, 0.0);
 
 /// A unit tangent along +X with a positive bitangent sign.
 ///
 /// Arbitrary in direction — any unit vector would do for a mesh with no UVs —
 /// but it must not be zero, because the shader normalizes it.
-final Vector4 kNeutralTangent = Vector4(1.0, 0.0, 0.0, 1.0);
+final Vector4 neutralTangent = Vector4(1.0, 0.0, 0.0, 1.0);
 
 /// Indices packed for GPU upload.
 final class PackedIndices {
+  /// [count] indices held in [bytes], two bytes each when [is16Bit] and
+  /// four otherwise.
   const PackedIndices(this.bytes, this.count, {required this.is16Bit});
 
+  /// The index data as uploaded: a fresh narrow copy for 16 bit, a view of
+  /// the mesh's own array for 32 bit.
   final ByteData bytes;
+
+  /// Count of indices, three per triangle.
   final int count;
+
+  /// Whether each index is a 16-bit unsigned integer rather than 32-bit.
   final bool is16Bit;
 }
 
@@ -45,6 +55,12 @@ final class PackedIndices {
 /// This layer deliberately knows nothing about any graphics backend, which keeps it
 /// testable without a GPU and portable to another backend.
 final class MeshData {
+  /// Geometry of [vertices] laid out by [layout] and triangles in [indices].
+  ///
+  /// Throws an [ArgumentError] when the vertex floats are not a whole number
+  /// of vertices, the indices not a whole number of triangles, a morph
+  /// target covers a different vertex count, or [clusters] tile a different
+  /// index count.
   MeshData({
     required this.layout,
     required this.vertices,
@@ -84,7 +100,11 @@ final class MeshData {
     }
   }
 
+  /// The attributes of each vertex and where each sits in its floats.
   final VertexLayout layout;
+
+  /// The vertices interleaved, [VertexLayout.floatsPerVertex] floats each;
+  /// position always first.
   final Float32List vertices;
 
   /// Shapes this mesh can be blended towards. Empty for almost every mesh.
@@ -93,16 +113,6 @@ final class MeshData {
   /// engine got one for: a target list that could grow after the deltas were
   /// uploaded would be a list the GPU copy disagreed with.
   final List<MorphTarget> morphTargets;
-
-  /// Whether anything can deform this mesh.
-  ///
-  /// For the caller that decides whether a mesh needs a [MorphBlend] and the
-  /// per-frame upload one implies: an application driving a face asks this
-  /// before building one, and the renderer will ask it once weights are routed
-  /// from the animation player. Nothing in this repository calls it yet, which
-  /// is why this paragraph is here rather than a deletion — the loader reads
-  /// targets today and the frame does not consume them, and that gap is
-  /// written down in ARCHITECTURE.md §15.
 
   /// The same geometry carrying [targets].
   ///
@@ -132,12 +142,19 @@ final class MeshData {
   /// only when packing for the GPU.
   final Uint32List indices;
 
+  /// Count of vertices in [vertices].
   int get vertexCount => vertices.length ~/ layout.floatsPerVertex;
+
+  /// Count of indices, three per triangle.
   int get indexCount => indices.length;
+
+  /// Count of triangles: a third of [indexCount].
   int get triangleCount => indices.length ~/ 3;
 
+  /// Whether every index fits 16 bits: at most 65536 vertices.
   bool get fitsIn16BitIndices => vertexCount <= 0x10000;
 
+  /// [vertices] as bytes for upload, a view rather than a copy.
   ByteData get vertexBytes => vertices.buffer.asByteData(
     vertices.offsetInBytes,
     vertices.lengthInBytes,
@@ -174,6 +191,8 @@ final class MeshData {
     return result;
   }
 
+  /// Returns the axis-aligned box around every vertex position, in the
+  /// mesh's space; an empty box at the origin for a mesh with no vertices.
   Aabb3 computeBounds() {
     if (vertexCount == 0) return Aabb3();
     final stride = layout.floatsPerVertex;
@@ -217,24 +236,25 @@ final class MeshData {
     return total / 6.0;
   }
 
-  /// A copy with every vertex coloured [color], linear RGBA (see
-  /// [VertexLayout.color]).
+  /// A copy with every vertex coloured [color], in linear light as a vertex
+  /// colour is (see [VertexLayout.color]); a colour picked on screen is
+  /// `LinearColor.fromSrgb`.
   ///
   /// For building one mesh out of several shapes in several colours, drawn
   /// with one white material: paint each part, place it with [transformed],
   /// and [merge] them. A whole tree, or a stretch of scenery, is then one draw
   /// rather than a node and a material per part. A layout with no colour
   /// attribute has nowhere to put it, and gets an unchanged copy.
-  MeshData withColor(Vector4 color) {
+  MeshData withColor(LinearColor color) {
     final stride = layout.floatsPerVertex;
     final at = layout.floatOffsetOf(VertexLayout.color.name);
     final out = Float32List.fromList(vertices);
     if (at >= 0) {
       for (var i = at; i < out.length; i += stride) {
-        out[i] = color.x;
-        out[i + 1] = color.y;
-        out[i + 2] = color.z;
-        out[i + 3] = color.w;
+        out[i] = color.r;
+        out[i + 1] = color.g;
+        out[i + 2] = color.b;
+        out[i + 3] = color.a;
       }
     }
     return MeshData(

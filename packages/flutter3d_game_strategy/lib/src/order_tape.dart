@@ -24,6 +24,7 @@
 /// break when the step does; that is what it is for.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'orders.dart';
@@ -34,6 +35,24 @@ final class OrderTape {
   /// any.
   OrderTape({required this.seed, List<List<StrategyOrder>>? frames})
     : frames = frames ?? <List<StrategyOrder>>[];
+
+  /// A tape read back from [toJson].
+  factory OrderTape.fromJson(Map<String, Object?> json) {
+    final Object? frames = json['frames'];
+    return OrderTape(
+      seed: json.integer('seed'),
+      frames: <List<StrategyOrder>>[
+        if (frames is List)
+          for (final Object? frame in frames)
+            <StrategyOrder>[
+              if (frame is List)
+                for (final Object? order in frame)
+                  if (order is Map)
+                    orderFromJson(order.cast<String, Object?>()),
+            ],
+      ],
+    );
+  }
 
   /// The generator state the match started from.
   ///
@@ -57,6 +76,8 @@ final class OrderTape {
   /// How many steps the match lasted.
   int get steps => frames.length;
 
+  /// The seed and the frames as a document [OrderTape.fromJson] reads back,
+  /// each order written by its own `toJson`.
   Map<String, Object?> toJson() => <String, Object?>{
     'seed': seed,
     'frames': <List<Object?>>[
@@ -64,24 +85,6 @@ final class OrderTape {
         <Object?>[for (final StrategyOrder order in frame) order.toJson()],
     ],
   };
-
-  /// A tape read back from [toJson].
-  factory OrderTape.fromJson(Map<String, Object?> json) {
-    final Object? frames = json['frames'];
-    return OrderTape(
-      seed: json.integer('seed'),
-      frames: <List<StrategyOrder>>[
-        if (frames is List)
-          for (final Object? frame in frames)
-            <StrategyOrder>[
-              if (frame is List)
-                for (final Object? order in frame)
-                  if (order is Map)
-                    orderFromJson(order.cast<String, Object?>()),
-            ],
-      ],
-    );
-  }
 }
 
 /// Writes down what was asked for, one entry per step.
@@ -114,9 +117,26 @@ final class OrderTapeRecorder {
 /// **Runs out rather than looping**, the same way an input tape does: a match
 /// stepped past the end of its tape carries on with nobody giving it orders,
 /// which is what happens when a player takes over from a replay.
+///
+/// **A recorded match is played through the unnamed constructor, which
+/// checks it first**: a match recorded on another simulation is refused with
+/// [ReplayException], carrying its pose record, before an order is handed
+/// over. [OrderTapePlayback.tape] plays a tape as it is, for a tape this match
+/// recorded itself and for tests.
 final class OrderTapePlayback {
-  /// Plays [tape].
-  OrderTapePlayback(this.tape);
+  /// [demo]'s tape, refused with [ReplayException] unless [simulation] —
+  /// this build's `strategySimulationVersion` — is the one the match was
+  /// recorded on ([MatchDemo.checkSimulation]).
+  factory OrderTapePlayback(
+    MatchDemo demo, {
+    required SimulationVersion simulation,
+  }) {
+    demo.checkSimulation(simulation);
+    return OrderTapePlayback.tape(demo.tape);
+  }
+
+  /// Plays [tape] as it is, with no simulation to check it against.
+  OrderTapePlayback.tape(this.tape);
 
   /// What is being played.
   final OrderTape tape;
@@ -175,10 +195,75 @@ final class MatchDemo {
     required this.checkpoints,
     this.platform,
     this.recordedBy,
+    this.simulation,
+    this.poses,
+    this.unknown = const <String, Object?>{},
   });
 
+  /// Reads a demo, or throws a [DemoFormatException] that says why not.
+  ///
+  /// Throws rather than answering null, because every reason is worth a
+  /// sentence: a file from a newer build can still be opened by the build that
+  /// wrote it, and a file with no tape in it was cut short by whatever wrote
+  /// it, and whoever is holding it deserves to be told which of the two they
+  /// have.
+  factory MatchDemo.fromJson(Map<String, Object?> json) =>
+      _read(json, json['version']);
+
   /// Bumped when an existing field changes meaning.
-  static const int formatVersion = 1;
+  ///
+  /// **Two since the map's world rode in the simulation's save.** A start
+  /// and the checkpoints of a version-one recording were taken of a match
+  /// whose water and fires were nowhere in its state, and whose waders were
+  /// held back after the step rather than in it; played now, the same tape
+  /// walks the crowd differently and the checkpoints cannot agree.
+  ///
+  /// **That is a different simulation, not an unreadable file** (decisions 8
+  /// and 9). A version-one file opens: its migration to two tags it with
+  /// [preWaterSimulation], and [refusalOn] then refuses its tape with the
+  /// sentence that says why, while its level, its stamp and its start are
+  /// still there to be read.
+  static const int formatVersion = 2;
+
+  /// The strategy simulation a version-one match was recorded on: the one
+  /// from before the map's water and fires rode in the match, which no 1.x
+  /// build runs.
+  static const SimulationVersion preWaterSimulation = SimulationVersion(
+    genre: 'strategy',
+    genreVersion: 0,
+  );
+
+  /// A strategy match in the registry: `f3d.match`.
+  ///
+  /// **`.match.f3drun`**: a match is a `.f3drun` like a `Demo`, and the
+  /// registry gives `.f3drun` to `f3d.run`; the longer suffix wins in
+  /// `FormatRegistry.forPath`, and the envelope's `format` is what tells
+  /// the two apart once a file named either way is open. The envelope is
+  /// additive at version 2 — a build from before it ignores the keys.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.match',
+    suffixes: <String>['.match.f3drun'],
+    version: formatVersion,
+    fixture: 'test/fixtures/v<N>/match.f3drun',
+    migrations: <FormatMigration>[_toPreWater],
+  );
+
+  static const Set<String> _known = <String>{
+    'level',
+    'levelHash',
+    'run',
+    'tape',
+    'buildStamp',
+    'checkpoints',
+    'platform',
+    'recordedBy',
+    'simulation',
+    'poses',
+  };
+
+  /// The top-level keys of the file this match was read from that this
+  /// build did not understand, written back as they were.
+  final Map<String, Object?> unknown;
 
   /// The extension a match is written under — the same one `Demo` uses,
   /// because both are read the same way once opened: a `.f3drun` on disk, its
@@ -218,11 +303,46 @@ final class MatchDemo {
   /// Who recorded it, or null for anonymous.
   final String? recordedBy;
 
+  /// Which simulation the tape was recorded in, or null for a match written
+  /// before simulations had numbers — read as the first ([refusalOn]).
+  final SimulationVersion? simulation;
+
+  /// Where the match's bodies were every few steps, beside [tape] — what a
+  /// viewer plays when the tape cannot be replayed. Null when none was kept.
+  final PoseRecord? poses;
+
+  /// One step per version, `_upgrades[n - 1]` taking `n` to `n + 1`.
+  ///
+  /// 1 → 2 changes no field's shape; what changed is the simulation under
+  /// the tape, so the step writes that down — [preWaterSimulation] — where a
+  /// file that names none would otherwise be read as the current one.
+  static Map<String, Object?> _toPreWater(Map<String, Object?> v1) =>
+      <String, Object?>{
+        ...v1,
+        'simulation': v1['simulation'] ?? preWaterSimulation.toJson(),
+      };
+
   /// How many steps the match lasted.
   int get steps => tape.steps;
 
+  /// Why this match's tape will not be replayed on [running] — the
+  /// `strategySimulationVersion` of this build — or null when it will.
+  String? refusalOn(SimulationVersion running) =>
+      (simulation ?? SimulationVersion.firstOf(running)).refusalOn(running);
+
+  /// Throws [ReplayException], carrying [poses], when [refusalOn] has a reason.
+  void checkSimulation(SimulationVersion running) {
+    final String? reason = refusalOn(running);
+    if (reason != null) throw ReplayException(reason, poses: poses);
+  }
+
+  /// The demo as a document [MatchDemo.fromJson] reads back, in the current
+  /// format version.
+  ///
+  /// The optional fields are left out when null, and the fields of [unknown]
+  /// that this version does not know are written back as they came.
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': formatVersion,
+    ...format.envelope(),
     'level': level,
     'levelHash': levelHash,
     'run': start.toJson(),
@@ -231,26 +351,26 @@ final class MatchDemo {
     'checkpoints': checkpoints.toJson(),
     if (platform != null) 'platform': platform,
     if (recordedBy != null) 'recordedBy': recordedBy,
+    if (simulation != null) 'simulation': simulation!.toJson(),
+    if (poses != null) 'poses': poses!.toJson(),
+    for (final MapEntry(:key, :value) in unknown.entries)
+      if (!_known.contains(key)) key: value,
   };
 
-  /// Reads a demo, or throws a [DemoFormatException] that says why not.
-  ///
-  /// Throws rather than answering null, because every reason is worth a
-  /// sentence: a file from a newer build can still be opened by the build that
-  /// wrote it, and a file with no tape in it was cut short by whatever wrote
-  /// it, and whoever is holding it deserves to be told which of the two they
-  /// have.
-  factory MatchDemo.fromJson(Map<String, Object?> json) {
-    final Object? version = json['version'];
+  static MatchDemo _read(Map<String, Object?> written, Object? version) {
     if (version is! num) {
       throw const DemoFormatException('the document has no version in it');
     }
-    if (version > formatVersion) {
-      throw DemoFormatException(
-        'the match was recorded by a newer build (format $version, this build '
-        'reads $formatVersion) — update flutter3d to open it',
-      );
+    if (version < 1 || FormatSpec.wholeNumber(version) == null) {
+      throw DemoFormatException('the recording names format $version');
     }
+    // A newer match, a `Demo` or anything else that is not one, or a
+    // `requires` this build does not know, is refused by the spec; an older
+    // match is lifted through the chain.
+    final Map<String, Object?> json = format.open(
+      written,
+      refuse: DemoFormatException.new,
+    );
     final Object? level = json['level'];
     if (level is! String || level.isEmpty) {
       throw const DemoFormatException('the recording names no map');
@@ -286,17 +406,43 @@ final class MatchDemo {
     final Snapshot start;
     try {
       start = Snapshot.fromJson(run.cast<String, Object?>());
-    } on SnapshotFormatException catch (error) {
-      throw DemoFormatException('the starting state: ${error.message}');
+    } on SnapshotFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the starting state: ${error.message}'),
+        stack,
+      );
     }
     final DigestTrace trace;
     try {
       trace = DigestTrace.fromJson(checkpoints.cast<String, Object?>());
-    } on DigestTraceFormatException catch (error) {
-      throw DemoFormatException('the checkpoints: ${error.message}');
+    } on DigestTraceFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the checkpoints: ${error.message}'),
+        stack,
+      );
     }
     final Object? platform = json['platform'];
     final Object? recordedBy = json['recordedBy'];
+    final SimulationVersion? simulation;
+    final PoseRecord? poses;
+    try {
+      simulation = switch (json['simulation']) {
+        null => null,
+        final Map<String, Object?> named => SimulationVersion.fromJson(named),
+        _ => throw const DemoFormatException(
+          'the simulation is not a document',
+        ),
+      };
+      poses = switch (json['poses']) {
+        null => null,
+        final Map<String, Object?> record => PoseRecord.fromJson(record),
+        _ => throw const DemoFormatException(
+          'the pose record is not a document',
+        ),
+      };
+    } on Flutter3dFormatException catch (error, stack) {
+      Error.throwWithStackTrace(DemoFormatException(error.message), stack);
+    }
     return MatchDemo(
       level: level,
       levelHash: levelHash,
@@ -306,6 +452,9 @@ final class MatchDemo {
       checkpoints: trace,
       platform: platform is String ? platform : null,
       recordedBy: recordedBy is String ? recordedBy : null,
+      simulation: simulation,
+      poses: poses,
+      unknown: FormatDocument.unknownIn(json, known: _known),
     );
   }
 }

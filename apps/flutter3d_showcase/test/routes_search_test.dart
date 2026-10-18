@@ -87,5 +87,16 @@ void main() {
       expect(compareVersions('0.4.3', '0.4.3'), 0);
       expect(compareVersions('0.4.3+2', '0.4.3'), 0);
     });
+
+    test('a pre-release comes before its release', () {
+      // Mutation: drop the pre-release, and `1.0.0-rc.1` is the same release
+      // as the `1.0.0` that follows it.
+      expect(compareVersions('1.0.0-rc.1', '1.0.0'), lessThan(0));
+      expect(compareVersions('1.0.0', '1.0.0-rc.1'), greaterThan(0));
+      expect(compareVersions('1.0.0-rc.1', '0.8.4'), greaterThan(0));
+      expect(compareVersions('1.0.0-rc.2', '1.0.0-rc.1'), greaterThan(0));
+      expect(compareVersions('1.0.0-rc.10', '1.0.0-rc.9'), greaterThan(0));
+      expect(compareVersions('1.0.0-rc.1', '1.0.0-rc.1'), 0);
+    });
   });
 }

@@ -20,7 +20,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'overlay_ink.dart';
 
 /// The grid of the ground plane, written into an overlay's line batch.
 ///
@@ -199,7 +200,7 @@ final class GroundGrid {
     final middle = (from + to) * 0.5;
     final strength = strengthAt(middle, eye: eye, fadeRadius: fadeRadius);
     if (strength <= _invisible) return false;
-    overlay.edge(from, to, fadedColour(ink, strength));
+    overlay.edge(from, to, fadedColour(ink, strength).ink);
     return true;
   }
 
@@ -236,14 +237,14 @@ final class GroundGrid {
   /// colour the grid meant rather than a fade smuggled into a channel nothing
   /// reads.
   Vector4 fadedColour(int ink, double strength) {
-    final colour = _rgba(ink);
+    final color = _rgba(ink);
     final ground = _rgba(backgroundColour);
     final mix = strength.clamp(0.0, 1.0);
     return Vector4(
-      ground.x + (colour.x - ground.x) * mix,
-      ground.y + (colour.y - ground.y) * mix,
-      ground.z + (colour.z - ground.z) * mix,
-      colour.w,
+      ground.x + (color.x - ground.x) * mix,
+      ground.y + (color.y - ground.y) * mix,
+      ground.z + (color.z - ground.z) * mix,
+      color.w,
     );
   }
 
@@ -273,11 +274,22 @@ final class GroundGrid {
 /// different kind of dial. The rule that refuses enums applies to published
 /// packages, and an application's own closed list is closed against nobody.
 enum ViewAxis {
+  /// Faces down `+X`: the eye on the `−X` side, looking across.
   xPositive,
+
+  /// Faces down `−X`: the eye on `+X`, looking back.
   xNegative,
+
+  /// Faces down `+Y`: looking up from below.
   yPositive,
+
+  /// Faces down `−Y`: looking down from above.
   yNegative,
+
+  /// Faces down `+Z`: the eye on the `−Z` side, looking across.
   zPositive,
+
+  /// Faces down `−Z`: the eye on `+Z`, looking back.
   zNegative;
 
   /// The unit vector this button faces the camera down.
@@ -301,6 +313,7 @@ enum ViewAxis {
 /// hit test in the same offsets is a hit test that works wherever the corner
 /// the dial lives in ends up.
 final class GizmoButton {
+  /// A button for [axis], [dx] and [dy] from the dial's centre.
   const GizmoButton({
     required this.axis,
     required this.dx,
@@ -308,6 +321,7 @@ final class GizmoButton {
     required this.facing,
   });
 
+  /// Which way the camera faces once this button is pressed.
   final ViewAxis axis;
 
   /// Pixels right of the dial's centre.
@@ -338,6 +352,8 @@ final class OrientationGizmo {
   /// for is a radius of about 22 with room for a ball at each end.
   const OrientationGizmo({this.radius = 22.0, this.handleRadius = 9.0});
 
+  /// The radius, in logical pixels, of the circle the buttons' centres sit
+  /// on; a button facing straight at the viewer lands in its middle.
   final double radius;
 
   /// How far from a button's centre a press still counts.

@@ -26,7 +26,10 @@ library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
-abstract interface class Rider {
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class Rider {
   /// What this is standing on, or null when it is standing on the level, in
   /// the air, or on nothing that moves.
   Collider? get carriedBy;

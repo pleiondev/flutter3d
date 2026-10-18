@@ -75,22 +75,26 @@ void main() {
     scene.add(
       LightNode(
         type: LightType.directional,
-        color: vm.Vector3(1.0, 0.96, 0.88),
-        intensity: 3.2,
+        color: LinearColor(1.0, 0.96, 0.88),
+        intensity: 3.2 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
     final camera = scene.add(CameraNode(name: 'camera'));
-    final views = <RenderView>[RenderView(camera: camera)];
+    final views = <CameraView>[CameraView(camera: camera)];
 
-    Future<Uint8List> draw() async {
+    // One step of the game, as a frame runs it, without drawing anything.
+    void advance() {
       staged.match.step(1.0 / 60.0);
       staged.visuals.sync();
       staged.camera.place(1.0 / 60.0);
       camera
         ..setPositionFrom(staged.camera.eye)
         ..lookAt(staged.camera.target);
+    }
 
+    Future<Uint8List> draw() async {
+      advance();
       final result = renderer.render(
         width: _width,
         height: _height,
@@ -98,9 +102,8 @@ void main() {
         views: views,
         settings: const RenderSettings(),
       );
-      final pixels = await it.device.readPixels(result.frame);
-      expect(pixels, isNotNull, reason: 'the frame could not be read back');
-      return pixels!.buffer.asUint8List();
+      final pixels = await it.device.readback(result.frame);
+      return pixels.buffer.asUint8List();
     }
 
     // A few frames, because the first is the camera's cut and the ones after
@@ -154,14 +157,16 @@ void main() {
     // written rather than uploaded once. Both halves of that are worth having
     // here — an order given from outside and a policy giving its own — because
     // the drawing cannot tell them apart and neither should this test.
-    // Ninety frames rather than the two hundred and forty this started with:
-    // the fog is two batches of a couple of thousand slabs, and the software
-    // rasteriser fills every one of them, so the frames here cost three times
-    // what they used to. A second and a half is still four metres of walking,
-    // which is all this needs to see.
+    // A second and a half of walking, four metres, which is all this needs to
+    // see. **Stepped and synced every frame, drawn once at the end.** The
+    // ninety frames in between were each rasterised and thrown away, and on
+    // the software rasteriser that was most of the test's 106 s: nothing
+    // looked at them. The batch is still written on every step, as the game
+    // writes it, and a batch uploaded once and never again still draws the
+    // crowd where it started — the same picture as `before`.
     Squad(staged.mine).moveTo(vm.Vector3(80.0, 0.0, 40.0));
     for (var i = 0; i < 90; i++) {
-      await draw();
+      advance();
     }
     final Uint8List after = await draw();
 

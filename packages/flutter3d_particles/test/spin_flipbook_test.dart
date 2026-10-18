@@ -10,6 +10,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -20,7 +22,10 @@ final class _FixedSpin extends ParticleAffector {
   const _FixedSpin(this.angle);
   final double angle;
   @override
-  void apply(Particle particle, double dt) => particle.rotation = angle;
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    particle.rotation = angle;
+  }
 }
 
 /// One particle at the origin, at a stated size, with nothing moving it.
@@ -36,7 +41,7 @@ ParticleSystem _one({double size = 2.0, double? rotation}) {
         count: 1,
         lifetime: const Range.exact(10.0),
         size: Range.exact(size),
-        color: Vector4(1.0, 1.0, 1.0, 1.0),
+        color: LinearColor(1.0, 1.0, 1.0, 1.0),
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         affectors: rotation == null
             ? const <ParticleAffector>[]
@@ -118,12 +123,12 @@ void main() {
       // sub-steps a frame takes would then change how fast particles spin.
       const spin = ParticleSpin(turnsPerSecond: 1.0);
       final particle = Particle()
-        ..lifetime = 1.0
-        ..age = 0.25
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.25
         ..seed = 0.8;
-      spin.apply(particle, 1 / 60);
+      spin.apply(ParticleStep(particle: particle, dt: 1 / 60));
       final once = particle.rotation;
-      spin.apply(particle, 1 / 60);
+      spin.apply(ParticleStep(particle: particle, dt: 1 / 60));
       expect(particle.rotation, once);
     });
 
@@ -132,16 +137,16 @@ void main() {
       // step, which draws the eye to the grid.
       const spin = ParticleSpin(turnsPerSecond: 1.0);
       final a = Particle()
-        ..lifetime = 1.0
-        ..age = 0.3
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.3
         ..seed = 0.1;
       final b = Particle()
-        ..lifetime = 1.0
-        ..age = 0.3
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.3
         ..seed = 0.9;
       spin
-        ..apply(a, 1 / 60)
-        ..apply(b, 1 / 60);
+        ..apply(ParticleStep(particle: a, dt: 1 / 60))
+        ..apply(ParticleStep(particle: b, dt: 1 / 60));
       expect(a.rotation, isNot(closeTo(b.rotation, 0.1)));
       // And in opposite directions, since the seed is signed about a half.
       expect(
@@ -169,32 +174,32 @@ void main() {
 
     test('the cell advances across the life and holds the last one', () {
       final book = Flipbook(columns: 4, rows: 1);
-      final particle = Particle()..lifetime = 1.0;
+      final particle = Particle()..lifetimeSeconds = 1.0;
 
-      particle.age = 0.0;
+      particle.ageSeconds = 0.0;
       expect(book.cellFor(particle).left, closeTo(0.0, 1e-9));
-      particle.age = 0.3;
+      particle.ageSeconds = 0.3;
       expect(book.cellFor(particle).left, closeTo(0.25, 1e-9));
-      particle.age = 0.8;
+      particle.ageSeconds = 0.8;
       expect(book.cellFor(particle).left, closeTo(0.75, 1e-9));
 
       // At and past the end the last frame is held. Wrapping to the first would
       // be a visible blink at the instant the particle disappears.
-      particle.age = 1.0;
+      particle.ageSeconds = 1.0;
       expect(book.cellFor(particle).left, closeTo(0.75, 1e-9));
-      particle.age = 2.0;
+      particle.ageSeconds = 2.0;
       expect(book.cellFor(particle).left, closeTo(0.75, 1e-9));
     });
 
     test('a looping sheet wraps instead of holding', () {
       final book = Flipbook(columns: 2, rows: 1, loops: 2);
-      final particle = Particle()..lifetime = 1.0;
-      particle.age = 0.0;
+      final particle = Particle()..lifetimeSeconds = 1.0;
+      particle.ageSeconds = 0.0;
       expect(book.cellFor(particle).left, closeTo(0.0, 1e-9));
-      particle.age = 0.3;
+      particle.ageSeconds = 0.3;
       expect(book.cellFor(particle).left, closeTo(0.5, 1e-9));
       // Second time round.
-      particle.age = 0.6;
+      particle.ageSeconds = 0.6;
       expect(book.cellFor(particle).left, closeTo(0.0, 1e-9));
     });
 
@@ -204,8 +209,8 @@ void main() {
       final book = Flipbook(columns: 3, rows: 3, frames: 7);
       expect(book.frameCount, 7);
       final particle = Particle()
-        ..lifetime = 1.0
-        ..age = 0.999;
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.999;
       final cell = book.cellFor(particle);
       expect(cell.left, closeTo(0.0, 1e-9), reason: 'frame six is column zero');
       expect(cell.top, closeTo(2 / 3, 1e-9), reason: 'of the last row');

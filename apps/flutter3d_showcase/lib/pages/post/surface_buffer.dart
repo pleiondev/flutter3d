@@ -8,7 +8,11 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `surface-buffer` page: the post stage's surface buffer put on the
+/// screen. Its check is that showing it costs multisampling and that nothing
+/// else here declines it.
 final class SurfaceBufferDemo extends ShowcaseDemo {
+  /// Whether the buffer is shown in place of the lit picture.
   bool show = true;
 
   late final bool _deviceCanMsaa;
@@ -18,7 +22,9 @@ final class SurfaceBufferDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    _deviceCanMsaa = context.device.supportsOffscreenMsaa;
+    _deviceCanMsaa = context.device.features.has(
+      DeviceFeature.offscreenMultisample,
+    );
     return PostStage.build(context).scene;
   }
 

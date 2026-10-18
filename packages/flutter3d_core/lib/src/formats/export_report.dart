@@ -22,6 +22,8 @@ import 'model_writer.dart';
 
 /// One write, read back and checked against what went in.
 final class ExportReport {
+  /// The [files] a write produced, its [writerWarnings] and the
+  /// [differences] reading them back found.
   const ExportReport({
     required this.files,
     required this.writerWarnings,
@@ -64,7 +66,9 @@ Future<ExportReport> exportChecked(
   CheckedModelWriter writer, {
   String name = 'model',
 }) async {
-  final ModelWrite written = writer.write(document, baseName: name);
+  final ModelWrite written = writer.write(
+    ModelWriteContext(document: document, baseName: name),
+  );
   final ModelDocument readBack = await writer.readBack(written);
   return ExportReport(
     files: <String, Uint8List>{

@@ -36,6 +36,20 @@ final class UvProjection {
   /// point in one of six directions, the way a box's six sides do.
   static const UvProjection box = UvProjection._('box');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<UvProjection> values = <UvProjection>[planar, box];
+
+  /// The value whose [_name] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static UvProjection? byName(String name) {
+    for (final value in values) {
+      if (value._name == name) return value;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'UvProjection.$_name';
 }

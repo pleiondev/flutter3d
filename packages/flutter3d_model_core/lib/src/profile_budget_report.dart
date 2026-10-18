@@ -24,20 +24,27 @@ import 'texture_budget.dart';
 /// One bar's own number: how much of a profile's limit is spent, in the
 /// unit the limit is named in — triangles, joints, influences, bytes.
 final class BudgetUsage {
+  /// A usage of [used] against [limit], both in the limit's own unit.
   const BudgetUsage({required this.used, required this.limit});
 
+  /// How much is spent, a count in the limit's unit: triangles, joints,
+  /// influences or bytes.
   final int used;
+
+  /// The profile's limit, a count in the same unit as [used]. A limit of nought
+  /// reads as spent the moment anything is used.
   final int limit;
 
   /// `used / limit` — the number a bar's width or colour reads, never
   /// dividing by zero: a limit of 0 reads as spent (`1.0`) the moment
   /// anything at all is used, and unspent (`0.0`) otherwise. A limit of 0
   /// with nothing used is not a project over its own budget.
+  /// A unitless ratio, above 1 once the budget is exceeded.
   double get fraction => limit <= 0 ? (used > 0 ? 1.0 : 0.0) : used / limit;
 
   /// Whether this bar alone paints orange — `anim-24`'s own acceptance:
   /// `maxJoints=16` on 19 joints.
-  bool get over => used > limit;
+  bool get isOver => used > limit;
 
   @override
   String toString() => 'BudgetUsage($used/$limit)';
@@ -46,6 +53,8 @@ final class BudgetUsage {
 /// Every "Screen 19" bar's own number, measured once against [project]'s
 /// own [ProjectProfile].
 final class ProfileBudgetReport {
+  /// A report of the four bars, with [wireframeDeclined] saying the wireframe
+  /// toggle is not built.
   const ProfileBudgetReport({
     required this.triangles,
     required this.joints,
@@ -97,9 +106,18 @@ final class ProfileBudgetReport {
     );
   }
 
+  /// Triangles across every object against [ProjectProfile.maxTriangles].
   final BudgetUsage triangles;
+
+  /// Joints in the largest skeleton against [ProjectProfile.maxJoints].
   final BudgetUsage joints;
+
+  /// Most joint influences on any one vertex against
+  /// [ProjectProfile.maxInfluences].
   final BudgetUsage influences;
+
+  /// Bytes the project's images cost on the device, recomputed under the
+  /// profile's texture budget, against its `maxBytesOnDevice`.
   final BudgetUsage textureBytes;
 
   /// `Screen 19` names a wireframe toggle among its budget bars; nothing
@@ -110,8 +128,11 @@ final class ProfileBudgetReport {
   final bool wireframeDeclined;
 
   /// Whether any bar here is over its own limit.
-  bool get anyOver =>
-      triangles.over || joints.over || influences.over || textureBytes.over;
+  bool get hasAnyOver =>
+      triangles.isOver ||
+      joints.isOver ||
+      influences.isOver ||
+      textureBytes.isOver;
 
   @override
   String toString() =>

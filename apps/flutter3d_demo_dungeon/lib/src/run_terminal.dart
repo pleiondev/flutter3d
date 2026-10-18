@@ -13,8 +13,10 @@ import 'package:flutter/material.dart';
 /// needs a finger: [log] is already capped at
 /// `FrameEffects.logCapacity` lines, and this shows every one of them.
 final class RunTerminal extends StatelessWidget {
+  /// A terminal showing [log].
   const RunTerminal({super.key, required this.log});
 
+  /// The level's messages, oldest first; the terminal redraws when it changes.
   final ValueListenable<List<String>> log;
 
   @override

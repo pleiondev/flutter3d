@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter3d_showcase/pages/scene/culling.dart';
 import 'package:flutter3d_showcase/pages/scene/debug_draw.dart';
+import 'package:flutter3d_showcase/pages/scene/decals.dart';
+import 'package:flutter3d_showcase/pages/scene/draw_control.dart';
 import 'package:flutter3d_showcase/pages/scene/frame_capture.dart';
 import 'package:flutter3d_showcase/pages/scene/frame_graph.dart';
 import 'package:flutter3d_showcase/pages/scene/frame_stats.dart';
@@ -21,6 +23,7 @@ import 'package:flutter3d_showcase/pages/scene/occlusion_culling.dart';
 import 'package:flutter3d_showcase/pages/scene/polylines.dart';
 import 'package:flutter3d_showcase/pages/scene/procedural_shapes.dart';
 import 'package:flutter3d_showcase/pages/scene/procedural_textures.dart';
+import 'package:flutter3d_showcase/pages/scene/render_textures.dart';
 import 'package:flutter3d_showcase/pages/scene/scene_graph.dart';
 import 'package:flutter3d_showcase/pages/scene/splat_budget.dart';
 import 'package:flutter3d_showcase/pages/scene/tangents.dart';
@@ -28,9 +31,12 @@ import 'package:flutter3d_showcase/pages/scene/vertex_cache.dart';
 import 'package:flutter3d_showcase/pages/scene/view_model.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> sceneDemos = <String, DemoBuilder>{
   'culling': CullingDemo.new,
   'debug-draw': DebugDrawDemo.new,
+  'decals': DecalsDemo.new,
   'frame-capture': FrameCaptureDemo.new,
   'frame-graph': FrameGraphDemo.new,
   'frame-stats': FrameStatsDemo.new,
@@ -46,9 +52,11 @@ final Map<String, DemoBuilder> sceneDemos = <String, DemoBuilder>{
   'polylines': PolylinesDemo.new,
   'procedural-shapes': ProceduralShapesDemo.new,
   'procedural-textures': ProceduralTexturesDemo.new,
+  'render-textures': RenderTexturesDemo.new,
   'scene-graph': SceneGraphDemo.new,
   'splat-budget': SplatBudgetDemo.new,
   'tangents': TangentsDemo.new,
   'vertex-cache': VertexCacheDemo.new,
   'view-model': ViewModelDemo.new,
+  'draw-control': DrawControlDemo.new,
 };

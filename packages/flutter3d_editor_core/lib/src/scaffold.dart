@@ -15,6 +15,7 @@ import 'scaffold_templates.dart';
 
 /// A template, as its manifest describes it.
 final class Template {
+  /// A template under the directory [id], with every field given.
   const Template({
     required this.id,
     required this.name,
@@ -22,22 +23,12 @@ final class Template {
     required this.files,
   });
 
-  /// The directory it lives in, and the word written into a level so the
-  /// palette can be rebuilt later.
-  final String id;
-
-  /// What a person picking one reads.
-  final String name;
-  final String about;
-
-  /// What to copy: the file's name in the template, against where it lands in
-  /// a project.
+  /// Reads the template in directory [id] from its `manifest` JSON.
   ///
-  /// A manifest rather than a directory listing, because the template is read
-  /// out of an application bundle and a bundle cannot be listed — and because
-  /// a file that exists and is not listed is a file that never arrives.
-  final Map<String, String> files;
-
+  /// A missing `name` is [id], a missing `about` is empty, and a `files`
+  /// entry whose target is not a string is left out. Throws a
+  /// [FormatException] for text that is not JSON, and a [TypeError] for a
+  /// manifest that is not an object.
   factory Template.parse(String id, String manifest) {
     final json = jsonDecode(manifest) as Map<String, Object?>;
     final files = json['files'];
@@ -52,6 +43,25 @@ final class Template {
       },
     );
   }
+
+  /// The directory it lives in, and the word written into a level so the
+  /// palette can be rebuilt later.
+  final String id;
+
+  /// What a person picking one reads.
+  final String name;
+
+  /// A paragraph on what the template is for, which opens a new project's
+  /// README; empty when the manifest gives none.
+  final String about;
+
+  /// What to copy: the file's name in the template, against where it lands in
+  /// a project.
+  ///
+  /// A manifest rather than a directory listing, because the template is read
+  /// out of an application bundle and a bundle cannot be listed — and because
+  /// a file that exists and is not listed is a file that never arrives.
+  final Map<String, String> files;
 }
 
 /// Where a project's directory is, given the level path somebody asked for.
@@ -60,15 +70,38 @@ final class Template {
 /// is a level inside a project rather than the project. `…/my_game/assets/
 /// levels/first.json` means `my_game`; a bare `…/my_game/first.json` means the
 /// directory it is in, and the level lands where the layout says it goes.
-({String root, String level}) projectAt(String levelPath) {
+ProjectLocation projectAt(String levelPath) {
   const inside = '/assets/';
   final at = levelPath.lastIndexOf(inside);
   if (at > 0) {
-    return (root: levelPath.substring(0, at), level: levelPath);
+    return ProjectLocation(root: levelPath.substring(0, at), level: levelPath);
   }
   final slash = levelPath.lastIndexOf('/');
   final root = slash <= 0 ? levelPath : levelPath.substring(0, slash);
-  return (root: root, level: '$root/assets/levels/first.json');
+  return ProjectLocation(root: root, level: '$root/assets/levels/first.json');
+}
+
+/// A project's directory and the level file inside it: what [projectAt]
+/// answers.
+final class ProjectLocation {
+  /// The project at [root] with its [level].
+  const ProjectLocation({required this.root, required this.level});
+
+  /// The path of the project's own directory.
+  final String root;
+
+  /// The path of the level file, inside [root].
+  final String level;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProjectLocation && other.root == root && other.level == level;
+
+  @override
+  int get hashCode => Object.hash(root, level);
+
+  @override
+  String toString() => 'ProjectLocation($root, $level)';
 }
 
 /// The name a directory and a pub package can both have.

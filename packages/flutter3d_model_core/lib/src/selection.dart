@@ -16,11 +16,48 @@ library;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import 'project_wire.dart';
+
 /// Which kind of thing is being selected.
-enum SelectionMode { object, mesh }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SelectionMode {
+  const SelectionMode._(this.name);
+
+  /// Whole objects are picked; [ProjectSelection.objects] is what counts.
+  static const SelectionMode object = SelectionMode._('object');
+
+  /// Vertices, edges or faces of the active object are picked;
+  /// [ProjectSelection.elements] is what counts.
+  static const SelectionMode mesh = SelectionMode._('mesh');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SelectionMode> values = <SelectionMode>[object, mesh];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SelectionMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SelectionMode.$name';
+}
 
 /// Everything selected, in one value.
 final class ProjectSelection {
+  /// A selection in [mode] of [objects] and, at [level], of [elements]. The
+  /// default is nothing selected in object mode at vertex level.
   const ProjectSelection({
     this.mode = SelectionMode.object,
     this.objects = const <int>[],
@@ -31,6 +68,8 @@ final class ProjectSelection {
   /// Nothing selected, in the mode a project opens in.
   static const ProjectSelection none = ProjectSelection();
 
+  /// Whether [objects] or [elements] is the selection that counts,
+  /// [SelectionMode.object] by default.
   final SelectionMode mode;
 
   /// Object ids, in the order they were picked, so the last one is the one a
@@ -44,6 +83,8 @@ final class ProjectSelection {
   /// Element ids within [objects]`.last`, ascending.
   final List<int> elements;
 
+  /// Whether nothing is selected in the current [mode]: no object in object
+  /// mode, no element in mesh mode.
   bool get isEmpty =>
       mode == SelectionMode.object ? objects.isEmpty : elements.isEmpty;
 
@@ -65,6 +106,8 @@ final class ProjectSelection {
   /// `flutter3d_mesh` and know nothing about objects or modes.
   Selection get asMeshSelection => Selection.of(level, elements);
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is.
   ProjectSelection copyWith({
     SelectionMode? mode,
     List<int>? objects,
@@ -103,12 +146,15 @@ final class ProjectSelection {
       1 => '1 ${level.name}',
       final int many => '$many ${level.name}s',
     },
+    _ => 'a ${mode.name} selection',
   };
 
+  /// The selection as JSON, with the mode and level as wire words; [fromJson]
+  /// reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
-    'mode': mode.name,
+    'mode': selectionModeWord(mode),
     'objects': objects,
-    'level': level.name,
+    'level': elementLevelWord(level),
     'elements': elements,
   };
 
@@ -120,12 +166,8 @@ final class ProjectSelection {
   /// would make one stale selection lose a whole document.
   static ProjectSelection? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
-    final mode = SelectionMode.values
-        .where((SelectionMode each) => each.name == json['mode'])
-        .firstOrNull;
-    final level = ElementLevel.values
-        .where((ElementLevel each) => each.name == json['level'])
-        .firstOrNull;
+    final mode = selectionModeOf(json['mode']);
+    final level = elementLevelOf(json['level']);
     final objects = _ints(json['objects']);
     final elements = _ints(json['elements']);
     if (mode == null || level == null || objects == null || elements == null) {
@@ -158,7 +200,11 @@ final class ProjectSelection {
 /// An interface rather than the project itself, so that this file does not
 /// depend on `project.dart` for a single question — and so a test can filter a
 /// selection against a set of ids without building a document.
-abstract interface class ModelProjectView {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ModelProjectView {
   /// Whether an object with [id] is in the project.
   bool holds(int id);
 }

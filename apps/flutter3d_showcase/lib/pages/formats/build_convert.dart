@@ -12,8 +12,10 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `build-convert` page: a tetrahedron that went through the converter's
+/// decode-then-write path in memory. Its check is that the source decoded,
+/// the writer wrote something, and the result is drawn.
 final class BuildConvertDemo extends ShowcaseDemo {
   late final int _sourceBytes;
   late final int _convertedBytes;
@@ -56,12 +58,12 @@ f 2 4 3
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _decoded.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.7, 0.65, 0.5, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.7, 0.65, 0.5, 1.0)),
         name: 'tetra',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 
@@ -70,7 +72,7 @@ f 2 4 3
       'source (.obj) bytes: $_sourceBytes\n'
       'converted (.f3d) bytes: $_convertedBytes\n\n'
       'The real command line tool:\n'
-      'dart run flutter3d_build:convert model.obj -o model.f3d\n\n'
+      'flutter3d convert model.obj -o .\n\n'
       'and, once per project, the build hook that runs it automatically:\n'
       'dart run flutter3d_build:init';
   // #endregion report

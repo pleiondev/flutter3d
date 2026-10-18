@@ -21,7 +21,7 @@
 /// live six-camera render.** The hand-off's screen 26 draws six thumbnails —
 /// perspective, front, side, top, wireframe, normals — but nothing in this
 /// app renders more than one view at a time outside `render`/`renderSheet`
-/// themselves (`mcp-06n`/`mcp-07n`, `flutter3d_model_mcp`), and standing up a
+/// themselves (`mcp-06n`/`mcp-07n`, `flutter3d_mcp/model.dart`), and standing up a
 /// second, parallel multi-camera renderer purely to mirror six fixed labels
 /// is a far larger thing than this row asks for. What the sheet actually
 /// shows instead is exactly as true to "what the agent gets instead of
@@ -41,6 +41,8 @@ import 'theme.dart';
 /// The tool-call feed and the author-badged history, screen 26's own right
 /// column.
 class AgentSessionPanel extends StatefulWidget {
+  /// The panel over [calls] and [history], both read live; the agent's steps
+  /// are taken back through [onUndoAgentSteps], never by the panel itself.
   const AgentSessionPanel({
     super.key,
     required this.calls,
@@ -378,6 +380,8 @@ String _elapsedLabel(Duration elapsed) {
 /// Screen 26's own contact sheet, drawn into `ModelerShell.bottom` — see
 /// this file's own library comment for what it actually shows and why.
 class AgentContactSheet extends StatelessWidget {
+  /// The sheet over [calls]: at most six of the newest pictures, newest
+  /// first, and a placeholder line while there are none.
   const AgentContactSheet({super.key, required this.calls});
 
   /// The same feed [AgentSessionPanel] reads — only the entries carrying a

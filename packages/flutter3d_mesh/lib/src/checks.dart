@@ -22,29 +22,12 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'selection.dart';
-
-/// Roughly how much an issue matters.
-///
-/// Machinery: three levels is what a panel can show and what a person can
-/// triage, and a fourth would be a shade of one of these rather than a new
-/// kind of answer. Named in `boundaryEnumExempt` for that reason, which is
-/// decision Б7 of `doc/model-editor-plan.md`.
-enum IssueSeverity {
-  /// Worth knowing. A boundary edge on a plane, an n-gon in a file.
-  note,
-
-  /// Probably not what somebody meant. Vertices in the same place, a shell
-  /// wound inside out.
-  warning,
-
-  /// Will not survive being drawn or written out. A face with no area.
-  error,
-}
 
 /// A kind of thing a check can find.
 ///
@@ -54,51 +37,93 @@ enum IssueSeverity {
 /// this package has to know about. The same shape `VertexAttribute` uses next
 /// door, for the same reason.
 final class MeshIssueKind {
+  /// A kind called [name], reported at [severity], whose ids are elements
+  /// at [level]. A caller outside this package may make its own.
   const MeshIssueKind(this.name, this.severity, this.level);
 
   /// A stable slug, which is what a report or a tool call carries.
   final String name;
 
-  final IssueSeverity severity;
+  /// How much an issue of this kind matters; [MeshChecks.all] sorts by it,
+  /// worst first.
+  final Severity severity;
 
   /// What the ids of an issue of this kind are.
   final ElementLevel level;
 
+  /// Faces with more than four corners: a note, ids are faces.
   static const MeshIssueKind ngon = MeshIssueKind(
     'ngon',
-    IssueSeverity.note,
+    Severity.note,
     ElementLevel.face,
   );
+
+  /// Edges with a face on one side only: a note, ids are half-edges.
   static const MeshIssueKind boundaryEdge = MeshIssueKind(
     'boundary-edge',
-    IssueSeverity.note,
+    Severity.note,
     ElementLevel.edge,
   );
+
+  /// Vertices where separate sheets of surface touch at a point: a warning,
+  /// ids are vertices.
   static const MeshIssueKind nonManifoldVertex = MeshIssueKind(
     'non-manifold-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
+
+  /// Vertices no face uses: a warning, ids are vertices.
   static const MeshIssueKind isolatedVertex = MeshIssueKind(
     'isolated-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
+
+  /// Vertices within [MeshChecks.tolerance] of another: a warning, ids are
+  /// vertices.
   static const MeshIssueKind duplicateVertex = MeshIssueKind(
     'duplicate-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
+
+  /// Closed shells enclosing a negative volume, wound inwards: a warning,
+  /// ids are the shells' faces.
   static const MeshIssueKind invertedShell = MeshIssueKind(
     'inverted-shell',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.face,
   );
+
+  /// Faces on fewer than three distinct places or with no area: an error,
+  /// ids are faces.
   static const MeshIssueKind degenerateFace = MeshIssueKind(
     'degenerate-face',
-    IssueSeverity.error,
+    Severity.error,
     ElementLevel.face,
   );
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<MeshIssueKind> values = <MeshIssueKind>[
+    ngon,
+    boundaryEdge,
+    nonManifoldVertex,
+    isolatedVertex,
+    duplicateVertex,
+    invertedShell,
+    degenerateFace,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MeshIssueKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   String toString() => name;
@@ -106,9 +131,12 @@ final class MeshIssueKind {
 
 /// Something a check found, and where.
 final class MeshIssue {
+  /// An issue of [kind] over [ids], which are copied and sorted, described
+  /// by [message].
   MeshIssue(this.kind, Iterable<int> ids, this.message)
     : ids = Int32List.fromList(ids.toList(growable: false)..sort());
 
+  /// What was found, and at which level [ids] are.
   final MeshIssueKind kind;
 
   /// The elements, at [MeshIssueKind.level]. Ascending, so a selection made
@@ -118,7 +146,8 @@ final class MeshIssue {
   /// A sentence for a person, with the count in it.
   final String message;
 
-  IssueSeverity get severity => kind.severity;
+  /// How much this matters: the severity of its [kind].
+  Severity get severity => kind.severity;
 
   /// The elements as something a viewport can highlight.
   Selection get selection => Selection.of(kind.level, ids);
@@ -129,9 +158,12 @@ final class MeshIssue {
 
 /// Every question worth asking about a mesh before it goes anywhere.
 final class MeshChecks {
+  /// Checks over [mesh] at [tolerance] metres; null takes a millionth of
+  /// the mesh's bounding diagonal, never under 1e-9.
   MeshChecks(this.mesh, {double? tolerance})
     : tolerance = tolerance ?? _defaultTolerance(mesh);
 
+  /// The mesh every check reads; never changed by them.
   final EditMesh mesh;
 
   /// The distance under which two vertices are in the same place, and the area
@@ -140,6 +172,7 @@ final class MeshChecks {
   /// Scaled to the model by default, because a millimetre on a building and a
   /// millimetre on a bolt are not the same question — the same rule the import
   /// welds by.
+  /// In metres (and, squared, the area threshold in square metres).
   final double tolerance;
 
   /// Everything that is wrong, worst first.

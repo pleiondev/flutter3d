@@ -29,13 +29,13 @@ void main() {
     final device = FakeBackend();
     final renderer = Renderer.create(device: device);
     final scene = Scene()..add(CameraNode());
-    final view = RenderView(camera: scene.cameras.single);
+    final view = CameraView(camera: scene.cameras.single);
 
     void frame() => renderer.render(
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       // Bloom acquires and releases pooled targets, which is what makes
       // this frame have anything to defer at all.
       settings: const RenderSettings(),

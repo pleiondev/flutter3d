@@ -1,0 +1,124 @@
+# The wire of flutter3d_net: every message the engine sends on a peer wire,
+# every message its relay sends, and every address a machine asks the relay
+# at, one block each.
+#
+# Written by hand beside the code, never generated: a renamed key must be a
+# decision somebody writes down here. `test/wire_snapshot_test.dart` holds
+# this file to the messages the code sends and to the golden JSON under
+# `test/fixtures/wire/v<major>/<message>.json`, one per message. The
+# structure check holds every line of the base its major was recorded with
+# (`tool/api/wire_base/flutter3d_net.wire`) to this file: within a protocol
+# major the wire only grows, and a line removed or changed is a new major.
+#
+#   protocol <major>.<minor>       WireHello.currentProtocolMajor/Minor
+#   message <name>                 a JSON message
+#     tag <key>=<value>            what tells it apart; `*` for any value
+#     key <name> [optional]        a key it carries, always unless optional
+#   address <path>                 a relay address, `<code>` for the party's
+#     query <name> [optional]      a query parameter it carries
+
+protocol 3.1
+
+message room.hello
+  tag tag=hello
+  key body
+  key met
+  key protocol
+  key simulation
+
+message room.channel
+  tag tag=*
+  key body
+
+message party.envelope
+  key body
+  key from
+
+message route
+  tag f3d=route
+  key body
+  key from
+  key to
+
+message bytes
+  tag f3d=bytes
+  key b
+
+message rollback
+  tag f3d=rollback
+  key frames
+
+message observe.join
+  tag f3d=observe.join
+  key filter
+  key mode
+  key simulation
+
+message observe.start
+  tag f3d=observe.start
+  key from
+  key mode
+  key simulation
+  key snapshot
+  key state
+  key to
+
+message observe.step
+  tag f3d=observe.step
+  key external optional
+  key input optional
+  key probes optional
+  key state optional
+  key step
+  key to
+
+message relay.welcome
+  tag f3d=relay
+  tag event=welcome
+  key code
+  key observing optional
+  key owner optional
+  key protocol
+  key simulation optional
+  key size
+  key slot
+  key watching
+
+message relay.full
+  tag f3d=relay
+  tag event=full
+  key size
+
+message relay.left
+  tag f3d=relay
+  tag event=left
+  key slot
+
+address /party/<code>
+  query protocol
+  query simulation optional
+  query size
+  query terms optional
+
+address /watch/<code>
+  query owner optional
+  query protocol
+  query simulation optional
+  query terms optional
+
+address /observe/<code>
+  query owner
+  query protocol
+  query simulation optional
+
+address /match
+  query game
+  query protocol
+  query simulation optional
+  query size
+  query terms optional
+
+address /room/<code>
+  query protocol
+  query simulation optional
+  query terms optional

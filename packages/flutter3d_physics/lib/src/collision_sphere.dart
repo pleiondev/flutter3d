@@ -3,8 +3,10 @@ part of 'collision_shape.dart';
 
 /// A sphere: pickups, projectiles, blast radii.
 final class CollisionSphere extends CollisionShape {
+  /// A sphere of [radius] metres. Checks nothing.
   CollisionSphere(this.radius);
 
+  /// The sphere's radius, in metres.
   final double radius;
 
   @override
@@ -70,6 +72,17 @@ final class CollisionSphere extends CollisionShape {
   /// gives in every direction but the six axes.
   @override
   double supportAlong(double nx, double ny, double nz) => radius;
+
+  @override
+  void supportPoint(double dx, double dy, double dz, Vector3 out) {
+    final length = math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (length == 0.0) {
+      out.setValues(radius, 0.0, 0.0);
+      return;
+    }
+    final scale = radius / length;
+    out.setValues(dx * scale, dy * scale, dz * scale);
+  }
 
   @override
   double raycast(

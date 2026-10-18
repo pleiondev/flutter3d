@@ -18,7 +18,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -53,7 +52,10 @@ const int _size = 64;
   ).build(layout: VertexLayout.skinned);
   for (var i = 0; i < materials; i++) {
     scene.add(
-      MeshNode(DeviceMesh.upload(device, geometry), Material(name: 'part $i'))
+      MeshNode(
+          DeviceMesh.upload(device, geometry),
+          RenderMaterial(name: 'part $i'),
+        )
         ..skeleton = skeleton
         ..skinReach = 1.5,
     );
@@ -61,7 +63,7 @@ const int _size = 64;
 
   scene
     ..add(
-      LightNode(intensity: 5.0, castsShadow: true)
+      LightNode(intensity: 5.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(3.0, 5.0, 2.0)
         ..lookAt(Vector3.zero()),
     )
@@ -91,7 +93,7 @@ void main() {
       width: _size,
       height: _size,
       scene: rig.scene,
-      views: <RenderView>[RenderView(camera: rig.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: rig.scene.cameras.single)],
       settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
     );
 
@@ -114,7 +116,7 @@ void main() {
       width: _size,
       height: _size,
       scene: rig.scene,
-      views: <RenderView>[RenderView(camera: rig.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: rig.scene.cameras.single)],
       settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
     );
 
@@ -143,7 +145,7 @@ void main() {
       width: _size,
       height: _size,
       scene: rig.scene,
-      views: <RenderView>[RenderView(camera: rig.scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: rig.scene.cameras.single)],
       settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
     );
 

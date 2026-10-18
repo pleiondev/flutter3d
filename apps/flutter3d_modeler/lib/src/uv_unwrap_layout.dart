@@ -18,15 +18,22 @@ import 'ui/theme.dart';
 
 /// One triangle in UV space, corners in the mesh's own winding order.
 final class UvTriangle {
+  /// A triangle with corners [a], [b] and [c].
   const UvTriangle(this.a, this.b, this.c);
 
+  /// The first corner's UV coordinates.
   final Offset a;
+
+  /// The second corner's UV coordinates.
   final Offset b;
+
+  /// The third corner's UV coordinates.
   final Offset c;
 }
 
 /// One island's own triangles, and how stretched its current UV mapping is.
 final class UvIslandData {
+  /// An island as [buildUvIslandData] reads it.
   const UvIslandData({
     required this.id,
     required this.faceCount,
@@ -44,6 +51,7 @@ final class UvIslandData {
   /// than one triangle, so this is not `triangles.length`.
   final int faceCount;
 
+  /// The island's faces fanned into triangles, as the UV view draws them.
   final List<UvTriangle> triangles;
 
   /// [stretchOf]'s own answer for this island — 1.0 is a perfect isometry,

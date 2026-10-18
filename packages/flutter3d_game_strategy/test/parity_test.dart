@@ -81,12 +81,12 @@ void main() {
 /// no reason to bother with and this one does: a car is a dozen numbers and a
 /// match is every unit, every building, every seam and a fog lattice, so saving
 /// on each of a thousand steps would cost more than the steps do. What is
-/// digested is `Match.save` rather than a list of fields somebody thought of —
-/// the same argument `match_test.dart` gives for comparing the bytes of a save:
-/// a field added to the world is in the comparison the same afternoon, and a
-/// hand-made digest goes on passing without it.
+/// digested is `StrategyMatch.save` rather than a list of fields somebody
+/// thought of — the same argument `match_test.dart` gives for comparing the
+/// bytes of a save: a field added to the world is in the comparison the same
+/// afternoon, and a hand-made digest goes on passing without it.
 DigestTrace _play({double seamTwo = 20.0, int steps = 1200, int every = 30}) {
-  final Match match = mirror(seamTwo: seamTwo, target: 10000.0);
+  final StrategyMatch match = mirror(seamTwo: seamTwo, target: 10000.0);
   final trace = DigestTrace(every: every);
   for (var step = 1; step <= steps; step++) {
     match.step(_step);

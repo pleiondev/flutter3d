@@ -301,7 +301,7 @@ void main() {
       final out = PadSnapshot();
       state.fill(out);
 
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
       expect(out.axis(PadAxis.leftStickY), 0.0);
       expect(out.down(PadButton.faceSouth), isFalse);
     });
@@ -315,7 +315,7 @@ void main() {
       final out = PadSnapshot();
       state.fill(out);
 
-      expect(out.connected, isFalse);
+      expect(out.isConnected, isFalse);
       expect(out.axis(PadAxis.triggerRight), 0.0);
     });
 
@@ -357,11 +357,11 @@ void main() {
     tearDown(() async => pad.dispose());
 
     test('says nothing until a device is announced', () {
-      final out = PadSnapshot()..connected = true;
+      final out = PadSnapshot()..isConnected = true;
       pad.read(out);
 
       expect(pad.isSupported, isTrue);
-      expect(out.connected, isFalse);
+      expect(out.isConnected, isFalse);
     });
 
     test('and a device announcement carries the axes it has', () {
@@ -377,7 +377,7 @@ void main() {
       final out = PadSnapshot();
       pad.read(out);
 
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
       expect(
         out.axis(PadAxis.triggerRight),
         closeTo(0.6, 1e-9),
@@ -419,7 +419,7 @@ void main() {
 
       final out = PadSnapshot();
       pad.read(out);
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
     });
     // Skipped in a browser, where this class is not the backend and there are no
     // channels for it to talk over. The mapping above is checked there too, and

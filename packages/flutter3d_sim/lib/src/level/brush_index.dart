@@ -7,6 +7,8 @@ import 'level.dart';
 /// its own file for the same reason [SurfaceBuilder] is: it is a data
 /// structure the generator leans on, not part of what a brush or a level is.
 final class BrushIndex {
+  /// An index of [level]'s solid, non-ramp brushes in square buckets
+  /// [cellSize] metres on a side.
   BrushIndex(this.level, this.cellSize) {
     for (var i = 0; i < level.brushes.length; i++) {
       final brush = level.brushes[i];
@@ -34,7 +36,10 @@ final class BrushIndex {
     }
   }
 
+  /// The level whose brushes are indexed, by their index in its list.
   final Level level;
+
+  /// A bucket's side across the ground, in metres.
   final double cellSize;
   final Map<int, List<int>> _cells = <int, List<int>>{};
 
@@ -43,7 +48,7 @@ final class BrushIndex {
   /// Strictly: a point exactly on another brush's surface does not count, so
   /// two brushes that merely share a face both keep their faces.
   bool containsPoint(double x, double y, double z, Brush except) {
-    const epsilon = Tolerance.sameSurface;
+    const epsilon = GeometryTolerance.sameSurface;
     final bucket =
         _cells[((x / cellSize).floor() << 32) ^
             ((z / cellSize).floor() & 0xFFFFFFFF)];

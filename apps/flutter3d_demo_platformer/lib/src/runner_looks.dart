@@ -24,8 +24,10 @@ export 'runner_clips.dart';
 /// a lean and a spin — which is what makes it testable without a renderer, and
 /// is the same split `PlatformerLooks` uses for the coin.
 final class RunnerLooks {
+  /// Looks posed by [tuning].
   RunnerLooks({this.tuning = const PoseTuning()});
 
+  /// The numbers the squash, the lean and the flip are worked out from.
   final PoseTuning tuning;
 
   /// Positive squashes, negative stretches. Decays to nothing.
@@ -75,11 +77,11 @@ final class RunnerLooks {
   void advance(Runner runner, double dt, List<GameEvent> events) {
     // Events first, because they set the pose; the decay below is what takes it
     // away again.
-    if (events.has<Jumped>()) {
+    if (events.any((e) => e is Jumped)) {
       _squash = -tuning.jumpStretch;
       if (!runner.isGrounded && runner.airJumpsLeft < 1) _flip = 1.0;
     }
-    if (events.has<Landed>()) {
+    if (events.any((e) => e is Landed)) {
       // Proportional to how hard, and clamped: a fall from the top of the level
       // should read as heavier than a hop, and neither should turn the runner
       // inside out.
@@ -94,7 +96,7 @@ final class RunnerLooks {
     if (events.whereType<Landed>().any((Landed e) => e.pounded)) {
       _squash = tuning.poundSquash;
     }
-    if (events.has<Slid>()) _squash = tuning.slideSquash;
+    if (events.any((e) => e is Slid)) _squash = tuning.slideSquash;
 
     // Everything decays back to standing. Exponential rather than linear, and
     // frame-rate independent for the reason the camera's lag is: a pose that
@@ -152,8 +154,9 @@ final class RunnerLooks {
 }
 
 /// The numbers behind the pose, in one place for the same reason
-/// `MovementTuning` is.
+/// `MovementSettings` is.
 final class PoseTuning {
+  /// The tuning the game ships with, unless a caller changes a number.
   const PoseTuning({
     this.depth = 0.35,
     this.jumpStretch = 0.5,
@@ -181,6 +184,7 @@ final class PoseTuning {
   /// The squash a ground pound leaves, which is the heaviest thing there is.
   final double poundSquash;
 
+  /// The squash a slide leaves.
   final double slideSquash;
 
   /// The falling speed that counts as a hard landing, in m/s.
@@ -194,7 +198,11 @@ final class PoseTuning {
 
   /// How far to lean at [leanAtSpeed], in radians.
   final double leanAngle;
+
+  /// The speed at which the lean reaches [leanAngle], in metres a second.
   final double leanAtSpeed;
+
+  /// How fast the lean follows the speed, per second.
   final double leanFollow;
 
   /// How far to roll into a wall while sliding down it.

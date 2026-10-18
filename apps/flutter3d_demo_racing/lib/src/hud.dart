@@ -5,24 +5,28 @@
 /// costs no draw calls and gets text layout, scaling and accessibility for
 /// nothing.
 ///
-/// The data this reads is [RaceReadout], in its own file; the panel, the line
-/// and the speedometer are `hud_pieces.dart`; the map is `mini_map.dart`. What
-/// is left here is the one thing none of those are: the layout that puts them
-/// all on the same screen.
+/// The data this reads is [RaceReadout], in its own file; the panel, the line,
+/// the speedometer and the map are `flutter3d_game_ui/hud.dart`'s. What is left here
+/// is the one thing none of those are: the layout that puts them all on the
+/// same screen.
 library;
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_game_ui/hud.dart'
+    show HudLine, HudPanel, MiniMap, Speedometer;
 
-import 'hud_pieces.dart';
-import 'mini_map.dart';
 import 'race_readout.dart';
 
+/// The race's heads-up display: the lap panel, the speedometer and the map in
+/// the corners, laid over the picture without taking a touch from it.
 class RaceHud extends StatelessWidget {
+  /// A display of [readout], with [issue] along the bottom when there is one.
   const RaceHud({super.key, required this.readout, this.issue});
 
+  /// Everything the display shows, read off the race once per frame.
   final RaceReadout readout;
 
   /// Something that went wrong where the player can see it, or null.
@@ -100,7 +104,7 @@ class RaceHud extends StatelessWidget {
                     label: 'TYRES',
                     value: readout.tyresRefused
                         ? 'STOP FIRST'
-                        : readout.tyres.toUpperCase(),
+                        : readout.tireSet.toUpperCase(),
                     accent: readout.tyresRefused,
                   ),
                 ],
@@ -109,9 +113,16 @@ class RaceHud extends StatelessWidget {
             Positioned(
               right: 16,
               bottom: 16,
-              child: Speedometer(readout: readout),
+              child: Speedometer(metersPerSecond: readout.speed),
             ),
-            Positioned(left: 16, bottom: 16, child: MiniMap(readout: readout)),
+            Positioned(
+              left: 16,
+              bottom: 16,
+              child: MiniMap(
+                outline: readout.outline,
+                markers: readout.carsOnMap,
+              ),
+            ),
             if (readout.wrongWay)
               const Positioned(
                 left: 0,

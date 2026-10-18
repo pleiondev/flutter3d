@@ -25,7 +25,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'bake.dart';
 import 'edit_mesh.dart';
@@ -47,7 +47,7 @@ typedef UvSpan = ({int y, int x0, int x1, Float32List weights});
 List<UvSpan> projectBrush({
   required EditMesh mesh,
   required TriangleBvh surface,
-  required Vector3 centre,
+  required Vector3 center,
   required double radius,
   required int size,
   BrushFalloff falloff = BrushFalloff.smooth,
@@ -60,7 +60,7 @@ List<UvSpan> projectBrush({
   final plan = MeshLayoutPlan()..build(mesh);
   final faces = <int>{};
   surface.forEachInAabb(
-    Aabb3.centerAndHalfExtents(centre, Vector3.all(radius)),
+    Aabb3.centerAndHalfExtents(center, Vector3.all(radius)),
     (int triangle) {
       if (triangle < plan.triangleCount) {
         faces.add(plan.triangleToFace[triangle]);
@@ -73,7 +73,7 @@ List<UvSpan> projectBrush({
   // order the faces come in, and a span is a run of neighbouring texels.
   final rows = <int, Map<int, double>>{};
   rasterizeUv(mesh, size, (BakeSample sample) {
-    final double distance = sample.position.distanceTo(centre);
+    final double distance = sample.position.distanceTo(center);
     if (distance > radius) return;
     final double weight = shapeFalloff(falloff, 1 - distance / radius);
     if (weight <= 0) return;

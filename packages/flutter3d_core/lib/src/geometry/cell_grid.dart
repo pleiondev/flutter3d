@@ -3,6 +3,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'box_shapes.dart';
@@ -15,6 +17,8 @@ import 'mesh_data.dart';
 /// is drawn again from what is left; [clear] and [clearAround] take cells
 /// away, and [mesh] draws the ones still there as blocks.
 final class CellGrid {
+  /// An empty grid of [columns] by [rows] cells of [cell] metres. Throws an
+  /// [ArgumentError] when either count is not positive.
   CellGrid({required this.columns, required this.rows, this.cell = 1.0})
     : _alive = Uint8List(columns * rows) {
     if (columns <= 0 || rows <= 0) throw ArgumentError('A grid of nothing.');
@@ -36,7 +40,10 @@ final class CellGrid {
     return grid;
   }
 
+  /// Count of cells across, along X; positive.
   final int columns;
+
+  /// Count of cells down, one per line of a mask; positive.
   final int rows;
 
   /// The size of one cell, in metres.
@@ -100,7 +107,7 @@ final class CellGrid {
   MeshData? mesh({
     required Vector3 Function(double x, double y) place,
     double? depth,
-    Vector4? colour,
+    LinearColor? color,
   }) {
     final size = Vector3(cell, depth ?? cell, cell);
     final block = CuboidShape(size: size).build();
@@ -114,6 +121,6 @@ final class CellGrid {
     ];
     if (parts.isEmpty) return null;
     final merged = MeshData.merge(parts);
-    return colour == null ? merged : merged.withColor(colour);
+    return color == null ? merged : merged.withColor(color);
   }
 }

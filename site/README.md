@@ -34,6 +34,7 @@ redeploy: the nginx vhost, the credentials and the tunnel all stay put.
 |---|---|
 | `content/` | The pages, as Markdown with a two-line front matter |
 | `tool/build.mjs` | The whole build. `NAV` at the top is the single source for the sidebar, the prev/next links and the build order, so the three cannot disagree |
+| `tool/plugins.mjs` | The plugin catalogue's cache, `content/reference/plugins.json`: the `flutter3d-plugin` topic on pub.dev and this repository's own plugins. `npm run plugins` asks pub.dev; `npm run plugins -- --offline` keeps the cached community list and rereads the tree. The build only reads the cache, so it never needs a network |
 | `assets/site.css` | Impeller Dark, plus a light theme by token flip |
 | `assets/site.js` | Theme toggle, mermaid theming, scrollspy, mobile nav |
 | `dist/` | Generated. Not in the repository |

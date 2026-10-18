@@ -45,14 +45,7 @@ void main() {
         decodeImage: defaultImageDecoder,
       );
 
-      expect(
-        handle,
-        isNotNull,
-        reason:
-            'a plain RGBA8 upload should not be '
-            'refused by a device that samples everything uncompressed',
-      );
-      expect(handle!.width, info!.width);
+      expect(handle.width, info!.width);
       expect(handle.height, info.height);
     },
   );

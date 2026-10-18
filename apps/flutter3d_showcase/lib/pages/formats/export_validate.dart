@@ -6,8 +6,10 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `export-validate` page: a cube written as GLB and validated on the
+/// way back. Its check is that the round trip was clean and the bounds
+/// declared right.
 final class ExportValidateDemo extends ShowcaseDemo {
   late final ExportReport _glb;
   late final ExportReport _obj;
@@ -22,7 +24,7 @@ final class ExportValidateDemo extends ShowcaseDemo {
       ),
     ],
     materials: <SurfaceMaterial>[
-      SurfaceMaterial(baseColor: Vector4(0.5, 0.7, 0.9, 1.0)),
+      SurfaceMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.7, 0.9, 1.0)),
     ],
     // `GltfWriter` places a surface through the node graph alone, never
     // through its own transform, so a document meant to be written as glTF
@@ -59,12 +61,12 @@ final class ExportValidateDemo extends ShowcaseDemo {
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _document.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.5, 0.7, 0.9, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.7, 0.9, 1.0)),
         name: 'cube',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

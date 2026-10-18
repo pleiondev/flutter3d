@@ -180,7 +180,9 @@ extension _GltfWriterMesh on GltfWriter {
           out[i] = (floats[i].clamp(0.0, 1.0) * 65535.0).round();
         }
         return out;
-      default:
+      case GltfComponentType.short ||
+          GltfComponentType.unsignedInt ||
+          GltfComponentType.float:
         throw StateError('$componentType is not a quantization target.');
     }
   }

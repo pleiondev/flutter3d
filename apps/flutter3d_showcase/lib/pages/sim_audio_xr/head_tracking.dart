@@ -5,7 +5,7 @@
 /// desktop browser has. This page implements the same `HeadTracker`
 /// interface by hand, driven by the pointer instead of a sensor, which is
 /// the honest stand-in: the rig on the other end cannot tell the difference,
-/// because all either one ever hands it is a `HeadPose`.
+/// because all either one ever hands it is a `RigidPose`.
 ///
 /// Quoted by `head_tracking.md` and shown whole in the Source tab.
 library;
@@ -14,28 +14,27 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region tracker
 /// Turns pointer drags into a head pose, the same shape a sensor would.
-final class _PointerHeadTracker implements HeadTracker {
-  final ValueNotifier<HeadPose> _pose = ValueNotifier<HeadPose>(
-    HeadPose.still(),
+final class _PointerHeadTracker extends HeadTracker {
+  final ValueNotifier<RigidPose> _pose = ValueNotifier<RigidPose>(
+    RigidPose.identity(),
   );
   double _yaw = 0.0;
 
   @override
-  ValueListenable<HeadPose> get pose => _pose;
+  ValueListenable<RigidPose> get pose => _pose;
 
   void dragBy(double dx) {
     _yaw -= dx * 0.01;
-    _pose.value = HeadPose(
-      rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _yaw),
+    _pose.value = RigidPose(
+      orientation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _yaw),
       position: Vector3.zero(),
     );
   }
@@ -48,6 +47,9 @@ final class _PointerHeadTracker implements HeadTracker {
 }
 // #endregion tracker
 
+/// The `head-tracking` page: a ball seen through a stereo rig whose head the
+/// pointer turns. Its check is that dragging turns the head and the head
+/// turns where the rig looks.
 final class HeadTrackingDemo extends ShowcaseDemo {
   final _PointerHeadTracker _tracker = _PointerHeadTracker();
   final StereoRig _rig = StereoRig();
@@ -55,9 +57,9 @@ final class HeadTrackingDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final material = f3d.Material(
+    final material = f3d.RenderMaterial(
       name: 'ball',
-      baseColor: Vector4(0.8, 0.5, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.3, 1.0),
     );
     final ball = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),

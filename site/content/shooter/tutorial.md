@@ -23,25 +23,25 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_impeller: ^0.8.0
-  flutter3d:          ^0.8.0
-  flutter3d_game:     ^0.8.0
-  flutter3d_game_shooter: ^0.8.0
-  flutter3d_app:      ^0.8.0
-  flutter3d_audio:    ^0.8.0
-  flutter3d_particles: ^0.8.0
+  flutter3d_impeller: ^1.0.0-rc.1
+  flutter3d:          ^1.0.0-rc.1
+  flutter3d_game:     ^1.0.0-rc.1
+  flutter3d_game_shooter: ^1.0.0-rc.1
+  flutter3d_app:      ^1.0.0-rc.1
+  flutter3d_audio:    ^1.0.0-rc.1
+  flutter3d_particles: ^1.0.0-rc.1
   vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test: { sdk: flutter }
   # Only the tests use it, and only to draw a frame without a GPU.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^1.0.0-rc.1
 ```
 
 Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`. That is the whole of the setup: the shader bundle rides inside `flutter3d_impeller` and is loaded from there, so a project installed from pub.dev has nothing to build. The [quickstart](/quickstart/) covers the plist keys, and its bundle step is for the checkout it opens with.
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.7.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.7.0 asks for <code>flutter3d</code> 0.7.0, so one package left on 0.6.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same set, the release candidate 1.0.0-rc.1, and the lines have to agree: <code>flutter3d_app</code> 1.0.0-rc.1 asks for <code>flutter3d</code> <code>'&gt;=1.0.0-rc.1 &lt;1.1.0'</code>, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Decide what a weapon is {.step}
@@ -54,7 +54,7 @@ abstract final class Weapons {
   // a dead end.
   static const WeaponDef fists = WeaponDef(
     name: 'Fists',
-    behaviour: MeleeBehaviour(),
+    behavior: MeleeBehavior(),
     ammo: AmmoType.none,
     damage: 20.0,
     shotsPerSecond: 2.0,
@@ -64,7 +64,7 @@ abstract final class Weapons {
 
   static const WeaponDef pistol = WeaponDef(
     name: 'Pistol',
-    behaviour: HitscanBehaviour(),
+    behavior: HitscanBehavior(),
     ammo: AmmoType.bullets,
     damage: 14.0,
     shotsPerSecond: 4.0,
@@ -77,7 +77,7 @@ abstract final class Weapons {
   // Eight pellets, and all of the reason to close the distance.
   static const WeaponDef shotgun = WeaponDef(
     name: 'Shotgun',
-    behaviour: HitscanBehaviour(),
+    behavior: HitscanBehavior(),
     ammo: AmmoType.shells,
     damage: 11.0,
     shotsPerSecond: 1.4,
@@ -92,7 +92,7 @@ abstract final class Weapons {
 
   static const WeaponDef rocketLauncher = WeaponDef(
     name: 'Rocket Launcher',
-    behaviour: ProjectileBehaviour(),
+    behavior: ProjectileBehavior(),
     ammo: AmmoType.rockets,
     damage: 90.0,
     shotsPerSecond: 0.9,
@@ -124,7 +124,7 @@ abstract final class Monsters {
     name: 'runner', health: 45.0, speed: 5.4,
     radius: 0.35, height: 1.7, sightRange: 24.0,
     attack: WeaponDef(
-      name: 'claws', behaviour: MeleeBehaviour(), ammo: AmmoType.none,
+      name: 'claws', behavior: MeleeBehavior(), ammo: AmmoType.none,
       damage: 9.0, shotsPerSecond: 1.6, range: 1.9, automatic: true,
     ),
   );
@@ -135,7 +135,7 @@ abstract final class Monsters {
     name: 'shooter', health: 60.0, speed: 3.0,
     radius: 0.38, height: 1.8, sightRange: 30.0,
     attack: WeaponDef(
-      name: 'fireball', behaviour: ProjectileBehaviour(), ammo: AmmoType.none,
+      name: 'fireball', behavior: ProjectileBehavior(), ammo: AmmoType.none,
       damage: 22.0, shotsPerSecond: 0.55, range: 30.0,
       projectileSpeed: 13.0, splashRadius: 2.2, splashMinimumFraction: 0.2,
     ),
@@ -147,7 +147,7 @@ abstract final class Monsters {
     radius: 0.62, height: 2.4, sightRange: 22.0,
     painChance: 0.15, painCooldown: 1.4, hurtDuration: 0.18,
     attack: WeaponDef(
-      name: 'slam', behaviour: MeleeBehaviour(arcDegrees: 100.0),
+      name: 'slam', behavior: MeleeBehavior(arc: 1.745), // 100°, in radians
       ammo: AmmoType.none, damage: 34.0, shotsPerSecond: 0.7,
       range: 2.6, automatic: true,
     ),
@@ -170,7 +170,7 @@ EntityRegistry shooterRegistry() => EntityRegistry(<EntityKind>[
       const PlayerSpawnKind(),
       MonsterKind(Monsters.byName),
       PickupKind(gifts),
-      const KeyKind(),
+      const ShooterKeyKind(),
       const DoorKind(),
       const LiftKind(),
       const PlatformKind(),
@@ -183,7 +183,7 @@ EntityRegistry shooterRegistry() => EntityRegistry(<EntityKind>[
 
 final GiftRegistry gifts = GiftRegistry(<Gift>[
   const HealthGift(),
-  const ArmourGift(),
+  const ArmorGift(),
   const AmmoGift('bullets', AmmoType.bullets, defaultAmount: 20.0),
   const AmmoGift('shells', AmmoType.shells, defaultAmount: 8.0),
   const AmmoGift('rockets', AmmoType.rockets, defaultAmount: 4.0),
@@ -263,9 +263,12 @@ final kinds = shooterRegistry();
 // One entity world for everything that has moved onto components, so one
 // save covers the lot. Two would be a save covering half the game.
 final entities = EcsWorld();
-final hitscan = Hitscan(world: collision);
+// One set of dice for the whole run, so a save holds where they stand. Any
+// seed; the same seed and the same input play the same game.
+final random = GameRandom(7);
+final hitscan = Hitscan(world: collision, random: random);
 final projectiles = ProjectileSystem(world: collision, entities: entities);
-final actors = ActorSystem(world: collision, entities: entities);
+final actors = ActorSystem(world: collision, random: random, entities: entities);
 final mechanisms = MechanismWorld(collision);
 
 final bestiary = Bestiary(
@@ -339,13 +342,18 @@ Baked from `level.brushes`, deliberately **not** from `collision`: the world hol
 
 ```dart
 final input = InputState();
-final loop = GameLoop(input: input, onStep: sim.step);
+final loop = EngineLoop(input: input)
+  ..addSystem(
+    'shooter',
+    LoopPhase.physics,
+    (LoopContext context) => sim.step(context.dt),
+  );
 
-// In a test, drive it directly rather than from a Ticker.
+// In a test, drive it directly rather than from a Ticker. The loop ends each
+// step's input itself, so a press is seen by exactly one step.
 for (var i = 0; i < 600; i++) {
   input.press(GameAction.moveForward);
-  loop.advance(1.0 / 60.0);
-  input.endStep();
+  loop.frame(1.0 / 60.0);
 }
 expect(sim.state, GameState.complete);
 ```
@@ -383,6 +391,33 @@ Lists filled during the step and drained after it. Nothing here decides anything
 <div class="note">
 <p><code>Effects</code> is this application's own catalogue of <code>ParticleEffect</code> constants, not a package export; the demo's lives in <code>apps/flutter3d_demo_dungeon/lib/src/effects.dart</code>.</p>
 </div>
+
+Two of them, enough for the step above:
+
+```dart
+abstract final class Effects {
+  // A spray of sparks off whatever a shot hit.
+  static final ParticleEffect impact = ParticleEffect(
+    count: 12,
+    lifetime: const Range(0.15, 0.3),
+    size: const Range(0.02, 0.05),
+    // Linear, and above one so the bloom picks it up.
+    color: LinearColor(1.6, 1.1, 0.6, 1.0),
+    emitter: const ConeEmitter(halfAngle: 0.6, speed: Range(2.0, 5.0)),
+    affectors: const <ParticleAffector>[ParticleGravity.world()],
+  );
+
+  // A rocket's fireball.
+  static final ParticleEffect explosion = ParticleEffect(
+    count: 60,
+    lifetime: const Range(0.3, 0.7),
+    size: const Range(0.2, 0.5),
+    color: LinearColor(2.4, 1.2, 0.4, 1.0),
+    emitter: const SphereEmitter(speed: Range(3.0, 7.0)),
+    affectors: const <ParticleAffector>[ParticleDrag(3.0), ParticleFade()],
+  );
+}
+```
 
 ## Load the level with visuals {.step}
 
@@ -422,7 +457,7 @@ loaded.level.spawnInto(
 `ActorAppearance` and `FixtureAppearance` are the seams where the game says what things look like. Everything else in the bridge is mechanism.
 
 ```dart
-final class DungeonMonsters implements ActorAppearance {
+final class DungeonMonsters with ActorAppearance {
   const DungeonMonsters();
 
   // The engine hands over an `Actor`; what kind of thing it is lives on its
@@ -432,8 +467,16 @@ final class DungeonMonsters implements ActorAppearance {
   @override
   String meshKeyFor(Actor actor) => _brainOf(actor)?.def.name ?? 'actor';
 
+  // No models yet: every monster is the bridge's capsule, in its colour. The
+  // demo names a `.glb` per kind here and the clips each state plays.
   @override
-  Material materialFor(Actor actor) {
+  String? modelFor(Actor actor) => null;
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
+
+  @override
+  RenderMaterial materialFor(Actor actor) {
     final brain = _brainOf(actor);
     // Brightened for a moment after a hit: the cheapest damage feedback there
     // is, and the one whose absence makes a fight feel unresponsive.
@@ -449,13 +492,64 @@ final class DungeonMonsters implements ActorAppearance {
   // Shared rather than built per call: materialFor runs for every monster
   // every frame, and a default that allocated would allocate once a frame
   // per monster.
-  static final Map<String, Material> _materials = <String, Material>{
-    'runner':  Material(baseColor: Vector4(0.52, 0.20, 0.18, 1.0), roughness: 0.7),
-    'shooter': Material(baseColor: Vector4(0.22, 0.32, 0.52, 1.0), roughness: 0.6),
-    'tank':    Material(baseColor: Vector4(0.30, 0.28, 0.16, 1.0), roughness: 0.85),
-  };
-  static final Material _struck = Material(baseColor: Vector4(1.4, 0.9, 0.8, 1.0));
-  static final Material _unknown = Material();
+  static final Map<String, RenderMaterial> _materials =
+      <String, RenderMaterial>{
+        'runner': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.52, 0.20, 0.18, 1.0),
+          roughness: 0.7,
+        ),
+        'shooter': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.22, 0.32, 0.52, 1.0),
+          roughness: 0.6,
+        ),
+        'tank': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.30, 0.28, 0.16, 1.0),
+          roughness: 0.85,
+        ),
+      };
+  static final RenderMaterial _struck = RenderMaterial(
+    baseColor: LinearColor.fromSrgb(1.4, 0.9, 0.8, 1.0),
+  );
+  static final RenderMaterial _unknown = RenderMaterial();
+}
+```
+
+The fixtures' appearance is the same seam for torches, keys and pickups. The smallest that draws a torch:
+
+```dart
+final class DungeonFixtures with FixtureAppearance {
+  const DungeonFixtures();
+
+  // A glowing cup where the torch is, and the flame the game feeds above it.
+  // The demo's draws a plate, a shaft and a cup, a lamp and a window.
+  @override
+  TorchFire? buildLightFixture(LightFixtureBuild build) {
+    build.holder.add(
+      MeshNode(build.meshes.box(build.fixture.size), build.glow, name: 'cup'),
+    );
+    return TorchFire(build.holder, rise: build.fixture.size.y * 0.5);
+  }
+
+  @override
+  LevelMaterial fallbackFor(Fixture fixture) =>
+      LevelMaterial(baseColor: LinearColor.fromSrgb(0.62, 0.55, 0.40));
+
+  // A pickup taken is a pickup gone, and a pickup on the floor turns.
+  @override
+  bool isSpent(Fixture fixture) {
+    final mechanism = fixture.mechanism;
+    return mechanism is Pickup && mechanism.isTaken;
+  }
+
+  @override
+  bool spins(Fixture fixture) => fixture.mechanism is Pickup;
+
+  @override
+  double scaleOf(Fixture fixture) => 1.0;
+
+  // Nothing here changes colour once it is placed.
+  @override
+  void refresh(FixtureRefreshContext context) {}
 }
 ```
 
@@ -493,10 +587,12 @@ if (sim.firedThisStep != null) _weaponView.recoil();
 
 ## A HUD that reads one object {.step}
 
-```dart
+`Hud` is the application's own widget, as `Effects` is its own catalogue; the demo's is `apps/flutter3d_demo_dungeon/lib/src/hud.dart`. What matters is what it is handed:
+
+```dart fragment
 Hud(
   health: inventory.health.current,
-  armour: inventory.health.armour,
+  armor: inventory.health.armor,
   weapon: arsenal.isEmpty ? null : arsenal.current,
   ammo: arsenal.isEmpty ? 0 : arsenal.ammoOf(arsenal.current.ammo),
   keys: inventory.keys,

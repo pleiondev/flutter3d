@@ -9,13 +9,15 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'incident_scenario.dart';
 
 /// Scrubs a pre-recorded [DataSourceTrace] between named moments — `edu-05`'s
-/// own trace read back by [DataSourceTrace.valueAt], the same mechanism
-/// `flutter3d_lab_twin`'s own `TwinWhatIfController` branches rather than
-/// only reads. This one never writes: an incident that already happened is
+/// own trace read back by [DataSourceTrace.valueAt], which a what-if run
+/// would branch rather than only read. This one never writes: an incident
+/// that already happened is
 /// read, not branched, so [DataSourceTrace.record]/`branchAt` never appear
 /// here at all — [trace] is built once, by [recordSpindleOverheatIncident],
 /// before this controller ever sees it.
 final class IncidentReplayController {
+  /// A replay of [trace] standing on the first of [moments], with the
+  /// reading under [bindingPath] already read; [moments] must not be empty.
   IncidentReplayController({
     required this.trace,
     required this.moments,
@@ -27,14 +29,29 @@ final class IncidentReplayController {
     _apply();
   }
 
+  /// The recorded incident, read and never written.
   final DataSourceTrace trace;
+
+  /// The named points of the incident the replay steps between, in the
+  /// order a scrub visits them.
   final List<IncidentMoment> moments;
+
+  /// Which value in each recorded step the panel shows: the key into what
+  /// [DataSourceTrace.valueAt] returns.
   final String bindingPath;
 
+  /// Which of [moments] is current, from zero. Move it with [next],
+  /// [previous] or [jumpTo], which also refresh [reading]; writing it
+  /// directly does not.
   int index = 0;
 
+  /// The moment the replay stands on.
   IncidentMoment get current => moments[index];
+
+  /// Whether [previous] has anywhere to go; the panel greys its button out.
   bool get isFirst => index <= 0;
+
+  /// Whether [next] has anywhere to go; the panel greys its button out.
   bool get isLast => index >= moments.length - 1;
 
   /// What [trace] recorded at [current]'s own step — [ValueListenable]
@@ -48,12 +65,14 @@ final class IncidentReplayController {
   /// about the same scrub position.
   final ValueNotifier<int> momentIndex = ValueNotifier<int>(0);
 
+  /// Steps to the moment after [current]; on the last one, does nothing.
   void next() {
     if (isLast) return;
     index++;
     _apply();
   }
 
+  /// Steps to the moment before [current]; on the first one, does nothing.
   void previous() {
     if (isFirst) return;
     index--;
@@ -83,8 +102,11 @@ final class IncidentReplayController {
 /// `ls-i-02`'s own acceptance line, which a bare number cannot say by
 /// itself.
 final class IncidentPanel extends StatelessWidget {
+  /// The panel showing wherever [controller] has scrubbed to.
   const IncidentPanel({super.key, required this.controller});
 
+  /// The replay the panel reads its number and caption from; it rebuilds on
+  /// the controller's notifiers and never moves it.
   final IncidentReplayController controller;
 
   @override

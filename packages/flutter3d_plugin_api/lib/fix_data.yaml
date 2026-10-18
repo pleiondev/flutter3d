@@ -1,0 +1,62 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: ff5772a3c77c0712
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-Entity (Entity)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Entity'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_plugin_api/flutter3d_plugin_api.dart']
+          class: 'Entity'
+  - title: 'flutter3d after 1.0.0-rc.1: plugin_api-ExternalStateInput-ExternalStateInput'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart']
+      constructor: ''
+      inClass: 'ExternalStateInput'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'receivedTime'
+        newName: 'receivedSeconds'
+      - kind: 'renameParameter'
+        oldName: 'sourceTime'
+        newName: 'sourceSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: plugin_api-ExternalStateInput-ExternalStateInput-quantity'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart']
+      constructor: 'quantity'
+      inClass: 'ExternalStateInput'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'receivedTime'
+        newName: 'receivedSeconds'
+      - kind: 'renameParameter'
+        oldName: 'sourceTime'
+        newName: 'sourceSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: plugin_api-ExternalStateInput-receivedTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart']
+      field: 'receivedTime'
+      inClass: 'ExternalStateInput'
+    changes:
+      - kind: 'rename'
+        newName: 'receivedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: plugin_api-ExternalStateInput-sourceTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart']
+      field: 'sourceTime'
+      inClass: 'ExternalStateInput'
+    changes:
+      - kind: 'rename'
+        newName: 'sourceSeconds'

@@ -4,37 +4,86 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'cpu_raster_scratch.dart';
+import 'cpu_render_bundle.dart';
+import 'cpu_resources.dart';
 import 'cpu_shader.dart';
 import 'cpu_shader_library.dart';
 import 'cpu_vertex_fetch.dart';
 
 /// Records state and rasterises on `draw`.
-final class CpuEncoder implements CommandEncoder {
-  CpuEncoder(this._descriptor, [this._independentBlend = true]) {
+///
+/// [features] is the device's answer, which every gated member asks before
+/// doing anything; [support] answers per format, for storage bindings; and
+/// [clock] is what the pass's timestamps are read from; [refusals] is the
+/// device's record of the pipelines whose draws are skipped; [scratch] is
+/// the device's lists the rasteriser works in, one set for every pass.
+final class CpuEncoder extends PassEncoder with CommandEncoder {
+  /// Opens the render pass the descriptor describes: writes its beginning
+  /// timestamp and clears every attachment whose load action says so, the whole
+  /// attachment whatever the scissor, leaving a read-only depth or stencil
+  /// alone.
+  ///
+  /// Throws an [ArgumentError] when the descriptor's occlusion query set is not
+  /// of `QueryType.occlusion`.
+  CpuEncoder(
+    this._descriptor, {
+    required DeviceFeatures features,
+    required this._support,
+    required this._clock,
+    required this._refusals,
+    required this._scratch,
+  }) : _features = features,
+       _independentBlend = features.has(DeviceFeature.independentBlend) {
+    final occlusion = _descriptor.occlusionQuerySet;
+    if (occlusion != null && occlusion.type != QueryType.occlusion) {
+      throw ArgumentError.value(
+        occlusion,
+        'occlusionQuerySet',
+        'is a ${occlusion.type.name} set',
+      );
+    }
+    final timestamps = _descriptor.timestampWrites;
+    writeTimestamp(timestamps, timestamps?.beginningOfPassIndex, _clock);
     for (final color in _descriptor.colors) {
       final texture = _attachment(color);
       if (color.loadAction != LoadAction.clear) continue;
-      final value = color.clearValue ?? Vector4.zero();
+      // Every kind as doubles: the texels here are floats whatever the
+      // format, and a double holds an integer clear exactly.
+      final value = (color.clearValue ?? ClearColor.transparentBlack).channels;
       // The whole attachment, whatever the scissor says. Here that is the
       // natural way to write it, which is the point of the rule being stated
       // rather than inherited from what one API happened to do.
       for (var i = 0; i < texture.pixels.length; i += 4) {
-        texture.pixels[i] = value.x;
-        texture.pixels[i + 1] = value.y;
-        texture.pixels[i + 2] = value.z;
-        texture.pixels[i + 3] = value.w;
+        texture.pixels[i] = value[0];
+        texture.pixels[i + 1] = value[1];
+        texture.pixels[i + 2] = value[2];
+        texture.pixels[i + 3] = value[3];
       }
     }
     final depth = _descriptor.depth;
     if (depth != null) {
-      final texture = depth.texture.backend as CpuTexture;
+      // The level and the plane the attachment names. `layer` and `face`
+      // count as a colour target's do, so on a cube or a cube array the
+      // plane is the one a `TextureRegion.z` would name: `layer × 6 + face`.
+      final shape = depth.texture.dimension;
+      final texture = (depth.texture.backend as CpuTexture).plane(
+        mipLevel: depth.mipLevel,
+        z: shape == TextureDimension.cube || shape == TextureDimension.cubeArray
+            ? depth.layer * 6 + depth.face
+            : depth.layer,
+      );
       // Kept as the last pass left it when the pass loads — `R8`'s
       // transparent passes test against the opaque pass's depth. Every
       // buffer here is stored, so the store action has nothing to decide.
-      if (depth.loadAction == LoadAction.clear) {
+      // A read-only depth is never cleared and never written: its load
+      // action is ignored, as WebGPU says.
+      if (depth.loadAction == LoadAction.clear && !depth.depthReadOnly) {
         texture.depthBuffer().fillRange(
           0,
           texture.width * texture.height,
@@ -42,20 +91,27 @@ final class CpuEncoder implements CommandEncoder {
         );
       }
       _depthTarget = texture;
+      _depthReadOnly = depth.depthReadOnly;
+      _depthFormat = depth.texture.format;
       // The stencil only where the format says there is one — the test
       // against an attachment without a stencil is specified to pass always,
       // and a null here is how the loops below get that for free.
       if (depth.texture.format.hasStencil) {
         final stencil = texture.stencilBuffer();
-        if (depth.stencilLoadAction == LoadAction.clear) {
+        if (depth.stencilLoadAction == LoadAction.clear &&
+            !depth.stencilReadOnly) {
           stencil.fillRange(0, stencil.length, depth.stencilClearValue & 0xFF);
         }
         _stencilTarget = stencil;
+        _stencilReadOnly = depth.stencilReadOnly;
       }
     }
   }
 
   final RenderPassDescriptor _descriptor;
+  final DeviceFeatures _features;
+  final TextureFormatSupport Function(TextureFormat) _support;
+  final CpuClock _clock;
 
   /// What the device answered for `supportsIndependentBlend`. False only for
   /// a test drawing the fallback; then an index is ignored, as the contract
@@ -63,6 +119,37 @@ final class CpuEncoder implements CommandEncoder {
   final bool _independentBlend;
   CpuTexture? _depthTarget;
   Uint8List? _stencilTarget;
+  TextureFormat _depthFormat = TextureFormat.unknown;
+
+  /// `DepthTarget.depthReadOnly` and `stencilReadOnly`: tested against,
+  /// never written, whatever a draw's write state says.
+  bool _depthReadOnly = false;
+  bool _stencilReadOnly = false;
+
+  /// [DepthBias.none] until a pass sets one — `setDepthBias`.
+  DepthBias _depthBias = DepthBias.none;
+
+  /// Off until a pass says otherwise — `setDepthClamp`.
+  bool _depthClamp = false;
+
+  /// One mask per attachment the rasteriser writes: colour, the surface
+  /// buffer and the albedo buffer — `setColorWriteMask`.
+  final List<ColorWriteMask> _writeMasks = List<ColorWriteMask>.filled(
+    3,
+    ColorWriteMask.all,
+  );
+
+  /// Fragments that passed the depth and stencil tests and were not
+  /// discarded, since the pass opened — what an occlusion query is the
+  /// difference of.
+  int _samplesPassed = 0;
+  ({CpuQueryResults results, int index, int start})? _occlusion;
+
+  final CpuStatistics _statistics = CpuStatistics();
+  CpuOpenStatisticsQuery? _statisticsQuery;
+  final Map<String, ByteData> _storage = <String, ByteData>{};
+  final Map<String, CpuStorageTexture> _storageTextures =
+      <String, CpuStorageTexture>{};
 
   // Off on both faces until a pass says otherwise, which is what a fresh
   // `flutter_gpu` pass and a fresh GL context both start with.
@@ -87,9 +174,10 @@ final class CpuEncoder implements CommandEncoder {
       (color.texture.backend as CpuTexture).subresource(
         face: color.face,
         mipLevel: color.mipLevel,
+        layer: color.layer,
       );
 
-  ScreenRect? _viewport;
+  PassViewport? _viewport;
   ScreenRect? _scissor;
   PrimitiveType _primitive = PrimitiveType.triangle;
   CullMode _cull = CullMode.none;
@@ -139,21 +227,34 @@ final class CpuEncoder implements CommandEncoder {
     return false;
   }
 
+  /// Any rectangle and any depth range: window positions are measured from
+  /// the viewport's corner in doubles, and clip depth is mapped onto the
+  /// range before it is tested — see [_Window].
   @override
-  void setViewport(ScreenRect rect) => _viewport = rect;
+  void setViewport(PassViewport viewport) {
+    viewport.checkFeatures(_features, backend: cpuBackendName);
+    _viewport = viewport;
+  }
 
   @override
   void setScissor(ScreenRect rect) => _scissor = rect;
 
+  /// All five, since 1.0.0-rc.1: strips through [_assembleStrip], with
+  /// restart on an all-ones index, and points through [_rasterisePoint].
+  /// It refused three of them from the draw with an untyped error before.
   @override
-  void setPrimitiveType(PrimitiveType type) => _primitive = type;
+  void setPrimitiveType(PrimitiveType type) {
+    type.checkFeatures(_features, backend: cpuBackendName);
+    _primitive = type;
+  }
 
   @override
   void setPolygonMode(PolygonMode mode) {
     if (mode == PolygonMode.line) {
-      throw UnsupportedError(
-        'this backend answers false to supportsWireframe and means it. Filling '
-        'the triangles instead would be a picture nobody asked for.',
+      _features.require(
+        DeviceFeature.wireframe,
+        backend: cpuBackendName,
+        reason: wireframeRefusal,
       );
     }
   }
@@ -179,7 +280,11 @@ final class CpuEncoder implements CommandEncoder {
   /// `test/depth_write_test.dart` was for, and it is why this line changed on
   /// the day the SDK did rather than months later.
   @override
-  void setDepthWrite(bool enabled) => _depthWrite = enabled;
+  void setDepthWrite({required bool enabled}) => _depthWrite = enabled;
+
+  /// Nothing — `P7`: one sample a pixel has no coverage to spread; `supportsAlphaToCoverage` is false.
+  @override
+  void setAlphaToCoverage({required bool enabled}) {}
 
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
@@ -203,8 +308,16 @@ final class CpuEncoder implements CommandEncoder {
   /// something names it. A device built without independent blending goes
   /// back to one state, whatever the index, which is the contract's word for
   /// a backend that has none.
+  ///
+  /// The 1.0 factors and operations are honoured — min and max ignore both
+  /// factors, the four `source1…` factors read `FragmentContext.source1` —
+  /// and refused through their features on a device built without them.
+  /// Dual-source blending reads attachment zero's second output, so a state
+  /// naming one of those factors for any other attachment is an
+  /// [ArgumentError], as WebGPU makes it.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
+    if (state != null) checkBlend(state, attachment, _features);
     if (attachment == 0 || !_independentBlend) {
       _blend = state;
     } else if (attachment == 1) {
@@ -213,7 +326,10 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   @override
-  void setBlendColor(Vector4 color) => _blendColor.setFrom(color);
+  void setBlendColor(LinearColor color) {
+    _features.require(DeviceFeature.blendConstant, backend: cpuBackendName);
+    _blendColor.setValues(color.r, color.g, color.b, color.a);
+  }
 
   /// Forgets every binding, as the contract says every backend does.
   ///
@@ -224,9 +340,21 @@ final class CpuEncoder implements CommandEncoder {
   /// bind.
   @override
   void bindPipeline(PipelineHandle pipeline) {
-    _pipeline = pipeline.backend as CpuPipeline;
+    // A refused pipeline holds its refusal where a `CpuPipeline` would be
+    // (see `CpuDevice.createPipeline`), and with no pipeline bound every
+    // draw until the next bind draws nothing. One the device's record leaves
+    // refused for any other reason is skipped the same way.
+    _pipeline = switch (pipeline.backend) {
+      PipelineRefusedException() => null,
+      _ when _refusals.isRefused(pipeline) => null,
+      final other => other as CpuPipeline,
+    };
     clearBindings();
   }
+
+  final PipelineRefusals _refusals;
+
+  final CpuRasterScratch _scratch;
 
   @override
   void bindVertexBuffer(
@@ -272,6 +400,7 @@ final class CpuEncoder implements CommandEncoder {
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    type.checkFeatures(_features, backend: cpuBackendName);
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
     _indices = _range(backend.bytes, buffer);
     _indexType = type;
@@ -280,6 +409,7 @@ final class CpuEncoder implements CommandEncoder {
 
   @override
   void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    type.checkFeatures(_features, backend: cpuBackendName);
     _indices = bytes;
     _indexType = type;
     _indexCount = indexCount;
@@ -330,8 +460,11 @@ final class CpuEncoder implements CommandEncoder {
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
-    SamplerOptions? sampler,
+    SamplerDescriptor? sampler,
   }) {
+    // The sampler's features first, before the slot: a refusal is about the
+    // device, whichever slot it was asked of.
+    checkSampler(sampler, _features);
     if (!shader.mayBindSampler(slot)) return false;
     // linearRepeat for a null sampler, which is now written down in
     // `CommandEncoder.bindTexture` — it was not, and this backend picked the
@@ -342,7 +475,7 @@ final class CpuEncoder implements CommandEncoder {
     // textured golden and looked like a rendering bug.
     _textures[slot] = BoundTexture(
       texture.backend as CpuTexture,
-      sampler ?? SamplerOptions.linearRepeat,
+      sampler ?? SamplerDescriptor.linearRepeat,
     );
     return true;
   }
@@ -355,6 +488,8 @@ final class CpuEncoder implements CommandEncoder {
   void clearBindings() {
     _blocks.clear();
     _textures.clear();
+    _storage.clear();
+    _storageTextures.clear();
     _vertices = null;
     _vertexCount = 0;
     _slots = null;
@@ -367,11 +502,427 @@ final class CpuEncoder implements CommandEncoder {
     // Nothing deferred, so nothing to flush. Draws happened as they arrived,
     // which is a different execution model from a command buffer and one the
     // contract allows: it promises passes execute in submission order, not
-    // that anything is buffered.
+    // that anything is buffered. The end timestamp is all there is to write.
+    if (_occlusion != null || _statisticsQuery != null) {
+      throw StateError('a pass submitted with a query still open');
+    }
+    final timestamps = _descriptor.timestampWrites;
+    writeTimestamp(timestamps, timestamps?.endOfPassIndex, _clock);
+  }
+
+  // ------------------------------------------------------------------ 1.0
+
+  @override
+  void setDepthBias(DepthBias bias) {
+    bias.checkFeatures(_features, backend: cpuBackendName);
+    _depthBias = bias;
+  }
+
+  /// Masks attachments zero, one and two — the colour, the surface buffer
+  /// and the albedo buffer, every attachment this rasteriser writes. A
+  /// device built without independent blending masks attachment zero
+  /// whatever the index, as `setBlend` does.
+  @override
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) {
+    _features.require(DeviceFeature.colorWriteMask, backend: cpuBackendName);
+    final index = _independentBlend ? attachment : 0;
+    if (index < 0 || index >= _writeMasks.length) {
+      throw RangeError.range(attachment, 0, _writeMasks.length - 1);
+    }
+    _writeMasks[index] = mask;
   }
 
   @override
-  void draw({int instanceCount = 1}) {
+  void setDepthClamp({required bool enabled}) {
+    _features.require(DeviceFeature.depthClamp, backend: cpuBackendName);
+    _depthClamp = enabled;
+  }
+
+  /// False unless the stage declares [name] — see [CpuStorageReader]; the
+  /// stage reads the bytes as `ShaderBindings.storage[name]`, the buffer's
+  /// own memory.
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle shader,
+    String name,
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    _features.require(
+      DeviceFeature.renderStageStorage,
+      backend: cpuBackendName,
+    );
+    final range = storageRangeOf(
+      buffer,
+      offsetInBytes: offsetInBytes,
+      sizeInBytes: sizeInBytes,
+    );
+    if (!declaresStorage(shader, name, undeclared: false)) return false;
+    _storage[name] = range;
+    return true;
+  }
+
+  @override
+  bool bindStorageTexture(
+    ShaderHandle shader,
+    String name,
+    TextureHandle texture, {
+    int mipLevel = 0,
+    StorageTextureAccess access = StorageTextureAccess.writeOnly,
+  }) {
+    _features.require(
+      DeviceFeature.renderStageStorage,
+      backend: cpuBackendName,
+    );
+    final bound = CpuStorageTexture.bind(
+      texture,
+      mipLevel: mipLevel,
+      access: access,
+      features: _features,
+      support: _support(texture.format),
+      backend: cpuBackendName,
+    );
+    if (!declaresStorage(shader, name, undeclared: false)) return false;
+    _storageTextures[name] = bound;
+    return true;
+  }
+
+  /// Refused — see `uniformBytesRefusal` for what would unblock it.
+  @override
+  bool bindUniformBytes(
+    ShaderHandle shader,
+    String blockName,
+    ByteData bytes,
+  ) => throw uniformBytesRefusal();
+
+  @override
+  void drawIndexed(IndexedDraw draw) {
+    checkIndexedDraw(draw, _features);
+    _drawIndexed(draw);
+  }
+
+  /// Every [IndexedDraw] in turn, which is what a native multi-draw is too.
+  /// Each is checked before any is drawn, so a refused entry draws nothing.
+  @override
+  void multiDraw(List<IndexedDraw> draws) {
+    _features.require(DeviceFeature.multiDraw, backend: cpuBackendName);
+    for (final draw in draws) {
+      checkIndexedDraw(draw, _features);
+    }
+    for (final draw in draws) {
+      _drawIndexed(draw);
+    }
+  }
+
+  /// Reads the twenty bytes and draws them: the pass that wrote them ran to
+  /// its end before this one opened, so there is nothing to wait for.
+  @override
+  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) {
+    _features.require(DeviceFeature.indirectDraw, backend: cpuBackendName);
+    _drawIndirect(arguments, offsetInBytes);
+  }
+
+  @override
+  void multiDrawIndirect(
+    StorageBuffer arguments,
+    int drawCount, {
+    int offsetInBytes = 0,
+    StorageBuffer? countBuffer,
+    int countOffsetInBytes = 0,
+  }) {
+    _features.require(DeviceFeature.multiDrawIndirect, backend: cpuBackendName);
+    final int count;
+    if (countBuffer == null) {
+      count = drawCount;
+    } else {
+      requireBufferUsage(countBuffer, BufferUsage.indirect, 'a draw count');
+      checkUnmapped(countBuffer);
+      final written = rangeOf(
+        countBuffer,
+        offsetInBytes: countOffsetInBytes,
+        sizeInBytes: 4,
+      ).getUint32(0, Endian.little);
+      count = written < drawCount ? written : drawCount;
+    }
+    for (var i = 0; i < count; i++) {
+      _drawIndirect(arguments, offsetInBytes + i * 20);
+    }
+  }
+
+  @override
+  void drawNonIndexed({
+    required int vertexCount,
+    int firstVertex = 0,
+    int instanceCount = 1,
+    int firstInstance = 0,
+  }) {
+    _features.require(DeviceFeature.nonIndexedDraw, backend: cpuBackendName);
+    for (var i = 0; i < instanceCount; i++) {
+      _drawOnce(firstInstance + i, firstVertex, vertexCount, indexed: false);
+    }
+  }
+
+  /// Replays each bundle's calls into this pass, each starting from a pass's
+  /// own defaults — no pipeline, no bindings, the state a pass opens with —
+  /// and puts back afterwards the state this pass had, with its bindings
+  /// forgotten, as WebGPU specifies. Nothing leaks in either direction.
+  @override
+  void executeBundles(List<RenderBundle> bundles) {
+    _features.require(DeviceFeature.renderBundles, backend: cpuBackendName);
+    for (final bundle in bundles) {
+      _checkBundle(bundle);
+    }
+    final saved = _drawState();
+    for (final bundle in bundles) {
+      _restoreDrawState(_openingState);
+      _pipeline = null;
+      clearBindings();
+      for (final call in (bundle.backend as CpuRenderBundle).calls) {
+        call(this);
+      }
+    }
+    _restoreDrawState(saved);
+    clearBindings();
+  }
+
+  void _checkBundle(RenderBundle bundle) {
+    final wanted = bundle.descriptor;
+    final colors = <TextureFormat>[
+      for (final c in _descriptor.colors) c.texture.format,
+    ];
+    final depth = _descriptor.depth?.texture.format;
+    final samples = _descriptor.colors.isEmpty
+        ? 1
+        : _descriptor.colors.first.texture.sampleCount;
+    final matches =
+        wanted.colorFormats.length == colors.length &&
+        <bool>[
+          for (var i = 0; i < colors.length; i++)
+            wanted.colorFormats[i] == colors[i],
+        ].every((bool same) => same) &&
+        wanted.depthStencilFormat == depth &&
+        wanted.sampleCount == samples;
+    if (!matches) {
+      throw ArgumentError.value(
+        bundle,
+        'bundles',
+        'was recorded for ${wanted.colorFormats.map((f) => f.name)} / '
+            '${wanted.depthStencilFormat?.name} x${wanted.sampleCount}, and '
+            'this pass is ${colors.map((f) => f.name)} / ${depth?.name} '
+            'x$samples',
+      );
+    }
+  }
+
+  @override
+  void beginOcclusionQuery(int queryIndex) {
+    _features.require(DeviceFeature.occlusionQuery, backend: cpuBackendName);
+    final set = _descriptor.occlusionQuerySet;
+    if (set == null) {
+      throw StateError(
+        'beginOcclusionQuery in a pass opened with no occlusionQuerySet',
+      );
+    }
+    if (_occlusion != null) {
+      throw StateError('an occlusion query is already open in this pass');
+    }
+    _occlusion = (
+      results: queryResultsOf(set, QueryType.occlusion, queryIndex),
+      index: queryIndex,
+      start: _samplesPassed,
+    );
+  }
+
+  @override
+  void endOcclusionQuery() {
+    final open = _occlusion;
+    if (open == null) throw StateError('no occlusion query is open');
+    open.results.values[open.index] = _samplesPassed - open.start;
+    _occlusion = null;
+  }
+
+  @override
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) {
+    _features.require(
+      DeviceFeature.pipelineStatisticsQuery,
+      backend: cpuBackendName,
+    );
+    if (_statisticsQuery != null) {
+      throw StateError('a pipeline-statistics query is already open');
+    }
+    _statisticsQuery = CpuOpenStatisticsQuery(
+      queryResultsOf(querySet, QueryType.pipelineStatistics, queryIndex),
+      queryIndex,
+      _statistics,
+    );
+  }
+
+  @override
+  void endPipelineStatisticsQuery() {
+    final query = _statisticsQuery;
+    if (query == null) {
+      throw StateError('no pipeline-statistics query is open');
+    }
+    query.end(_statistics);
+    _statisticsQuery = null;
+  }
+
+  /// [draw] with its base vertex and instance range, after the gate.
+  void _drawIndexed(IndexedDraw draw) {
+    if (!draw.usesBaseVertexOrInstance) {
+      this.draw(
+        instanceCount: draw.instanceCount,
+        firstIndex: draw.firstIndex,
+        indexCount: draw.indexCount,
+      );
+      return;
+    }
+    if (_indices == null) {
+      throw StateError('an indexed draw with no index buffer bound');
+    }
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: draw.firstIndex,
+      indexCount: draw.indexCount,
+    );
+    for (var i = 0; i < draw.instanceCount; i++) {
+      _drawOnce(
+        draw.firstInstance + i,
+        window.first,
+        window.count,
+        indexed: true,
+        baseVertex: draw.baseVertex,
+      );
+    }
+  }
+
+  void _drawIndirect(StorageBuffer arguments, int offsetInBytes) {
+    final words = readIndirectDraw(arguments, offsetInBytes);
+    if (words.firstInstance != 0) {
+      _features.require(
+        DeviceFeature.indirectFirstInstance,
+        backend: cpuBackendName,
+        reason: 'the indirect arguments name a first instance',
+      );
+    }
+    if (_indices == null) {
+      throw StateError('an indirect draw with no index buffer bound');
+    }
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: words.firstIndex,
+      indexCount: words.indexCount,
+    );
+    for (var i = 0; i < words.instanceCount; i++) {
+      _drawOnce(
+        words.firstInstance + i,
+        window.first,
+        window.count,
+        indexed: true,
+        baseVertex: words.baseVertex,
+      );
+    }
+  }
+
+  /// The state a draw inherits from the calls before it, as one value — what
+  /// [executeBundles] saves, resets and puts back.
+  ({
+    CpuPipeline? pipeline,
+    PrimitiveType primitive,
+    CullMode cull,
+    WindingOrder winding,
+    bool depthWrite,
+    CompareFunction depthCompare,
+    BlendState? blend,
+    BlendState? surfaceBlend,
+    StencilState stencilFront,
+    StencilState stencilBack,
+    DepthBias depthBias,
+    bool depthClamp,
+    List<ColorWriteMask> writeMasks,
+  })
+  _drawState() => (
+    pipeline: _pipeline,
+    primitive: _primitive,
+    cull: _cull,
+    winding: _winding,
+    depthWrite: _depthWrite,
+    depthCompare: _depthCompare,
+    blend: _blend,
+    surfaceBlend: _surfaceBlend,
+    stencilFront: _stencilFront,
+    stencilBack: _stencilBack,
+    depthBias: _depthBias,
+    depthClamp: _depthClamp,
+    writeMasks: List<ColorWriteMask>.of(_writeMasks),
+  );
+
+  /// What every pass opens with — the defaults the fields below start at.
+  static const _openingState = (
+    pipeline: null,
+    primitive: PrimitiveType.triangle,
+    cull: CullMode.none,
+    winding: WindingOrder.counterClockwise,
+    depthWrite: false,
+    depthCompare: CompareFunction.less,
+    blend: null,
+    surfaceBlend: null,
+    stencilFront: StencilState.disabled,
+    stencilBack: StencilState.disabled,
+    depthBias: DepthBias.none,
+    depthClamp: false,
+    writeMasks: <ColorWriteMask>[
+      ColorWriteMask.all,
+      ColorWriteMask.all,
+      ColorWriteMask.all,
+    ],
+  );
+
+  void _restoreDrawState(
+    ({
+      CpuPipeline? pipeline,
+      PrimitiveType primitive,
+      CullMode cull,
+      WindingOrder winding,
+      bool depthWrite,
+      CompareFunction depthCompare,
+      BlendState? blend,
+      BlendState? surfaceBlend,
+      StencilState stencilFront,
+      StencilState stencilBack,
+      DepthBias depthBias,
+      bool depthClamp,
+      List<ColorWriteMask> writeMasks,
+    })
+    state,
+  ) {
+    _pipeline = state.pipeline;
+    _primitive = state.primitive;
+    _cull = state.cull;
+    _winding = state.winding;
+    _depthWrite = state.depthWrite;
+    _depthCompare = state.depthCompare;
+    _blend = state.blend;
+    _surfaceBlend = state.surfaceBlend;
+    _stencilFront = state.stencilFront;
+    _stencilBack = state.stencilBack;
+    _depthBias = state.depthBias;
+    _depthClamp = state.depthClamp;
+    _writeMasks.setAll(0, state.writeMasks);
+  }
+
+  @override
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    // Refused before the first instance rather than inside the loop, so a
+    // window past the binding draws nothing at all, as on the other three.
+    final window = _indices == null
+        ? null
+        : indexWindow(
+            _indexCount,
+            firstIndex: firstIndex,
+            indexCount: indexCount,
+          );
     // Honestly, and to no advantage — which is the point. A scene the software
     // backend refuses to draw is a scene with no cross-backend check, and the
     // two most expensive bugs this repository has found were both found by
@@ -383,56 +934,77 @@ final class CpuEncoder implements CommandEncoder {
     // attributes means on any backend. The instance *index* arrives with the
     // vertex layouts that give a stage something to read it for.
     for (var instance = 0; instance < instanceCount; instance++) {
-      _drawOnce(instance);
+      _drawOnce(
+        instance,
+        window?.first ?? 0,
+        window?.count ?? _vertexCount,
+        indexed: window != null,
+      );
     }
   }
 
-  void _drawOnce(int instance) {
+  /// One instance: [count] indices from [first] (each plus [baseVertex]) when
+  /// [indexed], or [count] vertices in order from [first] when not.
+  void _drawOnce(
+    int instance,
+    int first,
+    int count, {
+    required bool indexed,
+    int baseVertex = 0,
+  }) {
     final pipeline = _pipeline;
     final vertices = _vertices;
     if (pipeline == null || vertices == null) return;
     if (_descriptor.colors.isEmpty) return;
-    if (_primitive != PrimitiveType.triangle &&
-        _primitive != PrimitiveType.line) {
-      throw UnsupportedError(
-        'this backend rasterises triangles and lines. $_primitive would have '
-        'to be drawn as something else, and drawing a primitive as a '
-        'different one is how a picture comes back plausible and wrong.',
-      );
-    }
 
     final target = _attachment(_descriptor.colors.first);
-    final view =
-        _viewport ??
-        ScreenRect(x: 0, y: 0, width: target.width, height: target.height);
+    final view = _Window(
+      _viewport ??
+          PassViewport(
+            width: target.width.toDouble(),
+            height: target.height.toDouble(),
+          ),
+    );
 
     final layout = pipeline.layout;
     final fetch = layout == null
         ? PackedFetch(vertices, _floatsPerVertex(vertices, _vertexCount))
         : LayoutFetch.build(layout, vertices, _slots, instance);
     final stride = fetch.floatsPerVertex;
-    final bindings = ShaderBindings.forDraw(_blocks, _textures);
+    final bindings = ShaderBindings.forDraw(
+      _blocks,
+      _textures,
+      storage: _storage,
+      storageTextures: _storageTextures,
+    );
     final varyingCount = pipeline.vertex.varyingCount;
 
-    final clip = <Vector4>[Vector4.zero(), Vector4.zero(), Vector4.zero()];
-    final varyings = <Float32List>[
-      Float32List(varyingCount),
-      Float32List(varyingCount),
-      Float32List(varyingCount),
-    ];
-    final attributes = Float32List(stride);
+    // The device's, zeroed as fresh lists were: see [CpuRasterScratch].
+    final clip = _scratch.clip;
+    final varyings = _scratch.varyingsFor(varyingCount);
+    final attributes = _scratch.attributesFor(stride);
 
-    final perPrimitive = _primitive == PrimitiveType.line ? 2 : 3;
-    final count = _indices != null
-        ? _indexCount ~/ perPrimitive
-        : _vertexCount ~/ perPrimitive;
+    final perPrimitive = switch (_primitive) {
+      PrimitiveType.line || PrimitiveType.lineStrip => 2,
+      PrimitiveType.point => 1,
+      _ => 3,
+    };
+    // A list reads its corners in runs straight off the binding, which is
+    // every draw the engine makes; a strip's overlap and restarts are worked
+    // out once into the corners they make, and read from there.
+    final strip = _primitive.isStrip
+        ? _assembleStrip(first, count, indexed: indexed, baseVertex: baseVertex)
+        : null;
+    final primitives = (strip?.length ?? count) ~/ perPrimitive;
 
-    for (var t = 0; t < count; t++) {
+    for (var t = 0; t < primitives; t++) {
       for (var corner = 0; corner < perPrimitive; corner++) {
-        final vertex = _indices != null
-            ? _indexAt(t * perPrimitive + corner)
-            : t * perPrimitive + corner;
+        final at = first + t * perPrimitive + corner;
+        final vertex =
+            strip?[t * perPrimitive + corner] ??
+            (indexed ? _indexAt(at) + baseVertex : at);
         if (!fetch.into(attributes, vertex)) return;
+        _statistics.add(PipelineStatistic.vertexShaderInvocations, 1);
         // A stage that wants its own index gets it — see
         // [CpuVertexShaderByIndex], which exists because morph targets read a
         // delta per vertex and this backend had no way to say which vertex.
@@ -450,27 +1022,160 @@ final class CpuEncoder implements CommandEncoder {
               )
             : stage.run(attributes, bindings, varyings[corner]);
       }
-      if (perPrimitive == 2) {
-        _rasteriseLine(
-          pipeline,
-          target,
-          view,
-          clip,
-          varyings,
-          varyingCount,
-          bindings,
-        );
-      } else {
-        _rasterise(
-          pipeline,
-          target,
-          view,
-          clip,
-          varyings,
-          varyingCount,
-          bindings,
-        );
+      _statistics.add(PipelineStatistic.clipperInvocations, 1);
+      switch (perPrimitive) {
+        case 1:
+          _rasterisePoint(
+            pipeline,
+            target,
+            view,
+            clip,
+            varyings,
+            varyingCount,
+            bindings,
+          );
+        case 2:
+          _rasteriseLine(
+            pipeline,
+            target,
+            view,
+            clip,
+            varyings,
+            varyingCount,
+            bindings,
+          );
+        default:
+          _rasterise(
+            pipeline,
+            target,
+            view,
+            clip,
+            varyings,
+            varyingCount,
+            bindings,
+          );
       }
+    }
+  }
+
+  /// The vertex each corner of each primitive of a strip reads, in order:
+  /// three per triangle for [PrimitiveType.triangleStrip], two per segment
+  /// for [PrimitiveType.lineStrip].
+  ///
+  /// **An all-ones index restarts the strip**, as the contract promises on
+  /// every backend that lists `primitiveStrips`: the run so far ends, and
+  /// the next index starts a new one, its first two vertices making no
+  /// triangle on their own. Every other triangle swaps its first two corners,
+  /// which is how every API keeps a strip facing one way.
+  List<int> _assembleStrip(
+    int first,
+    int count, {
+    required bool indexed,
+    required int baseVertex,
+  }) {
+    final triangles = _primitive == PrimitiveType.triangleStrip;
+    final restart = _indexType.restartIndex;
+    final corners = <int>[];
+    // The two vertices before the one being read, and how far into the run
+    // it is: the state a strip's assembly is, one index at a time.
+    var secondLast = 0;
+    var last = 0;
+    var inRun = 0;
+    for (var i = 0; i < count; i++) {
+      final raw = indexed ? _indexAt(first + i) : first + i;
+      if (indexed && raw == restart) {
+        inRun = 0;
+        continue;
+      }
+      final vertex = indexed ? raw + baseVertex : raw;
+      if (triangles && inRun >= 2) {
+        corners.addAll(
+          inRun.isEven
+              ? <int>[secondLast, last, vertex]
+              : <int>[last, secondLast, vertex],
+        );
+      } else if (!triangles && inRun >= 1) {
+        corners.addAll(<int>[last, vertex]);
+      }
+      secondLast = last;
+      last = vertex;
+      inRun++;
+    }
+    return corners;
+  }
+
+  /// One point, one pixel: the pixel its window position lands in.
+  ///
+  /// A point outside the clip volume is dropped whole, as every API clips a
+  /// point — it has no area to cut, so a point is in or out. Its depth is
+  /// tested and written as a line's is, with no bias: no API offsets a point
+  /// by a slope it does not have. The size is one pixel on every backend
+  /// that lists `pointPrimitives`, whatever a stage writes.
+  void _rasterisePoint(
+    CpuPipeline pipeline,
+    CpuTexture target,
+    _Window view,
+    List<Vector4> clip,
+    List<Float32List> varyings,
+    int varyingCount,
+    ShaderBindings bindings,
+  ) {
+    final c = clip[0];
+    if (c.w <= _nearEpsilon) return;
+    if (c.x.abs() > c.w || c.y.abs() > c.w) return;
+    final invW = 1.0 / c.w;
+    final z = _asStored(view.depthOf(c.z * invW));
+    if (!_depthClamp && (z < view.minDepth || z > view.maxDepth)) return;
+    _statistics.add(PipelineStatistic.clipperPrimitivesOut, 1);
+
+    final x =
+        ((c.x * invW * 0.5 + 0.5) * view.width + view.fractionX).floor() +
+        view.originX;
+    final y =
+        ((0.5 - c.y * invW * 0.5) * view.height + view.fractionY).floor() +
+        view.originY;
+    final clipRect = _clipRect(view, target);
+    if (x < clipRect.x ||
+        y < clipRect.y ||
+        x >= clipRect.x + clipRect.width ||
+        y >= clipRect.y + clipRect.height) {
+      return;
+    }
+
+    final stored = _depthClamp
+        ? _asStored(z.clamp(view.minDepth, view.maxDepth))
+        : z;
+    final depth = _depthTarget?.depthBuffer();
+    final stencil = _activeStencil;
+    final stencilState = _stencilFront;
+    final index = y * target.width + x;
+    final fate = _fateOf(stencil, stencilState, index, stored, depth);
+    final op = _operationFor(fate, stencilState);
+    if (fate != _fatePass && op == StencilOperation.keep) return;
+
+    final context = FragmentContext()
+      ..coord.setValues(x + 0.5, y + 0.5, stored, invW);
+    _statistics.add(PipelineStatistic.fragmentShaderInvocations, 1);
+    final color = pipeline.fragment.run(
+      Float32List.sublistView(varyings[0], 0, varyingCount),
+      bindings,
+      context,
+    );
+    if (color == null) return;
+    if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
+    if (fate != _fatePass) return;
+    _samplesPassed++;
+
+    final at = index * 4;
+    final mask = _writeMasks[0];
+    if (mask != ColorWriteMask.all) _keep(target.pixels, at);
+    target.pixels[at] = color.x;
+    target.pixels[at + 1] = color.y;
+    target.pixels[at + 2] = color.z;
+    target.pixels[at + 3] = color.w;
+    if (mask != ColorWriteMask.all) _restore(target.pixels, at, mask);
+    if (depth != null && _depthWrite && !_depthReadOnly) {
+      depth[index] = context.fragDepth ?? stored;
     }
   }
 
@@ -489,7 +1194,7 @@ final class CpuEncoder implements CommandEncoder {
   void _rasteriseLine(
     CpuPipeline pipeline,
     CpuTexture target,
-    ScreenRect view,
+    _Window view,
     List<Vector4> clip,
     List<Float32List> varyings,
     int varyingCount,
@@ -498,16 +1203,17 @@ final class CpuEncoder implements CommandEncoder {
     for (var i = 0; i < 2; i++) {
       if (clip[i].w <= 1e-6) return;
     }
+    _statistics.add(PipelineStatistic.clipperPrimitivesOut, 1);
 
-    final sx = <double>[0, 0];
-    final sy = <double>[0, 0];
-    final sz = <double>[0, 0];
-    final invW = <double>[0, 0];
+    // The first two of the device's three: a line has two corners.
+    final CpuRasterScratch(:sx, :sy, :sz, :invW) = _scratch;
     for (var i = 0; i < 2; i++) {
       invW[i] = 1.0 / clip[i].w;
-      sx[i] = view.x + (clip[i].x * invW[i] * 0.5 + 0.5) * view.width;
-      sy[i] = view.y + (0.5 - clip[i].y * invW[i] * 0.5) * view.height;
-      sz[i] = clip[i].z * invW[i];
+      // From the viewport's corner, as the triangle path measures them, and
+      // for its reason; the corner goes back on to the whole pixel below.
+      sx[i] = (clip[i].x * invW[i] * 0.5 + 0.5) * view.width + view.fractionX;
+      sy[i] = (0.5 - clip[i].y * invW[i] * 0.5) * view.height + view.fractionY;
+      sz[i] = view.depthOf(clip[i].z * invW[i]);
     }
 
     final dx = sx[1] - sx[0];
@@ -520,7 +1226,7 @@ final class CpuEncoder implements CommandEncoder {
     // does with a primitive it cannot classify.
     final stencil = _activeStencil;
     final stencilState = _stencilFront;
-    final interpolated = Float32List(varyingCount);
+    final interpolated = _scratch.interpolatedFor(varyingCount);
     final context = FragmentContext();
 
     // **No screen-space gradients here, and that is the answer rather than an
@@ -541,8 +1247,8 @@ final class CpuEncoder implements CommandEncoder {
 
     for (var step = 0; step <= steps; step++) {
       final t = step / steps;
-      final x = (sx[0] + dx * t).floor();
-      final y = (sy[0] + dy * t).floor();
+      final x = (sx[0] + dx * t).floor() + view.originX;
+      final y = (sy[0] + dy * t).floor() + view.originY;
       if (x < clipRect.x ||
           y < clipRect.y ||
           x >= clipRect.x + clipRect.width ||
@@ -571,20 +1277,45 @@ final class CpuEncoder implements CommandEncoder {
       // last one would be shown for this one.
       context.debugSurface = null;
       context.fragDepth = null;
-      final colour = pipeline.fragment.run(interpolated, bindings, context);
-      if (colour == null) continue;
+      context.source1 = null;
+      _statistics.add(PipelineStatistic.fragmentShaderInvocations, 1);
+      final color = pipeline.fragment.run(interpolated, bindings, context);
+      if (color == null) continue;
       if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
       if (fate != _fatePass) continue;
+      _samplesPassed++;
 
       final at = index * 4;
-      target.pixels[at] = colour.x;
-      target.pixels[at + 1] = colour.y;
-      target.pixels[at + 2] = colour.z;
-      target.pixels[at + 3] = colour.w;
-      if (depth != null && _depthWrite) {
+      final mask = _writeMasks[0];
+      if (mask != ColorWriteMask.all) _keep(target.pixels, at);
+      target.pixels[at] = color.x;
+      target.pixels[at + 1] = color.y;
+      target.pixels[at + 2] = color.z;
+      target.pixels[at + 3] = color.w;
+      if (mask != ColorWriteMask.all) _restore(target.pixels, at, mask);
+      if (depth != null && _depthWrite && !_depthReadOnly) {
         depth[index] = context.fragDepth ?? z;
       }
     }
+  }
+
+  /// The four channels at [at] before a masked write, for [_restore].
+  final Float32List _kept = Float32List(4);
+
+  void _keep(Float32List pixels, int at) {
+    for (var c = 0; c < 4; c++) {
+      _kept[c] = pixels[at + c];
+    }
+  }
+
+  /// Puts back the channels [mask] says the write may not change —
+  /// `setColorWriteMask`. Written as keep-write-restore so that the blend,
+  /// which writes all four, needs no masked twin.
+  void _restore(Float32List pixels, int at, ColorWriteMask mask) {
+    if (!mask.writesRed) pixels[at] = _kept[0];
+    if (!mask.writesGreen) pixels[at + 1] = _kept[1];
+    if (!mask.writesBlue) pixels[at + 2] = _kept[2];
+    if (!mask.writesAlpha) pixels[at + 3] = _kept[3];
   }
 
   /// One float, for rounding a depth to what the buffer can hold.
@@ -678,7 +1409,7 @@ final class CpuEncoder implements CommandEncoder {
     StencilState state,
     StencilOperation op,
   ) {
-    if (op == StencilOperation.keep) return;
+    if (op == StencilOperation.keep || _stencilReadOnly) return;
     final stored = stencil[index];
     final value = switch (op) {
       StencilOperation.keep => stored,
@@ -689,6 +1420,10 @@ final class CpuEncoder implements CommandEncoder {
       StencilOperation.invert => ~stored,
       StencilOperation.incrementWrap => stored + 1,
       StencilOperation.decrementWrap => stored - 1,
+      _ => throw cpuRefusal(
+        '_stencilWrite',
+        'the software rasteriser has no stencil operation $op',
+      ),
     };
     stencil[index] =
         (stored & ~state.writeMask) | (value & state.writeMask & 0xFF);
@@ -738,12 +1473,12 @@ final class CpuEncoder implements CommandEncoder {
 
   /// Where a primitive may write: the viewport, the scissor and the target,
   /// intersected. Empty (zero width or height) where they do not meet.
-  ScreenRect _clipRect(ScreenRect view, CpuTexture target) {
+  ScreenRect _clipRect(_Window view, CpuTexture target) {
     final scissor = _scissor;
-    var x0 = view.x < 0 ? 0 : view.x;
-    var y0 = view.y < 0 ? 0 : view.y;
-    var x1 = view.x + view.width;
-    var y1 = view.y + view.height;
+    var x0 = view.left < 0 ? 0 : view.left;
+    var y0 = view.top < 0 ? 0 : view.top;
+    var x1 = view.right;
+    var y1 = view.bottom;
     if (scissor != null) {
       if (scissor.x > x0) x0 = scissor.x;
       if (scissor.y > y0) y0 = scissor.y;
@@ -781,7 +1516,7 @@ final class CpuEncoder implements CommandEncoder {
   void _rasterise(
     CpuPipeline pipeline,
     CpuTexture target,
-    ScreenRect view,
+    _Window view,
     List<Vector4> clip,
     List<Float32List> varyings,
     int varyingCount,
@@ -793,6 +1528,7 @@ final class CpuEncoder implements CommandEncoder {
     }
     if (behind == 3) return;
     if (behind == 0) {
+      _statistics.add(PipelineStatistic.clipperPrimitivesOut, 1);
       _rasteriseTriangle(
         pipeline,
         target,
@@ -844,6 +1580,7 @@ final class CpuEncoder implements CommandEncoder {
       }
     }
     if (poly.length < 3) return;
+    _statistics.add(PipelineStatistic.clipperPrimitivesOut, poly.length - 2);
 
     // A fan from the first vertex. Clipping one plane off a triangle leaves
     // three or four corners, so this is one triangle or two.
@@ -863,24 +1600,31 @@ final class CpuEncoder implements CommandEncoder {
   void _rasteriseTriangle(
     CpuPipeline pipeline,
     CpuTexture target,
-    ScreenRect view,
+    _Window view,
     List<Vector4> clip,
     List<Float32List> varyings,
     int varyingCount,
     ShaderBindings bindings,
   ) {
-    final sx = <double>[0, 0, 0];
-    final sy = <double>[0, 0, 0];
-    final sz = <double>[0, 0, 0];
-    final invW = <double>[0, 0, 0];
+    // The device's, written whole below before anything reads them.
+    final CpuRasterScratch(:sx, :sy, :sz, :invW) = _scratch;
     for (var i = 0; i < 3; i++) {
       invW[i] = 1.0 / clip[i].w;
       final ndcX = clip[i].x * invW[i];
       final ndcY = clip[i].y * invW[i];
-      sz[i] = clip[i].z * invW[i];
+      sz[i] = view.depthOf(clip[i].z * invW[i]);
       // NDC to the viewport, with +Y up in clip space and row zero at the top.
-      sx[i] = view.x + (ndcX * 0.5 + 0.5) * view.width;
-      sy[i] = view.y + (0.5 - ndcY * 0.5) * view.height;
+      //
+      // **Measured from the viewport's own corner, not the target's.** The
+      // corner is added to the pixel's whole-number index below instead,
+      // where adding it is exact. A viewport that starts outside its target
+      // — a tile of a larger frame, `DeviceFeature.viewportBeyondTarget` —
+      // then computes every window position, edge function and weight from
+      // the same numbers the whole frame did, so a tile is that frame's
+      // pixels byte for byte. Added here, the corner rounded each position a
+      // different way in each tile.
+      sx[i] = (ndcX * 0.5 + 0.5) * view.width + view.fractionX;
+      sy[i] = (0.5 - ndcY * 0.5) * view.height + view.fractionY;
     }
 
     var area =
@@ -975,10 +1719,14 @@ final class CpuEncoder implements CommandEncoder {
     final edge2y = sy0 - sy2;
 
     final clipRect = _clipRect(view, target);
-    var minX = sx.reduce((a, b) => a < b ? a : b).floor();
-    var maxX = sx.reduce((a, b) => a > b ? a : b).ceil();
-    var minY = sy.reduce((a, b) => a < b ? a : b).floor();
-    var maxY = sy.reduce((a, b) => a > b ? a : b).ceil();
+    // The box in target pixels: the viewport's corner goes back on here, as
+    // whole numbers.
+    final originX = view.originX;
+    final originY = view.originY;
+    var minX = sx.reduce((a, b) => a < b ? a : b).floor() + originX;
+    var maxX = sx.reduce((a, b) => a > b ? a : b).ceil() + originX;
+    var minY = sy.reduce((a, b) => a < b ? a : b).floor() + originY;
+    var maxY = sy.reduce((a, b) => a > b ? a : b).ceil() + originY;
     if (minX < clipRect.x) minX = clipRect.x;
     if (minY < clipRect.y) minY = clipRect.y;
     if (maxX > clipRect.x + clipRect.width - 1) {
@@ -994,7 +1742,7 @@ final class CpuEncoder implements CommandEncoder {
     // the one for the side the camera sees.
     final stencil = _activeStencil;
     final stencilState = frontFacing ? _stencilFront : _stencilBack;
-    final interpolated = Float32List(varyingCount);
+    final interpolated = _scratch.interpolatedFor(varyingCount);
     final context = FragmentContext()..frontFacing = frontFacing;
     final storage = _storageOf(target.format);
 
@@ -1021,8 +1769,10 @@ final class CpuEncoder implements CommandEncoder {
           (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
       if (det != 0.0) {
         final inv = 1.0 / det;
-        final ddx = context.ddx = Float32List(varyingCount);
-        final ddy = context.ddy = Float32List(varyingCount);
+        final (ddx, ddy) = _scratch.derivativesFor(varyingCount);
+        context
+          ..ddx = ddx
+          ..ddy = ddy;
         for (var k = 0; k < varyingCount; k++) {
           final v0 = varyings[0][k];
           final d1 = varyings[1][k] - v0;
@@ -1046,11 +1796,18 @@ final class CpuEncoder implements CommandEncoder {
         : null;
     final surfaceBlend = _surfaceBlend;
     final extraStorage = extra == null ? null : _storageOf(extra.format);
+    final colourMask = _writeMasks[0];
+    final surfaceMask = _writeMasks[1];
+    final albedoMask = _writeMasks[2];
+    final bias = depth == null ? 0.0 : _biasOf(sx, sy, sz, area);
+    final depthClamp = _depthClamp;
 
     for (var y = minY; y <= maxY; y++) {
       for (var x = minX; x <= maxX; x++) {
-        final px = x + 0.5;
-        final py = y + 0.5;
+        // The pixel's centre from the viewport's corner, which is where the
+        // window positions above are measured from.
+        final px = (x - originX) + 0.5;
+        final py = (y - originY) + 0.5;
         final w0 = edge0x * (py - sy0) - edge0y * (px - sx0);
         final w1 = edge1x * (py - sy1) - edge1y * (px - sx1);
         final w2 = edge2x * (py - sy2) - edge2y * (px - sx2);
@@ -1065,7 +1822,29 @@ final class CpuEncoder implements CommandEncoder {
         final b1 = w2 / area;
         final b2 = w0 / area;
 
-        final z = _asStored(sz0 * b0 + sz1 * b1 + sz2 * b2);
+        final interpolatedZ = _asStored(sz0 * b0 + sz1 * b1 + sz2 * b2);
+        // The depth clip every GPU does and the clipper above does not: a
+        // fragment outside `[0, 1]` is in front of the near plane or past
+        // the far one. Window depth is linear across the screen, so dropping
+        // the fragment is the same cut as clipping the triangle. It mattered
+        // once a near plane stopped being parallel to the screen — `P4`'s
+        // mirrored camera stands its near plane on the mirror.
+        //
+        // `setDepthClamp(true)` keeps the fragment and clamps its depth
+        // instead — what a caster behind a light's near plane wants. The
+        // clip at `w` above still stands: that one is about dividing by
+        // nought, and no API's depth clamp lifts it.
+        if (!depthClamp &&
+            (interpolatedZ < view.minDepth || interpolatedZ > view.maxDepth)) {
+          continue;
+        }
+        // The bias after the clip, as every API orders them, and the result
+        // held to the depth range.
+        final z = bias == 0.0 && !depthClamp
+            ? interpolatedZ
+            : _asStored(
+                (interpolatedZ + bias).clamp(view.minDepth, view.maxDepth),
+              );
         final index = y * target.width + x;
         final fate = _fateOf(stencil, stencilState, index, z, depth);
         final op = _operationFor(fate, stencilState);
@@ -1086,16 +1865,19 @@ final class CpuEncoder implements CommandEncoder {
         // gl_FragCoord: pixel centre, window depth, and 1/w. Rebuilt rather
         // than reused between fragments, because a stage that kept a reference
         // to it would see the next fragment's values.
-        context.coord.setValues(px, py, z, iw);
+        // In the target's pixels, as `gl_FragCoord` is everywhere.
+        context.coord.setValues(x + 0.5, y + 0.5, z, iw);
         context.surface = null;
         context.albedo = null;
         context.debugSurface = null;
         context.fragDepth = null;
-        context.fragDepth = null;
-        final colour = pipeline.fragment.run(interpolated, bindings, context);
-        if (colour == null) continue;
+        context.source1 = null;
+        _statistics.add(PipelineStatistic.fragmentShaderInvocations, 1);
+        final color = pipeline.fragment.run(interpolated, bindings, context);
+        if (color == null) continue;
         if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
         if (fate != _fatePass) continue;
+        _samplesPassed++;
 
         // Attachment one, when the stage wrote it and the pass has one. Both
         // conditions matter: the lit models always write it and the shadow
@@ -1103,6 +1885,7 @@ final class CpuEncoder implements CommandEncoder {
         final surface = context.surface;
         if (surface != null && extra != null) {
           final e = index * 4;
+          if (surfaceMask != ColorWriteMask.all) _keep(extra.pixels, e);
           if (surfaceBlend == null) {
             extra.pixels[e] = surface.x;
             extra.pixels[e + 1] = surface.y;
@@ -1118,30 +1901,49 @@ final class CpuEncoder implements CommandEncoder {
               extraStorage!,
             );
           }
+          if (surfaceMask != ColorWriteMask.all) {
+            _restore(extra.pixels, e, surfaceMask);
+          }
         }
         // Attachment two with it: whatever writes the surface writes its
         // colour, black when it named none, as `WriteSurfaceGeometry` does.
         if (surface != null && albedoTarget != null) {
           final e = index * 4;
           final albedo = context.albedo;
+          if (albedoMask != ColorWriteMask.all) _keep(albedoTarget.pixels, e);
           albedoTarget.pixels[e] = albedo?.x ?? 0.0;
           albedoTarget.pixels[e + 1] = albedo?.y ?? 0.0;
           albedoTarget.pixels[e + 2] = albedo?.z ?? 0.0;
           albedoTarget.pixels[e + 3] = 1.0;
+          if (albedoMask != ColorWriteMask.all) {
+            _restore(albedoTarget.pixels, e, albedoMask);
+          }
         }
 
         final at = index * 4;
         final blend = _blend;
+        if (colourMask != ColorWriteMask.all) _keep(target.pixels, at);
         if (blend == null) {
-          target.pixels[at] = colour.x;
-          target.pixels[at + 1] = colour.y;
-          target.pixels[at + 2] = colour.z;
-          target.pixels[at + 3] = colour.w;
+          target.pixels[at] = color.x;
+          target.pixels[at + 1] = color.y;
+          target.pixels[at + 2] = color.z;
+          target.pixels[at + 3] = color.w;
         } else {
-          _blendInto(blend, _blendColor, target.pixels, at, colour, storage);
+          _blendInto(
+            blend,
+            _blendColor,
+            target.pixels,
+            at,
+            color,
+            storage,
+            context.source1,
+          );
+        }
+        if (colourMask != ColorWriteMask.all) {
+          _restore(target.pixels, at, colourMask);
         }
 
-        if (depth != null && _depthWrite) {
+        if (depth != null && _depthWrite && !_depthReadOnly) {
           depth[index] = context.fragDepth ?? z;
         }
       }
@@ -1164,15 +1966,18 @@ final class CpuEncoder implements CommandEncoder {
     Float32List pixels,
     int at,
     Vector4 source,
-    _Storage storage,
-  ) {
+    _Storage storage, [
+    Vector4? source1,
+  ]) {
     final sa = source.w;
     final da = _settled(pixels[at + 3], storage);
     final ba = constant.w;
+    final s1a = source1?.w ?? 0.0;
     for (var channel = 0; channel < 3; channel++) {
       final s = source[channel];
       final d = _settled(pixels[at + channel], storage);
       final bc = constant[channel];
+      final s1 = source1?[channel] ?? 0.0;
       pixels[at + channel] = _combine(
         blend.colorOperation,
         s *
@@ -1185,6 +1990,8 @@ final class CpuEncoder implements CommandEncoder {
               bc,
               ba,
               alpha: false,
+              s1: s1,
+              s1a: s1a,
             ),
         d *
             _factor(
@@ -1196,7 +2003,11 @@ final class CpuEncoder implements CommandEncoder {
               bc,
               ba,
               alpha: false,
+              s1: s1,
+              s1a: s1a,
             ),
+        s,
+        d,
       );
     }
     // The alpha channel with every argument read off the alphas, [constant]'s
@@ -1206,7 +2017,18 @@ final class CpuEncoder implements CommandEncoder {
     pixels[at + 3] = _combine(
       blend.alphaOperation,
       sa *
-          _factor(blend.sourceAlphaFactor, sa, sa, da, da, ba, ba, alpha: true),
+          _factor(
+            blend.sourceAlphaFactor,
+            sa,
+            sa,
+            da,
+            da,
+            ba,
+            ba,
+            alpha: true,
+            s1: s1a,
+            s1a: s1a,
+          ),
       da *
           _factor(
             blend.destinationAlphaFactor,
@@ -1217,21 +2039,41 @@ final class CpuEncoder implements CommandEncoder {
             ba,
             ba,
             alpha: true,
+            s1: s1a,
+            s1a: s1a,
           ),
+      sa,
+      da,
     );
   }
 
-  static double _combine(BlendOperation op, double s, double d) => switch (op) {
+  /// [s] and [d] are the two terms with their factors applied; [rawS] and
+  /// [rawD] without — which min and max read, since every API defines those
+  /// two to ignore the factors.
+  static double _combine(
+    BlendOperation op,
+    double s,
+    double d,
+    double rawS,
+    double rawD,
+  ) => switch (op) {
     BlendOperation.add => s + d,
     BlendOperation.subtract => s - d,
     BlendOperation.reverseSubtract => d - s,
+    BlendOperation.min => math.min(rawS, rawD),
+    BlendOperation.max => math.max(rawS, rawD),
+    _ => throw cpuRefusal(
+      '_combine',
+      'the software rasteriser has no blend operation $op',
+    ),
   };
 
   /// One factor for one channel: [s] and [d] are that channel's source and
   /// destination, [sa] and [da] the two alphas, [bc] the blend constant's own
   /// value for this channel and [ba] its alpha. [alpha] says the channel is
   /// the alpha itself, where the specification pins the saturated factor at
-  /// one.
+  /// one. [s1] and [s1a] are the fragment's second output for this channel
+  /// and its alpha — `FragmentContext.source1`, nought when unwritten.
   static double _factor(
     BlendFactor factor,
     double s,
@@ -1241,6 +2083,8 @@ final class CpuEncoder implements CommandEncoder {
     double bc,
     double ba, {
     required bool alpha,
+    double s1 = 0.0,
+    double s1a = 0.0,
   }) => switch (factor) {
     BlendFactor.zero => 0.0,
     BlendFactor.one => 1.0,
@@ -1257,7 +2101,59 @@ final class CpuEncoder implements CommandEncoder {
     BlendFactor.oneMinusBlendColor => 1.0 - bc,
     BlendFactor.blendAlpha => ba,
     BlendFactor.oneMinusBlendAlpha => 1.0 - ba,
+    BlendFactor.source1Color => s1,
+    BlendFactor.oneMinusSource1Color => 1.0 - s1,
+    BlendFactor.source1Alpha => s1a,
+    BlendFactor.oneMinusSource1Alpha => 1.0 - s1a,
+    _ => throw cpuRefusal(
+      '_factor',
+      'the software rasteriser has no blend factor $factor',
+    ),
   };
+
+  /// The depth offset a triangle's fragments take — `setDepthBias`.
+  ///
+  /// `constant · r + slopeScale · maxSlope`, clamped by the bias's clamp
+  /// when that is not nought. `maxSlope` is the larger of the triangle's
+  /// window-space depth gradients, which this rasteriser has exactly, since
+  /// window depth is a plane across the triangle. `r` is the smallest step
+  /// the attachment's *format* resolves — `2⁻¹⁶` and `2⁻²⁴` for the unorm
+  /// depths, and for a float depth `2^(e − 23)` with `e` the exponent of the
+  /// triangle's largest depth — although the buffer here keeps a 32-bit
+  /// float whatever the format: the constant moves a depth the distance it
+  /// would move on the hardware the format describes.
+  double _biasOf(
+    List<double> sx,
+    List<double> sy,
+    List<double> sz,
+    double area,
+  ) {
+    final bias = _depthBias;
+    if (bias == DepthBias.none) return 0.0;
+    final d1 = sz[1] - sz[0];
+    final d2 = sz[2] - sz[0];
+    final dzdx = (d1 * (sy[2] - sy[0]) - d2 * (sy[1] - sy[0])) / area;
+    final dzdy = (d2 * (sx[1] - sx[0]) - d1 * (sx[2] - sx[0])) / area;
+    final slope = math.max(dzdx.abs(), dzdy.abs());
+    final r = switch (_depthFormat) {
+      TextureFormat.d16UNormInt => 1.0 / 65536.0,
+      TextureFormat.d24UnormS8Uint => 1.0 / 16777216.0,
+      _ => _floatResolution(
+        [sz[0].abs(), sz[1].abs(), sz[2].abs()].reduce(math.max),
+      ),
+    };
+    final raw = bias.constant * r + bias.slopeScale * slope;
+    if (bias.clamp > 0.0) return math.min(raw, bias.clamp);
+    if (bias.clamp < 0.0) return math.max(raw, bias.clamp);
+    return raw;
+  }
+
+  /// One step of a 32-bit float at the magnitude of [z]: `2^(e − 23)`.
+  static double _floatResolution(double z) {
+    if (z <= 0.0) return math.pow(2.0, -149).toDouble();
+    final exponent = (math.log(z) / math.ln2).floor();
+    return math.pow(2.0, exponent - 23).toDouble();
+  }
 
   bool _depthPasses(double incoming, double stored) => switch (_depthCompare) {
     CompareFunction.never => false,
@@ -1273,3 +2169,67 @@ final class CpuEncoder implements CommandEncoder {
 
 /// How a target keeps what is written to it.
 enum _Storage { float, unorm8, unorm8Srgb }
+
+/// A [PassViewport] as the rasteriser measures it — since 1.0.0-rc.1.
+///
+/// **Its corner split in two**: the whole pixel window positions are counted
+/// from ([originX], [originY]), which is added to a pixel's index where the
+/// addition is exact, and the fraction a fractional corner moves them by
+/// ([fractionX], [fractionY]), which is added to the positions themselves.
+/// A viewport on whole pixels has no fraction, and adding nought moves no
+/// bit, so every such pass draws what it drew when the viewport was a
+/// `ScreenRect`.
+final class _Window {
+  _Window(PassViewport viewport)
+    : originX = viewport.x.floor(),
+      originY = viewport.y.floor(),
+      fractionX = viewport.x - viewport.x.floor(),
+      fractionY = viewport.y - viewport.y.floor(),
+      width = viewport.width,
+      height = viewport.height,
+      minDepth = viewport.minDepth,
+      maxDepth = viewport.maxDepth,
+      // The pixels whose centres lie inside the rectangle: from the first
+      // centre at or right of the left edge to the last left of the right.
+      left = (viewport.x - 0.5).ceil(),
+      top = (viewport.y - 0.5).ceil(),
+      right = (viewport.x + viewport.width - 0.5).ceil(),
+      bottom = (viewport.y + viewport.height - 0.5).ceil(),
+      _fullDepth = viewport.coversFullDepth;
+
+  /// The whole-pixel corner window positions are counted from, in target
+  /// pixels.
+  final int originX;
+  final int originY;
+
+  /// What the corner's fraction moves every window position by, in pixels.
+  final double fractionX;
+
+  /// The same for rows, in pixels.
+  final double fractionY;
+
+  /// The viewport's size, in pixels.
+  final double width;
+
+  /// The viewport's height, in pixels.
+  final double height;
+
+  /// The window depth range: depths from 0 to 1, unitless.
+  final double minDepth;
+
+  /// The far end of the window depth range: a depth from 0 to 1, unitless.
+  final double maxDepth;
+
+  /// The first column and row inside, and the first past, in target pixels.
+  final int left;
+  final int top;
+  final int right;
+  final int bottom;
+
+  final bool _fullDepth;
+
+  /// Clip depth [z] as window depth: mapped onto [minDepth]..[maxDepth], and
+  /// left exactly as it is for the whole range.
+  double depthOf(double z) =>
+      _fullDepth ? z : minDepth + z * (maxDepth - minDepth);
+}

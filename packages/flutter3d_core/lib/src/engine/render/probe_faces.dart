@@ -43,9 +43,13 @@ import '../scene/projection.dart';
 final class ProbeFace {
   const ProbeFace._(this.aim, this.up);
 
+  /// The direction the face looks along, a unit axis.
   final Vector3 aim;
+
+  /// The direction at the top row of the face, a unit axis.
   final Vector3 up;
 
+  /// The six faces, in cube-map order: +X, −X, +Y, −Y, +Z, −Z.
   static final List<ProbeFace> all = List<ProbeFace>.unmodifiable(<ProbeFace>[
     ProbeFace._(Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
     ProbeFace._(Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
@@ -75,7 +79,7 @@ Matrix4 probeFaceViewProjection(
   final camera = ProbeFace.all[face];
   final view = lookAtRightHanded(position, position + camera.aim, camera.up);
   final projection = PerspectiveProjection(
-    fovYRadians: math.pi / 2,
+    fovY: math.pi / 2,
     near: near,
     far: far,
   ).toMatrix(1.0);

@@ -20,6 +20,29 @@ import 'package:vector_math/vector_math.dart';
 /// A rectangle on the glass, in logical pixels, with the origin top left.
 typedef ScreenBounds = ({double left, double top, double right, double bottom});
 
+/// A point on the glass, in logical pixels, with the origin top left: where
+/// [projectPoint] says a point in the scene lands.
+final class ScreenPoint {
+  /// The point [x] across and [y] down.
+  const ScreenPoint({required this.x, required this.y});
+
+  /// Logical pixels from the left edge.
+  final double x;
+
+  /// Logical pixels from the top edge, growing downwards.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ScreenPoint && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'ScreenPoint($x, $y)';
+}
+
 /// Where [point] lands, or null if it is behind the eye.
 ///
 /// [viewProjection] is the camera's own matrix for the viewport's aspect, in
@@ -28,7 +51,7 @@ typedef ScreenBounds = ({double left, double top, double right, double bottom});
 /// framebuffer origin. That adjustment answers "which end of a texture is row
 /// zero"; this answers "where on the screen is it", and the screen's origin is
 /// top left on every platform Flutter draws on.
-({double x, double y})? projectPoint(
+ScreenPoint? projectPoint(
   Matrix4 viewProjection,
   Vector3 point, {
   required double width,
@@ -43,7 +66,10 @@ typedef ScreenBounds = ({double left, double top, double right, double bottom});
   final ndcY = clip.y / clip.w;
   // +Y is up in clip space and down on the glass, which is the one flip this
   // function owes its callers.
-  return (x: (ndcX * 0.5 + 0.5) * width, y: (0.5 - ndcY * 0.5) * height);
+  return ScreenPoint(
+    x: (ndcX * 0.5 + 0.5) * width,
+    y: (0.5 - ndcY * 0.5) * height,
+  );
 }
 
 /// The axis-aligned rectangle covering [box] on the glass, or null when none of

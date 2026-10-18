@@ -63,6 +63,10 @@ import 'physics_step_component.dart';
 /// directly — this bridge relays the event onward, it does not replace the
 /// flutter3d-side one.
 final class CollisionBridge with CollisionListener {
+  /// A bridge from [collider]'s contacts to [component], set as the
+  /// collider's listener at once. [plane] defaults to the component's own;
+  /// throws an [ArgumentError] when it is null and [component] is not an
+  /// [Object3dComponent].
   CollisionBridge({
     required this.collider,
     required this.component,
@@ -137,7 +141,9 @@ final class CollisionBridge with CollisionListener {
   /// removed component either, and a despawned ship hearing it hit a bot
   /// is a callback into a game object that is gone.
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final self = context.self;
+    final other = context.other;
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
@@ -146,7 +152,9 @@ final class CollisionBridge with CollisionListener {
   }
 
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final self = context.self;
+    final other = context.other;
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
@@ -159,7 +167,8 @@ final class CollisionBridge with CollisionListener {
   }
 
   @override
-  void onCollisionEnd(Collider self, Collider other) {
+  void onCollisionEnd(CollisionContext context) {
+    final other = context.other;
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null || !_touching.remove(target)) return;

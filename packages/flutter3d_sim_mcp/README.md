@@ -6,18 +6,22 @@ can open a level, step it forward with input, read positions and health back
 in words, capture a headless frame with no GPU, and hand over the run it made
 as a `.f3drun` that any other tool in this repository can open.
 
-A claim about the run comes with its proof. `expect` steps until a
+A claim about the run comes with its proof. `run.expect` steps until a
 predicate over the reading holds (near a point, inside a box, alive,
-health) and writes the `.f3drun` that got there. `verify` replays such a
+health) and writes the `.f3drun` that got there. `run.verify` replays such a
 file in a world of its own and names the first checkpoint where it stops
 matching, if there is one. Claims about what touched what are not possible,
 because game events are not saved in a run.
 
-Unlike `flutter3d_editor_mcp`/`flutter3d_model_mcp`, this server is
+Unlike `flutter3d_mcp/editor.dart`/`flutter3d_mcp/model.dart`, this server is
 genre-aware on purpose. It knows what a monster and a weapon are, because the
 question it answers ("what does the room look like from here, and is the
 player still alive") has no genre-agnostic version.
 
-It speaks MCP over a socket rather than literal stdio. `flutter test` itself
+The package has no `bin/`: the server needs a game, and only the game's own
+program has one. That program constructs `SimMcpServer` with a `SimSession`
+for its game over whatever channel it picks: stdin and stdout through
+`dart_mcp`'s `stdioChannel` for a host that starts it, or a socket it
+listens on. This repository's suite does the second, because `flutter test`
 rewrites everything a test writes to stdout with its own prefix, and a
 protocol tied to an exact line format does not survive that.

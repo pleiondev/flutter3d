@@ -21,29 +21,24 @@
 ///
 /// ## What it costs
 ///
-/// A round trip: the widget is rasterised on the GPU, [ui.Image.toByteData]
-/// brings the pixels back to the host, and [GraphicsDevice.createTextureFromPixels]
-/// sends them out again. That is the price of a texture every backend can
-/// sample — the same call the glTF loader uploads with — and it is charged per
-/// [draw], not per frame. A sign whose text changes once a lap pays it once a
-/// lap.
-///
-/// flutter_gpu 3.47 has `Texture.fromImage`, which wraps the image's own GPU
-/// texture with no copy at all, and a future backend method could take that
-/// path where it exists. It would be a native-only shortcut under the same
-/// call, not a different API: the web backends have nothing like it, and the
-/// round trip is what they would keep doing.
+/// On Impeller, nothing but the raster: the device is
+/// `PlatformTextures<ui.Image>`, and flutter_gpu's `Texture.fromImage` wraps
+/// the image's own GPU texture with no copy at all. Elsewhere a round trip:
+/// [ui.Image.toByteData] brings the pixels back to the host and
+/// [GraphicsDevice.createTextureFromPixels] sends them out again, the price
+/// of a texture every backend can sample. Either way it is charged per
+/// [draw], not per frame; `textureFromImage` picks the road.
 library;
 
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-// `RenderView` is a name both libraries have, and in this file it is Flutter's:
-// the root of a render tree. The engine's is a camera and a viewport, and
-// nothing here has one.
-import 'package:flutter3d/flutter3d.dart' hide RenderView;
+// `RenderView` here is Flutter's, the root of a render tree; the engine's
+// camera onto a viewport is `CameraView`, so the two never meet.
+import 'package:flutter3d/flutter3d.dart';
 
+import 'platform_texture.dart';
 import 'widget_surface_pipeline.dart' show unmountWidgetTree;
 
 /// Draws widgets into textures on one device.
@@ -54,6 +49,7 @@ import 'widget_surface_pipeline.dart' show unmountWidgetTree;
 /// caller who draws twice a second should make and a caller who draws once
 /// should not pay for.
 final class WidgetTexture {
+  /// A drawer uploading to [device].
   const WidgetTexture(this.device);
 
   /// Where the pixels end up.
@@ -84,17 +80,10 @@ final class WidgetTexture {
       pixelRatio: pixelRatio,
     );
     try {
-      final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (pixels == null) return null;
-      return device.createTextureFromPixels(
-        width: width,
-        height: height,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: pixels,
-      );
+      return await textureFromImage(device, image);
     } finally {
-      // The image held a GPU texture of its own, and this method's whole
-      // output is a copy of it. Holding both is holding the picture twice.
+      // Copied, the image is a second picture nobody needs; wrapped, the
+      // texture keeps the storage alive on its own.
       image.dispose();
     }
   }

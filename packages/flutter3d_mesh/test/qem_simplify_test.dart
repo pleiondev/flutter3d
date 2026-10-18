@@ -279,7 +279,7 @@ void main() {
           sphere,
           targetTriangleCount: 10,
           onProgress: (_, _) => progressCalls++,
-          isCancelled: () => progressCalls >= 1,
+          isCanceled: () => progressCalls >= 1,
         );
 
         expect(simplified.triangleCount, greaterThan(10));
@@ -330,7 +330,7 @@ void main() {
         // A generous tolerance against the rim's own chord length: this is
         // "did it stay on the curve", not "did it stay exactly still".
         final chordLength = 2 * math.pi * radius / segments;
-        final centre = Vector3(0.0, 0.0, 0.0);
+        final center = Vector3(0.0, 0.0, 0.0);
         for (final edge in simplifiedBoundary) {
           for (final p in <Vector3>[edge.$1, edge.$2]) {
             expect(
@@ -339,7 +339,7 @@ void main() {
               reason: 'a boundary vertex drifted off the original rim',
             );
             expect(
-              (p - centre).length,
+              (p - center).length,
               greaterThan(radius * 0.5),
               reason:
                   'the shared centre point must never read as a boundary vertex',
@@ -434,7 +434,7 @@ void main() {
       'onProgress and isCancelled behave the same as the position-only pass',
       () {
         // Enough segments that the collapse count clears the 1000-collapse
-        // cadence `onProgress`/`isCancelled` are polled at — the same reason
+        // cadence `onProgress`/`isCanceled` are polled at — the same reason
         // `simplifyMesh`'s own version of this test uses a 60x60 sphere rather
         // than a handful of triangles, where the loop would finish before the
         // first checkpoint and never give cancellation a chance to bite.
@@ -444,7 +444,7 @@ void main() {
           sphere,
           targetTriangleCount: 10,
           onProgress: (_, _) => progressCalls++,
-          isCancelled: () => progressCalls >= 1,
+          isCanceled: () => progressCalls >= 1,
         );
         expect(progressCalls, greaterThanOrEqualTo(1));
         expect(simplified.triangleCount, greaterThan(10));

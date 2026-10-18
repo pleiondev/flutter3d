@@ -9,12 +9,17 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'flame_camera_bridge.dart';
 import 'flame_crowd.dart';
 import 'flame_ecs_bridge.dart';
+import 'flame_horde.dart';
 import 'flame_input_bridge.dart';
+import 'flame_level_scene.dart';
 import 'flame_overview.dart';
 import 'flame_owned_world.dart';
 import 'flame_physics_bridge.dart';
+import 'flame_seats.dart';
 import 'flame_transform_bridge.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> flameDemos = <String, DemoBuilder>{
   'flame-overview': FlameOverviewDemo.new,
   'flame-transform-bridge': FlameTransformBridgeDemo.new,
@@ -24,4 +29,7 @@ final Map<String, DemoBuilder> flameDemos = <String, DemoBuilder>{
   'flame-camera-bridge': FlameCameraBridgeDemo.new,
   'flame-owned-world': FlameOwnedWorldDemo.new,
   'flame-crowd': FlameCrowdDemo.new,
+  'flame-seats': FlameSeatsDemo.new,
+  'flame-horde': FlameHordeDemo.new,
+  'flame-level-scene': FlameLevelSceneDemo.new,
 };

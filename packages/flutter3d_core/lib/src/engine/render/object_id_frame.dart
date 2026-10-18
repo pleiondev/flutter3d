@@ -14,6 +14,7 @@ import '../scene/mesh_node.dart';
 ///
 /// Rows run from the top, like every picture this engine reads back.
 final class ObjectIdFrame {
+  /// A [width] by [height] frame of [ids], with the [nodes] they name.
   const ObjectIdFrame({
     required this.width,
     required this.height,
@@ -21,7 +22,10 @@ final class ObjectIdFrame {
     required this.nodes,
   });
 
+  /// Width of the frame in pixels.
   final int width;
+
+  /// Height of the frame in pixels.
   final int height;
 
   /// One id per pixel, row-major from the top: zero where nothing was drawn,

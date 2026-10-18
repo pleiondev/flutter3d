@@ -25,12 +25,18 @@ import 'mesh_data.dart';
 /// would all lose their unit tests to a dependency they never use. `DeviceMesh`
 /// in `device_mesh.dart` implements this; so does [CpuMesh], for geometry that
 /// has no reason to be uploaded.
-abstract interface class MeshGeometry {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class MeshGeometry {
   /// Object-space bounds.
   Aabb3 get bounds;
 
+  /// Count of vertices in the mesh.
   int get vertexCount;
 
+  /// Count of indices in the mesh, three per triangle.
   int get indexCount;
 
   /// The CPU-side geometry, when it is still around.
@@ -50,6 +56,7 @@ abstract interface class MeshGeometry {
 /// meshes, a headless scene under test — and for the tests of everything that
 /// consumes [MeshGeometry].
 final class CpuMesh implements MeshGeometry {
+  /// A mesh over [source], its bounds computed once here.
   CpuMesh(this.source) : bounds = source.computeBounds();
 
   @override
@@ -64,6 +71,7 @@ final class CpuMesh implements MeshGeometry {
   @override
   int get indexCount => source.indexCount;
 
+  /// Half the bounds' diagonal, in metres.
   @override
   double get boundingRadius {
     final extent = (bounds.max - bounds.min)..scale(0.5);

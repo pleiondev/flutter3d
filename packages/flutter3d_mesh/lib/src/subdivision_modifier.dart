@@ -15,6 +15,7 @@ part of 'modifier.dart';
 /// chooses to read it and subdivide its own copy to fewer levels — nothing
 /// this package does.
 final class SubdivisionModifier extends Modifier {
+  /// A subdivision of [levels] passes; [viewLevels] defaults to the same.
   const SubdivisionModifier({required this.levels, int? viewLevels})
     : viewLevels = viewLevels ?? levels;
 
@@ -38,10 +39,11 @@ final class SubdivisionModifier extends Modifier {
     'viewLevels': viewLevels,
   };
 
-  /// [SubdivisionModifier] from its own [toJson], or null when [levels] is
-  /// missing or of the wrong type. [viewLevels] defaults to [levels] the
-  /// same way the constructor does when absent.
-  static SubdivisionModifier? fromJson(Map<String, Object?> json) =>
+  /// [SubdivisionModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when [levels] is missing or of the wrong type.
+  /// [viewLevels] defaults to [levels] the same way the constructor does when
+  /// absent.
+  static SubdivisionModifier fromJson(Map<String, Object?> json) =>
       switch (json) {
         {'levels': final int levels} => SubdivisionModifier(
           levels: levels,
@@ -50,6 +52,8 @@ final class SubdivisionModifier extends Modifier {
             _ => null,
           },
         ),
-        _ => null,
+        _ => throw const ModifierFormatException(
+          'a subdivision modifier names its whole "levels"',
+        ),
       };
 }

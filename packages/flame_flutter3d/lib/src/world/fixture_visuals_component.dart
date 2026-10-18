@@ -14,6 +14,8 @@ import '../host/bridge_priority.dart';
 /// meshes on the device for good. Added with the level and removed with it,
 /// this does both.
 final class FixtureVisualsComponent extends Component {
+  /// A component syncing [fixtures] each frame, just before the camera, and
+  /// disposing them when it is removed.
   FixtureVisualsComponent(
     this.fixtures, {
     super.priority = BridgePriority.camera - 1,

@@ -11,8 +11,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `additive-blend` page: one turn clip on three heads, and the nod laid
+/// over two of them every 2.2 seconds. Its check fails unless the middle head
+/// reads as the turn with the nod on top and the right one as the nod alone.
 final class AdditiveBlendDemo extends ShowcaseDemo {
   late final AnimationTrack _turnTrack;
   late final AnimationTrack _nodTrack;
@@ -24,6 +26,9 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
   AnimationLayer? _additiveNod;
   AnimationLayer? _overrideNod;
 
+  /// How fast the three heads turn, as a multiple of the turn clip's own speed:
+  /// 0 stops them, 2 is twice as fast. The "Turn speed" slider writes it, and
+  /// the nod keeps its own pace whatever it is.
   double turnSpeed = 1.0;
   double _sinceNod = 0.0;
 
@@ -48,10 +53,10 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.3, 0.3, 0.5)).build(),
     );
-    MeshNode head(String name, Vector4 colour, double x) {
+    MeshNode head(String name, Vector4 color, double x) {
       final MeshNode node = MeshNode(
         box,
-        Material(name: name, baseColor: colour, roughness: 0.6),
+        RenderMaterial(name: name, baseColor: _fromSrgb(color), roughness: 0.6),
         name: name,
       )..setPosition(x, 0.0, 0.0);
       // A face, so a turn and a nod each read as one: a plain cube looks
@@ -59,7 +64,10 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       node.add(
         MeshNode(
           nose,
-          Material(name: '$name nose', baseColor: Vector4(0.95, 0.9, 0.8, 1.0)),
+          RenderMaterial(
+            name: '$name nose',
+            baseColor: LinearColor.fromSrgb(0.95, 0.9, 0.8, 1.0),
+          ),
           name: '$name nose',
         )..setPosition(0.0, 0.0, 0.7),
       );
@@ -86,14 +94,14 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       tracks: <AnimationTrack>[_nodTrack],
       // The rest pose the nod is a difference from: at time zero it asks
       // for nothing, so laid on top of a turn it leaves the turn alone.
-      referenceTime: 0.0,
+      referenceSeconds: 0.0,
     );
     // #endregion clips
 
     AnimationPlayer playerFor(MeshNode node) => AnimationPlayer(
       clips: <AnimationClip>[turn, nod],
       targets: <AnimationTarget?>[node],
-    )..play(0);
+    )..play(index: 0);
     _plain = playerFor(plainHead);
     _additive = playerFor(_additiveHead);
     _override = playerFor(_overrideHead);
@@ -115,7 +123,7 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       ..add(_additiveHead)
       ..add(_overrideHead)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       );
   }
@@ -239,9 +247,10 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
     final AnimationLayer? nod = _additiveNod;
     if (nod == null) throw StateError('the additive head has no nod playing');
 
-    final Quaternion turn = _sample(_turnTrack, _additive.time);
+    final Quaternion turn = _sample(_turnTrack, _additive.timeSeconds);
     final Quaternion delta =
-        (_sample(_nodTrack, 0.0).conjugated() * _sample(_nodTrack, nod.time))
+        (_sample(_nodTrack, 0.0).conjugated() *
+              _sample(_nodTrack, nod.timeSeconds))
           ..normalize();
     if ((delta.w - 1.0).abs() < 1e-3) {
       throw StateError('the nod has not moved yet; nothing to add');
@@ -263,3 +272,6 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) throw StateError('the heads were not drawn');
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

@@ -8,7 +8,7 @@ import 'dart:typed_data';
 /// A growable buffer of (key, payload) pairs, sorted ascending by key.
 ///
 /// Key and payload are kept apart rather than packed, which is the whole trick:
-/// a key is at most `kSortKeyBits` wide, so a double holds it exactly, and the
+/// a key is at most `sortKeyBits` wide, so a double holds it exactly, and the
 /// ordering that comes out is identical to the native one rather than a coarser
 /// approximation of it.
 ///
@@ -23,6 +23,7 @@ import 'dart:typed_data';
 /// for a platform already an order of magnitude off native speed. The cost is
 /// paid where it matters least.
 final class PackedKeys {
+  /// An empty buffer with room for [capacity] entries before it grows.
   PackedKeys([int capacity = 128])
     : _keys = Float64List(capacity),
       _payloads = Int32List(capacity),
@@ -34,6 +35,8 @@ final class PackedKeys {
   List<int> _order;
   Int32List _sortedPayloads;
 
+  /// Grows the buffer to hold at least [count] entries; the entries already
+  /// set are not kept.
   void ensure(int count) {
     if (count <= _keys.length) return;
     var capacity = _keys.length;
@@ -46,11 +49,14 @@ final class PackedKeys {
     _sortedPayloads = Int32List(capacity);
   }
 
+  /// Sets entry [index] to [key] and [payload], below the current capacity.
   void setEntry(int index, int key, int payload) {
     _keys[index] = key.toDouble();
     _payloads[index] = payload;
   }
 
+  /// Sorts the first [count] entries ascending by key, equal keys keeping
+  /// their order, ready for [payloadAt].
   void sort(int count) {
     if (count < 2) {
       // Still copy: a caller reads payloadAt after every sort, and returning
@@ -79,5 +85,6 @@ final class PackedKeys {
     }
   }
 
+  /// The payload of the entry at [index] in sorted order, after [sort].
   int payloadAt(int index) => _sortedPayloads[index];
 }

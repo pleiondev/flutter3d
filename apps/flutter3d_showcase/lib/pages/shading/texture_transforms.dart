@@ -9,21 +9,28 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `texture-transforms` page: two plates with one texture, the second
+/// moving its colour and glow maps apart. Its check is that the moved plate
+/// carries a transform per map.
 final class TextureTransformsDemo extends ShowcaseDemo {
+  /// How far the colour map is turned, in radians, 0 to 2π.
   double turn = math.pi / 4;
+
+  /// How many times the colour map repeats across the plate, 1 to 4.
   double repeat = 2.0;
+
+  /// How far the glow map slides along U, 0 to 0.5 of a tile.
   double slide = 0.5;
 
-  static const SamplerOptions _nearestRepeat = SamplerOptions(
+  static const SamplerDescriptor _nearestRepeat = SamplerDescriptor(
     minFilter: MinMagFilter.nearest,
     magFilter: MinMagFilter.nearest,
     widthAddressMode: SamplerAddressMode.repeat,
     heightAddressMode: SamplerAddressMode.repeat,
   );
 
-  late final Material _moved;
+  late final RenderMaterial _moved;
 
   @override
   void configureView(DemoContext context) {
@@ -48,7 +55,7 @@ final class TextureTransformsDemo extends ShowcaseDemo {
             ...<int>[230, 230, 230, 255],
           ]),
         ),
-      )!;
+      );
   // #endregion texture
 
   // #region transforms
@@ -69,25 +76,25 @@ final class TextureTransformsDemo extends ShowcaseDemo {
     final TextureHandle quadrants = _quadrants(context.device);
 
     // #region plates
-    final Material asIs = Material(
+    final RenderMaterial asIs = RenderMaterial(
       name: 'as is',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.3, 0.3, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.3, 1.0),
       albedo: quadrants,
       albedoSampler: _nearestRepeat,
       emissiveTexture: quadrants,
       emissiveSampler: _nearestRepeat,
-      emissive: Vector3(0.5, 0.5, 0.5),
+      emissive: LinearColor(0.5, 0.5, 0.5),
     );
-    _moved = Material(
+    _moved = RenderMaterial(
       name: 'moved',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.3, 0.3, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.3, 1.0),
       albedo: quadrants,
       albedoSampler: _nearestRepeat,
       emissiveTexture: quadrants,
       emissiveSampler: _nearestRepeat,
-      emissive: Vector3(0.5, 0.5, 0.5),
+      emissive: LinearColor(0.5, 0.5, 0.5),
       textureTransforms: _transforms(),
     );
     // #endregion plates
@@ -101,7 +108,7 @@ final class TextureTransformsDemo extends ShowcaseDemo {
       math.pi / 2,
     );
     return Scene()
-      ..ambientIntensity = 0.25
+      ..ambientIntensity = 0.25 * LightNode.defaultIntensity
       ..add(
         MeshNode(plate, asIs, name: 'as is')
           ..setRotation(upright)
@@ -113,7 +120,7 @@ final class TextureTransformsDemo extends ShowcaseDemo {
           ..setPosition(0.95, 0.0, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.2, -0.3, -1.0).normalized()),
       );
   }

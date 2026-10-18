@@ -17,17 +17,31 @@
 /// `chair.desktop.f3d` — each cut to its class's `DeviceClassBudget`. A
 /// manifest without it builds what it always built.
 ///
+/// **Materials (`*.f3dmat`, P8) are matched by the same rules**, and only
+/// `glob` and `exclude` mean anything to them. A material has no textures to
+/// compress and no levels of detail, so `exclude: true` is the one thing a
+/// rule can say about one. `AssetLayout.materialPlan` reads it.
+///
 /// **`"**/*.obj"` matches a root-level `a.obj` too.** That is
 /// `package:glob`'s rule since 2.2.0, where `**` at the start of a pattern
 /// may match no directory at all; before it, the same pattern skipped every
 /// source sitting directly under `assets_src/`, and a manifest for a project
 /// with no subdirectories excluded nothing. A test holds the current rule,
 /// so a later `glob` that changes it again fails there first.
+///
+/// **`format: 1` names the manifest's version**, the YAML spelling of the
+/// envelope every flutter3d document carries. A manifest without it is
+/// version 1, which is every manifest written before the key existed; a
+/// newer one is refused with the version that reads it, rather than read
+/// with keys this build would misunderstand.
 library;
 
 import 'dart:io';
 
-import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, FormatSpec;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show ShaderStageNeed;
 import 'package:glob/glob.dart';
 import 'package:yaml/yaml.dart';
 
@@ -35,12 +49,14 @@ import 'chunk_generate.dart';
 import 'convert.dart';
 import 'device_classes.dart';
 
-/// Thrown by [AssetManifest.parse] — always names the line the problem is
+/// Thrown by [AssetBuildManifest.parse] — always names the line the problem is
 /// on, because a manifest's own author is the one who reads this, not a
 /// user of the finished game.
-final class ManifestFormatException implements Exception {
+final class ManifestFormatException extends Flutter3dFormatException {
+  /// The problem [message], found on the manifest's [line].
   const ManifestFormatException(this.message, this.line);
 
+  @override
   final String message;
 
   /// 1-indexed, the way an editor's own gutter counts.
@@ -52,6 +68,8 @@ final class ManifestFormatException implements Exception {
 
 /// What one glob in the manifest overrides for the files it matches.
 final class AssetRule {
+  /// The rule for files [glob] matches; every override left out keeps what
+  /// the build does without a rule.
   AssetRule({
     required this.glob,
     this.textures,
@@ -63,9 +81,21 @@ final class AssetRule {
     this.exclude = false,
   });
 
+  /// The rule's `glob:`, matched against a path relative to `assets_src/`;
+  /// the last rule whose glob matches is the one that applies.
   final Glob glob;
+
+  /// The rule's `textures:`, the compression family of a matched model's
+  /// images; null when the rule does not say. The asset build does not
+  /// apply it yet.
   final TextureFamily? textures;
+
+  /// The rule's `mips:`, whether compressed images keep mip chains; null
+  /// when the rule does not say. The asset build does not apply it yet.
   final bool? mips;
+
+  /// The rule's `objNormals:`, how an OBJ without normals gets them; null
+  /// when the rule does not say. The asset build does not apply it yet.
   final ObjNormals? objNormals;
 
   /// `C5`: the triangle ratios of the levels of detail a matched model gains
@@ -82,10 +112,47 @@ final class AssetRule {
   /// for another, the manifest's spelling of `convert --chunks`. Null splits
   /// nothing.
   final int? chunks;
+
+  /// The rule's `exclude: true`: a matched model or material is not
+  /// converted at all.
   final bool exclude;
 }
 
-const Set<String> _topLevelKeys = <String>{'rules', 'classes'};
+/// The keys the manifest reads, at the top, under a class and in a rule.
+///
+/// **A key added to any of the three moves [AssetBuildManifest.formatVersion]
+/// with it.** A released build refuses a key it does not know and says
+/// "update flutter3d_build" only for a newer `format:`, so a new key within
+/// a format gives a team on two releases the wrong sentence. A structure
+/// rule compares these sets and the version with the last release's.
+const Set<String> _topLevelKeys = <String>{
+  'format',
+  'rules',
+  'classes',
+  'shaders',
+};
+
+/// What a project's `shaders:` says about the engine's stages it carries
+/// (D15): the needs beyond the base it declares, or every stage.
+///
+/// ```yaml
+/// shaders: [toon, pbrLayered]   # the engine's needs, or a plugin's by id
+/// shaders: full                 # every stage, as the editor carries
+/// ```
+final class ShaderSelection {
+  /// The selection of [needs], or of every stage when [full].
+  const ShaderSelection({this.needs = const <String>[], this.full = false});
+
+  /// Nothing declared: the base, and what materials and plugins bring.
+  static const ShaderSelection none = ShaderSelection();
+
+  /// The needs named, by `ShaderStageNeed.name`.
+  final List<String> needs;
+
+  /// Every stage, whatever is declared — `--full-shaders`.
+  final bool full;
+}
+
 const Set<String> _classKeys = <String>{
   'lods',
   'impostor',
@@ -107,38 +174,33 @@ const Set<String> _ruleKeys = <String>{
 /// A parsed `flutter3d_assets.yaml`, or the empty manifest a project without
 /// one gets — the same object either way, so nothing downstream branches on
 /// whether a file existed.
-final class AssetManifest {
-  const AssetManifest([
+final class AssetBuildManifest {
+  /// The manifest of [rules], [classes] and [shaders]; all empty by
+  /// default, which is [empty].
+  const AssetBuildManifest({
     this.rules = const <AssetRule>[],
     this.classes = const <DeviceClassBudget>[],
-  ]);
+    this.shaders = ShaderSelection.none,
+  });
 
-  static const AssetManifest empty = AssetManifest();
-
-  final List<AssetRule> rules;
-
-  /// `N7`: the device classes a model is written for, one `.f3d` each —
-  /// `classes: [phone, web, desktop]` for the presets, or a mapping from a
-  /// class to the numbers it changes (`phone: {maxTextureSide: 512}`).
-  /// Empty, the default, writes the single `.f3d` a project always had.
-  final List<DeviceClassBudget> classes;
-
-  /// Reads a project's manifest if it has one, or [empty] if it does not —
-  /// the "no configuration" half of `ap-04`'s own acceptance.
-  static AssetManifest readFrom(Directory projectRoot) {
-    final file = File('${projectRoot.path}/flutter3d_assets.yaml');
-    if (!file.existsSync()) return empty;
-    return AssetManifest.parse(file.readAsStringSync());
-  }
-
-  factory AssetManifest.parse(String yamlText) {
+  /// [yamlText] read as a manifest; an empty document, or one with no
+  /// `rules:`, `classes:` or `shaders:`, is [empty].
+  ///
+  /// Throws a [ManifestFormatException] naming the line of a YAML error, a
+  /// top level that is not a mapping, an unknown key, a `format:` that is
+  /// not a whole number or is newer than [formatVersion], or a rule, class
+  /// or shader need that does not read.
+  factory AssetBuildManifest.parse(String yamlText) {
     final YamlNode document;
     try {
       document = loadYamlNode(yamlText);
-    } on YamlException catch (error) {
-      throw ManifestFormatException(
-        error.message,
-        (error.span?.start.line ?? 0) + 1,
+    } on YamlException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ManifestFormatException(
+          error.message,
+          (error.span?.start.line ?? 0) + 1,
+        ),
+        stackTrace,
       );
     }
 
@@ -161,6 +223,24 @@ final class AssetManifest {
       }
     }
 
+    final formatNode = document.nodes['format'];
+    if (formatNode != null) {
+      final said = formatNode is YamlScalar ? formatNode.value : null;
+      if (said is! int || said < 1) {
+        throw ManifestFormatException(
+          '"format" must be a whole number, the manifest\'s version',
+          formatNode.span.start.line + 1,
+        );
+      }
+      if (said > formatVersion) {
+        throw ManifestFormatException(
+          'format $said is newer than this build reads ($formatVersion): '
+          'update flutter3d_build to read it',
+          formatNode.span.start.line + 1,
+        );
+      }
+    }
+
     final rulesNode = document.nodes['rules'];
     if (rulesNode != null && rulesNode is! YamlList) {
       throw ManifestFormatException(
@@ -169,16 +249,90 @@ final class AssetManifest {
       );
     }
     final classesNode = document.nodes['classes'];
-    if (rulesNode == null && classesNode == null) return empty;
+    final shadersNode = document.nodes['shaders'];
+    if (rulesNode == null && classesNode == null && shadersNode == null) {
+      return empty;
+    }
 
-    return AssetManifest(
-      <AssetRule>[
+    return AssetBuildManifest(
+      rules: <AssetRule>[
         if (rulesNode is YamlList)
           for (final ruleNode in rulesNode.nodes) _parseRule(ruleNode),
       ],
-      classesNode == null
+      classes: classesNode == null
           ? const <DeviceClassBudget>[]
           : _parseClasses(classesNode),
+      shaders: shadersNode == null
+          ? ShaderSelection.none
+          : _parseShaders(shadersNode),
+    );
+  }
+
+  /// The manifest of a project without one: no rules, one `.f3d` per
+  /// source, and only the stages materials and plugins bring.
+  static const AssetBuildManifest empty = AssetBuildManifest();
+
+  /// The manifest's version, read from `format:`; absent is 1.
+  static const int formatVersion = 1;
+
+  /// `flutter3d_assets.yaml` among the engine's formats.
+  static const FormatSpec spec = FormatSpec(
+    id: 'f3d.assets',
+    version: formatVersion,
+    suffixes: <String>['flutter3d_assets.yaml'],
+    fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml',
+  );
+
+  /// The `rules:`, in file order; for a file, the last that matches wins.
+  final List<AssetRule> rules;
+
+  /// `N7`: the device classes a model is written for, one `.f3d` each —
+  /// `classes: [phone, web, desktop]` for the presets, or a mapping from a
+  /// class to the numbers it changes (`phone: {maxTextureSide: 512}`).
+  /// Empty, the default, writes the single `.f3d` a project always had.
+  final List<DeviceClassBudget> classes;
+
+  /// D15: which of the engine's shader stages the project's bundle carries
+  /// beyond the base — `shaders: [toon]`, or `shaders: full`.
+  final ShaderSelection shaders;
+
+  /// Reads a project's manifest if it has one, or [empty] if it does not —
+  /// the "no configuration" half of `ap-04`'s own acceptance.
+  static AssetBuildManifest readFrom(Directory projectRoot) {
+    final file = File('${projectRoot.path}/flutter3d_assets.yaml');
+    if (!file.existsSync()) return empty;
+    return AssetBuildManifest.parse(file.readAsStringSync());
+  }
+
+  /// `shaders:` as the word `full` or a list of needs: the engine's by name,
+  /// a plugin's by its id-prefixed name.
+  static ShaderSelection _parseShaders(YamlNode node) {
+    if (node is YamlScalar && node.value == 'full') {
+      return const ShaderSelection(full: true);
+    }
+    if (node is! YamlList) {
+      throw ManifestFormatException(
+        '"shaders" is a list of needs, such as [toon, pbrLayered], or the '
+        'word full',
+        node.span.start.line + 1,
+      );
+    }
+    return ShaderSelection(
+      needs: <String>[
+        for (final entry in node.nodes)
+          switch (_textOf(entry, 'a shader need')) {
+            final name
+                when name.contains('.') ||
+                    ShaderStageNeed.engine.any((need) => need.name == name) =>
+              name,
+            final name => throw ManifestFormatException(
+              '"$name" is not a shader need: the engine\'s are '
+              '${ShaderStageNeed.engine.map((n) => n.name).join(', ')}, and '
+              'a plugin\'s is named after its id (acme.glow)',
+              entry.span.start.line + 1,
+            ),
+          },
+      ],
     );
   }
 
@@ -187,7 +341,7 @@ final class AssetManifest {
   static List<DeviceClassBudget> _parseClasses(YamlNode node) {
     DeviceClass classOf(YamlNode name) {
       final text = _textOf(name, 'a device class');
-      return DeviceClass.parse(text) ??
+      return DeviceClass.tryParse(text) ??
           (throw ManifestFormatException(
             'unknown device class "$text" — expected one of '
             '${DeviceClass.values.join(', ')}',
@@ -315,15 +469,18 @@ final class AssetManifest {
           final pattern = _textOf(valueNode, 'glob');
           try {
             glob = Glob(pattern);
-          } on FormatException catch (error) {
-            throw ManifestFormatException(
-              'bad glob "$pattern": ${error.message}',
-              valueNode.span.start.line + 1,
+          } on FormatException catch (error, stackTrace) {
+            Error.throwWithStackTrace(
+              ManifestFormatException(
+                'bad glob "$pattern": ${error.message}',
+                valueNode.span.start.line + 1,
+              ),
+              stackTrace,
             );
           }
         case 'textures':
           final text = _textOf(valueNode, 'textures');
-          final family = TextureFamily.parse(text);
+          final family = TextureFamily.tryParse(text);
           if (family == null) {
             throw ManifestFormatException(
               'unknown texture family "$text" — expected one of '
@@ -352,7 +509,7 @@ final class AssetManifest {
           impostor = _boolOf(valueNode, 'impostor');
         case 'chunks':
           chunks = switch (valueNode.value) {
-            true => kDefaultChunkThreshold,
+            true => defaultChunkThreshold,
             false => null,
             final int threshold when threshold > 0 => threshold,
             _ => throw ManifestFormatException(

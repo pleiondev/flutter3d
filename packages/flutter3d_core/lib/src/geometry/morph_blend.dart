@@ -26,10 +26,14 @@ import 'vertex_layout.dart';
 /// weights it was handed are the ones already applied, so a face holding an
 /// expression costs one comparison a frame rather than a pass and an upload.
 final class MorphBlend {
+  /// A blender for [mesh], starting from a copy of its base vertices with
+  /// every weight at nought.
   MorphBlend(this.mesh)
     : _blended = Float32List.fromList(mesh.vertices),
       _applied = Float64List(mesh.morphTargets.length);
 
+  /// The mesh whose base vertices and morph targets are blended; left
+  /// unchanged.
   final MeshData mesh;
 
   /// The blended vertices, in the mesh's own layout and stride.

@@ -19,7 +19,7 @@ that already builds a matrix, perspective or orthographic, can be the base.
 `tileX` and `tileY` say which square of the grid this is; `tilesX` and
 `tilesY` say how big the grid is. The projection crops the base matrix's own
 `[-1, 1]` cube down to that one square and rescales it to fill the frame
-again. Here each tile is a `RenderView` of its own, from the same eye, and
+again. Here each tile is a `CameraView` of its own, from the same eye, and
 its viewport is the cell of the frame where that piece belongs. Row 0 is the
 top of the picture.
 

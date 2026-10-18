@@ -11,6 +11,8 @@ import 'package:flutter3d_showcase/pages/backends/backend_webgl.dart';
 import 'package:flutter3d_showcase/pages/backends/backend_webgpu.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `backends` category's pages, by the page id in the route, each with the
+/// builder the host calls when the page opens.
 final Map<String, DemoBuilder> backendsDemos = <String, DemoBuilder>{
   'backend-impeller': BackendImpellerDemo.new,
   'backend-webgl': BackendWebglDemo.new,

@@ -27,6 +27,9 @@ import 'tables/quality_tables.dart' as tables;
 
 /// One combination of the levers: a render scale and an effect tier.
 final class QualitySetting {
+  /// A [renderScale] in (0, 1] at effect tier [tier].
+  ///
+  /// Asserts both ranges.
   const QualitySetting({required this.renderScale, required this.tier})
     : assert(renderScale > 0.0 && renderScale <= 1.0),
       assert(tier >= 0 && tier < tierCount);
@@ -125,8 +128,13 @@ final class QualitySetting {
             )
           : null,
       // Nought is "no limit", which there is nothing to take a share of.
-      frameWorkBudget: full.frameWorkBudget > 0 && tier > 0
-          ? math.max(1, (full.frameWorkBudget * kept).round())
+      frameWorkBudget: full.frameWorkBudget > Duration.zero && tier > 0
+          ? Duration(
+              microseconds: math.max(
+                1,
+                (full.frameWorkBudget.inMicroseconds * kept).round(),
+              ),
+            )
           : null,
     );
   }
@@ -146,8 +154,11 @@ final class QualitySetting {
 
 /// One measured row: a setting, what it costs and what it takes away.
 final class QualityRow {
+  /// The row for [setting], at a relative frame time of [cost] and a mean
+  /// FLIP of [flip].
   const QualityRow(this.setting, {required this.cost, required this.flip});
 
+  /// The levers this row sets.
   final QualitySetting setting;
 
   /// Frame time relative to [QualitySetting.full] on the table's class.
@@ -163,6 +174,8 @@ final class QualityRow {
 
 /// The rows of one device class, best picture first.
 final class QualityTable {
+  /// The table of [deviceClass], its [rows] copied and sorted by FLIP, then
+  /// by cost, with the full setting first among equals.
   QualityTable({
     required this.deviceClass,
     required List<QualityRow> rows,
@@ -213,6 +226,7 @@ final class QualityTable {
   static final Map<DeviceClass, QualityTable> _byClass =
       <DeviceClass, QualityTable>{};
 
+  /// The device class the rows were measured on.
   final DeviceClass deviceClass;
 
   /// Sorted by FLIP, then by cost: the first row that fits a budget is the

@@ -23,10 +23,15 @@ import 'package:web/web.dart' as web;
 /// shell in this once, so "the document" and "the app" are the same area in
 /// practice.
 class FileDropZone extends StatefulWidget {
+  /// A drop zone around [child], handing every dropped file to [onDropped].
   const FileDropZone({super.key, required this.child, required this.onDropped});
 
+  /// What is drawn. The drop is heard on the whole document, not just over
+  /// this.
   final Widget child;
 
+  /// Called once per dropped file, with its name and its bytes, after the
+  /// browser has read them.
   final void Function(String name, Uint8List bytes) onDropped;
 
   @override

@@ -18,8 +18,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/weapon_models.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The JSON chunk of a GLB.
@@ -195,8 +195,8 @@ void main() {
             0.0,
             reason: '$path has a metallic material and will render black',
           );
-          final colour = (pbrMap['baseColorFactor']! as List).cast<num>();
-          for (final channel in colour.take(3)) {
+          final color = (pbrMap['baseColorFactor']! as List).cast<num>();
+          for (final channel in color.take(3)) {
             lightest = channel.toDouble() > lightest
                 ? channel.toDouble()
                 : lightest;

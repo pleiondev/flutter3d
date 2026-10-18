@@ -1,0 +1,9 @@
+# What stays out of the published archive.
+#
+# The tape parity: the racing and shooter tapes played on the core on every
+# target, run from this repository by tool/digest_platforms.sh. It imports
+# the demos' content and the genres, which this package does not depend on,
+# and pub's dependency check reads every Dart file that would be published.
+tool/tape_parity/
+build/
+.dart_tool/

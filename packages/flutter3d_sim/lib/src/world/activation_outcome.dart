@@ -18,6 +18,7 @@
 /// `base`: extend it, do not implement it, so that an outcome gaining a member
 /// here is inherited by a game's own rather than breaking it.
 abstract base class ActivationOutcome {
+  /// Lets a subclass be const.
   const ActivationOutcome();
 
   /// Something worth showing the player, or null when there is nothing to say.
@@ -26,11 +27,13 @@ abstract base class ActivationOutcome {
 
 /// It did what it was asked.
 final class Activated extends ActivationOutcome {
+  /// The outcome of success; it has no [message].
   const Activated();
 }
 
 /// It would not, and here is what to tell the player.
 final class Refused extends ActivationOutcome {
+  /// A refusal telling the player [message].
   const Refused(this.message);
 
   @override
@@ -42,5 +45,6 @@ final class Refused extends ActivationOutcome {
 /// Distinct from [Refused] because pressing a button twice is not a failure and
 /// should not print anything.
 final class NothingToDo extends ActivationOutcome {
+  /// The outcome of nothing to do; it has no [message].
   const NothingToDo();
 }

@@ -28,7 +28,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     return Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -44,11 +44,8 @@ void main() {
     // somewhere other than 1.0.
     final device = FakeBackend();
 
-    final renderer = Renderer.create(device: device);
+    Renderer.create(device: device);
 
-    expect(renderer.fallbackAlbedo, isNotNull);
-    expect(renderer.fallbackNormal, isNotNull);
-    expect(renderer.fallbackBlack, isNotNull);
     expect(device.uploadedPixels.length, 3);
     expect(device.uploadedPixels[0].buffer.asUint8List(), <int>[
       255,
@@ -81,7 +78,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
 
     final renderer = Renderer.create(
       device: device,
@@ -116,11 +113,16 @@ void main() {
     // the error names it rather than failing later with a blank frame.
     expect(
       () => build(FakeBackend(missingShaders: <String>{'MeshVertex'})),
+      // A `MissingShaderStageException`, which a caller can catch as the
+      // engine's own rather than as a bug.
       throwsA(
-        isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('MeshVertex'),
+        isA<Exception>().having(
+          (e) => '$e',
+          'description',
+          allOf(
+            contains('MissingShaderStageException'),
+            contains('MeshVertex'),
+          ),
         ),
       ),
     );
@@ -141,12 +143,15 @@ void main() {
     // depth is not chosen: a texture comes back when the backend says the work
     // that read it is done.
     final device = FakeBackend()..completesImmediately = false;
-    final renderer = Renderer.create(device: device);
+    // Drawn however far behind the GPU is: holding a frame (`A1.4`) would
+    // hand back a texture already counted, and this is about the ring.
+    final renderer = Renderer.create(device: device)
+      ..pacing = const FramePacing(holdWhenBehind: false);
     final scene = Scene()..add(CameraNode());
-    final view = RenderView(camera: scene.cameras.single);
+    final view = CameraView(camera: scene.cameras.single);
 
     Object? drawFrame() => renderer
-        .render(width: 64, height: 64, scene: scene, views: <RenderView>[view])
+        .render(width: 64, height: 64, scene: scene, views: <CameraView>[view])
         .frame
         .backend;
 
@@ -180,7 +185,7 @@ void main() {
         width: 64,
         height: 64,
         scene: quickScene,
-        views: <RenderView>[RenderView(camera: quickScene.cameras.single)],
+        views: <CameraView>[CameraView(camera: quickScene.cameras.single)],
       );
     }
     expect(

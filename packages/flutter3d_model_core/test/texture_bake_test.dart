@@ -7,10 +7,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 Uint8List _chunk(String type, List<int> data) {
   final out = BytesBuilder();
@@ -92,7 +93,7 @@ void main() {
       final graph = TextureGraph(
         nodes: <TextureNode>[
           const ImageTextureNode(id: 1, imageId: 0),
-          ColorTextureNode(id: 4, value: Vector4(0.5, 0.5, 0.5, 1)),
+          ColorTextureNode(id: 4, value: LinearColor(0.5, 0.5, 0.5, 1)),
           BlendTextureNode(id: 2, base: 1, overlay: 4, factor: 0.3),
           const OutputTextureNode(id: 3, result: 2),
         ],
@@ -110,7 +111,7 @@ void main() {
       final edited = TextureGraph(
         nodes: <TextureNode>[
           const ImageTextureNode(id: 1, imageId: 0),
-          ColorTextureNode(id: 4, value: Vector4(0.5, 0.5, 0.5, 1)),
+          ColorTextureNode(id: 4, value: LinearColor(0.5, 0.5, 0.5, 1)),
           BlendTextureNode(id: 2, base: 1, overlay: 4, factor: 0.7),
           const OutputTextureNode(id: 3, result: 2),
         ],
@@ -168,7 +169,7 @@ void main() {
     test('an output node id nothing in the graph has', () {
       final graph = TextureGraph(
         nodes: <TextureNode>[
-          ColorTextureNode(id: 1, value: Vector4(1, 1, 1, 1)),
+          ColorTextureNode(id: 1, value: LinearColor(1, 1, 1, 1)),
         ],
       );
       expect(bakeTextureGraph(graph, 99, const <int, Uint8List>{}), isNull);
@@ -179,7 +180,7 @@ void main() {
     test('Color fills every pixel with its own value', () {
       final graph = TextureGraph(
         nodes: <TextureNode>[
-          ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
+          ColorTextureNode(id: 1, value: LinearColor(1, 0, 0, 1)),
           const OutputTextureNode(id: 2, result: 1),
         ],
       );
@@ -248,8 +249,8 @@ void main() {
         nodes: <TextureNode>[
           CheckerTextureNode(
             id: 1,
-            colorA: Vector4(1, 1, 1, 1),
-            colorB: Vector4(0, 0, 0, 1),
+            colorA: LinearColor(1, 1, 1, 1),
+            colorB: LinearColor(0, 0, 0, 1),
             scale: 2,
           ),
           const OutputTextureNode(id: 2, result: 1),
@@ -274,7 +275,7 @@ void main() {
     test('an unwired Blend input reads as fully transparent black', () {
       final graph = TextureGraph(
         nodes: <TextureNode>[
-          ColorTextureNode(id: 1, value: Vector4(1, 1, 1, 1)),
+          ColorTextureNode(id: 1, value: LinearColor(1, 1, 1, 1)),
           const BlendTextureNode(
             id: 2,
             base: 1,

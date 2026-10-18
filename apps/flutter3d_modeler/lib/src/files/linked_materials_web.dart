@@ -22,6 +22,9 @@ import 'linked_materials.dart' show LinkedMaterialHost;
 /// has to ask which platform it is on to find the constant.
 const Duration kLinkedMaterialSettle = Duration(milliseconds: 120);
 
+/// What [LinkedMaterials] gets in a browser: a page has no file to watch or
+/// an editor to open, so nothing ever changes and opening always answers
+/// false.
 LinkedMaterialHost linkedMaterialHost() => (
   watch: (String path) => const Stream<void>.empty(),
   read: (String path) async => null,

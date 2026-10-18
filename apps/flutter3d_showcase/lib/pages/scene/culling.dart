@@ -3,10 +3,16 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `culling` page: a few cubes in view and a warehouse of cubes behind
+/// the camera. Its check is that the frame culled the offscreen field and
+/// drew the visible cubes.
 final class CullingDemo extends ShowcaseDemo {
+  /// How many cubes stand inside the starting frustum.
   static const int visibleCount = 16;
+
+  /// How many cubes stand outside it, every one of which the check expects
+  /// culled.
   static const int hiddenCount = 304;
 
   late final SceneNode _offscreenBranch;
@@ -25,16 +31,16 @@ final class CullingDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3.all(0.72)).build(),
     );
-    final Material material = Material(
+    final RenderMaterial material = RenderMaterial(
       name: 'culling markers',
-      baseColor: Vector4(0.25, 0.62, 0.86, 1.0),
+      baseColor: LinearColor.fromSrgb(0.25, 0.62, 0.86, 1.0),
       roughness: 0.58,
     );
 
     // #region visible
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.44, 0.53, 0.7)
-      ..ambientIntensity = 0.14;
+      ..ambientColor = LinearColor(0.44, 0.53, 0.7)
+      ..ambientIntensity = 0.14 * LightNode.defaultIntensity;
     for (var i = 0; i < visibleCount; i++) {
       final int x = i % 4;
       final int z = i ~/ 4;
@@ -61,7 +67,7 @@ final class CullingDemo extends ShowcaseDemo {
 
     // #region light
     scene.add(
-      LightNode(name: 'sun', intensity: 3.1)
+      LightNode(name: 'sun', intensity: 3.1 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.5, -0.8, -0.3)),
     );
     // #endregion light

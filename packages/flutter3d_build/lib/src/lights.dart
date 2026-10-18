@@ -1,41 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'cli_contract.dart' show CliExit, cliOptions, lightsUsage, unknownOption;
 import 'device_classes.dart';
 import 'manifest.dart';
-
-/// What `dart run flutter3d_build:lights` prints when it is asked wrongly.
-const String lightsUsage = '''
-usage: dart run flutter3d_build:lights --optimize <level.json> [options]
-
-Fewer lights that light the level the way it is lit now. Every light is
-drawn alone in software from the views; lights others already cover are
-removed, close pairs are merged, and the rest are retuned, keeping only
-changes whose picture stays close to the original.
-
-  --poses <file.json>   where players stood: a JSON list of poses
-                        ({"t", "p": [x, y, z], "y"}), as a game's Recorder
-                        writes them while it plays a .f3drun back. May be
-                        given more than once. Without one, the views are four
-                        headings from every player spawn.
-  --state <file.json>   a lighting state the level must look right
-                        under: {"name": "noon", "lights": [...]}, the lights
-                        written as the level writes them and never changed.
-                        May be given more than once, and the level is then
-                        judged under each; a state with no lights is night.
-  -o, --out <path>      where to write the level; default: over the input
-  --preview <dir>       write before.png and after.png of the first view
-  --dry-run             say what would change and write no level
-  --classes <names>     phone,web,desktop: write one level per device class
-                        beside the output (level.phone.json, ...), each
-                        optimised to its class's tolerance (the nearest
-                        flutter3d_assets.yaml's lightDifference for the
-                        class, or the preset's), and leave the level
-                        itself alone
-''';
 
 /// The lights command: read a level, optimise its lights, write it back.
 ///
@@ -48,10 +20,18 @@ Future<int> runLights(
 }) async {
   final say = out ?? stdout;
   final complain = err ?? stderr;
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    say.writeln(lightsUsage);
+    return CliExit.ok;
+  }
+  if (cliOptions['lights']!.unknownIn(arguments) case final String unknown) {
+    complain.writeln('${unknownOption(unknown)}\n\n$lightsUsage');
+    return CliExit.usage;
+  }
   final options = _LightsOptions.parse(arguments);
   if (options == null) {
     complain.writeln(lightsUsage);
-    return 2;
+    return CliExit.usage;
   }
 
   final source = File(options.level);
@@ -62,15 +42,16 @@ Future<int> runLights(
   final Editing editing;
   try {
     editing = Editing.parse(source.readAsStringSync(), path: options.level);
+  } on LevelFormatException catch (error) {
+    // Before the bare `FormatException` below, which it now also is.
+    complain.writeln('${options.level}: $error');
+    return 1;
   } on FormatException catch (error) {
     complain.writeln('${options.level}: ${error.message}');
     return 1;
-  } on LevelFormatException catch (error) {
-    complain.writeln('${options.level}: $error');
-    return 1;
   }
 
-  final poses = <Pose>[];
+  final poses = <GhostFrame>[];
   for (final path in options.poses) {
     final read = _posesIn(path);
     if (read == null) {
@@ -136,11 +117,11 @@ Future<int> runLights(
     File('$directory/before.png').writeAsBytesSync(pngs.before);
     File('$directory/after.png').writeAsBytesSync(pngs.after);
   }
-  if (!plan.changes || options.dryRun) return 0;
+  if (!plan.hasChanges || options.dryRun) return 0;
 
   final to = options.out ?? options.level;
   final elsewhere = to != options.level;
-  if (!elsewhere && !editing.mayOverwrite) {
+  if (!elsewhere && !editing.canOverwrite) {
     complain.writeln(
       '${options.level} was written by ${editing.generatedBy} and will not be '
       'overwritten — give --out and the copy takes ownership of itself',
@@ -195,7 +176,7 @@ Future<int> _perClass(
       say.writeln('  $move');
     }
     if (options.dryRun) continue;
-    if (plan.changes) {
+    if (plan.hasChanges) {
       editing.history.run(SetLights(plan.after, why: plan.says));
     }
     final to = deviceClassPath(base, deviceClass);
@@ -213,18 +194,18 @@ Future<int> _perClass(
 /// A level lives somewhere under its project (`assets/levels/crypt.json`),
 /// and the command is run from wherever its author is, so the project is
 /// found from the level rather than from the working directory.
-AssetManifest _manifestAbove(Directory directory) {
+AssetBuildManifest _manifestAbove(Directory directory) {
   for (var at = directory.absolute; ; at = at.parent) {
     if (File('${at.path}/flutter3d_assets.yaml').existsSync()) {
-      return AssetManifest.readFrom(at);
+      return AssetBuildManifest.readFrom(at);
     }
-    if (at.parent.path == at.path) return AssetManifest.empty;
+    if (at.parent.path == at.path) return AssetBuildManifest.empty;
   }
 }
 
 /// The poses in the file at [path]: a JSON list of them, or an object with
 /// the list under `poses`. Null when the file holds neither.
-List<Pose>? _posesIn(String path) {
+List<GhostFrame>? _posesIn(String path) {
   final file = File(path);
   if (!file.existsSync()) return null;
   final Object? decoded;
@@ -234,18 +215,23 @@ List<Pose>? _posesIn(String path) {
     return null;
   }
   final rows = switch (decoded) {
-    final List<Object?> list => list,
-    {'poses': final List<Object?> list} => list,
+    final List<Object?> list || {'poses': final List<Object?> list} => list,
     _ => null,
   };
   if (rows == null) return null;
-  return <Pose>[
+  return <GhostFrame>[
     for (final row in rows)
-      if (row is Map) Pose.fromJson(row.cast<String, Object?>()),
+      if (row is Map) GhostFrame.fromJson(row.cast<String, Object?>()),
   ];
 }
 
 /// The lighting state in the file at [path], or null when it is not one.
+///
+/// **Its lights are read as a level's are**, at the `version` the file says
+/// and version 1 when it says none, as a level document is: so a state
+/// written beside a pre-1.0 level, in that level's unit, is lifted to
+/// candela with it, and one in candela says `"version": 5`. Read raw, its
+/// lamps were five thousand times dimmer than the level's they stood beside.
 LightingState? _stateIn(String path) {
   final file = File(path);
   if (!file.existsSync()) return null;
@@ -255,16 +241,16 @@ LightingState? _stateIn(String path) {
     final name = decoded['name'];
     final lights = decoded['lights'] ?? const <Object?>[];
     if (lights is! List) return null;
-    return LightingState(
-      name is String ? name : path,
-      lights: <LevelLight>[
+    final read = Level.fromJson(<String, Object?>{
+      'version': decoded['version'] ?? 1,
+      'lights': <Object?>[
         for (final row in lights)
-          if (row is Map) LevelLight.fromJson(row.cast<String, Object?>()),
+          if (row is Map) row.cast<String, Object?>(),
       ],
-    );
+    });
+    return LightingState(name is String ? name : path, lights: read.lights);
   } on FormatException {
-    return null;
-  } on LevelFormatException {
+    // A `LevelFormatException` is one too.
     return null;
   }
 }

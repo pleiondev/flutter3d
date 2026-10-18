@@ -37,7 +37,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart'
     show
         MaterialDocument,
@@ -80,7 +80,7 @@ final Map<String, MaterialHint> levelMaterialHints = <String, MaterialHint>{
         'lit. Above one is a surface that blows out, which is what a lamp '
         'housing wants and a wall does not.',
   ),
-  'texelsPerMetre': const MaterialHint(
+  'texelsPerMeter': const MaterialHint(
     RangeHint(0.125, 8.0, step: 0.125),
     label: 'Texels per metre',
     help: 'How many times the maps repeat across a metre of wall.',
@@ -129,7 +129,7 @@ bool setLevelMaterialField(
   final row = materials[material];
   if (row is! Map<String, Object?>) return false;
 
-  final before = Map<String, Object?>.from(row);
+  final before = Map<String, Object?>.of(row);
   if (value == null) {
     row.remove(key);
   } else {
@@ -153,18 +153,79 @@ bool setLevelMaterialField(
   return true;
 }
 
+/// What a running game's `ext.flutter3d.material.set` takes for [key] of a
+/// level material set to [value], or null for a key a frame cannot show
+/// without a reload: a texture path, the tiling, a material file.
+///
+/// **The level's words turned into the engine's**, the way the loader turns
+/// them (`LevelScene.materialFrom`): a level's `emissive` is a strength over
+/// the base colour, so it is `emissiveStrength`, and a new base colour is
+/// the glow's colour too.
+Map<String, Object?>? liveMaterialFields(String key, Object? value) =>
+    switch ((key, value)) {
+      ('baseColor', final List<Object?> color)
+          when color.length >= 3 && color.every((it) => it is num) =>
+        <String, Object?>{
+          'baseColor': <num>[
+            ...color.take(3).cast<num>(),
+            color.length > 3 ? color[3]! as num : 1.0,
+          ],
+          'emissive': color.take(3).cast<num>().toList(),
+        },
+      ('roughness', final num at) => <String, Object?>{'roughness': at},
+      ('metallic', final num at) => <String, Object?>{'metallic': at},
+      ('emissive', final num at) => <String, Object?>{'emissiveStrength': at},
+      _ => null,
+    };
+
+/// What a running game's `ext.flutter3d.material.set` takes for the `.fmat`
+/// parameter [key] set to [value], or null for a value that is not numbers.
+///
+/// **A list whatever the slider handed over**, for the reason the file is
+/// written that way: a uniform is a list, and the game refuses one whose
+/// length is not the one it loaded.
+Map<String, Object?>? liveParameterFields(String key, Object? value) =>
+    switch (value) {
+      final num one => <String, Object?>{
+        'parameters/$key': <num>[one],
+      },
+      final List<Object?> many when many.every((it) => it is num) =>
+        <String, Object?>{'parameters/$key': many},
+      _ => null,
+    };
+
 /// The materials of a level, and the fields of the one that is open.
 final class MaterialPanel extends StatefulWidget {
+  /// A panel over [editing]'s materials, telling [onChanged] what each edit
+  /// did.
   const MaterialPanel({
     super.key,
     required this.editing,
     required this.onChanged,
     this.documents = const <String, MaterialDocument>{},
     this.onMaterialWritten,
+    this.onLive,
     this.offers = nothingToOffer,
+    this.pieces,
   });
 
+  /// The document whose materials are listed and edited.
   final Editing editing;
+
+  /// What the installed plugins brought: a material whose lit model is a
+  /// plugin's gets that plugin's hints for the parameters its file does not
+  /// hint. Null shows the file's and the engine's hints alone.
+  final EditorPieces? pieces;
+
+  /// Called with a material's name and [liveMaterialFields] for every value
+  /// a slider passes through and every value written, for a running game to
+  /// show before anything is saved. Keys a frame cannot show are not sent.
+  ///
+  /// For a material that defers to a `.fmat`, its parameters go out as
+  /// [liveParameterFields] and the level's own fields not at all: the game
+  /// draws that material from the file, so a level colour sent live would
+  /// show something the next load does not.
+  final void Function(String material, Map<String, Object?> fields)? onLive;
 
   /// Called after a field was actually written, naming it, so the screen can
   /// rebuild and the scene can be rebuilt from the document. The inspector's
@@ -264,6 +325,12 @@ class _MaterialPanelState extends State<MaterialPanel> {
                       value: row[key],
                       hint: levelMaterialHints[key],
                       offers: widget.offers,
+                      onPreview: (Object? value) => _live(
+                        name,
+                        document == null
+                            ? liveMaterialFields(key, value)
+                            : null,
+                      ),
                       onWrite: (Object? value) {
                         if (setLevelMaterialField(
                           widget.editing,
@@ -271,6 +338,12 @@ class _MaterialPanelState extends State<MaterialPanel> {
                           key,
                           value,
                         )) {
+                          _live(
+                            name,
+                            document == null
+                                ? liveMaterialFields(key, value)
+                                : null,
+                          );
                           widget.onChanged('$name.$key');
                         }
                       },
@@ -301,7 +374,7 @@ class _MaterialPanelState extends State<MaterialPanel> {
           key: ValueKey<String>('file:$key'),
           name: key,
           value: fields[key],
-          hint: materialDocumentHint(document, key),
+          hint: materialDocumentHint(document, key, pieces: widget.pieces),
           offers: widget.offers,
           onWrite: (Object? value) => _writeFile(name, document, key, value),
         ),
@@ -317,24 +390,36 @@ class _MaterialPanelState extends State<MaterialPanel> {
               [final double only] => only,
               final Float32List many => many.toList(),
             },
-            hint: document.hints[key],
+            hint: materialDocumentHint(document, key, pieces: widget.pieces),
             offers: widget.offers,
+            onPreview: (Object? value) =>
+                _live(name, liveParameterFields(key, value)),
             // Back into a list on the way out, because that is what a uniform
             // is in the file whatever a slider hands over — a bare number under
             // `parameters` reads back as a list of one and would look to the
             // gate like a value the reader had misunderstood.
-            onWrite: (Object? value) => _writeFile(
-              name,
-              document,
-              'parameters/$key',
-              value is num ? <num>[value] : value,
-            ),
+            onWrite: (Object? value) {
+              if (_writeFile(
+                name,
+                document,
+                'parameters/$key',
+                value is num ? <num>[value] : value,
+              )) {
+                _live(name, liveParameterFields(key, value));
+              }
+            },
           ),
       ],
     ];
   }
 
-  void _writeFile(
+  void _live(String material, Map<String, Object?>? fields) {
+    final send = widget.onLive;
+    if (send != null && fields != null) send(material, fields);
+  }
+
+  /// Whether the file's reader took the change.
+  bool _writeFile(
     String name,
     MaterialDocument document,
     String key,
@@ -344,11 +429,12 @@ class _MaterialPanelState extends State<MaterialPanel> {
       document,
       key,
       value,
-      hint: materialDocumentHint(document, key),
+      hint: materialDocumentHint(document, key, pieces: widget.pieces),
     );
-    if (next == null) return;
+    if (next == null) return false;
     widget.onMaterialWritten?.call(name, next);
     widget.onChanged('$name:$key');
+    return true;
   }
 
   Widget _heading(String says) => SectionLabel(

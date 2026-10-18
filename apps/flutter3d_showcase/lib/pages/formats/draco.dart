@@ -7,8 +7,9 @@ import 'dart:convert';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `draco` page: a mesh decoded from a Draco fixture. Its check is that
+/// it comes out as 60 triangles, with points, and is drawn.
 final class DracoDemo extends ShowcaseDemo {
   late final DracoMesh _mesh;
   late final MeshData _upload;
@@ -90,12 +91,15 @@ final class DracoDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _upload),
-          Material(baseColor: Vector4(0.75, 0.6, 0.5, 1.0), roughness: 0.6),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.75, 0.6, 0.5, 1.0),
+            roughness: 0.6,
+          ),
           name: 'draco mesh',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

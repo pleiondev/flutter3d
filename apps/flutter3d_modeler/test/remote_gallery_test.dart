@@ -27,7 +27,7 @@ final class _Memory implements GalleryCache {
 /// One entry of a `model-index.json`.
 Map<String, Object?> _entry({
   required String name,
-  String licence = 'CC0',
+  String license = 'CC0',
   String? artist,
   bool binary = true,
 }) => <String, Object?>{
@@ -38,7 +38,7 @@ Map<String, Object?> _entry({
   },
   'legal': <Object?>[
     <String, Object?>{
-      'license': licence,
+      'license': license,
       'licenseUrl': 'https://example.invalid/',
       'artist': ?artist,
     },
@@ -63,7 +63,7 @@ void main() {
             _entry(name: 'Box'),
             _entry(
               name: 'DamagedHelmet',
-              licence: 'CC BY 4.0',
+              license: 'CC BY 4.0',
               artist: 'A. Maker',
             ),
           ],
@@ -77,7 +77,7 @@ void main() {
       expect(items.first.isFree, isTrue);
       expect(items.first.author, isNull);
       final GalleryItem helmet = items.last;
-      expect(helmet.licence.requiresAttribution, isTrue);
+      expect(helmet.license.requiresAttribution, isTrue);
       expect(helmet.author, 'A. Maker');
       expect(asked, <String>[kKhronosIndex]);
     });
@@ -93,7 +93,7 @@ void main() {
 
       final RemoteSource source = khronosSamples(fetch: _answering(const {}));
       final List<GalleryItem> items = parseKhronosIndex(<Object?>[
-        _entry(name: 'Secret', licence: 'All rights reserved'),
+        _entry(name: 'Secret', license: 'All rights reserved'),
         _entry(name: 'Box'),
       ], source);
       expect(items.map((GalleryItem it) => it.name), <String>['Box']);
@@ -102,7 +102,7 @@ void main() {
     test('and a CC-BY entry naming no artist is skipped too', () {
       final RemoteSource source = khronosSamples(fetch: _answering(const {}));
       final List<GalleryItem> items = parseKhronosIndex(<Object?>[
-        _entry(name: 'Nameless', licence: 'CC BY 4.0'),
+        _entry(name: 'Nameless', license: 'CC BY 4.0'),
       ], source);
 
       // `gal-01` refuses an item like this; skipping it here means the

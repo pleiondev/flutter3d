@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -29,14 +32,14 @@ abstract final class Effects {
     // the eye calls flame.
     lifetime: const Range(0.20, 0.40),
     size: const Range(0.10, 0.19),
-    color: Vector4(1.0, 0.62, 0.22, 1.0),
+    color: LinearColor(1.0, 0.62, 0.22, 1.0),
     emitter: const ConeEmitter(
-      halfAngleDegrees: 10.0,
+      halfAngle: 10.0 * math.pi / 180.0,
       speed: Range(0.22, 0.55),
     ),
     affectors: <ParticleAffector>[
       // Upward, because hot air is the whole shape of a flame.
-      const ParticleGravity(1.1),
+      const ParticleGravity(acceleration: 1.1),
       const ParticleDrag(2.6),
       // A standing swirl, at a scale a little smaller than the flame itself so
       // a particle crosses two or three cells in its fifth of a second. Weak:
@@ -55,9 +58,13 @@ abstract final class Effects {
           // line between the first and last passes through none of that. The
           // first segment eases, so the drop out of the hottest part is quick
           // and the long orange middle is where most of the life is spent.
-          GradientKey(0.0, Vector4(1.0, 0.86, 0.55, 1.0), ease: KeyEase.smooth),
-          GradientKey(0.35, Vector4(1.0, 0.66, 0.24, 1.0)),
-          GradientKey(1.0, Vector4(0.55, 0.08, 0.02, 1.0)),
+          GradientKey(
+            0.0,
+            LinearColor(1.0, 0.86, 0.55, 1.0),
+            ease: KeyEase.smooth,
+          ),
+          GradientKey(0.35, LinearColor(1.0, 0.66, 0.24, 1.0)),
+          GradientKey(1.0, LinearColor(0.55, 0.08, 0.02, 1.0)),
         ]),
       ),
       const ParticleFade(startsAt: 0.35),
@@ -86,7 +93,7 @@ abstract final class Effects {
     ),
     lifetime: const Range(0.9, 1.8),
     size: const Range(0.22, 0.40),
-    color: Vector4(0.20, 0.17, 0.15, 1.0),
+    color: LinearColor(0.20, 0.17, 0.15, 1.0),
     affectors: <ParticleAffector>[
       const ParticleDrag(1.4),
       // Stronger and wider than the torch's: a plume this size has room to
@@ -115,15 +122,15 @@ abstract final class Effects {
     ),
     lifetime: const Range(0.25, 0.6),
     size: const Range(0.35, 0.9),
-    color: Vector4(3.2, 1.5, 0.45, 1.0),
+    color: LinearColor(3.2, 1.5, 0.45, 1.0),
     affectors: <ParticleAffector>[
       // Enough drag that the fireball stops expanding almost at once, which is
       // what makes it read as a detonation rather than as fireworks.
       const ParticleDrag(6.0),
-      const ParticleGravity(-3.0),
+      const ParticleGravity(acceleration: -3.0),
       ParticleColorOverLife(
-        Vector4(3.2, 1.5, 0.45, 1.0),
-        Vector4(0.6, 0.15, 0.05, 1.0),
+        LinearColor(3.2, 1.5, 0.45, 1.0),
+        LinearColor(0.6, 0.15, 0.05, 1.0),
       ),
       const ParticleSizeOverLife(from: 0.7, to: 1.6),
       const ParticleFade(startsAt: 0.35),
@@ -136,9 +143,11 @@ abstract final class Effects {
     emitter: const SphereEmitter(speed: Range(6.0, 22.0)),
     lifetime: const Range(0.5, 1.4),
     size: const Range(0.05, 0.14),
-    color: Vector4(2.6, 1.1, 0.3, 1.0),
+    color: LinearColor(2.6, 1.1, 0.3, 1.0),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-11.0),
+      // Ballistic debris: falls by the world's gravity, as everything
+      // thrown in this game does (once a fixed -11 of its own).
+      const ParticleGravity(),
       const ParticleDrag(1.2),
       const ParticleFade(startsAt: 0.5),
     ],
@@ -147,12 +156,17 @@ abstract final class Effects {
   /// Sparks where a bullet met stone.
   static final ParticleEffect impactSparks = ParticleEffect(
     count: 14,
-    emitter: const ConeEmitter(speed: Range(2.5, 7.0), halfAngleDegrees: 42.0),
+    emitter: const ConeEmitter(
+      speed: Range(2.5, 7.0),
+      halfAngle: 42.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.12, 0.35),
     size: const Range(0.03, 0.08),
-    color: Vector4(2.4, 1.6, 0.7, 1.0),
+    color: LinearColor(2.4, 1.6, 0.7, 1.0),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-14.0),
+      // Ballistic: falls by the world's gravity, as everything
+      // thrown in this game does (once a fixed -14 of its own).
+      const ParticleGravity(),
       const ParticleFade(startsAt: 0.4),
     ],
   );
@@ -161,10 +175,13 @@ abstract final class Effects {
   /// rather than as decoration.
   static final ParticleEffect impactDust = ParticleEffect(
     count: 6,
-    emitter: const ConeEmitter(speed: Range(0.4, 1.6), halfAngleDegrees: 60.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.4, 1.6),
+      halfAngle: 60.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.4, 0.9),
     size: const Range(0.12, 0.3),
-    color: Vector4(0.30, 0.26, 0.22, 1.0),
+    color: LinearColor(0.30, 0.26, 0.22, 1.0),
     affectors: <ParticleAffector>[
       const ParticleDrag(2.5),
       const ParticleSizeOverLife(from: 0.6, to: 1.8),
@@ -175,10 +192,13 @@ abstract final class Effects {
   /// A brief flare at the muzzle.
   static final ParticleEffect muzzleFlash = ParticleEffect(
     count: 5,
-    emitter: const ConeEmitter(speed: Range(0.5, 2.0), halfAngleDegrees: 18.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.5, 2.0),
+      halfAngle: 18.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.04, 0.09),
     size: const Range(0.10, 0.22),
-    color: Vector4(4.0, 2.6, 1.1, 1.0),
+    color: LinearColor(4.0, 2.6, 1.1, 1.0),
     affectors: <ParticleAffector>[
       const ParticleSizeOverLife(from: 1.0, to: 0.3),
       const ParticleFade(),

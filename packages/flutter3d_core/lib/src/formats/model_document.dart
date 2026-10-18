@@ -19,20 +19,75 @@ export 'model_light.dart';
 export 'model_node.dart';
 export 'surface_material.dart';
 
-/// What the source file said about itself, as opposed to what it contains.
+/// What the source file said about itself, as opposed to what it contains:
+/// the tool that wrote it, and who made it and on what terms.
 ///
-/// **`generator` only, because that is the one name the plan asks for and the
-/// one field every real producer of these files actually fills in.** glTF's
-/// own `asset` object also carries `copyright` and a required schema
-/// `version`; neither is read yet, and a field nothing decodes is a field
-/// nothing can honestly claim to round-trip.
+/// **The rights travel with the model.** A model loaded from the hub, or
+/// from anywhere else somebody else made it, carries its [author], its
+/// [license] and its [copyright] on the result of the load, so an
+/// application can credit it and a tool can refuse to ship one with no
+/// licence. glTF says them in two places, and both are read and written:
+/// `asset.copyright`, and the document's `KHR_xmp_json_ld` packet, whose
+/// `dc:creator` is the author and whose `dc:rights` is the licence. The
+/// packet is kept whole in [xmp], so a key nothing here reads survives a
+/// write.
+///
+/// glTF's required schema `version` is not here: it is the format's, not
+/// the file's.
 final class DocumentAsset {
-  const DocumentAsset({this.generator, this.extras});
+  /// What a file said about itself; every field it did not say is null.
+  const DocumentAsset({
+    this.generator,
+    this.extras,
+    this.copyright,
+    this.author,
+    this.license,
+    this.xmp,
+  });
 
   /// The tool that wrote the file — glTF's `asset.generator`, e.g. `"Blender
   /// 4.2"`. Null when the file does not say, which most hand-built test
   /// documents and every OBJ do not.
   final String? generator;
+
+  /// The copyright notice, as the file writes it — glTF's
+  /// `asset.copyright`, e.g. `"© 2026 Ada Modeller"`. Null when it says none.
+  final String? copyright;
+
+  /// Who made the model, as the file names them — the `dc:creator` of
+  /// glTF's `KHR_xmp_json_ld` packet, several creators joined with `, `.
+  /// Null when the file does not say.
+  final String? author;
+
+  /// The terms the model may be used on: an SPDX identifier (`CC-BY-4.0`)
+  /// where the author wrote one, otherwise their words — the `dc:rights` of
+  /// glTF's `KHR_xmp_json_ld` packet. Null when the file does not say,
+  /// which is not the same as free to use.
+  final String? license;
+
+  /// The document's own XMP packet, as JSON-LD — glTF's `KHR_xmp_json_ld`
+  /// packet the root `asset` points at — carried whole the way [extras] is.
+  /// [author] and [license] are read from it; a writer writes it back with
+  /// those two put in, so the keys nothing here reads survive. Null for a
+  /// file with none.
+  final Map<String, Object?>? xmp;
+
+  /// This asset with the fields given changed.
+  DocumentAsset copyWith({
+    String? generator,
+    Map<String, Object?>? extras,
+    String? copyright,
+    String? author,
+    String? license,
+    Map<String, Object?>? xmp,
+  }) => DocumentAsset(
+    generator: generator ?? this.generator,
+    extras: extras ?? this.extras,
+    copyright: copyright ?? this.copyright,
+    author: author ?? this.author,
+    license: license ?? this.license,
+    xmp: xmp ?? this.xmp,
+  );
 
   /// The root glTF document's own `extras` — `fmt-19`'s own row, and the
   /// "document" of "extras on node/material/skin/clip/document." Carried
@@ -45,13 +100,21 @@ final class DocumentAsset {
   bool operator ==(Object other) =>
       other is DocumentAsset &&
       other.generator == generator &&
-      _mapEquals(other.extras, extras);
+      other.copyright == copyright &&
+      other.author == author &&
+      other.license == license &&
+      _mapEquals(other.extras, extras) &&
+      _mapEquals(other.xmp, xmp);
 
   @override
-  int get hashCode => Object.hash(generator, extras);
+  // The two maps compare deeply and would hash by identity, so they stay
+  // out: equal assets must hash alike.
+  int get hashCode => Object.hash(generator, copyright, author, license);
 
   @override
-  String toString() => 'DocumentAsset(generator: $generator)';
+  String toString() =>
+      'DocumentAsset(generator: $generator, author: $author, '
+      'license: $license)';
 }
 
 /// Deep-enough equality for two `extras` blocks — plain JSON values, so
@@ -89,11 +152,18 @@ bool _jsonEquals(Object? a, Object? b) {
 /// The seam between decoders and the rest of the engine: glTF and OBJ both
 /// produce one of these, so uploading, instancing and material conversion are
 /// written once instead of per format.
-abstract class ModelDocument {
+abstract base class ModelDocument {
+  /// A const constructor for the documents that extend this one.
   const ModelDocument();
 
+  /// Every drawable piece of the model: a mesh, its material index and its
+  /// transform.
   List<ModelSurface> get surfaces;
+
+  /// The materials [surfaces] refer to by index.
   List<SurfaceMaterial> get materials;
+
+  /// The encoded images the materials' texture bindings refer to by index.
   List<EncodedImage> get images;
 
   /// What the source file said about itself. Null for a format that carries
@@ -215,6 +285,7 @@ abstract class ModelDocument {
   /// whether to care.
   List<String> get warnings;
 
+  /// Count of vertices across every surface's mesh.
   int get vertexCount {
     var total = 0;
     for (final surface in surfaces) {
@@ -223,6 +294,7 @@ abstract class ModelDocument {
     return total;
   }
 
+  /// Count of triangles across every surface's mesh.
   int get triangleCount {
     var total = 0;
     for (final surface in surfaces) {

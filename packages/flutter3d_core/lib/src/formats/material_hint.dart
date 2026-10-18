@@ -12,9 +12,11 @@ import 'surface_material.dart';
 /// them. So this hierarchy answers one question — how should somebody be shown
 /// this value — and nothing else.
 ///
-/// Sealed, so a `switch` over the kinds in an inspector is exhaustive and the
-/// day a sixth kind arrives the compiler names every place that has to grow.
-sealed class MaterialHintKind {
+/// An open set, grown only here: `abstract final` so nobody outside adds a
+/// kind, and not sealed, so a kind a later release adds breaks no inspector.
+/// A `switch` over the kinds ends with a wildcard that shows the value as it
+/// is.
+abstract final class MaterialHintKind {
   const MaterialHintKind();
 }
 
@@ -23,10 +25,16 @@ sealed class MaterialHintKind {
 /// [step] is null for a value a slider may land anywhere in; a step of `0.01`
 /// is what makes a spinner move in hundredths rather than in whole units.
 final class RangeHint extends MaterialHintKind {
+  /// A range from [min] to [max], continuous unless [step] is given.
   const RangeHint(this.min, this.max, {this.step});
 
+  /// In the unit of the value the hint is for.
   final double min;
+
+  /// In the unit of the value the hint is for.
   final double max;
+
+  /// In the unit of the value the hint is for.
   final double? step;
 }
 
@@ -37,13 +45,17 @@ final class RangeHint extends MaterialHintKind {
 /// once: a swatch that offers an alpha slider for `emissive` is offering to set
 /// a number the shader never reads.
 final class ColorHint extends MaterialHintKind {
+  /// A colour of [channels] components, four unless told otherwise.
   const ColorHint({this.channels = 4});
 
+  /// Count of components a swatch offers: three for RGB, four with alpha.
   final int channels;
 }
 
 /// A path to an image, and what a file picker should offer.
 final class TextureHint extends MaterialHintKind {
+  /// A picker filtered to [extensions], every format this engine decodes
+  /// unless told otherwise.
   const TextureHint({this.extensions = imageSuffixes});
 
   /// What this engine can decode, and so the default filter.
@@ -54,13 +66,16 @@ final class TextureHint extends MaterialHintKind {
     '.ktx2',
   ];
 
+  /// The suffixes a file picker offers, dot included, lower case.
   final List<String> extensions;
 }
 
 /// One of [values], and nothing else.
 final class EnumHint extends MaterialHintKind {
+  /// A choice among [values].
   const EnumHint(this.values);
 
+  /// The choices, in the order a picker lists them.
   final List<EnumHintValue> values;
 }
 
@@ -72,9 +87,13 @@ final class EnumHint extends MaterialHintKind {
 /// given no label is its own label, which is the common case for a value that
 /// was already a word.
 final class EnumHintValue {
-  const EnumHintValue(this.value, [String? label]) : label = label ?? value;
+  /// A choice writing [value], shown as [label]; null shows [value].
+  const EnumHintValue(this.value, {String? label}) : label = label ?? value;
 
+  /// What is written into the file when this choice is picked: `Pbr`.
   final String value;
+
+  /// What a person reads in the list: `PBR (GGX)`.
   final String label;
 }
 
@@ -84,10 +103,17 @@ final class EnumHintValue {
 /// beside it. Both optional: a parameter named `windStrength` needs neither to
 /// be usable, and a hint that had to carry them would be a hint nobody writes.
 final class MaterialHint {
+  /// A hint of [kind], with [label] and [help] when given.
   const MaterialHint(this.kind, {this.label, this.help});
 
+  /// The control the value is shown with.
   final MaterialHintKind kind;
+
+  /// The name a UI shows instead of the field's own; null shows the
+  /// field's name.
   final String? label;
+
+  /// The sentence shown beside the control; null shows none.
   final String? help;
 }
 
@@ -148,18 +174,22 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
   'alphaMode': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final mode in SurfaceAlphaMode.values)
-        EnumHintValue(mode.name, switch (mode) {
-          SurfaceAlphaMode.opaque => 'Opaque',
-          SurfaceAlphaMode.mask => 'Cut out at the threshold',
-          SurfaceAlphaMode.blend => 'Blended',
-        }),
+        EnumHintValue(
+          mode.name,
+          label: switch (mode) {
+            SurfaceAlphaMode.opaque => 'Opaque',
+            SurfaceAlphaMode.mask => 'Cut out at the threshold',
+            SurfaceAlphaMode.blend => 'Blended',
+            _ => mode.name,
+          },
+        ),
     ]),
     label: 'Alpha',
   ),
   'lightingModel': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final model in LightingModel.builtIn)
-        EnumHintValue(model.shaderName, model.label),
+        EnumHintValue(model.shaderName, label: model.label),
     ]),
     label: 'Shader',
     help:

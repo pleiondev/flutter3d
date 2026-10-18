@@ -1,0 +1,95 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "flutter3d test",
+    "copyright": "© 2026 Ada Modeller",
+    "extensions": {
+      "KHR_xmp_json_ld": {
+        "packet": 0
+      }
+    }
+  },
+  "extensionsUsed": [
+    "KHR_xmp_json_ld"
+  ],
+  "extensions": {
+    "KHR_xmp_json_ld": {
+      "packets": [
+        {
+          "@context": {
+            "dc": "http://purl.org/dc/elements/1.1/",
+            "xmp": "http://ns.adobe.com/xap/1.0/"
+          },
+          "dc:creator": {
+            "@list": [
+              "Ada Modeller"
+            ]
+          },
+          "dc:rights": {
+            "@language": "en",
+            "@value": "CC-BY-4.0"
+          },
+          "dc:title": {
+            "@language": "en",
+            "@value": "Chair"
+          },
+          "xmp:CreatorTool": "Blender 4.2"
+        }
+      ]
+    }
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3",
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1,
+        0
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 36
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 36,
+      "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAA"
+    }
+  ]
+}

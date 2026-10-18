@@ -18,6 +18,11 @@ import 'dart:math' as math;
 /// value in, because a coin, a headshot and a clean sector are worth what the
 /// game says and there is no shared answer.
 final class Scoring {
+  /// Scoring with a two-second [window], a [step] of a half and a
+  /// [ceiling] of eight by default.
+  ///
+  /// Asserts [window] is above nought, [step] not negative and [ceiling]
+  /// at least one.
   Scoring({this.window = 2.0, this.step = 0.5, this.ceiling = 8.0})
     : assert(window > 0.0, 'a chain with no window cannot be broken'),
       assert(step >= 0.0, 'a chain that pays less each time is not a chain'),
@@ -36,11 +41,12 @@ final class Scoring {
   /// than the whole of a short one, and nobody can read a number like that.
   final double ceiling;
 
-  /// Everything scored this run.
+  /// Everything scored this run, in points: the game's own unit.
   double get total => _total;
   double _total = 0.0;
 
-  /// What the run in hand is worth so far. Zero when nothing is running.
+  /// What the run in hand is worth so far, in points, the game's own unit.
+  /// Zero when nothing is running.
   double get chain => _chain;
   double _chain = 0.0;
 
@@ -48,18 +54,19 @@ final class Scoring {
   int get chainLength => _chainLength;
   int _chainLength = 0;
 
-  /// What the next thing scored is multiplied by.
+  /// What the next thing scored is multiplied by: a unitless multiplier.
   double get multiplier =>
       _chainLength == 0 ? 1.0 : math.min(ceiling, 1.0 + step * _chainLength);
 
-  /// How long the run has left before it lapses.
+  /// How long the run has left before it lapses, in seconds.
   double get remaining => _remaining;
   double _remaining = 0.0;
 
   /// Whether a run is going.
   bool get isRunning => _chainLength > 0;
 
-  /// The longest run of this session, by what it was worth.
+  /// The longest run of this session, by what it was worth, in points (the
+  /// game's own unit).
   double get bestChain => _bestChain;
   double _bestChain = 0.0;
 
@@ -118,6 +125,7 @@ final class Scoring {
     _bestChain = 0.0;
   }
 
+  /// The total, the run in hand and the best run, for a save.
   Map<String, Object?> save() => <String, Object?>{
     'total': _total,
     'chain': _chain,
@@ -126,6 +134,7 @@ final class Scoring {
     'best': _bestChain,
   };
 
+  /// Puts back what [save] wrote; a missing field reads nought.
   void restore(Map<String, Object?> from) {
     _total = (from['total'] as num?)?.toDouble() ?? 0.0;
     _chain = (from['chain'] as num?)?.toDouble() ?? 0.0;

@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show LightType;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -19,6 +20,8 @@ import 'theme.dart';
 
 /// The lights, and the selected one's own fields.
 final class SceneSourcePanel extends StatelessWidget {
+  /// The panel over [lights]; every edit goes out through a callback, by the
+  /// light's index.
   const SceneSourcePanel({
     super.key,
     required this.lights,
@@ -33,6 +36,7 @@ final class SceneSourcePanel extends StatelessWidget {
     required this.onConeChanged,
   });
 
+  /// The project's lights, in the order the list shows them.
   final List<ProjectLight> lights;
 
   /// Which light's own fields are shown below the list, or null when none
@@ -42,24 +46,32 @@ final class SceneSourcePanel extends StatelessWidget {
   /// The light at this index was tapped in the list.
   final ValueChanged<int> onSelect;
 
+  /// Add a light at the end of the list.
   final VoidCallback onAdd;
 
   /// The light at this index should be dropped — `RemoveLight`'s own index.
   final ValueChanged<int> onRemove;
 
-  final void Function(int index, ProjectLightType type) onTypeChanged;
+  /// The light at this index was switched to another type.
+  final void Function(int index, LightType type) onTypeChanged;
+
+  /// The light at this index has a new intensity.
   final void Function(int index, double value) onIntensityChanged;
+
+  /// The light at this index has a new range, in metres.
   final void Function(int index, double value) onRangeChanged;
+
+  /// The light at this index was told to cast shadows, or not to.
   final void Function(int index, bool value) onShadowChanged;
 
   /// The outer cone half-angle, in radians — meaningless off a spot light,
   /// and only offered when [selected] names one.
   final void Function(int index, double outerConeAngle) onConeChanged;
 
-  static String _labelOf(ProjectLightType type) => switch (type) {
-    ProjectLightType.point => 'Point',
-    ProjectLightType.spot => 'Spot',
-    // `ProjectLightType` is a value class, not a sealed one — see its own
+  static String _labelOf(LightType type) => switch (type) {
+    LightType.point => 'Point',
+    LightType.spot => 'Spot',
+    // `LightType` is a value class, not a sealed one — see its own
     // doc comment — so a fourth kind reads as directional here until this
     // switch is taught its name, the same fallback `LightingSync` gives it.
     _ => 'Directional',
@@ -119,17 +131,17 @@ final class SceneSourcePanel extends StatelessWidget {
           SectionLabel(l.sceneSource),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: DropdownButton<ProjectLightType>(
+            child: DropdownButton<LightType>(
               isExpanded: true,
               value: lights[active].type,
-              items: <DropdownMenuItem<ProjectLightType>>[
-                for (final ProjectLightType type in ProjectLightType.values)
-                  DropdownMenuItem<ProjectLightType>(
+              items: <DropdownMenuItem<LightType>>[
+                for (final LightType type in LightType.values)
+                  DropdownMenuItem<LightType>(
                     value: type,
                     child: Text(_labelOf(type)),
                   ),
               ],
-              onChanged: (ProjectLightType? type) {
+              onChanged: (LightType? type) {
                 if (type != null) onTypeChanged(active, type);
               },
             ),
@@ -144,7 +156,7 @@ final class SceneSourcePanel extends StatelessWidget {
             value: lights[active].range,
             onChanged: (double value) => onRangeChanged(active, value),
           ),
-          if (lights[active].type == ProjectLightType.spot)
+          if (lights[active].type == LightType.spot)
             NumberField(
               label: l.sceneCone,
               value: lights[active].outerConeAngle,

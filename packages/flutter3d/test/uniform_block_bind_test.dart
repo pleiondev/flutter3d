@@ -12,11 +12,13 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_hardware/trace.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart';
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -52,7 +54,7 @@ void main() {
         width: kParityWidth,
         height: kParityHeight,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: paritySettingsFor(which),
       );
 

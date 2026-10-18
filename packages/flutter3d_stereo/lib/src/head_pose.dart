@@ -1,27 +1,7 @@
 import 'dart:math' as math;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 import 'package:vector_math/vector_math.dart';
-
-/// Where the head is, in the space the scene is built in.
-///
-/// A rotation and a position rather than a matrix, because that is the shape
-/// both sources hand over: Android's rotation vector is a quaternion, and
-/// OpenXR's `XrPosef` is a quaternion and a vector. Turning either into a
-/// matrix is what `SceneNode` already does.
-final class HeadPose {
-  const HeadPose({required this.rotation, required this.position});
-
-  HeadPose.still()
-    : rotation = Quaternion.identity(),
-      position = Vector3.zero();
-
-  final Quaternion rotation;
-
-  /// Where the head is, in metres. A phone has no idea, so it stays at the
-  /// origin and only the rotation moves — which is the honest version of
-  /// three-degrees-of-freedom tracking rather than a guessed neck model.
-  final Vector3 position;
-}
 
 /// Android's rotation vector, in the engine's frame.
 ///
@@ -35,8 +15,9 @@ final class HeadPose {
 /// So: [rotationVector] is `(x, y, z)` with the scalar either supplied as a
 /// fourth value or reconstructed from the other three — Android sends three on
 /// older devices and four on newer ones, and the caller should not have to know
-/// which. [displayRotationDegrees] is what `Display.getRotation` reports, in
-/// degrees, and it turns the device's frame into the screen's.
+/// which. [displayRotation] is what `Display.getRotation` reports, in radians
+/// (the platform's degrees are converted where the event is decoded), and it
+/// turns the device's frame into the screen's.
 ///
 /// The maths is here rather than in Kotlin for the reason `pad_input` gives for
 /// its own split: everything that can be got wrong should be somewhere a test
@@ -51,7 +32,9 @@ final class HeadPose {
 /// read in two senses, an angle about an axis can.
 Quaternion headRotationFromSensor(
   List<double> rotationVector, {
-  int displayRotationDegrees = 0,
+
+  /// What `Display.getRotation` reports, in radians.
+  double displayRotation = 0.0,
 }) {
   if (rotationVector.length < 3) {
     throw ArgumentError(
@@ -88,7 +71,7 @@ Quaternion headRotationFromSensor(
   // 90 degrees is the same picture as the head turning the other way.
   final screenFix = Quaternion.axisAngle(
     Vector3(0.0, 0.0, 1.0),
-    -displayRotationDegrees * math.pi / 180.0,
+    -displayRotation,
   );
 
   return (worldFix * sensor * screenFix)..normalize();
@@ -98,19 +81,21 @@ Quaternion headRotationFromSensor(
 ///
 /// The payload the Android side sends, decoded in one place: the rotation
 /// vector's three or four values, then the display rotation in degrees.
-HeadPose decodeSensorEvent(List<double> event) {
+RigidPose decodeSensorEvent(List<double> event) {
   if (event.length < 4) {
     throw ArgumentError(
       'Expected at least three rotation values and a display rotation, got '
       '${event.length} numbers.',
     );
   }
-  final displayRotation = event.last.round();
+  // The platform reports degrees; the engine takes radians, so the one
+  // conversion is here, where the number comes in.
+  final displayRotation = event.last.round() * math.pi / 180.0;
   final vector = event.sublist(0, event.length - 1);
-  return HeadPose(
-    rotation: headRotationFromSensor(
+  return RigidPose(
+    orientation: headRotationFromSensor(
       vector,
-      displayRotationDegrees: displayRotation,
+      displayRotation: displayRotation,
     ),
     position: Vector3.zero(),
   );

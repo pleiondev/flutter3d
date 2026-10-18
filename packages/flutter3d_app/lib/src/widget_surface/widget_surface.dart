@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'platform_texture.dart';
 import 'widget_surface_pipeline.dart';
 
 /// `wg-01`: a live Flutter widget as a mesh in the 3D scene, the node
@@ -12,16 +12,19 @@ import 'widget_surface_pipeline.dart';
 ///
 /// A [WidgetSurfacePipeline] draws to an offscreen canvas and takes a pointer
 /// at a UV on it; this is the other half — a [MeshNode] carrying that canvas
-/// as its [Material.albedo], sized and placed in world space, so the level
+/// as its [RenderMaterial.albedo], sized and placed in world space, so the level
 /// document can put a scrolling list or a text field on a wall the same way
 /// it puts a torch on one.
 final class WidgetSurface {
+  /// [child] on a plane of [width] by [height] metres, its canvas
+  /// [pixelsPerMeter] pixels to the metre; a metre square at 512 pixels a
+  /// metre unless said otherwise.
   WidgetSurface({
     required Widget child,
     required GraphicsDevice device,
     double width = 1.0,
     double height = 1.0,
-    double pixelsPerMetre = 512.0,
+    double pixelsPerMeter = 512.0,
     String? name,
   }) : this._(
          device: device,
@@ -30,8 +33,8 @@ final class WidgetSurface {
          name: name,
          pipeline: WidgetSurfacePipeline(
            child: child,
-           width: (width * pixelsPerMetre).round(),
-           height: (height * pixelsPerMetre).round(),
+           width: (width * pixelsPerMeter).round(),
+           height: (height * pixelsPerMeter).round(),
          ),
          mesh: DeviceMesh.upload(
            device,
@@ -49,7 +52,7 @@ final class WidgetSurface {
   }) : _mesh = mesh,
        node = MeshNode(
          mesh,
-         Material(name: name, lighting: LightingModel.unlit),
+         RenderMaterial(name: name, lighting: LightingModel.unlit),
          name: name,
        ) {
     // Stands the plane up and points its front — `PlaneShape`'s own normal,
@@ -80,25 +83,29 @@ final class WidgetSurface {
   /// control under a thumb was a texture per frame that nothing gave back.
   TextureHandle? _texture;
 
-  /// Bumped by every [tick] that uploads and by [dispose], so an upload that
+  /// Bumped by every [update] that uploads and by [dispose], so an upload that
   /// finishes after a newer one — or after the surface is gone — can tell.
   int _generation = 0;
   bool _disposed = false;
 
-  /// World-space size, metres.
+  /// World-space width, in metres.
   final double width;
+
+  /// World-space height, in metres.
   final double height;
 
   double _yaw = 0.0;
 
-  /// Facing, about world Y — the same field an [EntityDef] already carries,
-  /// so a level's `yaw` on a `widget_surface` entity needs no translation.
+  /// Facing, in radians about world Y — the same field an [EntityDef]
+  /// already carries, so a level's `yaw` on a `widget_surface` entity needs
+  /// no translation.
   double get yaw => _yaw;
   set yaw(double value) {
     _yaw = value;
     node.setRotationYawPitchRoll(value, -math.pi / 2, 0.0);
   }
 
+  /// Moves the surface's centre to [at], in metres; [at] is copied.
   void setPosition(Vector3 at) => node.setPositionFrom(at);
 
   /// How many times the pipeline has actually redrawn — `wg-01`'s own
@@ -120,7 +127,7 @@ final class WidgetSurface {
   /// which is not the first call costs one boolean check and nothing else,
   /// because [WidgetSurfacePipeline.redrawIfDirty] already is that cheap —
   /// `wg-00`'s own measurement is what this relies on rather than re-proves.
-  Future<void> tick() async {
+  Future<void> update() async {
     if (_disposed) return;
     final dirty = pipeline.redrawIfDirty();
     if (!dirty && _uploaded) return;
@@ -128,17 +135,16 @@ final class WidgetSurface {
     final generation = ++_generation;
     final image = await pipeline.currentImage();
     try {
-      final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      // Wrapped where the device takes the image whole, copied where it
+      // does not — see `textureFromImage`.
+      final handle = await textureFromImage(device, image);
+      if (handle == null) return;
       // Overtaken by a newer frame, or by [dispose]: this one's pixels are
       // older than what is (or is no longer) on the plane.
-      if (pixels == null || generation != _generation) return;
-      final handle = device.createTextureFromPixels(
-        width: image.width,
-        height: image.height,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: pixels,
-      );
-      if (handle == null) return;
+      if (generation != _generation) {
+        device.releaseTexture(handle);
+        return;
+      }
       final previous = _texture;
       _texture = handle;
       node.material.albedo = handle;

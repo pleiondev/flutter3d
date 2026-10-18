@@ -11,17 +11,61 @@ import 'package:vector_math/vector_math.dart';
 import 'cpu_shader.dart';
 
 /// What the three bloom stages share: the source texture and its texel size.
-({BoundTexture source, double tx, double ty, Vector4 params})? bloomSource(
-  ShaderBindings b,
-) {
+BloomSource? bloomSource(ShaderBindings b) {
   final source = b.textures['source_texture'];
   if (source == null) return null;
   final params = b.vec4('BloomInfo', 'params', Vector4.zero());
-  return (source: source, tx: params.x, ty: params.y, params: params);
+  return BloomSource(
+    source: source,
+    tx: params.x,
+    ty: params.y,
+    params: params,
+  );
+}
+
+/// The texture a bloom stage reads and the block that says how, as
+/// [bloomSource] answers them.
+final class BloomSource {
+  /// [source] with a texel [tx] across and [ty] down, and [params] whole.
+  const BloomSource({
+    required this.source,
+    required this.tx,
+    required this.ty,
+    required this.params,
+  });
+
+  /// The texture bound as `source_texture`.
+  final BoundTexture source;
+
+  /// One texel across, as a fraction 0..1 of the source's width.
+  final double tx;
+
+  /// One texel down, as a fraction 0..1 of the source's height.
+  final double ty;
+
+  /// `BloomInfo.params` as bound: the texel size, then the threshold and the
+  /// knee, in no unit.
+  final Vector4 params;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BloomSource &&
+      other.source == source &&
+      other.tx == tx &&
+      other.ty == ty &&
+      other.params == params;
+
+  @override
+  int get hashCode => Object.hash(source, tx, ty, params);
+
+  @override
+  String toString() => 'BloomSource(texel: $tx x $ty, params: $params)';
 }
 
 /// `bloom_threshold.frag`: what is bright enough to glow.
-final class BloomThresholdShader implements CpuFragmentShader {
+final class BloomThresholdShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BloomThreshold`.
   const BloomThresholdShader();
 
   static double _luminance(Vector3 c) =>
@@ -53,25 +97,27 @@ final class BloomThresholdShader implements CpuFragmentShader {
       sum += tap * weight;
       weights += weight;
     }
-    final colour = sum..scale(1.0 / weights);
+    final color = sum..scale(1.0 / weights);
 
     final threshold = src.params.z;
     final knee = math.max(src.params.w, 1e-4);
     // A soft knee rather than a hard step: a hard cut makes the bloom appear
     // along a visible contour as a highlight brightens through the threshold.
-    final brightness = _luminance(colour);
+    final brightness = _luminance(color);
     var soft = (brightness - threshold + knee).clamp(0.0, 2.0 * knee);
     soft = soft * soft / (4.0 * knee);
     final contribution =
         math.max(soft, brightness - threshold) / math.max(brightness, 1e-4);
 
-    colour.scale(contribution);
-    return Vector4(colour.x, colour.y, colour.z, 1.0);
+    color.scale(contribution);
+    return Vector4(color.x, color.y, color.z, 1.0);
   }
 }
 
 /// `bloom_downsample.frag`: the thirteen-tap filter, four boxes plus five.
-final class BloomDownsampleShader implements CpuFragmentShader {
+final class BloomDownsampleShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BloomDownsample`.
   const BloomDownsampleShader();
 
   @override
@@ -103,7 +149,9 @@ final class BloomDownsampleShader implements CpuFragmentShader {
 }
 
 /// `bloom_upsample.frag`: a 1-2-1 tent over sixteen.
-final class BloomUpsampleShader implements CpuFragmentShader {
+final class BloomUpsampleShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BloomUpsample`.
   const BloomUpsampleShader();
 
   @override

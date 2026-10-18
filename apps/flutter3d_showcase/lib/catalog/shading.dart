@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `shading` category's pages, materials, lights and how a surface takes light, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> shadingFeatures = <Feature>[
   Feature(
     id: 'lighting-models',
@@ -46,7 +48,7 @@ const List<Feature> shadingFeatures = <Feature>[
     since: '0.1.0',
     approximate: true,
     evidence:
-        'no explicit origin: no CHANGELOG names `Material.normal` or '
+        'no explicit origin: no CHANGELOG names `RenderMaterial.normal` or '
         '`normalScale`. The nearest the record comes is the six lighting '
         'models a normal map shades against, which is the shading system '
         'this belongs to and the earliest version it could have arrived in.',
@@ -81,7 +83,7 @@ const List<Feature> shadingFeatures = <Feature>[
     evidence:
         'no explicit origin: no CHANGELOG names `drawBucket`, `depthWrite`, '
         '`depthCompare` or `backfaceCulling`. The nearest the record comes is '
-        'the six lighting models the same `Material` and render pipeline '
+        'the six lighting models the same `RenderMaterial` and render pipeline '
         'carry, the earliest version this draw state could have arrived in.',
     keywords: <String>['lighting model'],
     engineFiles: <String>[
@@ -378,10 +380,10 @@ const List<Feature> shadingFeatures = <Feature>[
     since: '0.8.0',
     evidence: 'Glass that sees the scene.',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
-    keywords: <String>['transmission', 'scenecolourchain'],
+    keywords: <String>['transmission', 'scenecolorchain'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/renderer_transmission_pass.dart',
-      'packages/flutter3d_core/lib/src/engine/render/scene_colour_chain.dart',
+      'packages/flutter3d_core/lib/src/engine/render/scene_color_chain.dart',
       'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
     ],
   ),
@@ -436,6 +438,22 @@ const List<Feature> shadingFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
       'packages/flutter3d_shaders/shaders/lib/pbr.glsl',
+    ],
+  ),
+  Feature(
+    id: 'user-materials',
+    title: 'A material of your own',
+    category: Category.shading,
+    summary:
+        'A .f3dmat with a uniform, a lighting hook and per-copy numbers, compiled into a bundle and drawn on one instanced batch.',
+    since: '1.0.0-rc.1',
+    evidence: 'Lighting hooks in the material language',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    packages: <String>['flutter3d_core', 'flutter3d_app'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/material_language/material_bundle.dart',
+      'packages/flutter3d_app/lib/src/materials/material_language_stage.dart',
+      'packages/flutter3d_core/lib/src/engine/scene/instanced_mesh_node.dart',
     ],
   ),
 ];

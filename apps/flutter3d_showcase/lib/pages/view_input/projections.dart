@@ -6,9 +6,12 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `projections` page: a box through a perspective or an orthographic
+/// lens. Its check is that the orthographic matrix keeps w at 1 and the
+/// perspective one does not.
 final class ProjectionsDemo extends ShowcaseDemo {
+  /// Which lens the camera uses: 0 perspective, 1 orthographic.
   int choice = 0;
 
   late Projection _projection;
@@ -16,9 +19,9 @@ final class ProjectionsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region box
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.7, 0.68, 0.64, 1.0),
+      baseColor: LinearColor.fromSrgb(0.7, 0.68, 0.64, 1.0),
       roughness: 0.8,
     );
     final MeshNode box = MeshNode(
@@ -32,14 +35,14 @@ final class ProjectionsDemo extends ShowcaseDemo {
     // #endregion box
 
     // #region perspective
-    _projection = const PerspectiveProjection(fovYRadians: 0.9);
+    _projection = const PerspectiveProjection(fovY: 0.9);
     // #endregion perspective
     context.camera.projection = _projection;
 
     return Scene()
       ..add(box)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -48,7 +51,7 @@ final class ProjectionsDemo extends ShowcaseDemo {
   void _choose(int value) {
     choice = value;
     _projection = value == 0
-        ? const PerspectiveProjection(fovYRadians: 0.9)
+        ? const PerspectiveProjection(fovY: 0.9)
         : const OrthographicProjection(height: 3.0);
   }
   // #endregion orthographic

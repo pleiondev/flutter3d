@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../render/material.dart';
@@ -15,16 +18,24 @@ import 'skeleton.dart';
 /// and a proxy occluder — a coarse box standing in for a detailed tree, or the
 /// unseen half of a level — should cast without being drawn. Both were
 /// expressible only by building a second scene.
-enum ShadowCastingMode {
+///
+/// A `final class` with const instances rather than an enum, so a mode added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class ShadowCastingMode {
+  const ShadowCastingMode._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// Drawn into the shadow maps and into the colour image. The default.
-  on,
+  static const ShadowCastingMode on = ShadowCastingMode._('on');
 
   /// Drawn into the colour image and into no shadow map.
   ///
   /// What a ground plane wants: it receives a shadow and casts none. What
   /// anything following the camera wants too — a weapon view model has no
   /// business in a light's view.
-  off,
+  static const ShadowCastingMode off = ShadowCastingMode._('off');
 
   /// Cast from every face, whatever `ShadowSettings.casterFaces` (the lamps)
   /// or `ShadowSettings.directionalCasterFaces` (the sun) says.
@@ -38,20 +49,44 @@ enum ShadowCastingMode {
   /// A node whose material is `doubleSided` casts this way already, without
   /// being set to it — see [MeshNode.castsShadowFromEveryFace]. This mode is
   /// for a surface whose material is not: a wall drawn from one side only.
-  doubleSided,
+  static const ShadowCastingMode doubleSided = ShadowCastingMode._(
+    'doubleSided',
+  );
 
   /// Drawn into the shadow maps and never into the colour image.
   ///
   /// A proxy occluder. The cheap box that casts the expensive tree's shadow,
   /// or the geometry off the edge of the frame that has to keep the sun off
   /// what is in it.
-  shadowsOnly;
+  static const ShadowCastingMode shadowsOnly = ShadowCastingMode._(
+    'shadowsOnly',
+  );
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ShadowCastingMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every mode.
+  static const List<ShadowCastingMode> values = <ShadowCastingMode>[
+    on,
+    off,
+    doubleSided,
+    shadowsOnly,
+  ];
+
+  @override
+  String toString() => 'ShadowCastingMode.$name';
 
   /// Whether a shadow pass draws this.
   bool get casts => this != off;
 
   /// Whether the colour pass draws this.
-  bool get drawsColour => this != shadowsOnly;
+  bool get drawsColor => this != shadowsOnly;
 
   /// Whether this ignores `ShadowSettings.casterFaces` and
   /// `ShadowSettings.directionalCasterFaces` and records every face.
@@ -66,10 +101,15 @@ enum ShadowCastingMode {
 /// without a GPU. The renderer is the place that cares whether the geometry has
 /// actually been uploaded.
 base class MeshNode extends SceneNode {
+  /// A node drawing [mesh] with [material], called [name].
   MeshNode(this.mesh, this.material, {super.name});
 
+  /// The geometry drawn, held on the CPU side; the renderer uploads it.
+  /// May be replaced.
   MeshGeometry mesh;
-  Material material;
+
+  /// The appearance the geometry is drawn with. May be replaced.
+  RenderMaterial material;
 
   /// Multiplies this node's colour and opacity, over whatever its material
   /// says: white is the material as it is, `(1, 0.3, 0.3, 1)` a red flash,
@@ -85,15 +125,86 @@ base class MeshNode extends SceneNode {
   /// and sorted with it, whatever its material's own alpha mode. A node at
   /// any other tint than white is drawn on its own, never folded into an
   /// automatic batch.
-  final Vector4 tint = Vector4.all(1.0);
+  ///
+  /// Assigned whole (`node.tint = LinearColor(1, 0.4, 0.4)`); it was a
+  /// `Vector4` changed in place before 1.0.
+  LinearColor tint = LinearColor.white;
 
   /// Whether [tint] changes anything.
   bool get isTinted =>
-      tint.x != 1.0 || tint.y != 1.0 || tint.z != 1.0 || tint.w != 1.0;
+      tint.r != 1.0 || tint.g != 1.0 || tint.b != 1.0 || tint.a != 1.0;
+
+  /// This node's own values for its material's parameters, over the
+  /// material's: what a draw of this node binds is
+  /// `material.parameters` with these on top — [parametersFor]. Null, the
+  /// default, is the material as it is.
+  ///
+  /// **How a hundred rocks share one material and one glows**: the material
+  /// is one object, its uniforms one map, and the glowing rock says its own
+  /// glow here. Give it the material's schema to have its values checked:
+  /// `MaterialParameters(schema: schema)` starts at the defaults and so
+  /// overrides every parameter; an empty `MaterialParameters` overrides only
+  /// what is set on it. A node with overrides is drawn on its own, never
+  /// folded into an automatic batch.
+  MaterialParameters? parameters;
+
+  /// What a draw of this node through [material] binds as its parameters:
+  /// [material]'s own map when this node overrides nothing, and otherwise
+  /// that map with [parameters] on top, in a map this node keeps and fills
+  /// again on each call. The material's map is never written.
+  Map<String, Float32List> parametersFor(RenderMaterial material) {
+    final own = parameters;
+    if (own == null || own.isEmpty) return material.parameters.uniforms;
+    return _mergedParameters
+      ..clear()
+      ..addAll(material.parameters.uniforms)
+      ..addAll(own.uniforms);
+  }
+
+  final Map<String, Float32List> _mergedParameters = <String, Float32List>{};
+
+  /// Whether [parameters] overrides anything.
+  bool get overridesParameters => !(parameters?.isEmpty ?? true);
+
+  /// How much of this node is drawn while its `LodGroup` cross-fades it
+  /// with a neighbouring level — `A1.3`. One, the default, is all of it.
+  ///
+  /// **The share of the pixels, for an opaque surface**, and its sign says
+  /// which end of one shared pattern they are taken from: positive the low
+  /// end, which the finer of the two levels takes, negative the high end,
+  /// which the coarser takes. Two levels at `w` and `-(1 - w)` then cover
+  /// each pixel exactly once between them, and neither has to be sorted or
+  /// blended — the renderer makes the cut in a depth pre-draw, so the lit
+  /// stage keeps its early depth. **For a transparent one it is opacity**,
+  /// its size multiplying the material's alpha.
+  ///
+  /// Set by the group each frame it chooses; a node that belongs to no group
+  /// keeps one. A node part way through a fade is drawn on its own, never
+  /// folded into an automatic batch.
+  double lodFade = 1.0;
 
   /// Whether this draws in the transparent pass: its material blends, or
   /// [tint] fades it.
-  bool get drawsTransparent => material.isTransparent || tint.w < 1.0;
+  bool get drawsTransparent => material.isTransparent || tint.a < 1.0;
+
+  /// The colour this node is ringed in under `RenderSettings.highContrast`,
+  /// or null — the default — for no ring — `N9`.
+  ///
+  /// **A role, not a look.** What a game marks here is what a player has to
+  /// find in a grey world: the monsters, the pickups, the way out, each in the
+  /// colour its role has in the game's own settings. Linear, like [tint] and
+  /// every colour the engine takes (`color.toLinear()` for a Flutter
+  /// `Color`); the ring is drawn on the finished picture, so it is encoded
+  /// to the display there and comes out the colour the player picked from a
+  /// swatch.
+  ///
+  /// **Null costs nothing**, and that is the shape of the feature: the pass
+  /// that writes these is drawn for marked nodes alone and skipped on a frame
+  /// with none, and with the look off nothing reads this at all, so a game
+  /// can leave its marks set for the player who turns the look on. Per mesh,
+  /// as [layerMask] is, since a render list asks the node it draws and not its
+  /// parents: a model is marked by walking it.
+  LinearColor? outlineColor;
 
   /// The skeleton deforming this mesh, when it is skinned.
   ///
@@ -150,7 +261,7 @@ base class MeshNode extends SceneNode {
 
   /// How this node takes part in the shadow passes.
   ///
-  /// Separate from [visible] because the two questions differ: a ground plane
+  /// Separate from [isVisible] because the two questions differ: a ground plane
   /// should receive shadows without casting one, and anything that follows the
   /// camera has no business in a light's view at all.
   ShadowCastingMode get shadowCasting => _shadowCasting;
@@ -172,9 +283,9 @@ base class MeshNode extends SceneNode {
   /// walls after the object was gone. Hiding a *parent* of one is not seen
   /// here — call `Scene.invalidateStaticShadows` for that.
   @override
-  set visible(bool value) {
-    if (value == visible) return;
-    super.visible = value;
+  set isVisible(bool value) {
+    if (value == isVisible) return;
+    super.isVisible = value;
     if (shadowIsStatic) scene?.invalidateStaticShadows();
   }
 
@@ -200,10 +311,21 @@ base class MeshNode extends SceneNode {
   /// from both sides — a cloth, a leaf card, a sail — and culling one side of
   /// it in the shadow pass casts the shadow of whichever half happens to face
   /// away from the light: a sheet over a ball threw a detached crescent
-  /// rather than its outline. Godot, Filament and Unity all take the shadow
-  /// pass's cull from the material for the same reason.
+  /// rather than its outline. So the shadow pass takes its cull from the
+  /// material.
   bool get castsShadowFromEveryFace =>
       shadowCasting.castsFromEveryFace || material.doubleSided;
+
+  /// Whether this node is shaded by what see-through casters let through to
+  /// the sun — `ShadowSettings.translucentCasters`. True by default.
+  ///
+  /// The atlas keeps the colour a pane or a liquid gives the light and not
+  /// where along the ray it gave it, so a surface standing *in front of* a
+  /// translucent caster, between it and the sun, is shaded as if it stood
+  /// behind. Most scenes never put anything there; one that does — a label
+  /// wrapped round a glass, a card painted with the light under a lens —
+  /// turns it off for that surface.
+  bool receivesTranslucentShadows = true;
 
   /// Whether this caster never moves.
   ///
@@ -217,6 +339,22 @@ base class MeshNode extends SceneNode {
   /// static leaves its shadow behind when it moves, and that is a bug nobody
   /// looks for. A static thing wrongly left dynamic merely costs a redraw.
   bool shadowIsStatic = false;
+
+  /// Where this node is drawn among the others, on top of its material's
+  /// [RenderMaterial.drawBucket] — `P7`.
+  ///
+  /// **Per node, because the bucket is per material.** Two nodes sharing a
+  /// material — a decal card and the wall it marks, a ghost and the player it
+  /// replays — could not be put in an order without giving one a copy of the
+  /// material, and a copy breaks the batching, the material's sort id and
+  /// every edit made to the original afterwards. The two are added, and the
+  /// sum outranks every other sort term in both halves of the list: lower
+  /// first, the same within a half in the order the view's sort mode gives.
+  /// The usable sum is −128 to 127 and is clamped beyond it.
+  ///
+  /// Nought by default, which leaves every scene drawn as it was. Nodes of
+  /// different orders are never merged into one instanced draw.
+  int drawOrder = 0;
 
   /// Skips frustum culling for this node.
   ///
@@ -250,7 +388,7 @@ base class MeshNode extends SceneNode {
   MeshData? occluderMesh;
 
   final Aabb3 _worldBounds = Aabb3();
-  final Vector3 _boundsCentre = Vector3.zero();
+  final Vector3 _boundsCenter = Vector3.zero();
   double _boundsRadius = 0.0;
   bool _mirrored = false;
 
@@ -274,6 +412,8 @@ base class MeshNode extends SceneNode {
   ///
   /// The mesh's bounds, unless a subclass draws more than the mesh — an
   /// instanced batch is the mesh at many places, and its extent is theirs.
+  ///
+  /// Live: the mesh's own bounds, read-only by contract.
   Aabb3 get localBounds => mesh.bounds;
 
   /// Says the cached bounds no longer describe the node.
@@ -281,7 +421,7 @@ base class MeshNode extends SceneNode {
   /// For a subclass whose [localBounds] can change without the transform or
   /// the mesh changing, which are the two things the cache is keyed on.
   ///
-  /// Advances [SceneNode.changeEpoch] as well, because a reader holding an
+  /// Advances [sceneChangeEpoch] as well, because a reader holding an
   /// epoch is asking "is anything I derived from bounds stale?", and this is
   /// the one way bounds go stale without a transform saying so.
   ///
@@ -294,28 +434,35 @@ base class MeshNode extends SceneNode {
   void markBoundsDirty() {
     _boundsVersion = -1;
     _poseVersion = -1;
-    if (scene != null) SceneNode.noteChange();
+    if (scene != null) noteSceneChange();
   }
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Aabb3 get worldBounds {
     _refreshBounds();
     return _worldBounds;
   }
 
   /// What a subtree bound has to contain on this node's account — `gfx-66n`.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   @override
   Aabb3? get ownBounds => worldBounds;
 
   @override
-  bool get ownBoundsAreCullable => frustumCulled;
+  bool get hasCullableOwnBounds => frustumCulled;
 
   /// Centre of the world bounding sphere used for the cheap culling test.
-  Vector3 get worldBoundsCentre {
+  ///
+  /// Live: the object's own cache, read-only by contract.
+  Vector3 get worldBoundsCenter {
     _refreshBounds();
-    return _boundsCentre;
+    return _boundsCenter;
   }
 
+  /// In metres.
   double get worldBoundsRadius {
     _refreshBounds();
     return _boundsRadius;
@@ -330,6 +477,8 @@ base class MeshNode extends SceneNode {
   ///
   /// mat3(model) would be enough while the scale stays uniform, but glTF nodes and
   /// user code both produce non-uniform scale, and that skews normals.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Matrix4 get worldNormalMatrix {
     final version = worldVersion;
     if (version != _normalVersion) {
@@ -347,7 +496,7 @@ base class MeshNode extends SceneNode {
   /// flip its front-face winding for this node or backface culling discards
   /// exactly the faces meant to be visible. Cached with the bounds because both
   /// are invalidated by the same thing.
-  bool get worldIsMirrored {
+  bool get isWorldMirrored {
     _refreshBounds();
     return _mirrored;
   }
@@ -406,7 +555,7 @@ base class MeshNode extends SceneNode {
       );
       _worldBounds.min.setFrom(bounds.min);
       _worldBounds.max.setFrom(bounds.max);
-      _boundsCentre
+      _boundsCenter
         ..setFrom(bounds.min)
         ..add(bounds.max)
         ..scale(0.5);
@@ -465,7 +614,7 @@ base class MeshNode extends SceneNode {
 
     _worldBounds.min.setValues(minX, minY, minZ);
     _worldBounds.max.setValues(maxX, maxY, maxZ);
-    _boundsCentre.setValues(
+    _boundsCenter.setValues(
       (minX + maxX) * 0.5,
       (minY + maxY) * 0.5,
       (minZ + maxZ) * 0.5,

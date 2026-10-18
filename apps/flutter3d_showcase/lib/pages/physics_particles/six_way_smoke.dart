@@ -10,12 +10,24 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `six-way-smoke` page: three smoke puffs between a red light and a
+/// blue one. Its check is that the puffs are alive and drawn.
 final class SixWaySmokeDemo extends ShowcaseDemo {
+  /// Whether the puffs are lit through the six-way sheet; off draws them with
+  /// the plain contributor, the same from every side.
   bool sixWay = true;
+
+  /// Where the two lights stand around the puffs, in radians, 0 to 2π: they
+  /// circle at a radius of 3 m, opposite each other.
   double angle = 0.0;
+
+  /// Each light's intensity as a multiple of `LightNode.defaultIntensity`,
+  /// 0 to 24.
   double intensity = 12.0;
+
+  /// The sheet's ambient grey, 0 to 0.3, the light a puff takes from no side
+  /// at all.
   double ambient = 0.0;
 
   late final ParticleSystem _particles;
@@ -38,14 +50,14 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region upload
-    final ({Uint8List positive, Uint8List negative}) baked = _bakeBall(_cell);
+    final SixWayTextures baked = _bakeBall(_cell);
     TextureHandle upload(Uint8List bytes) =>
         context.device.createTextureFromPixels(
           width: _cell,
           height: _cell,
           format: TextureFormat.r8g8b8a8UNormInt,
           pixels: ByteData.sublistView(bytes),
-        )!;
+        );
     _sheet = SixWayMaterial(
       positive: upload(baked.positive),
       negative: upload(baked.negative),
@@ -57,13 +69,15 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     _burst();
     _lit = ParticleContributor(_particles, sixWay: _sheet);
     _plain = ParticleContributor(_particles);
-    context.renderer.addContributor(_lit);
+    context.renderer.renderSteps.addContributor(_lit);
     // #endregion puffs
 
     // #region lights
-    LightNode point(Vector3 colour) =>
-        LightNode(type: LightType.point, intensity: intensity, color: colour)
-          ..castsShadow = false;
+    LightNode point(Vector3 color) => LightNode(
+      type: LightType.point,
+      intensity: intensity * LightNode.defaultIntensity,
+      color: color.toLinearColor(),
+    )..castsShadow = false;
     _red = point(Vector3(1.0, 0.2, 0.1));
     _blue = point(Vector3(0.1, 0.2, 1.0));
     final Scene scene = Scene()
@@ -80,9 +94,9 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
           context.device,
           CuboidShape(size: Vector3(40.0, 40.0, 0.1)).build(),
         ),
-        Material(
+        RenderMaterial(
           lighting: LightingModel.unlit,
-          baseColor: Vector4(0.04, 0.04, 0.05, 1.0),
+          baseColor: LinearColor.fromSrgb(0.04, 0.04, 0.05, 1.0),
         ),
         name: 'backdrop',
       )..setPosition(0.0, 0.0, -6.0),
@@ -98,7 +112,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
           lifetime: const Range.exact(8.0),
           size: const Range.exact(1.6),
-          color: Vector4(1.0, 1.0, 1.0, 1.0),
+          color: LinearColor(1.0, 1.0, 1.0, 1.0),
         ),
         Vector3(x, 0.0, x * 0.5),
       );
@@ -113,20 +127,21 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     // #region orbit
     final double c = math.cos(angle) * 3.0;
     final double s = math.sin(angle) * 3.0;
+    // The slider is in multiples of the default, as the lights were built.
     _red
       ..setPosition(-c, 0.0, -s)
-      ..intensity = intensity;
+      ..intensity = intensity * LightNode.defaultIntensity;
     _blue
       ..setPosition(c, 0.0, s)
-      ..intensity = intensity;
-    _sheet.ambient.setValues(ambient, ambient, ambient);
+      ..intensity = intensity * LightNode.defaultIntensity;
+    _sheet.ambient = LinearColor(ambient, ambient, ambient);
     // #endregion orbit
 
     // #region swap
     final ParticleContributor shown = sixWay ? _lit : _plain;
     final ParticleContributor hidden = sixWay ? _plain : _lit;
-    if (context.renderer.removeContributor(hidden)) {
-      context.renderer.addContributor(shown);
+    if (context.renderer.renderSteps.removeContributor(hidden)) {
+      context.renderer.renderSteps.addContributor(shown);
     }
     // #endregion swap
   }
@@ -186,7 +201,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
 /// one `SixWayMaterial` reads: positive holds right, top, back and coverage,
 /// negative holds left, bottom, front and emission, unpremultiplied, and the
 /// rows run bottom to top.
-({Uint8List positive, Uint8List negative}) _bakeBall(int n) {
+SixWayTextures _bakeBall(int n) {
   const double extinction = 6.0;
   final double step = 2.0 / n;
   double at(int i) => -1.0 + (i + 0.5) * step;
@@ -261,7 +276,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
         ..[out + 3] = 0;
     }
   }
-  return (positive: positive, negative: negative);
+  return SixWayTextures(positive: positive, negative: negative);
 }
 
 // #endregion bake

@@ -18,24 +18,26 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A scene with a caster, a point light and geometry: enough that the shadow
 /// passes, the atlas and the scene pass are all real.
 Scene _scene() => Scene()
   ..add(
-    LightNode(intensity: 4.0, castsShadow: true)
+    LightNode(intensity: 4.0 * LightNode.defaultIntensity, castsShadow: true)
       ..setPosition(3.0, 4.0, 5.0)
       ..lookAt(Vector3.zero()),
   )
   ..add(
-    LightNode(type: LightType.point, intensity: 3.0, castsShadow: true)
-      ..setPosition(-2.0, 1.0, 0.0),
+    LightNode(
+      type: LightType.point,
+      intensity: 3.0 * LightNode.defaultIntensity,
+      castsShadow: true,
+    )..setPosition(-2.0, 1.0, 0.0),
   )
   ..add(CameraNode()..setPosition(0.0, 0.0, 5.0));
 
-List<RenderView> _views(Scene scene) => <RenderView>[
-  RenderView(camera: scene.cameras.single),
+List<CameraView> _views(Scene scene) => <CameraView>[
+  CameraView(camera: scene.cameras.single),
 ];
 
 /// The names a plan says would run, and the names a drawn frame ran.
@@ -93,12 +95,11 @@ void main() {
       expect(both.drawn, contains('ssao'));
     });
 
-    test('with a pass switched off by name', () {
+    test('with a step switched off', () {
       final both = _both(
         const RenderSettings(
           bloom: BloomSettings(intensity: 0.8),
-          disabledPasses: <String>{'bloom'},
-        ),
+        ).without(<RenderStep>{RenderStep.bloom}),
       );
       expect(both.planned, both.drawn);
       expect(both.drawn, isNot(contains('bloom')));
@@ -114,7 +115,7 @@ void main() {
   });
 
   group('the plan says why, not only what', () {
-    test('a pass switched off by name is reported as disabled', () {
+    test('a step switched off is reported as switched off', () {
       final renderer = Renderer.create(device: FakeBackend());
       final scene = _scene();
       final plan = renderer.planFrame(
@@ -122,13 +123,12 @@ void main() {
         views: _views(scene),
         settings: const RenderSettings(
           bloom: BloomSettings(intensity: 0.8),
-          disabledPasses: <String>{'bloom'},
-        ),
+        ).without(<RenderStep>{RenderStep.bloom}),
       );
 
       expect(<String, PassSkip>{
         for (final s in plan.skipped) s.name: s.reason,
-      }, containsPair('bloom', PassSkip.disabled));
+      }, containsPair('bloom', PassSkip.switchedOff));
     });
 
     test('and a pass the device cannot run is reported as unsupported', () {
@@ -220,7 +220,7 @@ void main() {
   test('a plan needs a view, like a frame does', () {
     final renderer = Renderer.create(device: FakeBackend());
     expect(
-      () => renderer.planFrame(scene: _scene(), views: const <RenderView>[]),
+      () => renderer.planFrame(scene: _scene(), views: const <CameraView>[]),
       throwsArgumentError,
     );
   });

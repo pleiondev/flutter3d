@@ -9,8 +9,9 @@ import 'mechanism.dart';
 /// A hierarchy because the three differ only in this one function, and because
 /// a level pack wanting a failing fluorescent tube should write a class rather
 /// than add a flag to a flicker that was only ever meant to be a torch.
-abstract base class LightBehaviour {
-  const LightBehaviour();
+abstract base class LightBehavior {
+  /// Lets a subclass be const.
+  const LightBehavior();
 
   /// Brightness multiplier at [time] seconds, for the fixture identified by
   /// [seed].
@@ -22,7 +23,8 @@ abstract base class LightBehaviour {
 }
 
 /// Steady. A lamp, a stained window with daylight behind it.
-final class SteadyLight extends LightBehaviour {
+final class SteadyLight extends LightBehavior {
+  /// A light at full brightness, always.
   const SteadyLight();
 
   @override
@@ -35,7 +37,15 @@ final class SteadyLight extends LightBehaviour {
 /// cheapest thing that does not read as a repeating loop. Deliberately not
 /// random: a value computed from the time is the same on every machine and
 /// after every reload, which is what lets a golden hold still.
-final class FlameFlicker extends LightBehaviour {
+///
+/// **In `flutter3d_sim`, though it only changes a light**, because it is
+/// level data the step reads: a light fixture is a mechanism a level spawns,
+/// its flicker a function of the step's time, and a rule that reads how
+/// bright a torch is reads the same number on every machine. The renderer
+/// takes the brightness from here; nothing here draws.
+final class FlameFlicker extends LightBehavior {
+  /// A flicker dipping by [depth] (0.22) about [rate] (seven) times a
+  /// second.
   const FlameFlicker({this.depth = 0.22, this.rate = 7.0});
 
   /// How far it dips below full, from 0 to 1.
@@ -56,15 +66,19 @@ final class FlameFlicker extends LightBehaviour {
 }
 
 /// A slow swell, for something magical rather than burning.
-final class PulseLight extends LightBehaviour {
-  const PulseLight({this.depth = 0.35, this.period = 3.5});
+final class PulseLight extends LightBehavior {
+  /// A swell dipping by [depth] (0.35) once every [periodSeconds] (3.5) seconds.
+  const PulseLight({this.depth = 0.35, this.periodSeconds = 3.5});
 
+  /// How far it dips below full, from 0 to 1.
   final double depth;
-  final double period;
+
+  /// One swell, trough to trough, in seconds.
+  final double periodSeconds;
 
   @override
   double at(double time, double seed) {
-    final phase = 2.0 * math.pi * (time / period + seed);
+    final phase = 2.0 * math.pi * (time / periodSeconds + seed);
     return 1.0 - depth * (0.5 - 0.5 * math.sin(phase));
   }
 }
@@ -76,10 +90,12 @@ final class PulseLight extends LightBehaviour {
 /// number rather than two that drift apart. A torch whose flame stays bright
 /// while its light dims is a torch nobody believes.
 final class LightFixture extends Mechanism {
+  /// A fixture driving [light], steady, lit and at phase nought unless
+  /// told otherwise.
   LightFixture({
     super.name,
     required this.light,
-    this.behaviour = const SteadyLight(),
+    this.behavior = const SteadyLight(),
     this.seed = 0.0,
     this.enabled = true,
   });
@@ -88,9 +104,12 @@ final class LightFixture extends Mechanism {
   /// decorative fixture — an unlit sconce — names none.
   final String? light;
 
-  final LightBehaviour behaviour;
+  /// How the brightness moves with time while nothing [measure]s the
+  /// fixture.
+  final LightBehavior behavior;
 
-  /// Offsets this fixture's phase. See [LightBehaviour.at].
+  /// Offsets this fixture's phase; unitless, a [PulseLight] reads it as a
+  /// fraction of its period. See [LightBehavior.at].
   final double seed;
 
   /// Switched off by a button, or by the level starting dark.
@@ -103,9 +122,9 @@ final class LightFixture extends Mechanism {
   /// True once something has measured this fixture's fire.
   ///
   /// A fixture whose light comes from particles must not also run a
-  /// [LightBehaviour]: two generators of the same number disagree eventually,
+  /// [LightBehavior]: two generators of the same number disagree eventually,
   /// and the disagreement looks like a flame burning while its light is out.
-  /// So [measure] takes over, and [behaviour] is left for the fixtures that
+  /// So [measure] takes over, and [behavior] is left for the fixtures that
   /// have nothing to measure — a lamp, a pulsing crystal.
   bool get isMeasured => _measured;
   bool _measured = false;
@@ -132,7 +151,7 @@ final class LightFixture extends Mechanism {
   /// belongs where the particles currently are rather than at the bracket
   /// holding them. The drift is small — a few centimetres — and it is the
   /// difference between a light that flickers and one that lives.
-  Vector3? get measuredAt => _measuredAt;
+  Vector3? get measuredAt => _measuredAt?.clone();
   Vector3? _measuredAt;
 
   /// Reports what this fixture's fire actually amounts to, from 0 to 1, and
@@ -157,7 +176,7 @@ final class LightFixture extends Mechanism {
   void step(double dt) {
     _time += dt;
     if (_measured) return;
-    _brightness = enabled ? behaviour.at(_time, seed).clamp(0.0, 1.0) : 0.0;
+    _brightness = enabled ? behavior.at(_time, seed).clamp(0.0, 1.0) : 0.0;
   }
 
   /// Toggling is the only thing that can be done to it, and a level that

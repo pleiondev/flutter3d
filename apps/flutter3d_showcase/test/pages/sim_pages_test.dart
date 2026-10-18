@@ -1,7 +1,7 @@
 @Tags(['golden', 'skip_very_good_optimization'])
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/heightfield_collision.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/actors.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/audio_occlusion.dart';
@@ -88,11 +88,14 @@ void main() {
       return loud.then(
         (_) => _with(occlusion, (DemoRun run) async {
           _tick(run, 2);
-          final double behind = _node(run, 'bell').material.baseColor.x;
+          final double behind = _node(
+            run,
+            'bell',
+          ).material.baseColor.toSrgb().r;
           occlusion.listenerX = 5.0;
           _tick(run, 2);
           expect(
-            _node(run, 'bell').material.baseColor.x,
+            _node(run, 'bell').material.baseColor.toSrgb().r,
             greaterThan(behind + 0.2),
           );
         }),
@@ -105,12 +108,12 @@ void main() {
         ..eyeX = 0.5;
       return _with(demo, (DemoRun run) async {
         _tick(run, 2);
-        expect(_node(run, 'marker 0.0').visible, isTrue);
-        expect(_node(run, 'marker 10.0').visible, isFalse);
+        expect(_node(run, 'marker 0.0').isVisible, isTrue);
+        expect(_node(run, 'marker 10.0').isVisible, isFalse);
         demo.eyeX = 9.0;
         _tick(run, 2);
-        expect(_node(run, 'marker 0.0').visible, isFalse);
-        expect(_node(run, 'marker 10.0').visible, isTrue);
+        expect(_node(run, 'marker 0.0').isVisible, isFalse);
+        expect(_node(run, 'marker 10.0').isVisible, isTrue);
       });
     });
 
@@ -178,7 +181,8 @@ void main() {
       final VoiceLimitDemo demo = VoiceLimitDemo();
       return _with(demo, (DemoRun run) async {
         _tick(run, 2);
-        bool lit(String name) => _node(run, name).material.baseColor.x > 0.5;
+        bool lit(String name) =>
+            _node(run, name).material.baseColor.toSrgb().r > 0.5;
         expect(lit('shout'), isTrue);
         final int steps = <int>[
           for (var i = 0; i < 8; i++)
@@ -197,7 +201,8 @@ void main() {
       final PendulumLabDemo demo = PendulumLabDemo()..changeAt = 100.0;
       return _with(demo, (DemoRun run) async {
         _tick(run, 366);
-        bool red(String name) => _node(run, name).material.baseColor.x > 0.6;
+        bool red(String name) =>
+            _node(run, name).material.baseColor.toSrgb().r > 0.6;
         expect(red('lamp 0'), isFalse);
         expect(red('lamp 1'), isFalse);
         expect(red('lamp 3'), isTrue);
@@ -222,7 +227,8 @@ void main() {
         final ReplayDigestDemo demo = ReplayDigestDemo()..driftAt = 9.0;
         return _with(demo, (DemoRun run) async {
           _tick(run, 2);
-          bool red(String name) => _node(run, name).material.baseColor.x > 0.6;
+          bool red(String name) =>
+              _node(run, name).material.baseColor.toSrgb().r > 0.6;
           expect(red('lamp 0'), isFalse);
           expect(red('lamp 1'), isFalse);
           // Checkpoints fall on 4, 8, 12: the drift at 9 first shows at 12.
@@ -239,7 +245,7 @@ void main() {
       final PortableMathDemo demo = PortableMathDemo();
       return _with(demo, (DemoRun run) async {
         _tick(run, 300);
-        expect(_node(run, 'lamp').material.baseColor.x, lessThan(0.6));
+        expect(_node(run, 'lamp').material.baseColor.toSrgb().r, lessThan(0.6));
       });
     });
 
@@ -249,7 +255,7 @@ void main() {
         _tick(run, 2);
         int lit() => <int>[
           for (var i = 0; i < 6; i++)
-            if (_node(run, 'issue $i').visible) i,
+            if (_node(run, 'issue $i').isVisible) i,
         ].length;
         final int overlapping = lit();
         expect(overlapping, greaterThan(0));
@@ -265,7 +271,10 @@ void main() {
         _tick(run, 120);
         expect(_node(run, 'walker').readPosition().x, greaterThan(3.0));
         _tick(run, 200);
-        expect(_node(run, 'goal').material.baseColor.y, greaterThan(0.6));
+        expect(
+          _node(run, 'goal').material.baseColor.toSrgb().g,
+          greaterThan(0.6),
+        );
       });
     });
 
@@ -273,12 +282,12 @@ void main() {
       final EcsWorldDemo demo = EcsWorldDemo();
       return _with(demo, (DemoRun run) async {
         _tick(run, 2);
-        expect(_node(run, 'slot 2').visible, isTrue);
-        expect(_node(run, 'entity 1').visible, isFalse);
+        expect(_node(run, 'slot 2').isVisible, isTrue);
+        expect(_node(run, 'entity 1').isVisible, isFalse);
         demo.reload = 2;
         _tick(run, 2);
-        expect(_node(run, 'slot 1').visible, isFalse);
-        expect(_node(run, 'entity 0').visible, isTrue);
+        expect(_node(run, 'slot 1').isVisible, isFalse);
+        expect(_node(run, 'entity 0').isVisible, isTrue);
       });
     });
   });

@@ -17,8 +17,8 @@
 /// upload per edit rather than one per frame.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -28,6 +28,7 @@ import '../staging.dart';
 
 /// [mesh] in a viewport of its own, turning with [leader].
 class LodLevelViewport extends StatefulWidget {
+  /// A viewport drawing [mesh], level [lodIndex], through [renderer].
   const LodLevelViewport({
     super.key,
     required this.renderer,

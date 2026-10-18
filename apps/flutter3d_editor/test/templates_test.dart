@@ -17,11 +17,12 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d/flutter3d.dart' show LightType, LinearColor;
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -338,11 +339,19 @@ void main() {
       final SkyPreset morning = SkyPresets.morning;
       final LevelLight sun = racing.level.lights.single;
 
-      expect(sun.type, LevelLightType.directional);
-      expect(sun.intensity, morning.sunIntensity);
-      _closeTo(sun.color, morning.sunColor, 0.001);
+      expect(sun.type, LightType.directional);
+      // The preset's strength is in the pre-1.0 unit; the level's in lux.
+      expect(
+        sun.intensity,
+        closeTo(morning.sunIntensity * LevelLight.defaultIntensity, 1e-6),
+      );
+      _closeTo(_vector(sun.color), _vector(morning.sunColor), 0.001);
       _closeTo(sun.direction, morning.sunDirection, 0.001);
-      _closeTo(racing.level.fogColor, morning.horizonFogColour, 0.001);
+      _closeTo(
+        _vector(racing.level.fogColor),
+        _vector(morning.horizonFogColor),
+        0.001,
+      );
       expect(racing.level.fogDensity, morning.fogDensity);
     });
   });
@@ -400,7 +409,7 @@ void main() {
       final Looks looks = strategy.looks;
       const UnitSize unit = UnitSize();
       final Building hall = Building(
-        centre: Vector3.zero(),
+        center: Vector3.zero(),
         width: 12.0,
         depth: 10.0,
         name: 'hall',
@@ -419,7 +428,7 @@ void main() {
       expect(worker, isNotNull);
       expect(
         worker!.x,
-        closeTo(Unit(position: Vector3.zero()).radius * 2.0, 1e-6),
+        closeTo(StrategyUnit(position: Vector3.zero()).radius * 2.0, 1e-6),
       );
       expect(worker.y, closeTo(unit.height, 1e-6));
     });
@@ -431,7 +440,7 @@ void main() {
       // than the game it was started from.
       final producer = Producer(
         building: Building(
-          centre: Vector3.zero(),
+          center: Vector3.zero(),
           width: 1.0,
           depth: 1.0,
           name: 'hall',
@@ -450,6 +459,10 @@ void main() {
 /// Reports [a] and [b] as the same direction or colour, component by
 /// component — a `Vector3` has no matcher of its own and `closeTo` takes a
 /// number.
+///
+/// [color]'s three channels, to hold against another colour.
+Vector3 _vector(LinearColor color) => Vector3(color.r, color.g, color.b);
+
 void _closeTo(Vector3 a, Vector3 b, double slack) {
   expect(a.x, closeTo(b.x, slack));
   expect(a.y, closeTo(b.y, slack));

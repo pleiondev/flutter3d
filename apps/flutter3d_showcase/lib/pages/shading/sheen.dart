@@ -5,15 +5,19 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `sheen` page: bare red cloth beside the same cloth with a sheen. Its
+/// check is that the second one has a layer that changes its shading.
 final class SheenDemo extends ShowcaseDemo {
-  int colour = 0;
+  /// The sheen's colour: 0 blue, 1 white, 2 gold.
+  int color = 0;
+
+  /// The sheen's roughness, 0.07 to 1; the shader floors it at 0.07.
   double sheenRoughness = 0.5;
 
   static const List<String> _colourNames = <String>['Blue', 'White', 'Gold'];
 
-  late final Material _cloth;
+  late final RenderMaterial _cloth;
 
   @override
   void configureView(DemoContext context) {
@@ -25,7 +29,7 @@ final class SheenDemo extends ShowcaseDemo {
 
   // #region colours
   /// Linear colours: the sheen is not painted, so it is not sRGB.
-  Vector3 _sheenColour() => switch (colour) {
+  Vector3 _sheenColour() => switch (color) {
     0 => Vector3(0.2, 0.4, 1.0),
     1 => Vector3(1.0, 1.0, 1.0),
     _ => Vector3(1.0, 0.75, 0.3),
@@ -35,19 +39,19 @@ final class SheenDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region cloth
-    final Material bare = Material(
+    final RenderMaterial bare = RenderMaterial(
       name: 'bare cloth',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
       roughness: 0.6,
     );
-    _cloth = Material(
+    _cloth = RenderMaterial(
       name: 'cloth with sheen',
       lighting: LightingModel.pbrLayered,
-      baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
       roughness: 0.6,
       extensions: MaterialExtensions(
-        sheenColor: _sheenColour(),
+        sheenColor: _sheenColour().toLinearColor(),
         sheenRoughness: sheenRoughness,
       ),
     );
@@ -58,11 +62,11 @@ final class SheenDemo extends ShowcaseDemo {
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
     return Scene()
-      ..ambientIntensity = 0.15
+      ..ambientIntensity = 0.15 * LightNode.defaultIntensity
       ..add(MeshNode(ball, bare, name: 'bare')..setPosition(-0.6, 0.0, 0.0))
       ..add(MeshNode(ball, _cloth, name: 'sheen')..setPosition(0.6, 0.0, 0.0))
       ..add(
-        LightNode(name: 'key', intensity: 3.0)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.35, -0.45, -1.0).normalized()),
       );
   }
@@ -71,7 +75,7 @@ final class SheenDemo extends ShowcaseDemo {
   void update(DemoContext context, double dt) {
     // #region live
     _cloth.extensions = MaterialExtensions(
-      sheenColor: _sheenColour(),
+      sheenColor: _sheenColour().toLinearColor(),
       sheenRoughness: sheenRoughness,
     );
     // #endregion live
@@ -82,8 +86,8 @@ final class SheenDemo extends ShowcaseDemo {
     ChoiceControl(
       'Sheen colour',
       options: _colourNames,
-      index: () => colour,
-      onChanged: (int i) => colour = i,
+      index: () => color,
+      onChanged: (int i) => color = i,
     ),
     SliderControl(
       'Sheen roughness',

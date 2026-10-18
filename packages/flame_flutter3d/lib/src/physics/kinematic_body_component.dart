@@ -28,7 +28,10 @@ import '../transform/object3d_component.dart';
 /// `HasFixedStep`: a passenger stepped before its lift moved would stand a
 /// step behind it. In such a game the lift follows where Flame put it the
 /// frame before, since the steps run before this frame's effects.
-class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate {
+base class KinematicBodyComponent extends Object3dComponent
+    with FixedStepUpdate {
+  /// A component moving [collider] to where Flame puts it, drawn through
+  /// [node] in [scene] on [plane].
   KinematicBodyComponent({
     required this.collider,
     required super.node,

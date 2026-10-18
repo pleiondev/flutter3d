@@ -9,7 +9,7 @@
 /// change what [retargetClip] does on top of that, are exposed.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' show BoneMap;
 
@@ -21,15 +21,23 @@ import 'bone_map_table.dart';
 /// [retargetClip] runs) versus "Кодом" (extracted through
 /// `ExtractRootMotion` so a character controller reads it instead).
 enum RetargetRootMotion {
+  /// Left baked into the retargeted clip — what retargeting does anyway.
   inAnimation('In animation'),
+
+  /// Extracted from the clip, for a character controller to read instead.
   inCode('In code');
 
   const RetargetRootMotion(this.label);
 
+  /// What the choice's chip says. English whatever the locale: unlike the
+  /// panel's other strings it does not go through the localizations.
   final String label;
 }
 
+/// Screen 14's right panel: the bone map, the root-motion choice, the foot
+/// corrections, and Apply.
 class RetargetPanel extends StatelessWidget {
+  /// The panel over [boneMap]; every edit goes out through its callback.
   const RetargetPanel({
     super.key,
     required this.sourceNames,
@@ -49,18 +57,39 @@ class RetargetPanel extends StatelessWidget {
     required this.onApply,
   });
 
+  /// Every joint on the source clip's rig, the left column of the bone map.
   final List<String> sourceNames;
+
+  /// Which source joint drives which target joint, as it stands.
   final BoneMap boneMap;
+
+  /// Fill the bone map from the joint names, replacing what is there.
   final VoidCallback onAutoMap;
 
+  /// Where the retargeted clip's root motion is to end up.
   final RetargetRootMotion rootMotion;
+
+  /// The root-motion choice was changed.
   final ValueChanged<RetargetRootMotion> onRootMotionChanged;
 
+  /// Whether each foot is snapped back to [groundY] after retargeting. Off
+  /// greys out [groundY] and [footTolerance].
   final bool lockFeet;
+
+  /// The foot-lock box was ticked or cleared.
   final ValueChanged<bool> onLockFeetChanged;
+
+  /// The height of the floor the feet are locked to, in metres.
   final double groundY;
+
+  /// A new floor height was typed, in metres.
   final ValueChanged<double> onGroundYChanged;
+
+  /// How far, in metres, an ankle may sit off [groundY] before the foot lock
+  /// moves it: an ankle closer than this is left alone.
   final double footTolerance;
+
+  /// A new foot tolerance was typed, in metres.
   final ValueChanged<double> onFootToleranceChanged;
 
   /// Whether `retarget.apply`/[onApply] has everything it needs — a source
@@ -70,6 +99,9 @@ class RetargetPanel extends StatelessWidget {
   /// refuse, but so is "no target object is even selected", which neither
   /// of those two says anything about.
   final bool canApply;
+
+  /// Runs the retarget. Only called while [canApply] holds; the button is
+  /// disabled otherwise.
   final VoidCallback? onApply;
 
   /// Every joint on the rig being retargeted onto — `ux-46`. Empty leaves

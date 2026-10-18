@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_core/formats.dart';
+import 'package:vector_math/vector_math.dart';
+
 import 'animation_target.dart';
 
 /// Where a track sits in a pose: one number for a node and a path together.
@@ -18,13 +22,21 @@ int animationTrackKey(AnimationTrack track) => switch (track.pointer) {
 };
 
 /// How a layer's pose meets the base's — `gfx-10n`.
-enum AnimationBlend {
+///
+/// A `final class` with const instances rather than an enum, so a blend added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class AnimationBlend {
+  const AnimationBlend._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// The layer's value replaces the base's, faded by the layer's weight.
   ///
   /// What every layer did before there was a choice, and still the right one
   /// for a clip authored as a whole performance of the joints it covers: an
   /// upper-body reload is a reload, not a correction to one.
-  override,
+  static const AnimationBlend override = AnimationBlend._('override');
 
   /// The layer's distance from its own reference pose is laid on top of the
   /// base.
@@ -32,9 +44,29 @@ enum AnimationBlend {
   /// For a clip authored as a *difference*: a breath, a recoil, a lean, a
   /// flinch. Playing one of these on its own poses a character into a shape
   /// nobody wants, which is the sign that it is additive — and the reason it
-  /// needs [AnimationClip.referenceTime] to say what it is a difference
+  /// needs [AnimationClip.referenceSeconds] to say what it is a difference
   /// *from*.
-  additive,
+  static const AnimationBlend additive = AnimationBlend._('additive');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static AnimationBlend? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Every blend.
+  static const List<AnimationBlend> values = <AnimationBlend>[
+    override,
+    additive,
+  ];
+
+  // No `@override` here: inside this class the word names the constant
+  // above, not the annotation.
+  // ignore: annotate_overrides
+  String toString() => 'AnimationBlend.$name';
 }
 
 /// A clip played over part of a skeleton, on top of whatever the base is doing.
@@ -50,7 +82,7 @@ enum AnimationBlend {
 /// layer covers a joint and has a track for it, the layer's value replaces the
 /// base's, faded by [weight]. [AnimationBlend.additive] instead takes the
 /// distance between the clip at this moment and the clip at its own
-/// [AnimationClip.referenceTime] and lays that *on top of* the base — which is
+/// [AnimationClip.referenceSeconds] and lays that *on top of* the base — which is
 /// what a breath over a walk, a recoil over an aim and a lean over a run all
 /// want, and what an override can never be: an overriding breath stops the
 /// walk for as long as it lasts.
@@ -70,6 +102,8 @@ enum AnimationBlend {
 /// here rather than in the caller because every caller would write the same
 /// four lines and one of them would forget to clamp.
 final class AnimationLayer {
+  /// A layer playing [clip] over [mask] (the whole skeleton when null) at
+  /// full weight, looping at normal speed and replacing the pose beneath.
   AnimationLayer({
     required this.clip,
     AnimationMask? mask,
@@ -85,7 +119,7 @@ final class AnimationLayer {
   /// Whether this layer replaces the base's pose or adds to it — `gfx-10n`.
   ///
   /// [AnimationBlend.additive] needs the clip to name an
-  /// [AnimationClip.referenceTime]; without one there is nothing to measure a
+  /// [AnimationClip.referenceSeconds]; without one there is nothing to measure a
   /// delta from and the player falls back to overriding, which is the answer
   /// that at least shows the clip rather than silently posing nothing.
   AnimationBlend blend;
@@ -108,9 +142,11 @@ final class AnimationLayer {
   double speed;
 
   /// Where the layer's own playhead is, in seconds.
-  double get time => _time;
+  double get timeSeconds => _time;
   double _time = 0.0;
 
+  /// Whether the layer's playhead is advancing; true until a clip that does
+  /// not loop reaches its end.
   bool get isPlaying => _playing;
   bool _playing = true;
 
@@ -164,13 +200,13 @@ final class AnimationLayer {
     if (!_playing || clipDuration <= 0.0) return;
 
     final advanced = advanceTime(
-      time: _time,
+      seconds: _time,
       deltaSeconds: deltaSeconds * speed,
       length: clipDuration,
       wrap: wrap,
       reversing: _reversing,
     );
-    _time = advanced.time;
+    _time = advanced.timeSeconds;
     _reversing = advanced.reversing;
     if (advanced.stopped) _playing = false;
   }
@@ -198,6 +234,28 @@ final class AnimationLayer {
   Map<int, AnimationTrack> _cachedTracks = const <int, AnimationTrack>{};
 }
 
+/// Where a playhead landed after [advanceTime]'s step, and what the wrap
+/// did to it.
+final class PlayheadStep {
+  /// A step that left the playhead at [timeSeconds] seconds, running backwards when
+  /// [reversing], and at an end when [stopped].
+  const PlayheadStep({
+    required this.timeSeconds,
+    required this.reversing,
+    required this.stopped,
+  });
+
+  /// The playhead, in seconds into the clip.
+  final double timeSeconds;
+
+  /// Whether it now runs backwards: a ping-pong turned it, or it already
+  /// did.
+  final bool reversing;
+
+  /// Whether a clip played once reached its end and stopped there.
+  final bool stopped;
+}
+
 /// Where a playhead lands after a step, and what the wrap did to it.
 ///
 /// **One copy of this arithmetic**, shared by the base player and every layer.
@@ -205,22 +263,28 @@ final class AnimationLayer {
 /// of a ping-pong are two chances to turn round on a different frame, and the
 /// bug that produces is a layer that drifts against the clip it is supposed to
 /// be in step with.
-({double time, bool reversing, bool stopped}) advanceTime({
-  required double time,
+PlayheadStep advanceTime({
+  required double seconds,
   required double deltaSeconds,
   required double length,
   required AnimationWrap wrap,
   required bool reversing,
 }) {
-  var next = time + deltaSeconds * (reversing ? -1.0 : 1.0);
+  var next = seconds + deltaSeconds * (reversing ? -1.0 : 1.0);
   var turned = reversing;
 
   switch (wrap) {
     case AnimationWrap.once:
       if (next >= length) {
-        return (time: length, reversing: turned, stopped: true);
+        return PlayheadStep(
+          timeSeconds: length,
+          reversing: turned,
+          stopped: true,
+        );
       }
-      if (next <= 0.0) return (time: 0.0, reversing: turned, stopped: true);
+      if (next <= 0.0) {
+        return PlayheadStep(timeSeconds: 0.0, reversing: turned, stopped: true);
+      }
 
     case AnimationWrap.loop:
       // Modulo rather than a subtraction, so a long pause or a huge speed does
@@ -238,7 +302,47 @@ final class AnimationLayer {
           turned = !turned;
         }
       }
+    default:
+      throw UnsupportedError('no wrap rule for $wrap');
   }
 
-  return (time: next, reversing: turned, stopped: false);
+  return PlayheadStep(timeSeconds: next, reversing: turned, stopped: false);
+}
+
+/// Shortest-arc interpolation between two rotations, [t] of the way from
+/// [from] to [to].
+///
+/// **One copy, for the same reason [advanceTime] is one.** It was the
+/// player's own, and the animation graph's crossfade needs exactly it: two
+/// copies would be two chances for a graph and a player fading between the
+/// same clips to turn a joint a different way.
+///
+/// The sign flip is the part that matters: a quaternion and its negation are
+/// the same rotation, so without choosing the closer of the two, half of all
+/// blends spin the long way.
+Quaternion shortestArcSlerp(Quaternion from, Quaternion to, double t) {
+  final raw = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
+  final sign = raw < 0.0 ? -1.0 : 1.0;
+  final dot = raw * sign;
+
+  final (scaleFrom, scaleTo) = dot > 0.9995
+      // Nearly identical: the arc is so short that a straight line is closer
+      // than the trigonometry's own error.
+      ? (1.0 - t, t)
+      : _arcScales(math.acos(dot), t);
+
+  return Quaternion(
+    scaleFrom * from.x + scaleTo * sign * to.x,
+    scaleFrom * from.y + scaleTo * sign * to.y,
+    scaleFrom * from.z + scaleTo * sign * to.z,
+    scaleFrom * from.w + scaleTo * sign * to.w,
+  )..normalize();
+}
+
+(double, double) _arcScales(double theta, double t) {
+  final sinTheta = math.sin(theta);
+  return (
+    math.sin((1.0 - t) * theta) / sinTheta,
+    math.sin(t * theta) / sinTheta,
+  );
 }

@@ -38,7 +38,7 @@ something by it, and the file does not say what. The import screen asks:
 
 - **Unit** — millimetres, centimetres or metres. This scan is millimetres,
   the STL default this project's own import options assume
-  (`ImportOptions.scale = 0.001` reads a millimetre file as this project's
+  (`ImportSettings.scale = 0.001` reads a millimetre file as this project's
   metres).
 - **Up axis** — Y (this project's own convention) or Z (common out of CAD
   tools). This file is already Y-up, so the default is correct.
@@ -111,7 +111,7 @@ from 0 to 1.
 ![Case 1's own document with the teapot selected: the properties panel showing its transform, its modifier stack and the material it is painted with.](/assets/learn/modeler/prop-from-a-scan/03-material-panel.png)
 
 Below are the same teapot rendered twice, headlessly, through
-`renderProject` (`packages/flutter3d_model_mcp/lib/src/render_tool.dart`'s
+`renderProject` (`packages/flutter3d_mcp/lib/src/model/render_tool.dart`'s
 own underlying function) — no viewport chrome, just the geometry, the way
 `render`/`renderSheet` would hand it to an agent:
 
@@ -137,7 +137,7 @@ there will be wrong and nothing downstream can thicken or subdivide it
 ```
 
 That is `ModelSession.export`'s own answer sentence
-(`packages/flutter3d_model_mcp/lib/src/model_session.dart`), verbatim.
+(`packages/flutter3d_mcp/lib/src/model/model_session.dart`), verbatim.
 
 ![The export screen: the format list, the readiness checks with what each one found, and the file about to be written.](/assets/learn/modeler/prop-from-a-scan/04-export-dialog.png)
 
@@ -145,9 +145,9 @@ That is `ModelSession.export`'s own answer sentence
 
 Sign in at models.pleion.dev and upload `teapot.glb` from the site's own
 uploader. It joins your cabinet with the name you exported it under, and
-"Open in viewer" loads it at `/app/` — the same web build of the modeler
-this whole case ran in, reading the file back rather than a special
-viewer-only path. Two things the cabinet cannot do yet, so you are not
+"View in 3D" loads it at `/app/`. That is the modeler this case ran in,
+built for the web to view rather than edit, so it reads the same file back.
+Two things the cabinet cannot do yet, so you are not
 missing a setting: it has no preview picture of its own (`cloud/README.md`'s
 own "What is not here yet"), and there is no way to open a cabinet model
 back into the desktop editor and save changes to it — export is presently
@@ -192,12 +192,12 @@ interactive viewport's camera always has, so both pictures are of the
 project exactly as the fixtures carry it.
 
 **Proving it.** Every step above is a real, replayable command, not
-narration. `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+narration. `packages/flutter3d_mcp/test/model/fixtures/tutorial/
 case1_scenario.dart` builds exactly the project this page describes,
 through `ModelSession.import` itself — the same call an agent makes over
-MCP, given `ImportOptions(scale: 0.001)` and `weld: true` for the identical
+MCP, given `ImportSettings(scale: 0.001)` and `weld: true` for the identical
 "mm" and "weld coincident vertices" choice made above;
-`packages/flutter3d_model_mcp/test/tutorial_scenarios_test.dart` replays
+`packages/flutter3d_mcp/test/model/tutorial_scenarios_test.dart` replays
 its journal (`case1.jsonl`) through `CommandJournal.replay` against a
 freshly imported teapot and checks the result matches the committed
 `case1.f3dproj` and `case1.glb` byte for byte, plus a

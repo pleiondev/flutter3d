@@ -26,10 +26,10 @@ dependencies:
 
   # `PendulumSimulation`/`PendulumLabRun` — `edu-04`'s own physics, plain
   # Dart, moved out of `flutter3d_sim` into its own package for the reason
-  # `flutter3d_lab`'s own doc comment gives: a lab experiment is domain
+  # `flutter3d_education/lab.dart`'s own doc comment gives: a lab experiment is domain
   # content, not simulation infrastructure.
-  flutter3d_lab:
-    path: ../../packages/flutter3d_lab
+  flutter3d_education:
+    path: ../../packages/flutter3d_education
 
   # `DataSourceTrace` — `edu-05`'s mechanism, reused here for the one
   # parameter a tap on the panel changes.
@@ -48,6 +48,12 @@ dev_dependencies:
     path: ../../packages/flutter3d_cpu
 
   flutter_lints: ^6.0.0
+
+  # `Wcag` and `ContrastPair`, which `test/theme_contrast_test.dart` holds
+  # `LabTheme`'s pairs to over any frame: the arithmetic the game's own
+  # screens are held by, not a second copy of it.
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
 
 flutter:
   uses-material-design: true

@@ -1,5 +1,5 @@
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 
 import '../transform/plane.dart';
@@ -25,7 +25,8 @@ import '../transform/plane.dart';
 /// `MeshParticleContributor.darkening`, it takes its colour out of what is
 /// behind it: dark smoke, soot. One component is one blend, so a game with
 /// both keeps two, each its own pool and its own draw.
-class Particles3dComponent extends Component {
+base class Particles3dComponent extends Component {
+  /// A component drawing [system], placing Flame points on [plane].
   Particles3dComponent({required this.system, required this.plane});
 
   /// The pool every burst goes into.
@@ -59,7 +60,7 @@ class Particles3dComponent extends Component {
     if (drawing == null) return;
     _stopDrawing();
     _renderer = drawing.renderer;
-    _contributor = drawing.renderer.addContributor(
+    _contributor = drawing.renderer.renderSteps.addContributor(
       MeshParticleContributor(system, mesh: drawing.mesh, blend: drawing.blend),
     );
   }
@@ -100,7 +101,9 @@ class Particles3dComponent extends Component {
 
   void _stopDrawing() {
     final contributor = _contributor;
-    if (contributor != null) _renderer?.removeContributor(contributor);
+    if (contributor != null) {
+      _renderer?.renderSteps.removeContributor(contributor);
+    }
     _contributor = null;
     _renderer = null;
   }

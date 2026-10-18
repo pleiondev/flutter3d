@@ -30,26 +30,54 @@ import 'showcase.dart';
 /// Where the dashboard's facts come from. Real ones read the repository and the
 /// network; a test supplies its own.
 abstract interface class Sources {
+  /// The repository as `git` sees it now.
   Future<GitSnapshot> git();
+
+  /// The agent worktrees with commits [branch] does not have or changes not
+  /// yet committed.
   Future<List<AgentWorktree>> agents(String branch);
+
+  /// What `packages/` holds now.
   Future<PackagesSnapshot> packages();
+
+  /// The plan's account of itself.
   PlanSnapshot plan();
+
+  /// Every probe's result over the tree, by the probe's id.
   Map<String, ProbeResult> probes();
+
+  /// What pub.dev has for [names].
   Future<PubDevSnapshot> pubdev(List<String> names);
+
+  /// Whether the modeller's server answers, and what its tutorial index lists.
   Future<SitesSnapshot> sites();
+
+  /// The latest CI run for [branch].
   Future<CiSnapshot> ci(String branch);
+
+  /// How far the showcase app has got, read from its files.
   ShowcaseSnapshot showcase();
+
+  /// Whether the published showcase answers; null when it would not say.
   Future<bool?> showcaseLive();
+
+  /// Runs [gate]'s command in the repository and waits for it, up to its
+  /// timeout.
   Future<Ran> run(Gate gate);
 }
 
 /// The [Sources] that look at the real tree and the real network.
 final class LocalSources implements Sources {
+  /// Sources over the repository at [root] for [config]'s release; [fetch]
+  /// is for a test that answers the network itself.
   LocalSources(this.root, this.config, {Fetch? fetch})
     : _fetch = fetch ?? httpFetch,
       _probes = releaseProbes();
 
+  /// The repository's root directory.
   final Directory root;
+
+  /// The release being checked: its version, its tag and the names it needs.
   final ReleaseConfig config;
   final Fetch _fetch;
   final Map<String, Probe> _probes;
@@ -101,6 +129,8 @@ final class LocalSources implements Sources {
 
 /// The state of the release, and the only way to change it.
 final class Dashboard {
+  /// A dashboard over [sources] for [config], with [gates] it may run; a
+  /// non-null [memory] keeps results between looks.
   Dashboard({
     required this.root,
     required this.config,
@@ -111,9 +141,16 @@ final class Dashboard {
     _remember();
   }
 
+  /// The repository's root directory, where the gates run.
   final Directory root;
+
+  /// The release being checked.
   final ReleaseConfig config;
+
+  /// Where every fact on the page comes from.
   final Sources sources;
+
+  /// The scripts the dashboard can run, unmodifiable.
   final List<Gate> gates;
 
   /// Where results are kept between looks; null keeps them in memory only.

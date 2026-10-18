@@ -18,15 +18,15 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const List<LodSpec> _twoLevels = <LodSpec>[
-  LodSpec(ratio: 0.5, maxScreenFraction: 0.4),
-  LodSpec(ratio: 0.2, maxScreenFraction: 0.1),
+const List<LodSettings> _twoLevels = <LodSettings>[
+  LodSettings(ratio: 0.5, maxScreenFraction: 0.4),
+  LodSettings(ratio: 0.2, maxScreenFraction: 0.1),
 ];
 
 /// A sphere, because a level is a simplification and a cube has nothing to
 /// take away.
 ModelProject _sphere({
-  List<LodSpec> lods = _twoLevels,
+  List<LodSettings> lods = _twoLevels,
   List<ModifierSlot> modifiers = const <ModifierSlot>[],
 }) => const ModelProject().added(
   (int id) => ModelObject(
@@ -126,7 +126,9 @@ void main() {
         // Two balls side by side. A level cut from the raw geometry would be
         // one ball, and the far view of the pair would lose half of it.
         final pair = _sphere(
-          lods: const <LodSpec>[LodSpec(ratio: 0.5, maxScreenFraction: 0.4)],
+          lods: const <LodSettings>[
+            LodSettings(ratio: 0.5, maxScreenFraction: 0.4),
+          ],
           modifiers: <ModifierSlot>[
             ModifierSlot(
               modifier: ArrayModifier(count: 2, offset: Vector3(3.0, 0.0, 0.0)),

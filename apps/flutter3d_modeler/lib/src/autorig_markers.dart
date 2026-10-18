@@ -1,6 +1,6 @@
 /// Screen 16's own eight on-screen markers, and what they turn into once
 /// `flutter3d_model_core`'s `buildSkeleton` gets a hold of them — `anim-23`'s
-/// app half, leaning on `anim-33d`'s `RigBuildOptions`/`previewRig` and
+/// app half, leaning on `anim-33d`'s `RigBuildSettings`/`previewRig` and
 /// `doc-36d`'s `SetRig`.
 ///
 /// **Eight handles, eleven required keys — [deriveMarkers] is the bridge.**
@@ -31,10 +31,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' show Offset;
 
-import 'package:flutter3d_core/geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show LocalRay;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'element_picking.dart';
 
@@ -204,7 +204,7 @@ Map<String, Vector3> deriveMarkers(
 /// model's own centre depth, carried across a drag rather than reset to
 /// some new guess every time a person moves a marker.
 Vector3 markerFromScreen(PickingView view, Offset at, double depthZ) {
-  final Ray ray = view.rayThrough(at);
+  final LocalRay ray = view.rayThrough(at);
   final double dz = ray.direction.z;
   final double t = dz.abs() < 1e-9 ? 0.0 : (depthZ - ray.origin.z) / dz;
   return ray.origin + ray.direction * t;
@@ -262,7 +262,7 @@ Future<String?> createRig({
   required ModelHistory history,
   required RigTemplate template,
   required Map<String, Vector3> markers,
-  RigBuildOptions options = const RigBuildOptions(),
+  RigBuildSettings options = const RigBuildSettings(),
   int? skinObjectId,
   bool bindPrimaryWeights = true,
   bool mirrorWeights = true,

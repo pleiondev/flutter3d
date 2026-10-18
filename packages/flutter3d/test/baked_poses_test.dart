@@ -189,7 +189,7 @@ void main() {
       // animation that was playing.
       final (:scene, :skeleton, :player) = rig(clips: 2);
       player
-        ..play(0)
+        ..play(index: 0)
         ..seek(0.3);
 
       BakedPoses.of(
@@ -200,7 +200,7 @@ void main() {
       );
 
       expect(player.clipIndex, 0);
-      expect(player.time, closeTo(0.3, 1e-9));
+      expect(player.timeSeconds, closeTo(0.3, 1e-9));
     });
   });
 

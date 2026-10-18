@@ -1,7 +1,11 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show RenderSettings;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -35,6 +39,9 @@ import 'light_views.dart';
 /// merged light whose shadow fell differently from its parents' is judged
 /// by the shadow it actually casts.
 final class LightOptimizer {
+  /// An optimizer with the bounds given; the defaults allow a mean
+  /// difference of 0.01 and a 0.01 share under-lit at three quarters
+  /// brightness, and draw views at 160 by 100 pixels.
   const LightOptimizer({
     this.maxDifference = 0.01,
     this.maxUnderLit = 0.01,
@@ -60,7 +67,7 @@ final class LightOptimizer {
   final double darkening;
 
   /// How much the under-illumination hinge weighs in the retune, against the
-  /// squared difference.
+  /// squared difference. A unitless weight.
   final double underWeight;
 
   /// How many passes over every strength and colour a retune may take.
@@ -70,9 +77,11 @@ final class LightOptimizer {
   /// moves that cost a render per view.
   final int maxMerges;
 
-  /// The size each view is drawn at. Small, because the pictures are for
-  /// deciding and the decision does not need the detail.
+  /// The width each view is drawn at, in pixels. Small, because the
+  /// pictures are for deciding and the decision does not need the detail.
   final int width;
+
+  /// The height each view is drawn at, in pixels.
   final int height;
 
   /// Optimises [level]'s lights as seen from [views], under every one of
@@ -318,10 +327,12 @@ final class LightOptimizer {
   static bool _sameKind(LevelLight a, LevelLight b) =>
       a.type == b.type &&
       switch (a.type) {
-        LevelLightType.point => true,
-        LevelLightType.spot =>
+        LightType.point => true,
+        LightType.spot =>
           a.direction.normalized().dot(b.direction.normalized()) >= 0.9,
-        LevelLightType.directional => false,
+        // A directional light is never merged, and a kind this optimizer has
+        // no rule for is left alone.
+        _ => false,
       };
 
   /// One light where two were: at the middle of their strengths, as strong
@@ -335,7 +346,8 @@ final class LightOptimizer {
     final weight = ea + eb <= 0.0 ? 0.5 : eb / (ea + eb);
     final at = first.position + (second.position - first.position) * weight;
     final radiance =
-        first.color * first.intensity + second.color * second.intensity;
+        _rgb(first.color) * first.intensity +
+        _rgb(second.color) * second.intensity;
     final reach = first.range <= 0.0 || second.range <= 0.0
         ? 0.0
         : math.max(
@@ -351,7 +363,7 @@ final class LightOptimizer {
       extra: <String, Object?>{
         'at': _tidied(at),
         'range': _tidy(reach),
-        if (first.type == LevelLightType.spot) 'direction': _tidied(direction),
+        if (first.type == LightType.spot) 'direction': _tidied(direction),
         if (first.castsShadow || second.castsShadow) 'castsShadow': true,
       },
     );
@@ -359,11 +371,11 @@ final class LightOptimizer {
 
   static double _energy(LevelLight light) =>
       light.intensity *
-      math.max(light.color.x, math.max(light.color.y, light.color.z));
+      math.max(light.color.r, math.max(light.color.g, light.color.b));
 
   /// The exposure the previews and the difference are judged at: the one a
   /// frame gets when nothing says otherwise.
-  static const double _exposure = 1.6;
+  static const double _exposure = RenderSettings.defaultExposure;
 }
 
 /// One set of lights the level is also seen under, besides its own — the
@@ -373,20 +385,58 @@ final class LightOptimizer {
 /// the level the way it did under each of them: a torch the noon sun makes
 /// redundant is still wanted at night.
 final class LightingState {
+  /// A state called [name] adding [lights]; none by default.
   const LightingState(this.name, {this.lights = const <LevelLight>[]});
 
   /// The level's own lights and nothing more.
   static const LightingState asIs = LightingState('as is');
 
+  /// What the state is called: `noon`, `night`.
   final String name;
 
   /// Drawn in every view of this state, and never changed by the optimizer.
   final List<LevelLight> lights;
 }
 
+/// A [LightPlan]'s two previews as PNG files: what [LightPlan.pngs]
+/// answers.
+final class LightPlanPngs {
+  /// The previews [before] and [after] the plan.
+  const LightPlanPngs({required this.before, required this.after});
+
+  /// The PNG bytes of the first view under the lights as they were.
+  final Uint8List before;
+
+  /// The PNG bytes of the first view under the lights the plan leaves.
+  final Uint8List after;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightPlanPngs &&
+      _sameBytes(other.before, before) &&
+      _sameBytes(other.after, after);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(before), Object.hashAll(after));
+
+  @override
+  String toString() =>
+      'LightPlanPngs(${before.length} and ${after.length} bytes)';
+}
+
+bool _sameBytes(Uint8List a, Uint8List b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 /// What [LightOptimizer.optimize] found: the lights before and after, what
 /// it did to get there, and the numbers that say whether to take it.
 final class LightPlan {
+  /// A plan with every number given; it [holds] unless said otherwise.
   const LightPlan({
     required this.before,
     required this.after,
@@ -404,7 +454,12 @@ final class LightPlan {
     required this.previewAfter,
   });
 
+  /// The level's lights as they were.
   final List<LevelLight> before;
+
+  /// The lights the moves leave, which a caller writes into the document
+  /// only when [hasChanges]: a plan that misses its bounds still carries
+  /// the set it tried.
   final List<LevelLight> after;
 
   /// The moves kept, in order, as sentences.
@@ -415,11 +470,15 @@ final class LightPlan {
   /// renders (six for a point light, one otherwise). A stand-in for a
   /// measured cost per light until there is a table of one.
   final double costBefore;
+
+  /// As [costBefore], in pixels shaded, for the lights after the moves.
   final double costAfter;
 
   /// How much of the lights' pictures other lights already cover, as a share
   /// of all their light — the redundancy the optimizer removes.
   final double overlapBefore;
+
+  /// As [overlapBefore], a 0..1 share, for the lights after the moves.
   final double overlapAfter;
 
   /// The mean difference between the original pictures and the new set's,
@@ -436,18 +495,27 @@ final class LightPlan {
   /// held to the bounds again; a plan that misses them changes nothing.
   final bool holds;
 
-  /// The size of the two previews, which are RGBA bytes of the first view.
+  /// The width of the two previews, which are RGBA bytes of the first view,
+  /// in pixels.
   final int width;
+
+  /// The height of the two previews, in pixels.
   final int height;
+
+  /// The first view under the lights as they were: RGBA, four bytes a
+  /// pixel, rows top first.
   final Uint8List previewBefore;
+
+  /// The first view under the lights [after] leaves, laid out as
+  /// [previewBefore].
   final Uint8List previewAfter;
 
   /// Whether anything would change: a move was kept and the set it leaves
   /// [holds] when drawn.
-  bool get changes => moves.isNotEmpty && holds;
+  bool get hasChanges => moves.isNotEmpty && holds;
 
   /// The two previews as PNG files.
-  ({Uint8List before, Uint8List after}) get pngs => (
+  LightPlanPngs get pngs => LightPlanPngs(
     before: encodePng(previewBefore, width, height),
     after: encodePng(previewAfter, width, height),
   );
@@ -507,9 +575,9 @@ final class _Tuned {
     return _withRadiance(
       source,
       Vector3(
-        source.color.x * gain.x,
-        source.color.y * gain.y,
-        source.color.z * gain.z,
+        source.color.r * gain.x,
+        source.color.g * gain.y,
+        source.color.b * gain.z,
       )..scale(source.intensity),
     );
   }
@@ -524,35 +592,41 @@ LevelLight _withRadiance(
   Map<String, Object?> extra = const <String, Object?>{},
 }) {
   final peak = math.max(radiance.x, math.max(radiance.y, radiance.z));
-  final Vector3 colour;
+  final Vector3 color;
+
+  /// In the level's light units, as [LevelLight.intensity].
   final double intensity;
+  final sourceColor = _rgb(source.color);
   final sourcePeak = math.max(
-    source.color.x,
-    math.max(source.color.y, source.color.z),
+    sourceColor.x,
+    math.max(sourceColor.y, sourceColor.z),
   );
   // The author's colour, when the new radiance is that colour scaled: the
   // strength moves and the colour stays as written.
   final even =
       sourcePeak > 0.0 &&
-      (radiance - source.color * (peak / sourcePeak)).length <=
+      (radiance - sourceColor * (peak / sourcePeak)).length <=
           1e-6 * math.max(peak, 1.0);
   if (peak <= 0.0) {
-    colour = source.color;
+    color = sourceColor;
     intensity = 0.0;
   } else if (even) {
-    colour = source.color;
+    color = sourceColor;
     intensity = peak / sourcePeak;
   } else {
-    colour = radiance / peak;
+    color = radiance / peak;
     intensity = peak;
   }
   return LevelLight.fromJson(<String, Object?>{
     ...source.toJson(),
-    'color': _tidied(colour),
+    'color': _tidied(color),
     'intensity': _tidy(intensity),
     ...extra,
   });
 }
+
+/// [color]'s channels as a vector, for the arithmetic above.
+Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);
 
 /// Three decimals, as `Editing.brighten` writes a strength: the document is
 /// read in diffs, and a thousandth is below anything a picture shows.
@@ -598,7 +672,11 @@ final class _Problem {
 
   final Float32List base;
   final Float32List reference;
+
+  /// As [LightOptimizer.darkening]: a 0..1 share of a pixel's brightness.
   final double darkening;
+
+  /// As [LightOptimizer.underWeight]: a unitless weight.
   final double underWeight;
   final int pixels;
   final Float64List _referenceLuma;
@@ -771,7 +849,7 @@ final class _Problem {
     }
     final shadowViews = !light.castsShadow
         ? 0
-        : light.type == LevelLightType.point
+        : light.type == LightType.point
         ? 6
         : 1;
     return reached * (1.0 + shadowViews).toDouble();

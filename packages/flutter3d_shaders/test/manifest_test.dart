@@ -23,7 +23,7 @@ void main() {
         entry.key: (entry.value as Map<String, dynamic>)['type'] == 'fragment',
     };
     final fromDart = <String, bool>{
-      for (final shader in kRequiredShaders) shader.name: shader.fragment,
+      for (final shader in requiredShaders) shader.name: shader.fragment,
     };
 
     expect(
@@ -48,6 +48,6 @@ void main() {
     final manifest =
         jsonDecode(File('shaders/flutter3d.compute.json').readAsStringSync())
             as Map<String, Object?>;
-    expect(kComputeShaders.toSet(), manifest.keys.toSet());
+    expect(computeShaders.toSet(), manifest.keys.toSet());
   });
 }

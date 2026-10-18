@@ -1,4 +1,5 @@
-import 'entity_def.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import 'entity_kind.dart';
 import 'level_issue.dart';
 
@@ -24,6 +25,7 @@ import 'level_issue.dart';
 ///  * `near`, `far` — where each face's view begins and ends; five centimetres
 ///    and two hundred metres.
 final class ReflectionProbeKind extends EntityKind {
+  /// The `reflection_probe` kind.
   const ReflectionProbeKind() : super(EntityTypes.reflectionProbe);
 
   /// The near and far planes a document that names neither ends up with.
@@ -39,13 +41,12 @@ final class ReflectionProbeKind extends EntityKind {
   static const double _defaultFar = 200.0;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     void refuse(String message) => out.add(
-      LevelIssue(
-        LevelIssueSeverity.error,
-        message,
-        where: scope.describe(entity),
-      ),
+      LevelIssue(Severity.error, message, where: scope.describe(entity)),
     );
 
     // **Written out rather than interpolated.** `'${300.0}'` is "300.0" on the

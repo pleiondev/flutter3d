@@ -18,6 +18,8 @@ import 'project_morphs.dart';
 /// [AssignMaterial], [SetParametric], an MCP tool's `id` argument — addresses
 /// it by.
 final class Listed {
+  /// A row for [id] called [name]; the optional fields stay null or empty when
+  /// a listing has nothing to say about them.
   const Listed({
     required this.id,
     required this.name,
@@ -29,7 +31,13 @@ final class Listed {
     this.about = const <String, Object?>{},
   });
 
+  /// What a later command addresses this row by: an object's own id for an
+  /// object, the index into the project's table for a material, a skeleton or a
+  /// clip.
   final int id;
+
+  /// The name to show: the object's or the material's own, or a made-up one
+  /// such as `material 3` when the project gave none.
   final String name;
 
   /// What kind of thing this is, in one word — `parametric`, `mesh`,
@@ -110,6 +118,7 @@ List<Listed> contentsOf(ModelProject project) => <Listed>[
         EditedGeometry() => 'mesh',
         ImportedGeometry() => 'imported',
         SocketGeometry() => 'socket',
+        _ => throw UnsupportedError('no listing word for ${object.geometry}'),
       },
       parent: object.parent,
       version: object.version,

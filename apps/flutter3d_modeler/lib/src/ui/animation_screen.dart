@@ -32,6 +32,8 @@ import 'timeline_panel.dart';
 /// Screen 07: the 3D view on the left; clips, the skeleton and its
 /// constraints on the right; the timeline along the bottom.
 final class AnimationScreen extends StatelessWidget {
+  /// The screen around [viewport], for the clip at [clipIndex]; it keeps no
+  /// state, so every selection and the playhead [time] come from the caller.
   const AnimationScreen({
     super.key,
     required this.viewport,
@@ -58,7 +60,7 @@ final class AnimationScreen extends StatelessWidget {
   });
 
   /// The 3D view, already wired with the mesh and skeleton this screen is
-  /// animating — whatever this app calls its own `RenderView`, today
+  /// animating — whatever this app calls its own `CameraView`, today
   /// `ModelerViewport`. Handed in rather than built here; see this file's
   /// own doc comment.
   final Widget viewport;
@@ -68,26 +70,59 @@ final class AnimationScreen extends StatelessWidget {
   /// rather than a whole [ModelProject].
   final List<ModelObject> objects;
 
+  /// The project's clips, listed in the [ActionsList] at the top right.
   final List<ProjectClip> clips;
+
+  /// The index into [clips] of the highlighted action, or null.
   final int? selectedClip;
+
+  /// Called with the index of the action a person picked.
   final ValueChanged<int> onSelectClip;
+
+  /// Called by the action list's "Add" link.
   final VoidCallback onAddClip;
 
+  /// The skeleton being animated, drawn as the joint tree.
   final ProjectSkeleton skeleton;
+
+  /// The selected joint, by its [ModelObject.id], or null.
   final int? selectedJoint;
+
+  /// Called with the [ModelObject.id] of the joint picked in the tree.
   final ValueChanged<int> onSelectJoint;
 
+  /// The skeleton's IK constraints, listed under the tree.
   final List<IkConstraint> constraints;
+
+  /// The index into [constraints] of the selected one, or null.
   final int? selectedConstraint;
+
+  /// Called with the index of the constraint picked in the list.
   final ValueChanged<int> onSelectConstraint;
+
+  /// Called with the index of a constraint to remove. Null leaves the rows
+  /// without a remove button.
   final ValueChanged<int>? onRemoveConstraint;
 
+  /// The index of [clip] in the project, which the timeline's edits name.
   final int clipIndex;
+
+  /// The clip whose tracks the timeline along the bottom shows.
   final ProjectClip clip;
+
+  /// The playhead, in seconds from the start of [clip].
   final double time;
+
+  /// The index of the selected track in [clip], or null.
   final int? selectedTrack;
+
+  /// The index of the selected key within [selectedTrack], or null.
   final int? selectedKey;
+
+  /// Called when keys are dragged along the timeline.
   final ValueChanged<MoveKeys>? onMoveKeys;
+
+  /// Called with a time in seconds when the timeline's ruler is scrubbed.
   final ValueChanged<double>? onSeek;
 
   /// `ux-46`: [add] is shift, "and this one too" rather than "instead".

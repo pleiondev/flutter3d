@@ -8,6 +8,8 @@ import '../model_document.dart';
 /// format; the conversion to the shared [SurfaceMaterial] happens in the loader,
 /// where the approximation can be documented in one place.
 final class MtlMaterial {
+  /// A record named [name]; every key the `.mtl` left out is null, and
+  /// opacity is one.
   const MtlMaterial({
     required this.name,
     this.diffuse,
@@ -17,6 +19,7 @@ final class MtlMaterial {
     this.diffuseTexturePath,
   });
 
+  /// The `newmtl` name, what `usemtl` refers to.
   final String name;
 
   /// `Kd`, in the 0..1 range and authored non-linearly.
@@ -29,6 +32,7 @@ final class MtlMaterial {
   final double? specularExponent;
 
   /// `d`, or `1 - Tr`.
+  /// A 0..1 fraction.
   final double opacity;
 
   /// `map_Kd`, relative to the `.mtl` file.
@@ -51,6 +55,7 @@ final class MtlMaterial {
   /// OBJ has no notion of metalness. A bright, near-neutral `Ks` is the closest
   /// signal a Phong material gives, so it is mapped conservatively: most OBJ
   /// materials should come out dielectric rather than accidentally chrome.
+  /// A 0..1 fraction.
   double get approximateMetallic {
     final ks = specular;
     if (ks == null) return 0.0;
@@ -64,6 +69,7 @@ final class MtlMaterial {
 /// A [ModelDocument], so it shares materials, images and surfaces with the glTF
 /// decoder and can be uploaded by the same code.
 final class ObjDocument extends ModelDocument {
+  /// A decoded file; [materialNames] is empty unless given.
   const ObjDocument({
     required this.surfaces,
     required this.materials,

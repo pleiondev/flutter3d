@@ -25,8 +25,12 @@ import 'modeler_cubit.dart';
 
 /// One painting drag.
 class PaintSession {
+  /// A session that writes through [cubit] into the document [history]
+  /// answers with.
   PaintSession({required this.cubit, required this.history});
 
+  /// The editor each stroke's commands run through, inside the one
+  /// transaction a drag opens.
   final ModelerCubit cubit;
 
   /// The current document — a callback rather than a held reference, the
@@ -47,7 +51,7 @@ class PaintSession {
     required Offset at,
     required int objectId,
     required double radiusPixels,
-    required List<double> colour,
+    required List<double> color,
     required double strength,
     required int layer,
     int? maskImage,
@@ -70,7 +74,7 @@ class PaintSession {
       view: view,
       at: at,
       radiusPixels: radiusPixels,
-      colour: colour,
+      color: color,
       strength: strength,
       layer: layer,
       maskImage: maskImage,
@@ -82,7 +86,7 @@ class PaintSession {
     required PickingView view,
     required Offset at,
     required double radiusPixels,
-    required List<double> colour,
+    required List<double> color,
     required double strength,
     required int layer,
     int? maskImage,
@@ -92,7 +96,7 @@ class PaintSession {
       view: view,
       at: at,
       radiusPixels: radiusPixels,
-      colour: colour,
+      color: color,
       strength: strength,
       layer: layer,
       maskImage: maskImage,
@@ -112,7 +116,7 @@ class PaintSession {
     required PickingView view,
     required Offset at,
     required double radiusPixels,
-    required List<double> colour,
+    required List<double> color,
     required double strength,
     required int layer,
     int? maskImage,
@@ -134,11 +138,11 @@ class PaintSession {
         objectId: objectId,
         samples: <PaintSample>[
           PaintSample(
-            centre: toObject.transformed3(Vector3.copy(hit.point)),
+            center: toObject.transformed3(Vector3.copy(hit.point)),
             radius: radius,
           ),
         ],
-        colour: colour,
+        color: color,
         layer: layer,
         strength: strength,
         maskImage: maskImage,

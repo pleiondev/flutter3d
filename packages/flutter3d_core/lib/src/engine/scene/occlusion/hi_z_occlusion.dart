@@ -41,8 +41,12 @@ import 'occlusion_test.dart';
 /// jumps ([cutDistance], [cutCosine]) or the reading was taken through
 /// another camera.
 final class HiZOcclusion {
+  HiZOcclusion._();
+
   /// The reading's size in cells, which is the `DepthPyramid` target's size.
   static const int width = 256;
+
+  /// Height of the reading in cells, the `DepthPyramid` target's height.
   static const int height = 128;
 
   /// How far the eye may have moved since the reading, in metres, before the
@@ -67,6 +71,7 @@ final class HiZOcclusion {
   /// camera's far plane.
   static const int depthSteps = 0xFFFFFF;
 
+  /// The reading, rasterised as a software occlusion buffer is.
   final OcclusionBuffer buffer = OcclusionBuffer(width: width, height: height);
 
   /// Each cell's depth in metres, NaN where it holds no occluder.
@@ -387,3 +392,8 @@ final class HiZOcclusion {
   final Float64List _edgesX = Float64List(_hitsPerPixel * 2 + 2);
   final Float64List _edgesY = Float64List(_hitsPerPixel * 2 + 2);
 }
+
+/// A new [HiZOcclusion], for the scene pass, which feeds it the depth it read
+/// back: the package's own code makes one, and nothing outside it has a use for
+/// one it did not get from there.
+HiZOcclusion engineHiZOcclusion() => HiZOcclusion._();

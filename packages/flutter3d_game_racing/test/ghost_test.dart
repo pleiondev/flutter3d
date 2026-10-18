@@ -3,12 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show GhostFrame;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A car that goes exactly where it is told, so that a test about recording is
 /// not also a test about driving.
-final class ScriptedCar implements VehicleController {
+final class ScriptedCar with VehicleController {
   ScriptedCar()
     : collider = Collider(
         shape: CollisionSphere(0.7),
@@ -43,7 +44,7 @@ final class ScriptedCar implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;
@@ -55,10 +56,12 @@ final class ScriptedCar implements VehicleController {
   double trackDistance = 0.0;
 
   @override
-  void step(double dt, VehicleInput input) {}
+  void step(VehicleStep context) {}
 
   @override
-  void placeAt(Vector3 at, double yaw, {double? trackDistance}) {
+  void placeAt(VehiclePlacement placement) {
+    final at = placement.position;
+    final yaw = placement.headingYaw;
     collider.position.setFrom(at);
     headingYaw = yaw;
   }
@@ -84,7 +87,7 @@ void main() {
       for (var step = 0; step < 600; step++) {
         final time = step / 60.0;
         car.position.setValues(time * 20.0, 0.0, 0.0);
-        recorder.tick(time, car);
+        recorder.record(time, car);
       }
 
       // Ten seconds at ten a second, plus the one at the start.
@@ -97,7 +100,7 @@ void main() {
       final car = ScriptedCar();
       final recorder = GhostRecorder();
 
-      recorder.tick(0.0, car);
+      recorder.record(0.0, car);
 
       expect(recorder.frameCount, 1);
     });
@@ -105,16 +108,16 @@ void main() {
     test('a tape remembers what the lap took', () {
       final car = ScriptedCar();
       final recorder = GhostRecorder();
-      recorder.tick(0.0, car);
+      recorder.record(0.0, car);
 
       final tape = recorder.finish(84.5);
 
-      expect(tape.lapTime, 84.5);
+      expect(tape.lapSeconds, 84.5);
     });
 
     test('resetting throws the lap away', () {
       final car = ScriptedCar();
-      final recorder = GhostRecorder()..tick(0.0, car);
+      final recorder = GhostRecorder()..record(0.0, car);
 
       recorder.reset();
 
@@ -129,7 +132,7 @@ void main() {
       for (var step = 0; step <= 600; step++) {
         final time = step / 60.0;
         car.position.setValues(time * speed, 0.0, 0.0);
-        recorder.tick(time, car);
+        recorder.record(time, car);
       }
       return recorder.finish(10.0);
     }
@@ -139,7 +142,7 @@ void main() {
       final out = GhostFrame();
 
       for (final frame in player.tape.poses) {
-        expect(player.sampleAt(frame.time, out), isTrue);
+        expect(player.sampleAt(frame.timeSeconds, out), isTrue);
         expect(out.position.x, closeTo(frame.position.x, 1e-6));
       }
     });
@@ -173,7 +176,7 @@ void main() {
           0.0,
           radius * math.sin(angle),
         );
-        recorder.tick(time, car);
+        recorder.record(time, car);
       }
 
       final player = GhostPlayer(recorder.finish(6.0));
@@ -202,9 +205,9 @@ void main() {
       car
         ..headingYaw = 3.1
         ..position.setValues(0.0, 0.0, 0.0);
-      recorder.tick(0.0, car);
+      recorder.record(0.0, car);
       car.headingYaw = -3.1;
-      recorder.tick(0.1, car);
+      recorder.record(0.1, car);
 
       final player = GhostPlayer(recorder.finish(1.0));
       final out = GhostFrame();
@@ -219,7 +222,7 @@ void main() {
       final out = GhostFrame();
 
       expect(player.sampleAt(-0.5, out), isFalse);
-      expect(player.sampleAt(player.tape.duration + 0.5, out), isFalse);
+      expect(player.sampleAt(player.tape.durationSeconds + 0.5, out), isFalse);
     });
 
     test('an empty tape draws nothing rather than throwing', () {
@@ -230,9 +233,9 @@ void main() {
 
     test('the ghost leans with the road it was recorded on', () {
       final car = ScriptedCar()..up = Vector3(0.2, 0.98, 0.0).normalized();
-      final recorder = GhostRecorder()..tick(0.0, car);
+      final recorder = GhostRecorder()..record(0.0, car);
       car.position.setValues(10.0, 0.0, 0.0);
-      recorder.tick(1.0, car);
+      recorder.record(1.0, car);
 
       final out = GhostFrame();
       GhostPlayer(recorder.finish(1.0)).sampleAt(0.5, out);
@@ -251,7 +254,7 @@ void main() {
         car
           ..headingYaw = time * 0.3
           ..position.setValues(time * 20.0, time * 0.5, time * 3.0);
-        recorder.tick(time, car);
+        recorder.record(time, car);
       }
       final tape = recorder.finish(5.0);
 
@@ -259,7 +262,7 @@ void main() {
         jsonDecode(jsonEncode(tape.toJson())) as Map<String, Object?>,
       );
 
-      expect(copy.lapTime, tape.lapTime);
+      expect(copy.lapSeconds, tape.lapSeconds);
       expect(copy.poses.length, tape.poses.length);
       for (var i = 0; i < copy.poses.length; i++) {
         // Written to the millimetre, which is far below what a shape in the
@@ -269,7 +272,10 @@ void main() {
           closeTo(tape.poses[i].position.x, 0.001),
         );
         expect(copy.poses[i].yaw, closeTo(tape.poses[i].yaw, 0.001));
-        expect(copy.poses[i].time, closeTo(tape.poses[i].time, 0.001));
+        expect(
+          copy.poses[i].timeSeconds,
+          closeTo(tape.poses[i].timeSeconds, 0.001),
+        );
       }
     });
 

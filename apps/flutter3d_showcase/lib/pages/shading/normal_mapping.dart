@@ -9,17 +9,24 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `normal-mapping` page: a ball wearing a cobblestone normal map. Its
+/// check is that the map is bound and the mesh carries tangents.
 final class NormalMappingDemo extends ShowcaseDemo {
+  /// How strongly the map bends the normals, 0 to 3.
   double normalScale = 1.0;
+
+  /// Whether the normal map is bound at all.
   bool useMap = true;
+
+  /// The sun's turn around the vertical, in radians, -1.4 to 1.4, to rake the
+  /// relief from either side.
   double sunTurn = 0.6;
 
   static const int _size = 128;
   static const int _cobbles = 4;
 
-  late final Material _ball;
+  late final RenderMaterial _ball;
   late final LightNode _sun;
   late final TextureHandle _normalMap;
 
@@ -66,16 +73,16 @@ final class NormalMappingDemo extends ShowcaseDemo {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: pixels,
       mipLevels: MipChain.build(pixels, _size, _size),
-    )!;
+    );
     // #endregion upload
 
     // #region material
-    _ball = Material(
+    _ball = RenderMaterial(
       name: 'cobbles',
-      baseColor: Vector4(0.62, 0.6, 0.56, 1.0),
+      baseColor: LinearColor.fromSrgb(0.62, 0.6, 0.56, 1.0),
       roughness: 0.55,
       normal: _normalMap,
-      normalSampler: SamplerOptions.trilinearRepeat,
+      normalSampler: SamplerDescriptor.trilinearRepeat,
       normalScale: normalScale,
     );
     // #endregion material
@@ -91,7 +98,7 @@ final class NormalMappingDemo extends ShowcaseDemo {
     );
     // #endregion tangents
 
-    _sun = LightNode(name: 'sun', intensity: 3.0);
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity);
     return Scene()
       ..add(ball)
       ..add(_sun);
@@ -132,7 +139,7 @@ final class NormalMappingDemo extends ShowcaseDemo {
 
   @override
   void verify(Scene scene, FrameResult frame) {
-    final Material material = scene.meshes.first.material;
+    final RenderMaterial material = scene.meshes.first.material;
     if (material.normal == null) {
       throw StateError('the ball has no normal map bound');
     }

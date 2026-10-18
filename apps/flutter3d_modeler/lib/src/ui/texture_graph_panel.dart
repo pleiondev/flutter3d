@@ -33,11 +33,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
-// `EnumHint` hidden: this file switches on `MaterialHint.kind`, which is
-// `flutter3d_formats`' own `EnumHint` — `flutter3d_model_core`'s is
-// `ModelCommand.hints`' own, for a command argument, and the two are kept
-// apart the same way `command.dart` itself keeps them apart.
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'job_button.dart';
@@ -121,6 +117,7 @@ double _asDouble(Object? value) => switch (value) {
 /// than opening a file picker: picking a file is disk access, which belongs
 /// to whatever app-level code already owns it, not to a presentational row.
 final class HintRow extends StatelessWidget {
+  /// A row editing [field] as [hint] says it should be edited.
   const HintRow({
     super.key,
     required this.field,
@@ -132,6 +129,8 @@ final class HintRow extends StatelessWidget {
   /// The node field this hints at — one of [TextureNode.hints]' own keys.
   final String field;
 
+  /// What kind of control the field wants — a range, a choice, a colour or
+  /// a texture — and its limits.
   final MaterialHint hint;
 
   /// The field's own JSON value right now — a number, a string, or a list of
@@ -227,6 +226,7 @@ final class HintRow extends StatelessWidget {
           ),
         ],
       ),
+      _ => Text(bound),
     };
     return SizedBox(
       height: ModelerMetrics.row,
@@ -534,6 +534,7 @@ final class _LinksPainter extends CustomPainter {
   bool shouldRepaint(covariant _LinksPainter oldDelegate) =>
       !identical(oldDelegate.graph, graph) ||
       oldDelegate.positions.length != positions.length ||
+      // ignore: avoid-collection-equality-checks, the map is built fresh on every build, so identity errs only towards repainting
       oldDelegate.positions != positions ||
       oldDelegate.color != color;
 }
@@ -541,6 +542,8 @@ final class _LinksPainter extends CustomPainter {
 /// `mat-13`'s own panel: a material's `TextureGraph`, node by node, over an
 /// `InteractiveViewer` canvas — collapsed to one header row by default.
 final class TextureGraphPanel extends StatefulWidget {
+  /// The panel over [graph]; every edit goes out through a callback, and the
+  /// new graph comes back in.
   const TextureGraphPanel({
     super.key,
     required this.graph,
@@ -570,6 +573,8 @@ final class TextureGraphPanel extends StatefulWidget {
   /// background — [JobButton]'s own contract.
   final double? bakeProgress;
 
+  /// Whether the panel opens expanded rather than as its one header row.
+  /// Read once, when the panel is first built.
   final bool initiallyExpanded;
 
   /// The "Add" menu picked [kind]; [fields] and [position] are
@@ -577,7 +582,7 @@ final class TextureGraphPanel extends StatefulWidget {
   final void Function(
     String kind,
     Map<String, Object?> fields,
-    (double x, double y) position,
+    NodePosition position,
   )
   onAddNode;
 
@@ -616,8 +621,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   /// for it, so an outside edit (undo, another view) is trusted over a stale
   /// gesture. The one piece of mutable state this widget keeps beyond
   /// [_expanded] and [_pendingLinkFrom], per the panel's own standards.
-  final Map<int, (double x, double y)> _dragPositions =
-      <int, (double x, double y)>{};
+  final Map<int, NodePosition> _dragPositions = <int, NodePosition>{};
 
   /// The node id a link is armed from, or null — set by tapping an output
   /// port, cleared by completing (or abandoning, by tapping another output)
@@ -647,10 +651,13 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     super.dispose();
   }
 
-  (double x, double y) _positionOf(TextureNode node, int index) =>
+  NodePosition _positionOf(TextureNode node, int index) =>
       _dragPositions[node.id] ??
       widget.graph.positions[node.id] ??
-      (40.0 + 190.0 * (index % 4), 40.0 + 150.0 * (index ~/ 4));
+      NodePosition(
+        x: 40.0 + 190.0 * (index % 4),
+        y: 40.0 + 150.0 * (index ~/ 4),
+      );
 
   void _onNodeDragStart(int nodeId) {
     setState(() => _draggingNode = true);
@@ -662,16 +669,19 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   /// no further division by the current zoom.
   void _onNodeDragDelta(int nodeId, Offset base, Offset delta) {
     setState(() {
-      final (double x, double y) current =
-          _dragPositions[nodeId] ?? (base.dx, base.dy);
-      _dragPositions[nodeId] = (current.$1 + delta.dx, current.$2 + delta.dy);
+      final NodePosition current =
+          _dragPositions[nodeId] ?? NodePosition(x: base.dx, y: base.dy);
+      _dragPositions[nodeId] = NodePosition(
+        x: current.x + delta.dx,
+        y: current.y + delta.dy,
+      );
     });
   }
 
   void _onNodeDragEnd(int nodeId) {
     setState(() => _draggingNode = false);
-    final (double x, double y)? at = _dragPositions[nodeId];
-    if (at != null) widget.onMoveNode(nodeId, at.$1, at.$2);
+    final NodePosition? at = _dragPositions[nodeId];
+    if (at != null) widget.onMoveNode(nodeId, at.x, at.y);
   }
 
   void _onOutputTap(int nodeId) {
@@ -695,8 +705,8 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     final AppLocalizations l = AppLocalizations.of(context);
     for (var i = 0; i < nodes.length; i++) {
       final TextureNode node = nodes[i];
-      final (double x, double y) at = _positionOf(node, i);
-      positions[node.id] = Offset(at.$1, at.$2);
+      final NodePosition at = _positionOf(node, i);
+      positions[node.id] = Offset(at.x, at.y);
       widths[node.id] = _nodeWidth(node);
     }
 
@@ -713,7 +723,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
                 onSelected: (String kind) => widget.onAddNode(
                   kind,
                   defaultTextureNodeFields(kind),
-                  (40.0, 40.0),
+                  const NodePosition(x: 40, y: 40),
                 ),
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                   for (final String kind in textureNodeKinds)

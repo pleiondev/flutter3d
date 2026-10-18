@@ -4,6 +4,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// `doc/edu-00-interactive-format.md` §9: `target` names it, `source` and
 /// `path` say where the value comes from.
 final class ActiveBinding {
+  /// The claim [stepName] makes, reading [path] out of [source].
   const ActiveBinding({
     required this.stepName,
     required this.source,

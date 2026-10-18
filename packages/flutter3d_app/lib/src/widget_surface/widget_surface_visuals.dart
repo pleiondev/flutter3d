@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../diagnostics/issues.dart';
@@ -9,7 +9,7 @@ import 'widget_surface.dart';
 /// **found the hard way, not designed ahead of time**: `LevelValidator`
 /// treats an entity type its registry does not know as an ERROR that fails
 /// the whole document (`LevelLoader.load` throws), which is a stricter door
-/// than `flutter3d_editor_core`'s `OpenKind` — the editor's open vocabulary
+/// than the editor's `OpenKind`s — the editor's open vocabulary
 /// validates a level `flutter3d_sim`'s own loader would refuse. `wg-02` hit
 /// this loading a real level with a `widget_surface` entity and no kind for
 /// it registered; `wg-01`'s own write-up did not, because nothing in it
@@ -20,6 +20,7 @@ import 'widget_surface.dart';
 /// same way a level's own `player_spawn` is read as a coordinate rather than
 /// spawned into anything. This kind exists only so the type is not unknown.
 final class WidgetSurfaceKind extends EntityKind {
+  /// The kind for [WidgetSurfaceVisuals.entityType].
   const WidgetSurfaceKind() : super(WidgetSurfaceVisuals.entityType);
 }
 
@@ -36,6 +37,8 @@ final class WidgetSurfaceKind extends EntityKind {
 /// `Widget` subclass would make `flutter3d_sim` (which reads levels) depend
 /// on an application's own screens, which is exactly backwards.
 final class WidgetSurfaceVisuals {
+  /// Surfaces for [scene], their widgets looked up in [registry]; issues
+  /// are printed unless [onIssue] takes them.
   WidgetSurfaceVisuals(
     this.scene, {
     required this.device,
@@ -43,13 +46,18 @@ final class WidgetSurfaceVisuals {
     IssueSink? onIssue,
   }) : onIssue = onIssue ?? printIssue;
 
+  /// Where each surface's node is added.
   final Scene scene;
+
+  /// What each surface's plane and canvas texture are uploaded through.
   final GraphicsDevice device;
 
   /// Resolves the `widget` a `widget_surface` entity names. The application
   /// builds this, not the level or the engine — see the class doc.
   final Map<String, WidgetBuilder> registry;
 
+  /// Told about a `widget_surface` entity that names no widget, or one
+  /// [registry] does not hold; the entity is then left out.
   final IssueSink onIssue;
 
   final List<WidgetSurface> _surfaces = <WidgetSurface>[];
@@ -60,6 +68,7 @@ final class WidgetSurfaceVisuals {
   List<WidgetSurface> get surfaces =>
       List<WidgetSurface>.unmodifiable(_surfaces);
 
+  /// The entity type [add] builds; every other type it leaves alone.
   static const String entityType = 'widget_surface';
 
   /// Builds a [WidgetSurface] for [entity] if it names a `widget_surface`
@@ -101,7 +110,7 @@ final class WidgetSurfaceVisuals {
     return surface;
   }
 
-  /// Runs [WidgetSurface.tick] on every surface this built — the answer to
+  /// Runs [WidgetSurface.update] on every surface this built — the answer to
   /// "how does the game loop know a `WidgetSurface` needs ticking": it asks
   /// whoever placed it, the same way `FixtureVisuals.sync` already is the
   /// answer for "how does a torch's flame know to move" — a game calls this
@@ -109,7 +118,7 @@ final class WidgetSurfaceVisuals {
   /// would otherwise have to know how to recognise.
   Future<void> tickAll() async {
     for (final surface in _surfaces) {
-      await surface.tick();
+      await surface.update();
     }
   }
 

@@ -1,0 +1,52 @@
+{
+  "format": "f3d.physicalMaterial",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d",
+  "id": "f3d.water",
+  "name": "water",
+  "phase": "liquid",
+  "temperature": 293.15,
+  "pressure": 101325.0,
+  "mechanical": {
+    "density": 998.2,
+    "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), \"Properties of water in the range 0–100 °C\", at 20 °C"
+  },
+  "fluid": {
+    "viscosity": 0.001002,
+    "surfaceTension": 0.0728,
+    "bulkModulus": 2180000000.0,
+    "source": "CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa"
+  },
+  "thermal": {
+    "specificHeat": 4182.0,
+    "conductivity": 0.598,
+    "volumetricExpansion": 0.000207,
+    "meltingPoint": 273.15,
+    "boilingPoint": 373.15,
+    "latentHeatOfFusion": 334000.0,
+    "latentHeatOfVaporization": 2257000.0,
+    "source": "CRC Handbook (2016), at 20 °C: specific heat 4.182 kJ/(kg·K), conductivity 0.598 W/(m·K), expansion 2.07e-4 1/K; melting and boiling at one atmosphere, and the latent heats there (IAPWS-95, as the Handbook tabulates it)"
+  },
+  "acoustic": {
+    "absorption": [
+      0.008,
+      0.008,
+      0.013,
+      0.015,
+      0.02,
+      0.025
+    ],
+    "speedOfSound": 1482.3,
+    "source": "speed at 20 °C: Del Grosso and Mader, J. Acoust. Soc. Am. 52 (1972); absorption of a still water surface (a swimming pool): Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients"
+  },
+  "optical": {
+    "refractiveIndex": 1.333,
+    "absorption": [
+      0.34,
+      0.0565,
+      0.0092
+    ],
+    "source": "n_D at 20 °C: CRC Handbook (2016); absorption of pure water at 650, 550 and 450 nm: Pope and Fry, Applied Optics 36 (1997)"
+  }
+}

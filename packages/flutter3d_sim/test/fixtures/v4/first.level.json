@@ -1,0 +1,315 @@
+{
+  "format": "f3d.level",
+  "version": 4,
+  "requires": [],
+  "generator": "flutter3d",
+  "name": "shooter start",
+  "generatedBy": "tool/make_templates.py",
+  "editor": {
+    "template": "shooter"
+  },
+  "fogColor": [
+    0.05,
+    0.04,
+    0.06
+  ],
+  "fogDensity": 0.0,
+  "world": {
+    "gravity": [
+      0.0,
+      -1.62,
+      0.0
+    ],
+    "airPressure": 300.0,
+    "wind": [
+      2.0,
+      0.0,
+      0.0
+    ],
+    "medium": "f3d.air"
+  },
+  "materials": {
+    "floor": {
+      "baseColor": [
+        0.42,
+        0.4,
+        0.38,
+        1.0
+      ],
+      "roughness": 0.9
+    },
+    "wall": {
+      "baseColor": [
+        0.5,
+        0.47,
+        0.44,
+        1.0
+      ],
+      "roughness": 0.85
+    },
+    "ceiling": {
+      "baseColor": [
+        0.28,
+        0.27,
+        0.26,
+        1.0
+      ],
+      "roughness": 0.95
+    },
+    "paint": {
+      "baseColor": [
+        0.9,
+        0.85,
+        0.2,
+        1.0
+      ],
+      "roughness": 0.6,
+      "depthLayer": 1
+    }
+  },
+  "brushes": [
+    {
+      "id": "fy8nu40u",
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        16.0,
+        1.0,
+        16.0
+      ],
+      "material": "floor"
+    },
+    {
+      "id": "gzecuyzu",
+      "at": [
+        0.0,
+        4.5,
+        0.0
+      ],
+      "size": [
+        16.0,
+        1.0,
+        16.0
+      ],
+      "material": "ceiling"
+    },
+    {
+      "id": "p9e9xo04",
+      "at": [
+        0.0,
+        2.0,
+        -8.5
+      ],
+      "size": [
+        16.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall"
+    },
+    {
+      "id": "a2j1huor",
+      "at": [
+        0.0,
+        2.0,
+        8.5
+      ],
+      "size": [
+        16.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall"
+    },
+    {
+      "id": "ps8n628v",
+      "at": [
+        -8.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        18.0
+      ],
+      "material": "wall"
+    },
+    {
+      "id": "dgrjqwom",
+      "at": [
+        8.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        18.0
+      ],
+      "material": "wall"
+    },
+    {
+      "id": "yqel1hak",
+      "at": [
+        0.0,
+        0.005,
+        0.0
+      ],
+      "size": [
+        0.5,
+        0.01,
+        4.0
+      ],
+      "material": "paint",
+      "solid": false,
+      "depthLayer": 2
+    }
+  ],
+  "lights": [
+    {
+      "id": "y6dhi74u",
+      "type": "point",
+      "at": [
+        0.0,
+        3.2,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.92,
+        0.78
+      ],
+      "intensity": 9.0,
+      "range": 16.0
+    }
+  ],
+  "entities": [
+    {
+      "id": "u5m4q91i",
+      "type": "player_spawn",
+      "at": [
+        0.0,
+        0.0,
+        5.0
+      ],
+      "yaw": 0.0
+    },
+    {
+      "id": "rq722olz",
+      "type": "torch",
+      "at": [
+        -7.7,
+        2.6,
+        0.0
+      ],
+      "yaw": 1.5708
+    },
+    {
+      "id": "hwf2j046",
+      "type": "pickup",
+      "at": [
+        3.0,
+        0.6,
+        1.0
+      ],
+      "props": {
+        "gives": "health",
+        "amount": 25
+      }
+    },
+    {
+      "id": "y2cqig92",
+      "type": "exit",
+      "at": [
+        0.0,
+        1.25,
+        -6.5
+      ],
+      "yaw": 0.0
+    },
+    {
+      "id": "lkn8ootx",
+      "type": "prefab",
+      "at": [
+        2.0,
+        0.0,
+        1.0
+      ],
+      "yaw": 1.5707963267948966,
+      "name": "gate",
+      "props": {
+        "prefab": "post",
+        "overrides": {
+          "k1o83ltm/oz6whrfj": {
+            "glow.tint": "cold"
+          },
+          "rgxjzl0q": {
+            "at": [
+              0.0,
+              0.0,
+              0.5
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "prefabs": {
+    "lamp": {
+      "entities": [
+        {
+          "id": "oz6whrfj",
+          "type": "marker",
+          "at": [
+            0.0,
+            2.0,
+            0.0
+          ],
+          "name": "bulb",
+          "props": {
+            "glow": {
+              "strength": 1.0,
+              "tint": "warm"
+            }
+          }
+        }
+      ]
+    },
+    "post": {
+      "entities": [
+        {
+          "id": "rgxjzl0q",
+          "type": "marker",
+          "at": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "name": "base"
+        },
+        {
+          "id": "k1o83ltm",
+          "type": "prefab",
+          "at": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "name": "top",
+          "props": {
+            "prefab": "lamp",
+            "overrides": {
+              "oz6whrfj": {
+                "glow.strength": 2.0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

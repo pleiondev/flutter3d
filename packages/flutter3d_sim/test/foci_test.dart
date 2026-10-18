@@ -25,13 +25,13 @@ const double _dt = 1.0 / 60.0;
 
 /// Twenty metres square, its top face at y = 0.
 Brush _floor() =>
-    Brush(centre: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0));
+    Brush(center: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0));
 
 /// A wall along x = 0 from the south edge to z = 8, leaving a gap at the
 /// north end: the two halves of the room are two metres apart through it and
 /// thirty round it.
 Brush _wall() =>
-    Brush(centre: Vector3(0.0, 1.5, -1.0), size: Vector3(0.4, 3.0, 18.0));
+    Brush(center: Vector3(0.0, 1.5, -1.0), size: Vector3(0.4, 3.0, 18.0));
 
 /// Remembers which focus it was given, and walks to it.
 final class _Chaser extends Brain {
@@ -52,7 +52,7 @@ final class _Chaser extends Brain {
   final brushes = <Brush>[_floor(), if (wall) _wall()];
   final world = CollisionWorld();
   for (final brush in brushes) {
-    world.addBox(brush.centre, brush.size);
+    world.addBox(brush.center, brush.size);
   }
   world.update();
   return (

@@ -63,7 +63,7 @@ extension _ReadyParts on _ModelerScreenState {
     // `ui-15` is the start screen and this is the state it will show in. Until
     // it exists there is no way to reach this, and a wildcard here would be a
     // silent blank window on the day somebody adds the first path to it.
-    ModelerChoosing(:final said) => Scaffold(
+    ModelerChoosing(:final said) || ModelerFailed(:final said) => Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -71,14 +71,9 @@ extension _ReadyParts on _ModelerScreenState {
         ),
       ),
     ),
-    ModelerFailed(:final said) => Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(said, textAlign: TextAlign.center),
-        ),
-      ),
-    ),
+    // The view-only build: the same document and viewport, none of the
+    // editor around it. See `viewer_parts.dart`.
+    final ModelerReady ready when kViewerOnly => _viewerScreen(ready),
     // `ux-30`: the title says which document this is, and on macOS the
     // window itself is told, since `Title` alone never reaches an `NSWindow`.
     ModelerReady(:final renderer, :final stage) => DocumentWindowTitle(
@@ -145,6 +140,7 @@ extension _ReadyParts on _ModelerScreenState {
             () => lookFrom(stage.orbit, switch (view) {
               ModelerAction.viewSide => StandardView.right,
               ModelerAction.viewTop => StandardView.top,
+              // ignore: avoid-wildcard-cases-with-enums, only the three view actions reach here, and every other action means the front
               _ => StandardView.front,
             }),
           ),
@@ -390,6 +386,8 @@ extension _ReadyParts on _ModelerScreenState {
                 onRemoveTextureNode: _removeTextureNode,
                 onBakeTextureGraph: _bakeTextureGraph,
                 onAddClip: _addClip,
+                onSetAnimationGraph: _setAnimationGraph,
+                onRemoveAnimationGraph: _removeAnimationGraph,
                 selectedAnimationClip: _animationClip,
                 onSelectAnimationClip: _selectAnimationClip,
                 selectedJoint: _selectedJoint,
@@ -534,7 +532,7 @@ extension _ReadyParts on _ModelerScreenState {
                         selectedLayer: _paint.layer,
                         onSelectLayer: _setPaintLayer,
                         onAddLayer: _addPaintLayer,
-                        colour: _paint.colour,
+                        color: _paint.color,
                         onColour: _setPaintColour,
                         radius: _paint.diameter,
                         onRadius: _setPaintRadius,
@@ -566,6 +564,7 @@ extension _ReadyParts on _ModelerScreenState {
                         tilesTotal: _render.tilesTotal,
                         onCancel: _cancelRender,
                       ),
+                      // ignore: avoid-wildcard-cases-with-enums, the remaining modes have no panel of their own here
                       _ => null,
                     };
 
@@ -676,7 +675,7 @@ extension _ReadyParts on _ModelerScreenState {
                       // underneath it, so it is worth the extra lines
                       // exactly while animation mode is open and not
                       // otherwise.
-                      debug: DebugDrawOptions(
+                      debug: DebugDrawSettings(
                         skeletons: _mode == ModelerMode.animation,
                       ),
                     ),
@@ -1279,7 +1278,7 @@ extension _ReadyParts on _ModelerScreenState {
                               at + 1,
                               state.project.lighting.lights[at].type.name,
                             ),
-                            // `ProjectLightType` is a class with three const
+                            // `LightType` is a class with three const
                             // members rather than an enum, so this reads the
                             // name it carries — the same string the label
                             // above already shows.

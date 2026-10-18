@@ -17,7 +17,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/animation/skin_blend.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A grid of `(side + 1)²` vertices, [VertexLayout.skinned], each rigidly
 /// bound to whichever of [jointCount] joints its own X falls under — a
@@ -57,13 +57,14 @@ MeshData skinnedGrid(int side, int jointCount) {
   int idx(int x, int y) => y * (side + 1) + x;
   for (var y = 0; y < side; y++) {
     for (var x = 0; x < side; x++) {
-      indices
-        ..add(idx(x, y))
-        ..add(idx(x + 1, y))
-        ..add(idx(x + 1, y + 1))
-        ..add(idx(x, y))
-        ..add(idx(x + 1, y + 1))
-        ..add(idx(x, y + 1));
+      indices.addAll(<int>[
+        idx(x, y),
+        idx(x + 1, y),
+        idx(x + 1, y + 1),
+        idx(x, y),
+        idx(x + 1, y + 1),
+        idx(x, y + 1),
+      ]);
     }
   }
 

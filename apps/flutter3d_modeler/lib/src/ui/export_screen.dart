@@ -19,6 +19,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show Severity;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -26,6 +27,9 @@ import '../../l10n/app_localizations.dart';
 /// What the person chose, or null from [showExportScreen] when they backed
 /// out without exporting.
 final class ExportChoice {
+  /// A choice of [format] and [bakeTransforms]; the rest default to PNG
+  /// textures, the whole document, modifiers applied and no warnings
+  /// acknowledged.
   const ExportChoice({
     required this.format,
     required this.bakeTransforms,
@@ -42,6 +46,7 @@ final class ExportChoice {
   /// is what the file has carried since `ux-13`.
   final bool applyModifiers;
 
+  /// Which file format to write.
   final ExportFormat format;
 
   /// `ui-17`'s own "запечь трансформации узлов": [bakeAllTransforms] runs
@@ -288,7 +293,7 @@ class _IssueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final colour = issue.severity == ExportSeverity.error
+    final color = issue.severity == Severity.error
         ? theme.colorScheme.error
         : theme.colorScheme.tertiary;
     return Padding(
@@ -297,17 +302,17 @@ class _IssueRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Icon(
-            issue.severity == ExportSeverity.error
+            issue.severity == Severity.error
                 ? Icons.error_outline
                 : Icons.warning_amber_outlined,
             size: 16,
-            color: colour,
+            color: color,
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               issue.message,
-              style: theme.textTheme.bodySmall?.copyWith(color: colour),
+              style: theme.textTheme.bodySmall?.copyWith(color: color),
             ),
           ),
           // Only an issue naming an object has anywhere to go — the budget

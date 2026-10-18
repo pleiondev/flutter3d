@@ -7,12 +7,11 @@
 /// and a material changed behind it is changed here on the next frame.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
-import 'package:vector_math/vector_math.dart' show Vector2;
 
 import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
@@ -67,6 +66,8 @@ Future<void> showPlay(
 
 /// The running game.
 class PlayScreen extends StatefulWidget {
+  /// The game for [template], running against the project [projectNow]
+  /// answers.
   const PlayScreen({
     super.key,
     required this.renderer,
@@ -75,11 +76,14 @@ class PlayScreen extends StatefulWidget {
     this.control,
   });
 
+  /// The renderer the game draws with; the game's world is built on its
+  /// device.
   final Renderer renderer;
 
   /// The live document, read fresh on every Reload.
   final ModelProject Function() projectNow;
 
+  /// Which game the project is played as, and what the hint line names.
   final PlayTemplate template;
 
   /// `ux-52`: where this screen registers itself so an agent can reload,

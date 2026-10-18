@@ -6,13 +6,19 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `light-shafts` page: a doorway of two pillars and a lintel with the
+/// sun behind it. Its check is that the light shafts pass ran.
 final class LightShaftsDemo extends ShowcaseDemo {
   // A density per metre since 0.7.4 — a dusty doorway rather than a clear
   // day — and the phase that puts the glow towards the sun.
+  /// The air's density per metre, 0 to 0.1.
   double strength = 0.03;
+
+  /// How much the air scatters light forward, -0.9 (back) to 0.9.
   double anisotropy = 0.6;
+
+  /// How far along the view ray the march goes, in metres, 5 to 60.
   double distance = 30.0;
 
   @override
@@ -27,12 +33,12 @@ final class LightShaftsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final GraphicsDevice device = context.device;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.35, 0.33, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.35, 0.33, 0.3, 1.0),
       roughness: 0.9,
     );
-    final Material floorStone = stone.copy()..doubleSided = true;
+    final RenderMaterial floorStone = stone.copy()..doubleSided = true;
 
     // #region doorway
     final DeviceMesh pillar = DeviceMesh.upload(
@@ -56,7 +62,7 @@ final class LightShaftsDemo extends ShowcaseDemo {
     // #region sun
     final LightNode sun = LightNode(
       name: 'sun',
-      intensity: 6.0,
+      intensity: 6.0 * LightNode.defaultIntensity,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.3, -0.6, 0.7));
     // #endregion sun

@@ -68,7 +68,7 @@ A capability that is not a picture (a writer, a decoder's report) overrides
 ## Regions and the guide
 
     // #region light
-    final sun = LightNode(name: 'sun', intensity: 3.0);
+    final sun = LightNode(name: 'sun', intensity: 17000.0); // lux
     // #endregion light
 
 A guide is Markdown, in a small subset the app and the site both draw: headings,

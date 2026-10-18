@@ -1,0 +1,118 @@
+import 'package:flame_multiplayer/flame_multiplayer.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+
+import 'net_race.dart';
+import 'party_report.dart';
+
+/// A race of up to [cars] machines, each driving the car its party slot
+/// names, kept in step by [RollbackSession] — `NetRace` for more than two.
+///
+/// **Every slot ghosts until its machine's frames come**, as `NetRace`'s
+/// two do and for its reason: the first steps of a run have no frames from
+/// anybody, a machine that has not joined sends none at all, and every
+/// machine has to agree what such a car did. A car with no frame drives on
+/// at the same gentle throttle everywhere.
+final class PartyRace {
+  /// A race of [cars] over [sim], this machine driving its [wire]'s slot from
+  /// [localInput].
+  ///
+  /// [inputDelay] and [maxRollbackFrames] are [RollbackSession]'s;
+  /// [onSettled] hears each step once every slot's frame for it is known, and
+  /// [onMessage] every message on the wire that is not the report's own ping.
+  PartyRace({
+    required RacingSimulation sim,
+    required this.wire,
+    required this.cars,
+    required this.localInput,
+    int inputDelay = 3,
+    int maxRollbackFrames = 20,
+    void Function(SettledStep<Snapshot> settled)? onSettled,
+    void Function(PeerMessage message)? onMessage,
+  }) : assert(cars >= 2, 'a party is at least two'),
+       // ignore: prefer_initializing_formals
+       _sim = sim {
+    report = PartyRunReport(slot: wire.slot, players: cars);
+    session = RollbackSession<Snapshot>(
+      wire: wire,
+      players: cars,
+      captureLocalFrame: () => captureDriverFrame(localInput),
+      applyAndStep: _applyAndStep,
+      save: _sim.save,
+      restore: _sim.restore,
+      inputDelay: inputDelay,
+      maxRollbackFrames: maxRollbackFrames,
+      onSettled: (SettledStep<Snapshot> settled) {
+        report.settled(settled);
+        onSettled?.call(settled);
+      },
+      onMessage: (PeerMessage message) {
+        if (!report.hear(wire, message)) onMessage?.call(message);
+      },
+    );
+  }
+
+  final RacingSimulation _sim;
+
+  /// The party's connection: which slot this machine holds, and the line the
+  /// frames and the report's pings travel on.
+  final PeerWire wire;
+
+  /// How many cars the race has — the party's size.
+  final int cars;
+
+  /// This machine's own driver, captured into a frame once per [advance].
+  final InputState localInput;
+
+  /// The rollback session the race runs on: its step count and its counts of
+  /// corrections are what the report reads.
+  late final RollbackSession<Snapshot> session;
+
+  /// This machine's line of the party's report: the session's counts, the
+  /// round trip it measured and the digests of the steps it settled.
+  late final PartyRunReport report;
+
+  /// The car this machine drives.
+  int get localCarIndex => wire.slot;
+
+  /// The slots a frame has come from, so far.
+  final Set<int> heard = <int>{};
+
+  void _applyAndStep(RollbackStep step) {
+    final frames = step.frames;
+    for (var car = 0; car < cars; car++) {
+      final frame = frames[car] ?? const <String, Object?>{};
+      if (frame.isNotEmpty && car != localCarIndex) heard.add(car);
+      final out = _sim.inputs[car];
+      if (frame.isEmpty) {
+        out
+          ..throttle = 0.3
+          ..brake = 0.0
+          ..handbrake = false
+          ..steer = 0.0;
+      } else {
+        applyDriverFrame(frame, out);
+      }
+    }
+    _sim.step(1.0 / 60.0);
+  }
+
+  /// One step: pings the party when a ping is due, then advances the session,
+  /// which captures this machine's frame and steps the cars it can.
+  void advance() {
+    report.pingIfDue(wire, session.step);
+    session.advance();
+  }
+
+  /// [report] for this race, as `tool/rollback_report.dart` reads it.
+  Map<String, Object?> reportLine({
+    required String machine,
+    required String device,
+    String endedBy = 'time',
+  }) => report.toJson(
+    session: session,
+    machine: machine,
+    device: device,
+    endedBy: endedBy,
+  );
+}

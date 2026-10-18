@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -32,7 +33,7 @@ BoundTexture _atlas() {
       texture.pixels[(y * _tile + x) * 4] = x < _tile ~/ 2 ? _blocker : 1.0;
     }
   }
-  return BoundTexture(texture, SamplerOptions.nearestClamp);
+  return BoundTexture(texture, SamplerDescriptor.nearestClamp);
 }
 
 /// The shadow at world `x` (metres right of the occluder's edge), on a

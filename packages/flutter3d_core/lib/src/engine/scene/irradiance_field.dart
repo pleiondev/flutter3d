@@ -36,6 +36,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 /// A direction as a point in the unit square, and back.
@@ -78,8 +80,43 @@ Vector3 decodeOctahedral(double u, double v, [Vector3? out]) {
   return result;
 }
 
+/// An [IrradianceField] packed into one float texture, as
+/// [IrradianceField.toAtlas] lays it out: [width] × [height] texels of four
+/// floats in [texels], the irradiance tiles in a grid [columns] across and
+/// the depth tiles below them from row [momentsTop].
+final class IrradianceAtlas {
+  /// An atlas of [width] by [height] texels holding [texels].
+  const IrradianceAtlas({
+    required this.width,
+    required this.height,
+    required this.columns,
+    required this.momentsTop,
+    required this.texels,
+  });
+
+  /// Texels across.
+  final int width;
+
+  /// Texels down.
+  final int height;
+
+  /// Probe tiles across, in both halves.
+  final int columns;
+
+  /// The first row of the depth tiles.
+  final int momentsTop;
+
+  /// Row-major from the top, four floats a texel.
+  final Float32List texels;
+}
+
 /// A grid of probes over a box.
 final class IrradianceField {
+  /// A field of [countX] by [countY] by [countZ] probes from [origin],
+  /// [spacing] apart, every probe active and dark.
+  ///
+  /// Asserts at least two probes on each axis and tiles of at least two
+  /// texels.
   IrradianceField({
     required this.origin,
     required this.spacing,
@@ -91,9 +128,9 @@ final class IrradianceField {
   }) : assert(countX > 1 && countY > 1 && countZ > 1, 'a field needs a cell'),
        assert(tile > 1 && depthTile > 1, 'a tile needs an interior') {
     final probes = countX * countY * countZ;
-    irradiance = Float32List(probes * _stride(tile) * _stride(tile) * 3);
-    depth = Float32List(probes * _stride(depthTile) * _stride(depthTile) * 2);
-    active = Uint8List(probes)..fillRange(0, probes, 1);
+    _irradiance = Float32List(probes * _stride(tile) * _stride(tile) * 3);
+    _depth = Float32List(probes * _stride(depthTile) * _stride(depthTile) * 2);
+    _active = Uint8List(probes)..fillRange(0, probes, 1);
   }
 
   /// Where probe (0, 0, 0) stands.
@@ -102,8 +139,13 @@ final class IrradianceField {
   /// How far apart neighbouring probes are, per axis.
   final Vector3 spacing;
 
+  /// Probes along X, at least two.
   final int countX;
+
+  /// Probes along Y, at least two.
   final int countY;
+
+  /// Probes along Z, at least two.
   final int countZ;
 
   /// The interior of one probe's octahedral tile, in texels a side. The stored
@@ -114,11 +156,15 @@ final class IrradianceField {
   /// decides whether light crosses a wall and a coarse one crosses it.
   final int depthTile;
 
+  late final Float32List _irradiance;
+
   /// `rgb` per texel, per probe.
-  late final Float32List irradiance;
+  Float32List get irradiance => _irradiance;
+
+  late final Float32List _depth;
 
   /// Mean distance and mean square distance per texel, per probe.
-  late final Float32List depth;
+  Float32List get depth => _depth;
 
   /// How many probes the renderer updates a frame on the GPU — `L4`. Nought,
   /// the default, leaves the field exactly what was baked; above it, the
@@ -129,7 +175,10 @@ final class IrradianceField {
 
   /// How much of a probe's old value survives each GPU update, nought to
   /// one — `L4`. Higher is steadier and slower to follow a changed room.
+  /// A 0..1 fraction.
   double hysteresis = 0.9;
+
+  late final Uint8List _active;
 
   /// Whether each probe stands somewhere worth reading.
   ///
@@ -140,8 +189,9 @@ final class IrradianceField {
   /// what is actually lighting the room. Marking it and skipping it is what
   /// `gatherProbe` does; the alternative the published schemes use is to move
   /// the probe, which needs a search this does not have.
-  late final Uint8List active;
+  Uint8List get active => _active;
 
+  /// How many probes the field holds, a count.
   int get probeCount => countX * countY * countZ;
 
   static int _stride(int interior) => interior + 2;
@@ -164,8 +214,7 @@ final class IrradianceField {
   /// starting at row [momentsTop], every probe's depth tile in the same grid,
   /// mean and mean square in red and green. Row-major from the top, four
   /// floats a texel. `lib/irradiance.glsl` reads it.
-  ({int width, int height, int columns, int momentsTop, Float32List texels})
-  toAtlas() {
+  IrradianceAtlas toAtlas() {
     final probes = probeCount;
     final columns = math.sqrt(probes).ceil();
     final rows = (probes + columns - 1) ~/ columns;
@@ -211,7 +260,7 @@ final class IrradianceField {
         }
       }
     }
-    return (
+    return IrradianceAtlas(
       width: width,
       height: height,
       columns: columns,
@@ -231,14 +280,15 @@ final class IrradianceField {
         origin.z + spacing.z * z,
       );
 
-  /// Writes [colour] as the irradiance probe [probe] receives from [direction].
-  void writeIrradiance(int probe, Vector3 direction, Vector3 colour) {
+  /// Writes [color] as the irradiance probe [probe] receives from [direction].
+  /// Alpha is not stored.
+  void writeIrradiance(int probe, Vector3 direction, LinearColor color) {
     _version++;
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, tile, 3);
-    irradiance[at] = colour.x;
-    irradiance[at + 1] = colour.y;
-    irradiance[at + 2] = colour.z;
+    irradiance[at] = color.r;
+    irradiance[at + 1] = color.g;
+    irradiance[at + 2] = color.b;
   }
 
   /// Writes the two moments probe [probe] sees along [direction].
@@ -264,13 +314,13 @@ final class IrradianceField {
   /// floor-facing surface from the ceiling and from nothing else, and a wall to
   /// one side tints nothing at all — which is exactly the effect the row exists
   /// to produce.
-  void writeIrradianceTexel(int probe, int tx, int ty, Vector3 colour) {
+  void writeIrradianceTexel(int probe, int tx, int ty, LinearColor color) {
     _version++;
     final stride = _stride(tile);
     final at = ((probe * stride + ty + 1) * stride + tx + 1) * 3;
-    irradiance[at] = colour.x;
-    irradiance[at + 1] = colour.y;
-    irradiance[at + 2] = colour.z;
+    irradiance[at] = color.r;
+    irradiance[at + 1] = color.g;
+    irradiance[at + 2] = color.b;
   }
 
   /// Writes one texel of the depth tile directly. See [writeIrradianceTexel].
@@ -375,18 +425,24 @@ final class IrradianceField {
   }
 
   /// The irradiance stored for [direction] at probe [probe].
-  Vector3 readIrradiance(int probe, Vector3 direction, [Vector3? out]) {
+  LinearColor readIrradiance(int probe, Vector3 direction) {
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, tile, 3);
-    return (out ?? Vector3.zero())
-      ..setValues(irradiance[at], irradiance[at + 1], irradiance[at + 2]);
+    return LinearColor(irradiance[at], irradiance[at + 1], irradiance[at + 2]);
+  }
+
+  /// [readIrradiance] into [out], for [sample]'s loop over eight probes.
+  void _readIrradianceInto(int probe, Vector3 direction, Vector3 out) {
+    final uv = encodeOctahedral(direction);
+    final at = _texelOf(probe, uv, tile, 3);
+    out.setValues(irradiance[at], irradiance[at + 1], irradiance[at + 2]);
   }
 
   /// The two moments stored for [direction] at probe [probe].
-  ({double mean, double meanSquare}) readDepth(int probe, Vector3 direction) {
+  DepthMoments readDepth(int probe, Vector3 direction) {
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, depthTile, 2);
-    return (mean: depth[at], meanSquare: depth[at + 1]);
+    return DepthMoments(mean: depth[at], meanSquare: depth[at + 1]);
   }
 
   /// How much of probe [probe] a point [distance] away along [direction] can
@@ -419,8 +475,8 @@ final class IrradianceField {
   /// point sits in its cell, by how much each probe is on the side the surface
   /// faces, and by whether the probe can see the point at all. No active
   /// probe's weight reaches nought.
-  Vector3 sample(Vector3 position, Vector3 normal, [Vector3? out]) {
-    final result = (out ?? Vector3.zero())..setZero();
+  LinearColor sample(Vector3 position, Vector3 normal) {
+    final result = Vector3.zero();
 
     final gx = (position.x - origin.x) / spacing.x;
     final gy = (position.y - origin.y) / spacing.y;
@@ -436,7 +492,7 @@ final class IrradianceField {
     final unit = normal.normalized();
     final toProbe = Vector3.zero();
     final at = Vector3.zero();
-    final colour = Vector3.zero();
+    final color = Vector3.zero();
     var total = 0.0;
 
     for (var corner = 0; corner < 8; corner++) {
@@ -470,8 +526,8 @@ final class IrradianceField {
         // between them, so it contributes its trilinear weight and nothing
         // else modifies it — asking the visibility test about a direction that
         // does not exist is the version of this that throws.
-        readIrradiance(probe, unit, colour);
-        result.addScaled(colour, weight);
+        _readIrradianceInto(probe, unit, color);
+        result.addScaled(color, weight);
         total += weight;
         continue;
       }
@@ -497,8 +553,8 @@ final class IrradianceField {
       );
       weight *= floored < 0.2 ? floored * floored * floored * 25.0 : floored;
 
-      readIrradiance(probe, unit, colour);
-      result.addScaled(colour, weight);
+      _readIrradianceInto(probe, unit, color);
+      result.addScaled(color, weight);
       total += weight;
     }
 
@@ -506,6 +562,32 @@ final class IrradianceField {
     // as the colour of the ones that can see it rather than as that colour
     // divided by eight.
     if (total > 0.0) result.scale(1.0 / total);
-    return result;
+    return LinearColor(result.x, result.y, result.z);
   }
+}
+
+/// The two moments a probe of an [IrradianceField] keeps of the distance to
+/// what it sees in one direction: what [IrradianceField.readDepth] answers.
+final class DepthMoments {
+  /// The moments [mean] and [meanSquare].
+  const DepthMoments({required this.mean, required this.meanSquare});
+
+  /// The mean distance to what the probe sees, in metres.
+  final double mean;
+
+  /// The mean of the squared distance, in square metres; less the square of
+  /// [mean], it is the variance.
+  final double meanSquare;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DepthMoments &&
+      other.mean == mean &&
+      other.meanSquare == meanSquare;
+
+  @override
+  int get hashCode => Object.hash(mean, meanSquare);
+
+  @override
+  String toString() => 'DepthMoments($mean, $meanSquare)';
 }

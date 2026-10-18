@@ -14,7 +14,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 StereoRig inScene({double ipd = 0.064}) {
   final scene = Scene();
@@ -43,8 +42,11 @@ void main() {
       // A quarter turn to the left about the world's up: the left eye swings
       // to where the camera is now looking away from.
       rig.applyHead(
-        HeadPose(
-          rotation: Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
+        RigidPose(
+          orientation: Quaternion.axisAngle(
+            Vector3(0.0, 1.0, 0.0),
+            math.pi / 2,
+          ),
           position: Vector3.zero(),
         ),
       );
@@ -135,8 +137,8 @@ void main() {
     test('facing a direction turns the stage and leaves the head alone', () {
       final rig = inScene();
       rig.applyHead(
-        HeadPose(
-          rotation: Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 0.3),
+        RigidPose(
+          orientation: Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 0.3),
           position: Vector3.zero(),
         ),
       );
@@ -152,8 +154,8 @@ void main() {
 
     test('the vertical angle is the one the eyes actually have', () {
       final rig = inScene();
-      rig.fitToViewport(width: 1000, height: 500, verticalFieldOfView: 0.9);
-      expect(rig.verticalFieldOfView, closeTo(0.9, 1e-9));
+      rig.fitToViewport(width: 1000, height: 500, fovY: 0.9);
+      expect(rig.fovY, closeTo(0.9, 1e-9));
     });
   });
 }

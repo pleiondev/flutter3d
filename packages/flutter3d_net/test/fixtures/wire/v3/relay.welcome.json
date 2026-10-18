@@ -1,0 +1,13 @@
+{
+  "f3d": "relay",
+  "event": "welcome",
+  "slot": 0,
+  "size": 2,
+  "watching": false,
+  "code": "AB12",
+  "owner": "q1w2e3r4t5y6u7i8o9p0aa",
+  "protocol": [
+    3,
+    1
+  ]
+}

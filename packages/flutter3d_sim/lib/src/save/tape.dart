@@ -12,17 +12,21 @@ import 'pose.dart';
 /// [seconds] is what the recorded thing took, and is the reason anybody keeps
 /// the tape: a lap time, a run's clock, a personal best.
 final class Tape {
+  /// A recording of [poses] of a thing that took [seconds].
   const Tape({required this.poses, required this.seconds});
 
-  final List<Pose> poses;
+  /// The samples in time order, a few a second.
+  final List<GhostFrame> poses;
 
+  /// What the recorded thing took, in seconds.
   final double seconds;
 
+  /// Whether the recording holds no pose.
   bool get isEmpty => poses.isEmpty;
 
   /// How long the recording runs for, which is not always [seconds]: the last
   /// sample lands before the finish rather than on it.
-  double get duration => poses.isEmpty ? 0.0 : poses.last.time;
+  double get durationSeconds => poses.isEmpty ? 0.0 : poses.last.timeSeconds;
 
   /// **A tape does not write itself down, and that is not an omission.**
   ///
@@ -33,6 +37,6 @@ final class Tape {
   /// `lapTime` is a racing word, and a document's shape belongs to whoever
   /// keeps the document.
   ///
-  /// [Pose] does serialise, because a place, a facing and a time are nobody's
-  /// vocabulary in particular.
+  /// [GhostFrame] does serialise, because a place, a facing and a time are
+  /// nobody's vocabulary in particular.
 }

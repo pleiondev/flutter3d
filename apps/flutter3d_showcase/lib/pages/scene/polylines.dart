@@ -3,14 +3,16 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `polylines` page: coloured routes drawn as joined lines a fixed
+/// number of pixels wide. Its check is that the routes are drawn with their
+/// viewport set.
 final class PolylinesDemo extends ShowcaseDemo {
   static const double _viewportWidth = 1280;
   static const double _viewportHeight = 720;
 
   final List<MeshData> _meshes = <MeshData>[];
-  final List<Material> _materials = <Material>[];
+  final List<RenderMaterial> _materials = <RenderMaterial>[];
   final List<MeshNode> _lines = <MeshNode>[];
 
   @override
@@ -52,11 +54,11 @@ final class PolylinesDemo extends ShowcaseDemo {
       ],
     ];
     final List<double> widths = <double>[6, 12, 22];
-    final List<Vector4> palette = <Vector4>[
-      Vector4(0.12, 0.78, 1.0, 1.0),
-      Vector4(0.48, 0.3, 0.96, 1.0),
-      Vector4(1.0, 0.34, 0.2, 1.0),
-      Vector4(1.0, 0.76, 0.15, 1.0),
+    final List<LinearColor> palette = <LinearColor>[
+      const LinearColor(0.12, 0.78, 1.0),
+      const LinearColor(0.48, 0.3, 0.96),
+      const LinearColor(1.0, 0.34, 0.2),
+      const LinearColor(1.0, 0.76, 0.15),
     ];
     // #endregion routes
 
@@ -68,7 +70,7 @@ final class PolylinesDemo extends ShowcaseDemo {
         buildPolyline(
           route,
           width: widths[routeIndex],
-          colours: <Vector4>[
+          colors: <LinearColor>[
             for (var point = 0; point < route.length; point++)
               palette[(point + routeIndex) % palette.length],
           ],
@@ -80,9 +82,9 @@ final class PolylinesDemo extends ShowcaseDemo {
     // #region material
     _materials
       ..clear()
-      ..addAll(<Material>[
+      ..addAll(<RenderMaterial>[
         for (var i = 0; i < _meshes.length; i++)
-          Material.polyline(
+          RenderMaterial.polyline(
             name: 'route ${i + 1}',
             viewportWidth: _viewportWidth,
             viewportHeight: _viewportHeight,
@@ -108,14 +110,28 @@ final class PolylinesDemo extends ShowcaseDemo {
   }
 
   // #region resize
+  /// Tells every route's material that the view is [width] by [height]
+  /// pixels, which their widths are measured against. The page starts them at
+  /// 1280 by 720.
   void setViewport(double width, double height) {
-    for (final Material material in _materials) {
+    _drawnWidth = width;
+    _drawnHeight = height;
+    for (final RenderMaterial material in _materials) {
       final viewport = material.polylineViewport!;
       viewport[0] = width;
       viewport[1] = height;
     }
   }
+
+  /// Every frame, before it is drawn: a route six pixels wide stays six
+  /// pixels wide whatever the canvas measures.
+  @override
+  void resize(DemoContext context, int width, int height) =>
+      setViewport(width.toDouble(), height.toDouble());
   // #endregion resize
+
+  double _drawnWidth = _viewportWidth;
+  double _drawnHeight = _viewportHeight;
 
   @override
   void verify(Scene scene, FrameResult frame) {
@@ -125,12 +141,12 @@ final class PolylinesDemo extends ShowcaseDemo {
           mesh.vertexCount >= 12 &&
           mesh.indexCount == (mesh.vertexCount - 2) * 3,
     );
-    final bool viewportsMatch = _materials.every((Material material) {
+    final bool viewportsMatch = _materials.every((RenderMaterial material) {
       final viewport = material.polylineViewport;
       return material.lighting == LightingModel.polyline &&
           viewport != null &&
-          viewport[0] == _viewportWidth &&
-          viewport[1] == _viewportHeight;
+          viewport[0] == _drawnWidth &&
+          viewport[1] == _drawnHeight;
     });
     if (_lines.length != 3 ||
         !geometryMatches ||

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'particle.dart';
@@ -22,52 +24,127 @@ import 'particle.dart';
 /// They are const and stateless, so one instance is shared by every particle of
 /// every effect that uses it.
 abstract base class ParticleAffector {
+  /// An affector; a subclass says what [apply] does.
   const ParticleAffector();
 
-  /// Advances one particle by [dt]. Called once per particle per step, after
-  /// its age has been updated and before it is moved.
-  void apply(Particle particle, double dt);
+  /// Advances [ParticleStep.particle] by [ParticleStep.dt]. Called once per
+  /// particle per step, after its age has been updated and before it is
+  /// moved.
+  ///
+  /// The system reuses one [ParticleStep] for every particle: read it here
+  /// and do not keep it.
+  void apply(ParticleStep step);
+}
+
+/// What [ParticleAffector.apply] is handed: one particle and the step it
+/// is advanced by.
+///
+/// **One object, so a minor can hand an affector more** — the system's
+/// world, the effect the particle belongs to — without breaking an affector
+/// written against 1.0. **Reused**: a particle system owns one and sets it
+/// before every call, so a step allocates nothing for it; an affector reads
+/// it during [ParticleAffector.apply] and does not keep it.
+final class ParticleStep {
+  /// A step advancing [particle] by [dt] seconds.
+  ParticleStep({required this.particle, required this.dt});
+
+  /// The particle being advanced.
+  Particle particle;
+
+  /// The step's length, in seconds.
+  double dt;
 }
 
 /// Pulls particles down. Sparks and debris; not smoke.
+///
+/// **With no [acceleration], the world's gravity**: what the
+/// [Particle.gravity] of the system stepping the particle says, which the
+/// system reads from its world (`ParticleSystem.world`) and which is
+/// `standardGravity` for a system nobody gave a world. A splinter off a crate
+/// then falls as the crate does, on the Moon as on the Earth.
+///
+/// **A ballistic thing falls by the world** — a spark, a chip of stone, a
+/// drop of spray — and a fall made faster or slower for the look says so as
+/// a multiple of the world's ([ParticleGravity.world]'s [scale]), so on the
+/// Moon it is still the Moon's. A fixed [acceleration] is for what does not
+/// fall at all but drifts by a look of its own: smoke rising, an ember
+/// lifting, a snowflake sinking slower than anything ballistic would.
 final class ParticleGravity extends ParticleAffector {
-  const ParticleGravity([this.acceleration = -9.8]);
+  /// [acceleration], m/s² up y, as a look of its own; or, with none, the
+  /// world's gravity downward.
+  const ParticleGravity({this.acceleration}) : scale = 1.0;
 
-  /// Metres per second squared. Negative is downwards, and a fraction of real
-  /// gravity usually looks better than the real figure — nine-eighty reads as
-  /// heavy for something the size of a spark.
-  final double acceleration;
+  /// The world's gravity downward times [scale]: a spark's fall made a
+  /// little quicker for the eye, say, that stays a multiple of the world's.
+  const ParticleGravity.world({this.scale = 1.0}) : acceleration = null;
+
+  /// Metres per second squared, up the y axis, or null for the world's
+  /// gravity downward. Negative is downwards. A number here is a look, not
+  /// a fall: see the class's doc.
+  final double? acceleration;
+
+  /// What the world's gravity is multiplied by when there is no
+  /// [acceleration]. One by default; no unit.
+  final double scale;
 
   @override
-  void apply(Particle particle, double dt) {
-    particle.velocity.y += acceleration * dt;
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
+    particle.velocity.y +=
+        (acceleration ??
+            (scale == 1.0 ? -particle.gravity : -scale * particle.gravity)) *
+        dt;
   }
 }
 
 /// Bleeds off speed, so a burst slows into a drift instead of flying away.
+///
+/// **Against the air, which moves with the world's wind**: the speed bled off
+/// is the particle's relative to [Particle.wind], which the system hands each
+/// particle from its world (`ParticleSystem.world`). In still air — every
+/// world nobody gave a wind — that is its speed, as it always was; in a
+/// wind, smoke and sparks slowed by drag are carried off with it.
 final class ParticleDrag extends ParticleAffector {
+  /// Drag that bleeds [perSecond] of the speed relative to the wind,
+  /// exponentially.
   const ParticleDrag(this.perSecond);
 
   /// Fraction of the remaining speed lost each second.
   final double perSecond;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     // Exponential rather than linear: linear drag reaches zero and then pushes
     // the particle backwards, which is a very recognisable bug.
     final factor = math.exp(-perSecond * dt);
-    particle.velocity.scale(factor);
+    final wind = particle.wind;
+    if (wind.x == 0.0 && wind.y == 0.0 && wind.z == 0.0) {
+      particle.velocity.scale(factor);
+      return;
+    }
+    final v = particle.velocity;
+    v
+      ..x = wind.x + (v.x - wind.x) * factor
+      ..y = wind.y + (v.y - wind.y) * factor
+      ..z = wind.z + (v.z - wind.z) * factor;
   }
 }
 
 /// Pushes everything one way, for a draught or the wake of an explosion.
 final class ParticleWind extends ParticleAffector {
+  /// A push of `acceleration`, in metres per second squared, copied so a
+  /// later change to the vector passed in does not reach it.
   ParticleWind(Vector3 acceleration) : _acceleration = acceleration.clone();
 
   final Vector3 _acceleration;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     particle.velocity
       ..x += _acceleration.x * dt
       ..y += _acceleration.y * dt
@@ -105,6 +182,8 @@ final class ParticleWind extends ParticleAffector {
 /// A standing field is also what a fire in a still room looks like: the flame
 /// moves, the draught does not.
 final class ParticleTurbulence extends ParticleAffector {
+  /// The symmetric flow at 2 m/s², a spatial frequency of 0.6 per metre,
+  /// unless told otherwise.
   const ParticleTurbulence({
     this.strength = 2.0,
     this.scale = 0.6,
@@ -122,13 +201,20 @@ final class ParticleTurbulence extends ParticleAffector {
 
   /// The three ABC coefficients. Equal values give the symmetric flow; making
   /// one zero collapses the field into two-dimensional rolls, which is what a
-  /// draught along a corridor looks like.
+  /// draught along a corridor looks like. Each a unitless multiplier on
+  /// [strength].
   final double a;
+
+  /// The second ABC coefficient, a unitless multiplier on [strength].
   final double b;
+
+  /// The third ABC coefficient, a unitless multiplier on [strength].
   final double c;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    final dt = step.dt;
     final x = particle.position.x * scale;
     final y = particle.position.y * scale;
     final z = particle.position.z * scale;
@@ -146,21 +232,22 @@ final class ParticleTurbulence extends ParticleAffector {
 
 /// Moves the colour from one to another across the particle's life.
 final class ParticleColorOverLife extends ParticleAffector {
-  ParticleColorOverLife(Vector4 from, Vector4 to)
-    : _from = from.clone(),
-      _to = to.clone();
+  /// A ramp in linear light from the first colour at birth to the second at
+  /// death, straight across life, alpha included. Replaces the birth colour.
+  const ParticleColorOverLife(this._from, this._to);
 
-  final Vector4 _from;
-  final Vector4 _to;
+  final LinearColor _from;
+  final LinearColor _to;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final t = particle.life;
-    particle.color.setValues(
-      _from.x + (_to.x - _from.x) * t,
-      _from.y + (_to.y - _from.y) * t,
-      _from.z + (_to.z - _from.z) * t,
-      _from.w + (_to.w - _from.w) * t,
+    particle.linearRgba.setValues(
+      _from.r + (_to.r - _from.r) * t,
+      _from.g + (_to.g - _from.g) * t,
+      _from.b + (_to.b - _from.b) * t,
+      _from.a + (_to.a - _from.a) * t,
     );
   }
 }
@@ -171,31 +258,40 @@ final class ParticleColorOverLife extends ParticleAffector {
 /// not the colour change, and an effect that had to spell out both ends of a
 /// colour ramp just to disappear would spell it out wrong.
 final class ParticleFade extends ParticleAffector {
+  /// A straight fade of alpha to nought at death, beginning at [startsAt],
+  /// from birth by default.
   const ParticleFade({this.startsAt = 0.0});
 
-  /// Point in the particle's life where the fade begins, in `[0, 1)`.
+  /// Point in the particle's life where the fade begins, in `[0, 1)`: a
+  /// fraction of its life.
   final double startsAt;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final t = particle.life;
     if (t <= startsAt) return;
     final span = 1.0 - startsAt;
     final fade = span <= 0.0 ? 0.0 : 1.0 - (t - startsAt) / span;
-    particle.color.w *= fade;
+    particle.linearRgba.w *= fade;
   }
 }
 
 /// Scales a particle across its life.
 final class ParticleSizeOverLife extends ParticleAffector {
+  /// A straight scale from [from] to [to] of the birth size; by default
+  /// from full size to nothing.
   const ParticleSizeOverLife({this.from = 1.0, this.to = 0.0});
 
-  /// Multipliers on the size the particle was born with.
+  /// The multiplier on the size the particle was born with, at birth.
   final double from;
+
+  /// The multiplier on the size the particle was born with, at death.
   final double to;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep given) {
+    final particle = given.particle;
     // Rebuilt from the birth size each step rather than compounded. Multiplying
     // the current size every step shrinks a particle meant to halve over a
     // second to nothing in a tenth of one.

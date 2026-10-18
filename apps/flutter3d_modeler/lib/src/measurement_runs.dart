@@ -14,6 +14,8 @@ import 'orbit_run.dart';
 /// `--dart-define=orbit=`/`--dart-define=churn=true`, and turns one tick's
 /// measurement into whatever the finished run has to say.
 class MeasurementRuns {
+  /// The runs for a build measuring [what]; [orbit] and [churn] are set by
+  /// the opening code, if at all.
   MeasurementRuns({required this.what});
 
   /// What was measured, named once at construction — the cube, an asset's

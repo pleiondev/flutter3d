@@ -7,13 +7,13 @@ library;
 
 import 'package:flutter3d_game/flutter3d_game.dart'; // clockText
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
-import 'package:vector_math/vector_math.dart' show Vector2;
 
 /// Everything the display needs, gathered once a frame.
 ///
 /// A record of values rather than the simulation itself, so that the widgets
 /// cannot reach into a car and cannot be the reason a lap counter changed.
 class RaceReadout {
+  /// A frame's readout, every value already read off the race.
   const RaceReadout({
     required this.speed,
     required this.lap,
@@ -23,7 +23,7 @@ class RaceReadout {
     required this.lapTime,
     required this.bestLap,
     required this.record,
-    required this.tyres,
+    required this.tireSet,
     required this.damage,
     this.recordJustSet = false,
     this.tyresRefused = false,
@@ -41,11 +41,23 @@ class RaceReadout {
   /// moment, because the simulation has no opinion about miles.
   final double speed;
 
+  /// Laps the player has completed; the panel shows the one being driven,
+  /// which is this plus one.
   final int lap;
+
+  /// Laps in the race.
   final int laps;
+
+  /// Where the player is running, counting from one.
   final int position;
+
+  /// How many cars are racing, the player among them.
   final int racers;
+
+  /// Seconds into the lap being driven.
   final double lapTime;
+
+  /// The quickest lap of this race, in seconds, or null before one is done.
   final double? bestLap;
 
   /// The quickest lap ever driven here, across every launch, or null before
@@ -58,7 +70,7 @@ class RaceReadout {
   final bool recordJustSet;
 
   /// What the car is standing on the road with.
-  final String tyres;
+  final String tireSet;
 
   /// How broken the car is, from nought to one. Shown only once there is
   /// something to show: a line reading NONE every lap of every clean race is a
@@ -69,11 +81,16 @@ class RaceReadout {
   /// above a walk. Said rather than ignored: a key that does nothing and says
   /// nothing is a key a player decides is broken.
   final bool tyresRefused;
+
+  /// Whether the player has been driving against the circuit long enough
+  /// to mean it, so the display can say so.
   final bool wrongWay;
 
   /// Seconds left on the lights, or null once they have gone out.
   final double? countdown;
 
+  /// What kind of session this is: free roam shows no lap panel, and only a
+  /// race shows a position.
   final RaceMode mode;
 
   /// The circuit as a flat outline, in world XZ.

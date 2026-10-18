@@ -3,8 +3,9 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:vector_math/vector_math.dart' show Vector3;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Flutter3dAppLocalizations;
 
 import 'lesson_player.dart';
 import 'stereo_rig.dart';
@@ -21,7 +22,9 @@ import 'stereo_viewer.dart';
 /// real phone — the honest claim is that the rig, the lesson and the button
 /// are proven; the lens numbers are the published ones, unverified against
 /// glass.
-class LessonStereoView extends StatefulWidget {
+final class LessonStereoView extends StatefulWidget {
+  /// A stereo lesson view stepping [player] through [scene], seen from
+  /// [rig].
   const LessonStereoView({
     super.key,
     required this.renderer,
@@ -34,10 +37,20 @@ class LessonStereoView extends StatefulWidget {
     this.onTick,
   });
 
+  /// The renderer the pair is drawn with; borrowed, never disposed here.
   final Renderer renderer;
+
+  /// The scene the lesson's nodes live in.
   final Scene scene;
+
+  /// The rig whose stage each step places and whose eyes draw the pair.
   final StereoRig rig;
+
+  /// The step state the buttons move and each frame applies.
   final LessonPlayer player;
+
+  /// The lesson's nodes by entity id, moved by a step's `offsets`. Empty
+  /// for a lesson with no `prop` or `model`.
   final Map<String, SceneNode> nodes;
 
   /// Where each of [nodes] stood as authored — `edu-00` §6's layered
@@ -45,6 +58,10 @@ class LessonStereoView extends StatefulWidget {
   /// counterpart. Empty for a lesson with no `prop`/`model`, the same as
   /// [nodes].
   final Map<String, Vector3> restPositions;
+
+  /// The holder the phone sits in, Cardboard v2 by default; null draws a
+  /// centred pair for a phone held in the hands. See
+  /// [StereoSurface.viewer].
   final StereoViewer? viewer;
 
   /// Called once a frame, alongside [LessonPlayer.applyCurrent] — a
@@ -62,6 +79,7 @@ class LessonStereoView extends StatefulWidget {
 class _LessonStereoViewState extends State<LessonStereoView> {
   @override
   Widget build(BuildContext context) {
+    final words = Flutter3dAppLocalizations.of(context);
     return Stack(
       children: <Widget>[
         StereoSurface(
@@ -88,7 +106,7 @@ class _LessonStereoViewState extends State<LessonStereoView> {
             children: <Widget>[
               IconButton(
                 icon: const Icon(Icons.arrow_back),
-                tooltip: 'Previous step',
+                tooltip: words.previousStep,
                 onPressed: widget.player.isFirst
                     ? null
                     : () => setState(widget.player.previous),
@@ -96,7 +114,7 @@ class _LessonStereoViewState extends State<LessonStereoView> {
               const SizedBox(width: 24.0),
               IconButton(
                 icon: const Icon(Icons.arrow_forward),
-                tooltip: 'Next step',
+                tooltip: words.nextStep,
                 onPressed: widget.player.isLast
                     ? null
                     : () => setState(widget.player.next),

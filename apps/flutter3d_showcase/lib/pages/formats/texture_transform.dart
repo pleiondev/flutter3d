@@ -8,8 +8,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `texture-transform` page: a floor whose texture coordinates went
+/// through `withTextureTransform`. Its check is that U was scaled by four and
+/// the vertex count did not change.
 final class TextureTransformDemo extends ShowcaseDemo {
   late final MeshData _plain;
   late final MeshData _moved;
@@ -52,12 +54,12 @@ final class TextureTransformDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _moved),
-          Material(albedo: albedo, roughness: 0.8, doubleSided: true),
+          RenderMaterial(albedo: albedo, roughness: 0.8, doubleSided: true),
           name: 'floor',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

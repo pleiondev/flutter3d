@@ -3,12 +3,13 @@
 ///     flutter test test/surface_table_test.dart
 ///
 /// Two genres had written this out: the platformer's `Surfaces` maps a word to
-/// a whole `MovementTuning`, the racing game's `GripTable` maps it to one
+/// a whole `MovementSettings`, the racing game's `GripTable` maps it to one
 /// number, and everything either of them did around the map was the same — the
 /// fallback, the `knows`, the `names`, and the paragraph explaining why an
 /// unknown word must change nothing.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -52,7 +53,7 @@ void main() {
         name: 'one floor',
         brushes: <Brush>[
           Brush(
-            centre: Vector3.zero(),
+            center: Vector3.zero(),
             size: Vector3(10.0, 1.0, 10.0),
             material: 'stone',
             surface: 'ice',

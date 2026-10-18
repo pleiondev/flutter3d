@@ -12,6 +12,8 @@ import 'package:flutter/services.dart';
 /// for staying plain `MethodChannel` rather than reaching for a generated
 /// plugin nobody here would otherwise need.
 final class OpenRunChannel {
+  /// Starts listening for runs the platform asks to open, handing each path
+  /// to [onPath].
   OpenRunChannel({required this.onPath})
     : _channel = const MethodChannel(_name) {
     _channel.setMethodCallHandler(_handle);
@@ -19,6 +21,7 @@ final class OpenRunChannel {
 
   static const String _name = 'dev.pleion.flutter3d_editor/openRun';
 
+  /// Told the path of each run file the platform asks the editor to open.
   final void Function(String path) onPath;
   final MethodChannel _channel;
 
@@ -28,5 +31,6 @@ final class OpenRunChannel {
     if (path is String) onPath(path);
   }
 
+  /// Stops listening.
   void dispose() => _channel.setMethodCallHandler(null);
 }

@@ -32,7 +32,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 64;
@@ -62,7 +61,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 0);
@@ -80,7 +79,10 @@ void main() {
           engine.device,
           CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
         ),
-        Material(name: 'a', baseColor: Vector4(0.7, 0.6, 0.5, 1.0)),
+        RenderMaterial(
+          name: 'a',
+          baseColor: LinearColor.fromSrgb(0.7, 0.6, 0.5, 1.0),
+        ),
       ),
     );
 
@@ -88,7 +90,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 12);
@@ -108,7 +110,10 @@ void main() {
           engine.device,
           CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
         ),
-        Material(name: 'lone', baseColor: Vector4(0.7, 0.6, 0.5, 1.0)),
+        RenderMaterial(
+          name: 'lone',
+          baseColor: LinearColor.fromSrgb(0.7, 0.6, 0.5, 1.0),
+        ),
         name: 'lone',
       ),
     );
@@ -119,7 +124,10 @@ void main() {
         engine.device,
         CuboidShape(size: Vector3(0.3, 0.3, 0.3)).build(),
       ),
-      Material(name: 'batch', baseColor: Vector4(0.3, 0.4, 0.7, 1.0)),
+      RenderMaterial(
+        name: 'batch',
+        baseColor: LinearColor.fromSrgb(0.3, 0.4, 0.7, 1.0),
+      ),
       capacity: instanceCount,
       name: 'batch',
     );
@@ -134,7 +142,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 12 + 12 * instanceCount);
@@ -153,7 +161,10 @@ void main() {
           engine.device,
           CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
         ),
-        Material(name: 'empty', baseColor: Vector4(0.7, 0.6, 0.5, 1.0)),
+        RenderMaterial(
+          name: 'empty',
+          baseColor: LinearColor.fromSrgb(0.7, 0.6, 0.5, 1.0),
+        ),
         capacity: 4,
       ),
     );
@@ -162,7 +173,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
     );
 
     expect(frame.triangles, 0);

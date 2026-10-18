@@ -6,12 +6,20 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `shadow-settings` page: a column and a ball on the ground under the
+/// sun. Its check is that the sun drew a map holding both.
 final class ShadowSettingsDemo extends ShowcaseDemo {
+  /// The size of the sun's map: 0 for 256, up to 3 for 2048 texels.
   int resolutionChoice = 0;
+
+  /// The depth bias that keeps a surface from shadowing itself, 0 to 0.02.
   double bias = 0.0015;
+
+  /// How dark the shadow is, 0 to 1.
   double strength = 1.0;
+
+  /// How far from the eye the map is fitted for, in metres, 3 to 40.
   double viewDistance = 40.0;
 
   static const List<int> _resolutions = <int>[256, 512, 1024, 2048];
@@ -27,9 +35,9 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region ground
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.75, 0.73, 0.68, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.73, 0.68, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
@@ -47,9 +55,9 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
     // #endregion ground
 
     // #region casters
-    final Material clay = Material(
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
     scene
@@ -77,8 +85,11 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
 
     // #region sun
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0, castsShadow: true)
-        ..setLocalForward(Vector3(-0.5, -0.9, -0.4)),
+      LightNode(
+        name: 'sun',
+        intensity: 3.0 * LightNode.defaultIntensity,
+        castsShadow: true,
+      )..setLocalForward(Vector3(-0.5, -0.9, -0.4)),
     );
     // #endregion sun
     return scene;

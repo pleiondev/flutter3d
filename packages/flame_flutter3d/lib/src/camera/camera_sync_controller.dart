@@ -12,8 +12,7 @@
 library;
 
 import 'package:flame/camera.dart' show Viewfinder;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../transform/object3d_component.dart' show SyncDirection;
 import '../transform/plane.dart';
@@ -78,6 +77,9 @@ import 'camera_sync_component.dart';
 /// after calling [advance]; this class only guarantees the two lenses agree
 /// with each other under its own convention, consistently, every frame.
 final class CameraSyncController {
+  /// A controller keeping [camera] and [viewfinder] together on [plane],
+  /// the scene driving Flame unless [direction] says otherwise. The
+  /// camera's rotation now is its rest; [eyeOffset] is copied.
   CameraSyncController({
     required this.camera,
     required this.viewfinder,
@@ -135,7 +137,7 @@ final class CameraSyncController {
   /// Takes the camera's rotation now as its rest: for a camera turned with
   /// `lookAt` after this controller was made, whose rest was otherwise the
   /// turn it had before.
-  void takeRest() => _base.setFrom(camera.readRotation());
+  void captureRest() => _base.setFrom(camera.readRotation());
 
   /// The flutter3d camera this controller reconciles.
   final CameraNode camera;

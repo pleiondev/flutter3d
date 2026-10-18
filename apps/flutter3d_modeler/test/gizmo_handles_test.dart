@@ -19,12 +19,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_modeler/src/gizmo_handles.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/transform_gizmo.dart';
 import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The world size of one logical pixel at one unit of distance, for every
 /// camera below. Small enough that a gizmo ten units out is a few units across,
@@ -37,8 +37,8 @@ const double _pixel = 0.01;
 /// that produced it.
 MeshOverlay _overlay({required Vector3 eye, double biasPixels = 0}) {
   final overlay = MeshOverlay(
-    vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-    fragmentShader: const ShaderHandle(backend: 1, name: 'DebugLine'),
+    vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+    fragmentShader: wrapShader(backend: 1, name: 'DebugLine'),
   )..biasPixels = biasPixels;
   overlay.lookFrom(
     eye: eye,
@@ -109,7 +109,7 @@ List<int> _coloursOf(OverlayBatch batch) {
 /// left is the point the drawing asked for. Comparing individual corners
 /// instead would be a test of `MeshOverlay`'s quad winding, which is that
 /// file's business.
-Vector3 _centreOf(List<Vector3> at, int from, int count) {
+Vector3 _centerOf(List<Vector3> at, int from, int count) {
   var sum = Vector3.zero();
   for (var v = from; v < from + count; v++) {
     sum += at[v];
@@ -131,7 +131,7 @@ Vector3 _centreOf(List<Vector3> at, int from, int count) {
 /// point the size was worked out at.
 double _pixelsAcross(List<Vector3> at, int from, Vector3 eye) =>
     (at[from + 5] - at[from]).length /
-    (_pixel * (_centreOf(at, from, 6) - eye).length);
+    (_pixel * (_centerOf(at, from, 6) - eye).length);
 
 void _expectNear(Vector3 got, Vector3 wanted, {double within = 1e-4}) {
   expect(got.x, closeTo(wanted.x, within), reason: 'x of $got');
@@ -170,11 +170,11 @@ void main() {
       for (var i = 0; i < handles.length; i++) {
         final handle = handles[i];
         _expectNear(
-          _centreOf(at, i * 12, 6),
+          _centerOf(at, i * 12, 6),
           (handle.base + handle.headBase) * 0.5,
         );
         _expectNear(
-          _centreOf(at, i * 12 + 6, 6),
+          _centerOf(at, i * 12 + 6, 6),
           (handle.headBase + handle.tip) * 0.5,
         );
       }
@@ -203,7 +203,7 @@ void main() {
         // is from the eye: a square of `n` logical pixels is `n * pixel * depth`
         // across in the world.
         final side = (at[7] - at[6]).length;
-        return side / (_pixel * (_centreOf(at, 6, 6) - eye).length);
+        return side / (_pixel * (_centerOf(at, 6, 6) - eye).length);
       }
 
       expect(headPixels(Vector3(0, 0, 10)), closeTo(drawing.headPixels, 1e-3));
@@ -508,10 +508,10 @@ void main() {
         final handle = handles[i];
         // The arm runs the whole length the ray is traced against, and the box
         // sits on its end.
-        _expectNear(_centreOf(at, i * 12, 6), (handle.base + handle.tip) * 0.5);
-        _expectNear(_centreOf(at, i * 12 + 6, 6), handle.tip);
+        _expectNear(_centerOf(at, i * 12, 6), (handle.base + handle.tip) * 0.5);
+        _expectNear(_centerOf(at, i * 12 + 6, 6), handle.tip);
       }
-      _expectNear(_centreOf(at, 36, 6), pivot);
+      _expectNear(_centerOf(at, 36, 6), pivot);
 
       final ink = _coloursOf(overlay.handles);
       expect(ink.sublist(36, 42), everyElement(_opaque(kGizmoTintUniform)));

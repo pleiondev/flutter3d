@@ -10,7 +10,11 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-abstract interface class VertexFetch {
+import 'cpu_resources.dart' show cpuBackendName;
+
+/// Where one vertex's floats come from: [PackedFetch] for one interleaved
+/// buffer, [LayoutFetch] for several stepping per vertex or per instance.
+abstract final class VertexFetch {
   /// How many floats one vertex amounts to.
   int get floatsPerVertex;
 
@@ -29,6 +33,7 @@ abstract interface class VertexFetch {
 /// except the instanced ones. The layout is not described anywhere: it is the
 /// shader's `in` order, which is the same contract flutter_gpu works from.
 final class PackedFetch implements VertexFetch {
+  /// Reads [bytes] as floats, [floatsPerVertex] to a vertex.
   PackedFetch(ByteData bytes, this.floatsPerVertex)
     : _floats = bytes.buffer.asFloat32List(
         bytes.offsetInBytes,
@@ -77,7 +82,7 @@ final class LayoutFetch implements VertexFetch {
   /// measurably the wrong shape when the same mistake was made in the packed
   /// path's ancestor.
   factory LayoutFetch.build(
-    VertexLayoutSpec layout,
+    VertexLayoutDescriptor layout,
     ByteData slotZero,
     Map<int, ByteData>? slots,
     int instance,
@@ -105,9 +110,12 @@ final class LayoutFetch implements VertexFetch {
         ),
       );
       if (buffer.strideInBytes % 4 != 0) {
-        throw UnsupportedError(
-          'slot $slot has a stride of ${buffer.strideInBytes} bytes. This '
-          'backend reads floats, so a stride has to be a multiple of four.',
+        throw DeviceResourceException(
+          operation: 'draw',
+          backend: cpuBackendName,
+          reason:
+              'slot $slot has a stride of ${buffer.strideInBytes} bytes. This '
+              'backend reads floats, so a stride has to be a multiple of four',
         );
       }
       strides.add(buffer.strideInBytes ~/ 4);

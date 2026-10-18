@@ -3,9 +3,8 @@
 library;
 
 import 'package:flame/components.dart' show Component;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Actor, ActorSystem;
-import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
 import '../host/step_clock.dart';
 
@@ -29,7 +28,9 @@ import '../host/step_clock.dart';
 /// **[batch] sits at the scene's origin, unturned**, as for
 /// `InstancedObject3dComponent`: the transform written is the body's place in
 /// the scene as it is.
-class InstancedActorComponent extends Component implements StepFollower {
+base class InstancedActorComponent extends Component with StepFollower {
+  /// A component drawing [actor] as a slot of [batch], raised by [lift],
+  /// nought by default.
   InstancedActorComponent({
     required this.actor,
     required this.batch,
@@ -39,6 +40,8 @@ class InstancedActorComponent extends Component implements StepFollower {
     super.priority,
   });
 
+  /// The flutter3d_sim actor drawn; when the simulation takes it out, this
+  /// component and its slot go too.
   final Actor actor;
 
   /// The batch this actor takes a slot in.
@@ -90,7 +93,7 @@ class InstancedActorComponent extends Component implements StepFollower {
     stepper?.unfollow(this);
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
     final system = removesFrom;
     if (system != null && actor.exists) system.remove(actor);
     super.onRemove();
@@ -142,13 +145,16 @@ class InstancedActorComponent extends Component implements StepFollower {
 /// answers false once it is gone, which takes this component and its slot
 /// away. For a sim's own list of short-lived things the game mirrors one
 /// component per item.
-class InstancedPoseComponent extends Component {
+base class InstancedPoseComponent extends Component {
+  /// A component taking a slot of [batch] while [place] says the thing is
+  /// still there.
   InstancedPoseComponent({
     required this.batch,
     required this.place,
     super.priority,
   });
 
+  /// The batch the thing takes a slot in from mount until it is gone.
   final InstancedMeshNode batch;
 
   /// Where the thing is now; false once it is gone.
@@ -169,7 +175,7 @@ class InstancedPoseComponent extends Component {
   void onRemove() {
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
     super.onRemove();
   }
 

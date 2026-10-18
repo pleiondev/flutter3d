@@ -66,7 +66,7 @@ void main() {
     // lamp kind read `flicker` and nothing else, so a swell was expressible in
     // Dart and not in a document, which is the same as not existing.
     test('swells and dips rather than flickering', () {
-      const pulse = PulseLight(period: 4.0);
+      const pulse = PulseLight(periodSeconds: 4.0);
 
       // A whole period apart is the same brightness; a half period apart is
       // not. That is what makes it a swell rather than noise.
@@ -95,10 +95,10 @@ void main() {
   });
 
   group('a fixture', () {
-    LightFixture make({LightBehaviour? behaviour, bool enabled = true}) =>
+    LightFixture make({LightBehavior? behavior, bool enabled = true}) =>
         LightFixture(
           light: 'torch_1',
-          behaviour: behaviour ?? const FlameFlicker(),
+          behavior: behavior ?? const FlameFlicker(),
           seed: 0.25,
           enabled: enabled,
         );

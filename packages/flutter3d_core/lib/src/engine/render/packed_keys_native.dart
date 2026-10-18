@@ -13,6 +13,7 @@ import 'key_sort.dart';
 /// that a single sort orders the draws and, being stable with the payload
 /// least significant, equal keys keep submission order for free.
 final class PackedKeys {
+  /// An empty buffer with room for [capacity] entries before it grows.
   PackedKeys([int capacity = 128])
     : _buffer = Int64List(capacity),
       _scratch = Int64List(capacity);
@@ -33,12 +34,16 @@ final class PackedKeys {
     _scratch = Int64List(capacity);
   }
 
+  /// Sets entry [index] to [key] and [payload], below the current capacity.
   void setEntry(int index, int key, int payload) {
-    _buffer[index] = (key << kPayloadBits) | payload;
+    _buffer[index] = (key << payloadBits) | payload;
   }
 
+  /// Sorts the first [count] entries ascending by key, equal keys keeping
+  /// their order, ready for [payloadAt].
   void sort(int count) =>
       sortPackedKeys(_buffer, _scratch, count, counts: _histogram);
 
-  int payloadAt(int index) => _buffer[index] & kPayloadMask;
+  /// The payload of the entry at [index] in sorted order, after [sort].
+  int payloadAt(int index) => _buffer[index] & payloadMask;
 }

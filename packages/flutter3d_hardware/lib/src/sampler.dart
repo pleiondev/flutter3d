@@ -1,10 +1,62 @@
+import 'capabilities.dart';
 import 'formats.dart';
+
+/// The colour a sampler clamping to its border returns outside the texture.
+///
+/// The three every API that has a border agrees on. WebGPU and WebGL2 have
+/// none — see `DeviceFeature.samplerBorderColor`.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SamplerBorderColor {
+  const SamplerBorderColor._(this.name);
+
+  /// Zero in every channel, alpha included.
+  static const SamplerBorderColor transparentBlack = SamplerBorderColor._(
+    'transparentBlack',
+  );
+
+  /// Black with alpha one.
+  static const SamplerBorderColor opaqueBlack = SamplerBorderColor._(
+    'opaqueBlack',
+  );
+
+  /// One in every channel.
+  static const SamplerBorderColor opaqueWhite = SamplerBorderColor._(
+    'opaqueWhite',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SamplerBorderColor> values = <SamplerBorderColor>[
+    transparentBlack,
+    opaqueBlack,
+    opaqueWhite,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SamplerBorderColor? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SamplerBorderColor.$name';
+}
 
 /// How a texture is sampled.
 ///
-/// The engine's counterpart to flutter_gpu's `SamplerOptions`, and it exists
+/// The engine's counterpart to flutter_gpu's `SamplerDescriptor`, and it exists
 /// for the same reason the enums beside it do: it is reachable from the public
-/// API — five fields on `Material` and the return of `samplerOptionsFor` — so a
+/// API — five fields on `RenderMaterial` and the return of `samplerOptionsFor` — so a
 /// consumer that wanted to describe a sampler had to name a flutter_gpu type.
 ///
 /// Two deliberate differences from the type underneath, both because this one
@@ -18,15 +70,30 @@ import 'formats.dart';
 ///    nothing loses by this.
 ///
 /// The field set and the defaults are flutter_gpu's, unchanged.
-final class SamplerOptions {
-  const SamplerOptions({
+final class SamplerDescriptor {
+  /// Creates a sampler; the defaults are flutter_gpu's, nearest and clamped.
+  /// Note that a texture bound with no sampler gets [linearRepeat], not these.
+  ///
+  /// Asserts that [anisotropy] is at least one and above one only with linear
+  /// min, mag and mip filters, and that the level-of-detail clamp runs from
+  /// nought upwards.
+  const SamplerDescriptor({
     this.minFilter = MinMagFilter.nearest,
     this.magFilter = MinMagFilter.nearest,
     this.mipFilter = MipFilter.nearest,
     this.widthAddressMode = SamplerAddressMode.clampToEdge,
     this.heightAddressMode = SamplerAddressMode.clampToEdge,
     this.anisotropy = 1,
+    this.depthAddressMode = SamplerAddressMode.clampToEdge,
+    this.compare,
+    this.lodMinClamp = 0,
+    this.lodMaxClamp = 32,
+    this.borderColor,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
+       assert(
+         lodMinClamp >= 0 && lodMaxClamp >= lodMinClamp,
+         'a level-of-detail clamp is a range from zero up',
+       ),
        assert(
          anisotropy == 1 ||
              (minFilter == MinMagFilter.linear &&
@@ -37,7 +104,12 @@ final class SamplerOptions {
          'nearest lookup',
        );
 
+  /// How texels are filtered when the texture is drawn smaller than it is;
+  /// nearest by default.
   final MinMagFilter minFilter;
+
+  /// How texels are filtered when the texture is drawn larger than it is;
+  /// nearest by default.
   final MinMagFilter magFilter;
 
   /// Which levels of a mip chain are blended. See [MipFilter].
@@ -46,7 +118,12 @@ final class SamplerOptions {
   /// except the ones built with a chain on purpose.
   final MipFilter mipFilter;
 
+  /// What a horizontal coordinate outside nought to one reads; clamped to the
+  /// edge by default.
   final SamplerAddressMode widthAddressMode;
+
+  /// What a vertical coordinate outside nought to one reads; clamped to the
+  /// edge by default.
   final SamplerAddressMode heightAddressMode;
 
   /// How many taps a sample may spread along the direction a texture is
@@ -73,23 +150,113 @@ final class SamplerOptions {
   /// what the bridge asks for, being where the picture stops improving.
   final int anisotropy;
 
+  /// What sampling outside 0..1 along a 3D texture's depth does. Ignored by
+  /// every other shape. The default is the pre-0.9 behaviour, so no existing
+  /// sampler changes.
+  final SamplerAddressMode depthAddressMode;
+
+  /// When set, this is a comparison sampler: a sample of a depth texture
+  /// answers how much of the footprint passes `reference <compare> stored`,
+  /// filtered — hardware percentage-closer filtering. Null for an ordinary
+  /// sampler. Ask `DeviceFeature.samplerCompare`; a backend without it
+  /// refuses the bind.
+  final CompareFunction? compare;
+
+  /// The finest mip level the sampler may read, as a level of detail.
+  /// `DeviceFeature.samplerLodClamp`; the defaults clamp nothing. In mip
+  /// levels, unitless: zero is the full-size image.
+  final double lodMinClamp;
+
+  /// The coarsest mip level the sampler may read. Thirty-two clamps nothing.
+  /// In mip levels, unitless, as [lodMinClamp].
+  final double lodMaxClamp;
+
+  /// The colour every axis whose address mode is
+  /// [SamplerAddressMode.clampToBorder] reads outside the texture. Null
+  /// means [SamplerBorderColor.transparentBlack]. **It applies on those axes
+  /// only**: an axis clamped to the edge reads the edge texel whatever this
+  /// says, so one axis can clamp to the border and another to the edge, and
+  /// a colour no axis uses needs nothing of the device.
+  final SamplerBorderColor? borderColor;
+
+  /// Whether any axis clamps to the border: what
+  /// `DeviceFeature.samplerBorderColor` is asked for.
+  bool get clampsToBorder =>
+      widthAddressMode == SamplerAddressMode.clampToBorder ||
+      heightAddressMode == SamplerAddressMode.clampToBorder ||
+      depthAddressMode == SamplerAddressMode.clampToBorder;
+
+  /// The colour a [SamplerAddressMode.clampToBorder] axis reads:
+  /// [borderColor], or transparent black when it names none.
+  SamplerBorderColor get effectiveBorderColor =>
+      borderColor ?? SamplerBorderColor.transparentBlack;
+
+  /// Whether this needs [DeviceFeature]s beyond the pre-0.9 sampler, so a
+  /// backend can check once per bind: a comparison, a level clamp, an axis
+  /// clamped to the border.
+  bool get usesExtendedState =>
+      compare != null ||
+      lodMinClamp != 0 ||
+      lodMaxClamp != 32 ||
+      clampsToBorder;
+
+  /// Throws [UnsupportedCapabilityException] when this sampler needs a
+  /// feature [features] lacks: a comparison (`samplerCompare`), a
+  /// level-of-detail clamp (`samplerLodClamp`), an axis clamped to the
+  /// border (`samplerBorderColor`). Each is asked for alone, so a comparison
+  /// sampler with no clamp does not need the clamp.
+  ///
+  /// **For a backend's `bindTexture`**, so that every backend refuses the
+  /// same samplers in the same words, and a field a minor adds with its
+  /// feature is refused by a backend written before it rather than ignored.
+  /// [backend] names the backend as a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (!usesExtendedState) return;
+    if (compare != null) {
+      features.require(
+        DeviceFeature.samplerCompare,
+        backend: backend,
+        reason: 'the sampler names a compare function',
+      );
+    }
+    if (lodMinClamp != 0 || lodMaxClamp != 32) {
+      features.require(
+        DeviceFeature.samplerLodClamp,
+        backend: backend,
+        reason: 'the sampler clamps its level of detail',
+      );
+    }
+    if (clampsToBorder) {
+      features.require(
+        DeviceFeature.samplerBorderColor,
+        backend: backend,
+        reason: 'the sampler clamps an axis to its border colour',
+      );
+    }
+  }
+
   /// This sampler with its [anisotropy] replaced.
   ///
   /// A copy rather than a setter because the class is a value, and a
   /// method rather than a `copyWith` because this is the one field a caller
   /// ever decides at run time — the filters and wrap modes are a property of
   /// the asset, the tap count a property of the device it lands on.
-  SamplerOptions withAnisotropy(int anisotropy) => SamplerOptions(
+  SamplerDescriptor withAnisotropy(int anisotropy) => SamplerDescriptor(
     minFilter: minFilter,
     magFilter: magFilter,
     mipFilter: mipFilter,
     widthAddressMode: widthAddressMode,
     heightAddressMode: heightAddressMode,
     anisotropy: anisotropy,
+    depthAddressMode: depthAddressMode,
+    compare: compare,
+    lodMinClamp: lodMinClamp,
+    lodMaxClamp: lodMaxClamp,
+    borderColor: borderColor,
   );
 
   /// Smooth and tiling: the default for material textures.
-  static const SamplerOptions linearRepeat = SamplerOptions(
+  static const SamplerDescriptor linearRepeat = SamplerDescriptor(
     minFilter: MinMagFilter.linear,
     magFilter: MinMagFilter.linear,
     widthAddressMode: SamplerAddressMode.repeat,
@@ -104,7 +271,7 @@ final class SamplerOptions {
   /// them for textures that have no chain to blend, where the setting cannot
   /// help and can only cost. Something that wants trilinear filtering asks for
   /// it and supplies the chain to go with it.
-  static const SamplerOptions trilinearRepeat = SamplerOptions(
+  static const SamplerDescriptor trilinearRepeat = SamplerDescriptor(
     minFilter: MinMagFilter.linear,
     magFilter: MinMagFilter.linear,
     mipFilter: MipFilter.linear,
@@ -114,7 +281,7 @@ final class SamplerOptions {
 
   /// Smooth and clamped: the default for sampling a full-screen buffer, where
   /// wrapping would fold the far edge onto the near one.
-  static const SamplerOptions linearClamp = SamplerOptions(
+  static const SamplerDescriptor linearClamp = SamplerDescriptor(
     minFilter: MinMagFilter.linear,
     magFilter: MinMagFilter.linear,
     widthAddressMode: SamplerAddressMode.clampToEdge,
@@ -132,7 +299,7 @@ final class SamplerOptions {
   /// argument that turns MSAA off for any pass that writes this buffer, applied
   /// to the read side, and skipping it draws a dark rim around every silhouette
   /// in the frame.
-  static const SamplerOptions nearestClamp = SamplerOptions(
+  static const SamplerDescriptor nearestClamp = SamplerDescriptor(
     minFilter: MinMagFilter.nearest,
     magFilter: MinMagFilter.nearest,
     widthAddressMode: SamplerAddressMode.clampToEdge,
@@ -141,13 +308,18 @@ final class SamplerOptions {
 
   @override
   bool operator ==(Object other) =>
-      other is SamplerOptions &&
+      other is SamplerDescriptor &&
       other.minFilter == minFilter &&
       other.magFilter == magFilter &&
       other.mipFilter == mipFilter &&
       other.widthAddressMode == widthAddressMode &&
       other.heightAddressMode == heightAddressMode &&
-      other.anisotropy == anisotropy;
+      other.anisotropy == anisotropy &&
+      other.depthAddressMode == depthAddressMode &&
+      other.compare == compare &&
+      other.lodMinClamp == lodMinClamp &&
+      other.lodMaxClamp == lodMaxClamp &&
+      other.borderColor == borderColor;
 
   @override
   int get hashCode => Object.hash(
@@ -157,12 +329,23 @@ final class SamplerOptions {
     widthAddressMode,
     heightAddressMode,
     anisotropy,
+    depthAddressMode,
+    compare,
+    lodMinClamp,
+    lodMaxClamp,
+    borderColor,
   );
 
+  // The pre-0.9 fields always, the rest only when set: a trace or a golden
+  // message that printed a sampler before 0.9 prints it the same way now.
   @override
   String toString() =>
       'SamplerOptions(min: ${minFilter.name}, '
       'mag: ${magFilter.name}, mip: ${mipFilter.name}, '
       'u: ${widthAddressMode.name}, v: ${heightAddressMode.name}, '
-      'anisotropy: $anisotropy)';
+      'anisotropy: $anisotropy'
+      '${depthAddressMode == SamplerAddressMode.clampToEdge ? '' : ', w: ${depthAddressMode.name}'}'
+      '${compare == null ? '' : ', compare: ${compare!.name}'}'
+      '${lodMinClamp == 0 && lodMaxClamp == 32 ? '' : ', lod: $lodMinClamp..$lodMaxClamp'}'
+      '${borderColor == null ? '' : ', border: ${borderColor!.name}'})';
 }

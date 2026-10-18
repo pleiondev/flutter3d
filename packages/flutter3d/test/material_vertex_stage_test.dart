@@ -19,7 +19,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 48;
 
@@ -30,7 +29,7 @@ const int _size = 48;
 /// clip position, which is what a displacement stage does and what nothing
 /// outside the engine could do before. A real one would move the vertex in its
 /// own space and recompute the normal; this one only has to be visible.
-final class _HalfSizeStage implements CpuVertexShaderByIndex {
+final class _HalfSizeStage extends CpuVertexShaderByIndex {
   const _HalfSizeStage(this._inner);
 
   final CpuVertexShaderByIndex _inner;
@@ -102,7 +101,7 @@ Future<List<int>> _draw({
   ).build(layout: skinnedMesh ? VertexLayout.skinned : VertexLayout.standard);
   final node = MeshNode(
     DeviceMesh.upload(device, geometry),
-    Material(name: 'subject', lighting: lighting),
+    RenderMaterial(name: 'subject', lighting: lighting),
     name: 'subject',
   );
   if (skinnedMesh) {
@@ -117,7 +116,7 @@ Future<List<int>> _draw({
   scene
     ..add(node)
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -131,16 +130,16 @@ Future<List<int>> _draw({
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(),
   );
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 /// How many pixels the lit subject covers.
@@ -172,7 +171,7 @@ void main() {
     // **The half that lets this land**, and the reason the seam is a null field
     // rather than a new required one: a material saying nothing about its vertex
     // stage goes through the pipeline it has always gone through, which is also
-    // why the seventy-eight goldens cannot move.
+    // why the 96 goldens cannot move.
     final withSeam = await _draw(lighting: _plain);
 
     final device = CpuDevice(
@@ -188,11 +187,11 @@ void main() {
             device,
             CuboidShape(size: Vector3.all(1.2)).build(),
           ),
-          Material(name: 'subject', lighting: _plain),
+          RenderMaterial(name: 'subject', lighting: _plain),
         ),
       )
       ..add(
-        LightNode(intensity: 6.0)
+        LightNode(intensity: 6.0 * LightNode.defaultIntensity)
           ..setPosition(2.0, 3.0, 4.0)
           ..lookAt(Vector3.zero()),
       )
@@ -205,17 +204,17 @@ void main() {
       width: _size,
       height: _size,
       scene: scene,
-      views: <RenderView>[
-        RenderView(
+      views: <CameraView>[
+        CameraView(
           camera: scene.cameras.single,
-          clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
         ),
       ],
       settings: const RenderSettings(),
     );
-    final bytes = await device.readPixels(frame.frame);
+    final bytes = await device.readback(frame.frame);
     final without = <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ];
 
     expect(withSeam, without);
@@ -266,11 +265,16 @@ void main() {
           skinnedMesh: true,
           shipSkinnedStage: false,
         ),
+        // A `MissingShaderStageException`, the engine's own refusal.
         throwsA(
-          isA<StateError>().having(
-            (StateError e) => e.message,
-            'message',
-            allOf(contains('HalfSizeSkinned'), contains('Halved')),
+          isA<Exception>().having(
+            (Exception e) => '$e',
+            'description',
+            allOf(
+              contains('MissingShaderStageException'),
+              contains('HalfSizeSkinned'),
+              contains('Halved'),
+            ),
           ),
         ),
       );
@@ -297,15 +301,15 @@ void main() {
 
       final scene = Scene()
         ..add(
-          MeshNode(mesh, Material(name: 'plain', lighting: _plain))
+          MeshNode(mesh, RenderMaterial(name: 'plain', lighting: _plain))
             ..setPosition(-1.2, 0.0, 0.0),
         )
         ..add(
-          MeshNode(mesh, Material(name: 'halved', lighting: _halved))
+          MeshNode(mesh, RenderMaterial(name: 'halved', lighting: _halved))
             ..setPosition(1.2, 0.0, 0.0),
         )
         ..add(
-          LightNode(intensity: 6.0)
+          LightNode(intensity: 6.0 * LightNode.defaultIntensity)
             ..setPosition(2.0, 3.0, 4.0)
             ..lookAt(Vector3.zero()),
         )
@@ -319,7 +323,7 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        views: <CameraView>[CameraView(camera: scene.cameras.single)],
         settings: const RenderSettings(),
       );
 

@@ -25,6 +25,8 @@ typedef ProcessRunner =
 /// order — through a fake [ProcessRunner]; the real subprocess calls need a
 /// real macOS run with the app open to confirm.
 final class WindowCapture {
+  /// A capturer that finds windows with [windowIdScript] and shells out
+  /// through [run], which is the real `Process.run` unless a test says not.
   const WindowCapture({required this.windowIdScript, this.run = Process.run});
 
   /// Path to `tool/tutorial/window_id.swift` — `bin/shoot.dart` resolves this
@@ -32,6 +34,8 @@ final class WindowCapture {
   /// current directory.
   final String windowIdScript;
 
+  /// What both methods run their subprocess through: `swift` for the id,
+  /// `screencapture` for the picture.
   final ProcessRunner run;
 
   /// Runs `swift <windowIdScript> <processName>` and parses its one line of

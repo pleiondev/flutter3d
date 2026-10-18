@@ -13,8 +13,10 @@ import 'package:flutter3d/flutter3d.dart' hide Ktx2Texture;
 // the container itself, which answers the file's own `vkFormat`.
 import 'package:flutter3d_core/formats.dart' show Ktx2Texture, VkFormat;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `ktx2` page: a cube wearing an 8 by 8 Basis texture transcoded to
+/// RGBA8. Its check is the size, the format, and a top-left quadrant close to
+/// red.
 final class Ktx2Demo extends ShowcaseDemo {
   late final Ktx2Texture _texture;
 
@@ -56,12 +58,12 @@ final class Ktx2Demo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, CuboidShape().build()),
-          Material(albedo: albedo, roughness: 0.7),
+          RenderMaterial(albedo: albedo, roughness: 0.7),
           name: 'block',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

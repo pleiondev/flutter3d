@@ -14,8 +14,10 @@ import 'vertex_layout.dart';
 /// `BoxShape` enum, and a clash there would force every app importing both to
 /// disambiguate.
 final class CuboidShape extends Shape {
+  /// A box of [size]; null gives a one-metre cube.
   CuboidShape({Vector3? size}) : size = size ?? Vector3.all(1.0);
 
+  /// Edge lengths along X, Y and Z, in metres.
   final Vector3 size;
 
   @override
@@ -115,6 +117,7 @@ final class CuboidShape extends Shape {
 
 /// Subdivided plane in the XZ plane, normal pointing at +Y.
 final class PlaneShape extends Shape {
+  /// A one-metre square in one quad unless sizes and counts are given.
   const PlaneShape({
     this.width = 1.0,
     this.depth = 1.0,
@@ -122,9 +125,18 @@ final class PlaneShape extends Shape {
     this.depthSegments = 1,
   });
 
+  /// Along X, in metres.
   final double width;
+
+  /// Along Z, in metres.
   final double depth;
+
+  /// Count of quads along X, at least one; [build] throws an
+  /// [ArgumentError] below that.
   final int widthSegments;
+
+  /// Count of quads along Z, at least one; [build] throws an
+  /// [ArgumentError] below that.
   final int depthSegments;
 
   @override

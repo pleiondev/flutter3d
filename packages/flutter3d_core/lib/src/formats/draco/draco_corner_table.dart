@@ -32,18 +32,36 @@ const int dracoInvalid = -1;
 /// predictor that reached across one would predict a texture coordinate from
 /// the far side of the atlas.
 abstract base class CornerTopology {
+  /// Count of vertices as this table sees them: positions for the mesh,
+  /// split at seams for an attribute.
   int get vertexCount;
+
+  /// Count of triangles.
   int get faceCount;
+
+  /// Count of corners, three per face; corner `c` belongs to face `c ~/ 3`.
   int get cornerCount => faceCount * 3;
 
+  /// Returns the corner facing [corner] across the edge opposite it, or
+  /// [dracoInvalid] at a boundary or a seam.
   int opposite(int corner);
+
+  /// Returns the vertex at [corner]; [dracoInvalid] for [dracoInvalid].
   int vertex(int corner);
+
+  /// Returns the corner of [vertex] that starts its fan, from which
+  /// [swingRight] reaches every other; [dracoInvalid] for an isolated
+  /// vertex.
   int leftMostCorner(int vertex);
 
+  /// Returns the next corner of the same face, counter-clockwise;
+  /// [dracoInvalid] for [dracoInvalid].
   int next(int corner) => corner == dracoInvalid
       ? dracoInvalid
       : (corner % 3 == 2 ? corner - 2 : corner + 1);
 
+  /// Returns the previous corner of the same face; [dracoInvalid] for
+  /// [dracoInvalid].
   int previous(int corner) => corner == dracoInvalid
       ? dracoInvalid
       : (corner % 3 == 0 ? corner + 2 : corner - 1);
@@ -58,6 +76,7 @@ abstract base class CornerTopology {
   /// The tip of the face across the edge to the left of [corner].
   int leftCorner(int corner) => opposite(previous(corner));
 
+  /// The tip of the face across the edge to the right of [corner].
   int rightCorner(int corner) => opposite(next(corner));
 
   /// Whether [vertex]'s fan of faces is open. The left-most corner is kept
@@ -106,6 +125,8 @@ final class CornerTable extends CornerTopology {
   @override
   int leftMostCorner(int vertex) => _vertexCorners[vertex];
 
+  /// Makes a new vertex with no corner yet and returns its index. Throws a
+  /// [DracoException] past the capacity the stream declared.
   int addVertex() {
     if (_vertexCount >= _vertexCorners.length) {
       throw const DracoException(
@@ -123,9 +144,11 @@ final class CornerTable extends CornerTopology {
     _opposite[b] = a;
   }
 
+  /// Puts [vertex] at [corner].
   void mapCornerToVertex(int corner, int vertex) =>
       _cornerToVertex[corner] = vertex;
 
+  /// Makes [corner] the start of [vertex]'s fan.
   void setLeftMostCorner(int vertex, int corner) =>
       _vertexCorners[vertex] = corner;
 
@@ -144,12 +167,15 @@ final class CornerTable extends CornerTopology {
 /// own vertices: walk each position vertex's fan, and start a new attribute
 /// vertex every time the walk crosses a seam.
 final class AttributeCornerTable extends CornerTopology {
+  /// A table over [base]'s faces with no seams yet and no attribute
+  /// vertices until they are worked out.
   AttributeCornerTable(this.base)
     : _isEdgeOnSeam = List<bool>.filled(base.cornerCount, false),
       _isVertexOnSeam = List<bool>.filled(base.vertexCount, false),
       _cornerToVertex = Int32List(base.cornerCount)
         ..fillRange(0, base.cornerCount, dracoInvalid);
 
+  /// The mesh's own table, whose faces and corners this one shares.
   final CornerTable base;
   final List<bool> _isEdgeOnSeam;
   final List<bool> _isVertexOnSeam;

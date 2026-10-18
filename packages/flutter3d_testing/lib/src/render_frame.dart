@@ -2,10 +2,36 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'draw.dart';
 
 /// What a test hands back: the scene to draw and the camera to draw it from.
-typedef FrameSubject = ({Scene scene, CameraNode camera});
+///
+/// **A class, because a test writes the code that returns one**
+/// ([ReplaySubject.frame], a [FrameBuilder]): a record could never gain the
+/// field a later frame needs (a second view, a time), and a class adds it
+/// with a default.
+final class FrameSubject {
+  /// A subject drawing [scene] from [camera].
+  const FrameSubject({required this.scene, required this.camera});
+
+  /// The scene to draw.
+  final Scene scene;
+
+  /// The camera it is drawn from.
+  final CameraNode camera;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is FrameSubject && other.scene == scene && other.camera == camera;
+
+  @override
+  int get hashCode => Object.hash(scene, camera);
+
+  @override
+  String toString() => 'FrameSubject(scene: $scene, camera: $camera)';
+}
 
 /// A drawn frame and the size it was drawn at.
 ///
@@ -16,13 +42,46 @@ typedef FrameSubject = ({Scene scene, CameraNode camera});
 ///
 /// **`drawCalls` travels too**, off the same [FrameResult] every render
 /// already produces — `qa-14`'s own row, a test that wants to know how many
-/// draws a scene cost rather than only what it looked like.
-typedef RenderedFrame = ({
-  Uint8List pixels,
-  int width,
-  int height,
-  int drawCalls,
-});
+/// draws a scene cost rather than only what it looked like. A class, so it
+/// can carry more again without breaking a reader.
+final class RenderedFrame {
+  /// A frame of [pixels], [width] by [height] pixels, drawn in [drawCalls]
+  /// draws.
+  const RenderedFrame({
+    required this.pixels,
+    required this.width,
+    required this.height,
+    required this.drawCalls,
+  });
+
+  /// RGBA, four bytes a pixel, row by row from the top.
+  final Uint8List pixels;
+
+  /// In pixels.
+  final int width;
+
+  /// In pixels.
+  final int height;
+
+  /// How many draws the frame cost.
+  final int drawCalls;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is RenderedFrame &&
+      other.pixels == pixels &&
+      other.width == width &&
+      other.height == height &&
+      other.drawCalls == drawCalls;
+
+  @override
+  int get hashCode => Object.hash(pixels, width, height, drawCalls);
+
+  @override
+  String toString() =>
+      'RenderedFrame(pixels: $pixels, width: $width, height: $height, drawCalls: $drawCalls)';
+}
 
 /// Builds the subject, given the device its meshes have to be uploaded to.
 typedef FrameBuilder = FrameSubject Function(FrameRequest request);
@@ -34,18 +93,29 @@ typedef FrameBuilder = FrameSubject Function(FrameRequest request);
 /// anybody has written. See `AssetRequest` in the engine for the same shape and
 /// the same reason.
 final class FrameRequest {
+  /// A request to build a frame for [device].
   const FrameRequest(this.device);
 
   /// Where meshes and textures have to be uploaded.
   final GraphicsDevice device;
 }
 
-/// One frame, drawn with no GPU, as RGBA bytes.
+/// One frame, drawn with no GPU unless [device] says otherwise, as RGBA bytes.
 ///
-/// [build] is handed a software device and returns the scene and camera. It is a
+/// [build] is handed the device and returns the scene and camera. It is a
 /// callback rather than two arguments because meshes and textures have to be
 /// uploaded to *this* device: a scene built earlier against another one holds
 /// handles this renderer cannot draw.
+///
+/// **[device] opens the device the frame is drawn on**, at [width] by
+/// [height], in the one shape every backend opens in (`WebGpuDevice.open`,
+/// `GpuRenderBackend.open`, an outside backend's own): a test of a GPU
+/// backend, or of a backend from outside this repository, draws the same
+/// frame there as the software rasteriser does here. The device is opened
+/// for this frame and disposed once its pixels are read. Null, the default,
+/// is the software rasteriser with its builtin stages, which is what a CI
+/// runner with no GPU has. A test that keeps one device for many frames
+/// calls [drawOnce] with a renderer of its own.
 ///
 /// [settings] defaults to the engine's own, which is what a game runs with.
 /// Turning tone mapping off is the usual reason to pass one — a test comparing a
@@ -60,8 +130,31 @@ Future<RenderedFrame> renderFrame({
   required int height,
   required FrameBuilder build,
   RenderSettings settings = const RenderSettings(),
-  Vector4? clearColor,
+  LinearColor? clearColor,
+  BackendOpener? device,
 }) async {
+  if (device != null) {
+    final opened = await device(DeviceRequest(width: width, height: height));
+    try {
+      final renderer = Renderer.create(device: opened);
+      try {
+        return await drawOnce(
+          device: opened,
+          renderer: renderer,
+          subject: build(FrameRequest(opened)),
+          width: width,
+          height: height,
+          settings: settings,
+          clearColor: clearColor,
+        );
+      } finally {
+        renderer.dispose();
+      }
+    } finally {
+      opened.dispose();
+    }
+  }
+
   final kit = cpuTestDevice(width: width, height: height);
   final subject = build(FrameRequest(kit.device));
 
@@ -76,30 +169,13 @@ Future<RenderedFrame> renderFrame({
     fallbackNormal: kit.normal,
   );
 
-  final result = renderer.render(
+  return drawOnce(
+    device: kit.device,
+    renderer: renderer,
+    subject: subject,
     width: width,
     height: height,
-    scene: subject.scene,
-    views: <RenderView>[
-      RenderView(
-        camera: subject.camera,
-        clearColor: clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
-      ),
-    ],
     settings: settings,
-  );
-
-  final pixels = await kit.device.readPixels(result.frame);
-  if (pixels == null) {
-    throw StateError(
-      'the frame could not be read back from the software device, which has '
-      'nothing to be busy with and no driver to blame',
-    );
-  }
-  return (
-    pixels: pixels.buffer.asUint8List(),
-    width: width,
-    height: height,
-    drawCalls: result.drawCalls,
+    clearColor: clearColor,
   );
 }

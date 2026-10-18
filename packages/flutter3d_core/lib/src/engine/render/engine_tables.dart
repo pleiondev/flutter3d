@@ -13,9 +13,12 @@ import 'engine_table.dart';
 import 'tables/aces2_display.dart' as tables;
 import 'tables/blue_noise.dart' as tables;
 import 'tables/ltc.dart' as tables;
+import 'tables/smaa_area.dart' as tables;
 
 export 'engine_table.dart';
 
+/// The engine's data tables on one device, each uploaded the first time it
+/// is asked for and kept while the device lives.
 final class EngineTables {
   EngineTables._(this._device);
 
@@ -32,6 +35,7 @@ final class EngineTables {
     tables.blueNoise,
     tables.aces2Display,
     tables.ltc,
+    tables.smaaArea,
   ];
 
   /// Entries per axis of [aces2Display] — `L2`.
@@ -53,16 +57,15 @@ final class EngineTables {
   /// See `tables/ltc.dart`.
   TextureHandle get ltc => this[tables.ltc];
 
+  /// See `tables/smaa_area.dart`.
+  TextureHandle get smaaArea => this[tables.smaaArea];
+
   /// [table] on this device, uploaded now if it was not already.
-  TextureHandle operator [](EngineTable table) => _uploaded[table] ??=
-      _device.createTextureFromPixels(
+  TextureHandle operator [](EngineTable table) =>
+      _uploaded[table] ??= _device.createTextureFromPixels(
         width: table.width,
         height: table.height,
         format: table.format,
         pixels: ByteData.sublistView(table.bytes),
-      ) ??
-      (throw StateError(
-        '${table.name}: the device refused a ${table.width}×'
-        '${table.height} ${table.format.name} table',
-      ));
+      );
 }

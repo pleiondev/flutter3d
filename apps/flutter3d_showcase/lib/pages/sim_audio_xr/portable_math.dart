@@ -8,14 +8,17 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `portable-math` page: a die rolled by a `GameRandom`. Its check is
+/// that two generators seeded alike roll the same sequence.
 final class PortableMathDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Whether the die keeps rolling, 24 rolls a second.
   bool rolling = true;
   bool _rollAsked = false;
 
@@ -133,13 +136,13 @@ final class PortableMathDemo extends ShowcaseDemo {
       if (_seen.reduce(math.max) > 40) _reseed();
     }
     // The hand goes round the ring through `Portable`, not `dart:math`.
-    final ({double sin, double cos}) at = Portable.sinCos(_clock);
+    final SinCos at = Portable.sinCos(_clock);
     _hand.setPosition(2.5 * at.cos, 0.3, -1.5 + 2.5 * at.sin);
     for (var i = 0; i < 6; i++) {
       _bars[i].set(_seen[i] / 40.0);
       _barsAgain[i].set(_seenAgain[i] / 40.0);
     }
-    _lamp.material.baseColor.setValues(
+    _lamp.material.baseColor = LinearColor.fromSrgb(
       _agree ? 0.35 : 0.9,
       _agree ? 0.85 : 0.3,
       _agree ? 0.4 : 0.3,

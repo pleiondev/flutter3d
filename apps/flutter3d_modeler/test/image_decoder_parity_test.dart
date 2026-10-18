@@ -58,8 +58,7 @@ void main() {
         final path = 'test/goldens/$name';
         final fromDartUi = await _decodeWithDartUi(path);
         final ours = decodePng(File(path).readAsBytesSync());
-        expect(ours, isNotNull);
-        expect(ours!.width, fromDartUi.width);
+        expect(ours.width, fromDartUi.width);
         expect(ours.height, fromDartUi.height);
         expect(ours.rgba, orderedEquals(fromDartUi.rgba));
       });
@@ -76,8 +75,7 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/gradient_444.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
-      expect(ours!.width, fromDartUi.width);
+      expect(ours.width, fromDartUi.width);
       expect(ours.height, fromDartUi.height);
       expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
@@ -87,8 +85,7 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/solid_8x8.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
-      expect(_maxDelta(ours!.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
+      expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
 
     test('gray_16x16.jpg — single component, no chroma at all', () async {
@@ -96,8 +93,7 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/gray_16x16.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
-      expect(_maxDelta(ours!.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
+      expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
 
     // 4:2:0 — chroma is subsampled, so this decoder's own nearest-neighbour
@@ -114,21 +110,22 @@ void main() {
             '../../packages/flutter3d_core/test/formats/fixtures/gradient_420.jpg';
         final fromDartUi = await _decodeWithDartUi(path);
         final ours = decodeJpeg(File(path).readAsBytesSync());
-        expect(ours, isNotNull);
-        expect(ours!.width, fromDartUi.width);
+        expect(ours.width, fromDartUi.width);
         expect(ours.height, fromDartUi.height);
         expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(20));
       },
     );
   });
 
-  group('truncated files refuse by value, not by throwing', () {
+  // The decoders answer a damaged file with an `ImageFormatException` that
+  // says what was wrong, not a null that also meant "nothing there".
+  group('truncated files are refused with a reason', () {
     test('a JPEG cut off mid-scan', () {
       final path =
           '../../packages/flutter3d_core/test/formats/fixtures/gradient_444.jpg';
       final bytes = File(path).readAsBytesSync();
       final truncated = Uint8List.sublistView(bytes, 0, bytes.length ~/ 2);
-      expect(decodeJpeg(truncated), isNull);
+      expect(() => decodeJpeg(truncated), throwsA(isA<ImageFormatException>()));
     });
 
     test('a JPEG cut off before any scan at all', () {
@@ -136,7 +133,7 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/gradient_444.jpg';
       final bytes = File(path).readAsBytesSync();
       final truncated = Uint8List.sublistView(bytes, 0, 4);
-      expect(decodeJpeg(truncated), isNull);
+      expect(() => decodeJpeg(truncated), throwsA(isA<ImageFormatException>()));
     });
   });
 }

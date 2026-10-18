@@ -6,9 +6,11 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `exposure` page: a lantern composited at an exposure set by hand. Its
+/// check is that the frame reports the exposure asked for.
 final class ExposureDemo extends ShowcaseDemo {
+  /// The linear exposure multiplier, 0.1 to 4.
   double exposure = 2.4;
 
   @override
@@ -21,10 +23,10 @@ final class ExposureDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region scene
-    final Material lantern = Material(
+    final RenderMaterial lantern = RenderMaterial(
       name: 'lantern',
-      baseColor: Vector4(0.9, 0.85, 0.6, 1.0),
-      emissive: Vector3(2.0, 1.7, 0.9),
+      baseColor: LinearColor.fromSrgb(0.9, 0.85, 0.6, 1.0),
+      emissive: LinearColor(2.0, 1.7, 0.9),
     );
     final MeshNode box = MeshNode(
       DeviceMesh.upload(
@@ -37,7 +39,7 @@ final class ExposureDemo extends ShowcaseDemo {
     return Scene()
       ..add(box)
       ..add(
-        LightNode(name: 'sun', intensity: 1.5)
+        LightNode(name: 'sun', intensity: 1.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
     // #endregion scene

@@ -15,7 +15,11 @@ library;
 
 import 'dart:math' as math;
 
+/// A 32-bit xorshift generator whose whole state is one readable number,
+/// so a snapshot can hold it and a replay draws the same dice.
 final class GameRandom implements math.Random {
+  /// A generator from [seed], of which the low 32 bits count; a seed of
+  /// nought there is replaced by a fixed non-zero one.
   GameRandom(int seed) : _state = _seeded(seed);
 
   /// The whole generator, as one number.

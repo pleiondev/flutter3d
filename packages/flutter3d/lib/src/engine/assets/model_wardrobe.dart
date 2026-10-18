@@ -1,4 +1,5 @@
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bundle_asset_source.dart';
@@ -8,6 +9,7 @@ import 'model_asset.dart';
 /// wears it. See [ModelAssetInstantiate.instantiateFitted] for [length],
 /// [axis] and [onGround].
 final class ModelLook {
+  /// The model at [file], fitted to [length] metres along [axis].
   const ModelLook(
     this.file, {
     required this.length,
@@ -19,8 +21,16 @@ final class ModelLook {
   /// The asset path, read through whatever source [ModelWardrobe.load] is
   /// given.
   final String file;
+
+  /// How long the model is fitted to be along [axis], in metres.
   final double length;
+
+  /// Which of the model's own bounds is its length: 0 for x, 1 for y, 2 for
+  /// z. Z by default, nose to tail for a model built facing along it.
   final int axis;
+
+  /// Whether the model stands on the node's origin rather than being centred
+  /// on it. False by default.
   final bool onGround;
 
   /// Moved by this after fitting: a ship's keel set a little under the
@@ -46,6 +56,8 @@ final class ModelLook {
 /// one that holds only what is drawn: a bridged component's `visual` node,
 /// not the node a bridge moves.
 final class ModelWardrobe<K> {
+  /// A wardrobe for [looks], uploading to [device] and instantiating into
+  /// [scene]; nothing is loaded until [load] or [put].
   ModelWardrobe({
     required this.device,
     required this.scene,
@@ -53,14 +65,20 @@ final class ModelWardrobe<K> {
     this.onDressed,
   }) : looks = Map<K, ModelLook>.unmodifiable(looks);
 
+  /// The device [load] uploads each model to.
   final GraphicsDevice device;
+
+  /// The scene each model is instantiated into, under the node it dresses.
   final Scene scene;
+
+  /// Each key's model and how it is fitted, copied unmodifiable at
+  /// construction; [load] fetches the ones not yet here.
   final Map<K, ModelLook> looks;
 
   /// Called after each node is dressed, with the instance and the key: for
   /// what a game does to a model once it is on, recolouring a part to tell
   /// two roles apart, say.
-  final void Function(ModelInstance instance, K key)? onDressed;
+  final void Function(ModelDressed<K> dressed)? onDressed;
 
   final Map<K, ModelAsset> _assets = <K, ModelAsset>{};
   final Map<SceneNode, K> _worn = <SceneNode, K>{};
@@ -93,15 +111,25 @@ final class ModelWardrobe<K> {
   /// Loads every look that is not loaded yet, one at a time, and dresses
   /// what is waiting for each as it arrives. A file that fails is reported
   /// to [onError] and skipped.
+  ///
+  /// [decoders] and [lightingModels] are what the engine's plugins brought:
+  /// the formats and image codecs a look is read with, and the lit models
+  /// its materials may name (`Renderer.lightingModels`).
   Future<void> load({
     AssetSource Function(String path) source = BundleAssetSource.new,
     void Function(K key, Object error)? onError,
+    ModelDecoders? decoders,
+    LightingModels? lightingModels,
   }) async {
-    for (final MapEntry(key: key, value: look) in looks.entries) {
+    for (final MapEntry(:key, value: look) in looks.entries) {
       if (has(key)) continue;
       try {
+        final plain = ModelLoadRequest(
+          source: source(look.file),
+          lightingModels: lightingModels,
+        );
         final document = await decodeModelInIsolate(
-          ModelLoadRequest(source: source(look.file)),
+          decoders?.withDecoders(plain) ?? plain,
         );
         put(
           key,
@@ -109,6 +137,7 @@ final class ModelWardrobe<K> {
             document,
             device: device,
             name: look.file,
+            codecs: decoders?.textureCodecs,
           ),
         );
       } catch (error) {
@@ -134,6 +163,22 @@ final class ModelWardrobe<K> {
     );
     final offset = look.offset;
     if (offset != null) instance.root.translate(offset.x, offset.y, offset.z);
-    onDressed?.call(instance, key);
+    onDressed?.call(ModelDressed<K>(instance: instance, key: key));
   }
+}
+
+/// What [ModelWardrobe.onDressed] is told: the model just put on a node,
+/// and the key it was worn for.
+///
+/// **One object, so a minor can say more** (the node it went on, whether it
+/// replaced another model) without breaking a game written against 1.0.
+final class ModelDressed<K> {
+  /// [instance], worn for [key].
+  const ModelDressed({required this.instance, required this.key});
+
+  /// The model as it was put on.
+  final ModelInstance instance;
+
+  /// The part it plays.
+  final K key;
 }

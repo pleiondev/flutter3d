@@ -39,6 +39,7 @@ double _radiansOf(double degrees) => degrees * math.pi / 180.0;
 /// The shape list, its driver rows, and the per-row key dot — screen 15's
 /// whole right panel.
 class MorphsPanel extends StatelessWidget {
+  /// The panel over [object]'s shape keys.
   const MorphsPanel({
     super.key,
     required this.object,
@@ -83,6 +84,8 @@ class MorphsPanel extends StatelessWidget {
   /// Which shape a person tapped — the row this highlights, and the marker
   /// the viewport's own overlay draws `secondary` rather than `primary` for.
   final int? selectedShape;
+
+  /// A shape row was tapped, by its index on [object].
   final ValueChanged<int> onSelectShape;
 
   /// "Add driver" was pressed under shape [shapeIndex]'s own row.

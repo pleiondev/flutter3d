@@ -9,13 +9,17 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `splat-budget` page: a generated Gaussian cloud cut into a tree of
+/// levels and drawn under a budget. Its check is that what is drawn is a cut
+/// of the tree within it.
 final class SplatBudgetDemo extends ShowcaseDemo {
   /// Splats around the ring, and around the tube at each step of the ring.
   static const int _around = 60;
   static const int _tube = 40;
 
+  /// How many splats the cut may draw, from the root's count to every leaf's;
+  /// rounded into the `SplatLod`'s budget.
   double budget = 300.0;
 
   late final SplatOctree _tree;
@@ -33,20 +37,20 @@ final class SplatBudgetDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region cloud
     const int count = _around * _tube;
-    final Float32List centres = Float32List(count * 3);
-    final Float32List colours = Float32List(count * 4);
+    final Float32List centers = Float32List(count * 3);
+    final Float32List colors = Float32List(count * 4);
     final Float32List scales = Float32List(count * 3);
     final Float32List rotations = Float32List(count * 4);
     for (var i = 0; i < count; i++) {
       final double a = (i ~/ _tube) / _around * 2.0 * math.pi;
       final double b = (i % _tube) / _tube * 2.0 * math.pi;
       final double ring = 1.4 + 0.45 * math.cos(b);
-      centres.setAll(i * 3, <double>[
+      centers.setAll(i * 3, <double>[
         ring * math.cos(a),
         0.45 * math.sin(b),
         ring * math.sin(a),
       ]);
-      colours.setAll(i * 4, <double>[
+      colors.setAll(i * 4, <double>[
         0.5 + 0.5 * math.cos(a),
         0.5 + 0.5 * math.sin(b),
         0.5 - 0.5 * math.cos(a),
@@ -56,8 +60,8 @@ final class SplatBudgetDemo extends ShowcaseDemo {
       rotations[i * 4 + 3] = 1.0;
     }
     final SplatCloud cloud = SplatCloud(
-      centres: centres,
-      colours: colours,
+      centers: centers,
+      colors: colors,
       scales: scales,
       rotations: rotations,
     );
@@ -69,12 +73,12 @@ final class SplatBudgetDemo extends ShowcaseDemo {
 
     // #region contributor
     _lod = SplatLod(_tree, budget: budget.round());
-    context.renderer.addContributor(SplatContributor.lod(_lod));
+    context.renderer.renderSteps.addContributor(SplatContributor.lod(_lod));
     // #endregion contributor
 
     return Scene()
-      ..ambientColor = Vector3(0.4, 0.46, 0.6)
-      ..ambientIntensity = 0.24;
+      ..ambientColor = LinearColor(0.4, 0.46, 0.6)
+      ..ambientIntensity = 0.24 * LightNode.defaultIntensity;
   }
 
   @override

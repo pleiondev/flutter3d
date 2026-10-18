@@ -18,34 +18,36 @@ library;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-void main() => runApp(const HybridApp());
+void main() => runApp(const _HybridApp());
 
-class HybridApp extends StatelessWidget {
-  const HybridApp({super.key});
+class _HybridApp extends StatelessWidget {
+  const _HybridApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'Flame over flutter3d',
     debugShowCheckedModeBanner: false,
-    home: HybridScreen(),
+    home: _HybridScreen(),
   );
 }
 
-class HybridScreen extends StatefulWidget {
-  const HybridScreen({super.key});
+class _HybridScreen extends StatefulWidget {
+  const _HybridScreen();
 
   @override
-  State<HybridScreen> createState() => _HybridScreenState();
+  State<_HybridScreen> createState() => _HybridScreenState();
 }
 
-class _HybridScreenState extends State<HybridScreen> {
+class _HybridScreenState extends State<_HybridScreen> {
   // Made once and kept: a game made in `build` starts again on every rebuild
   // and never draws a frame.
   final HybridGame _game = HybridGame();
@@ -70,31 +72,48 @@ class _HybridScreenState extends State<HybridScreen> {
 
 /// The game. A [TransparentFlameGame], not a plain `FlameGame`: Flame paints
 /// an opaque black background by default, right over the 3D layer.
-class HybridGame extends TransparentFlameGame with KeyboardEvents {
+final class HybridGame extends TransparentFlameGame with KeyboardEvents {
   /// Flame's `y` becomes the scene's `z` on a floor half a metre up, where
   /// the cube's centre travels.
   static final BridgePlane floor = BridgePlane.ground(height: 0.5);
 
-  final CollisionWorld collisionWorld = CollisionWorld();
-  late final Dynamics dynamics = Dynamics(world: collisionWorld);
+  final CollisionWorld _collisionWorld = CollisionWorld();
+  late final Dynamics _dynamics = Dynamics(world: _collisionWorld);
 
+  /// The actions this frame, as the arrow keys left them: Flame's key events
+  /// reach it through the input bridge, and [update] reads its move axis to
+  /// steer [cube]. A test presses actions on it directly, with no keyboard.
   final InputState input = InputState();
-  late final FlameInputBridge inputBridge = FlameInputBridge(
-    bindings: Bindings(<InputSource, GameAction>{
-      InputSource.key(LogicalKeyboardKey.arrowUp.keyId): GameAction.moveForward,
-      InputSource.key(LogicalKeyboardKey.arrowDown.keyId): GameAction.moveBack,
-      InputSource.key(LogicalKeyboardKey.arrowLeft.keyId): GameAction.moveLeft,
-      InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
-          GameAction.moveRight,
-    }),
+  late final FlameInputBridge _inputBridge = FlameInputBridge(
+    actions: ActionMap(
+      actions: ActionSet.common,
+      buttons: Bindings(<InputSource, GameAction>{
+        InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
+            GameAction.moveForward,
+        InputSource.key(LogicalKeyboardKey.arrowDown.keyId):
+            GameAction.moveBack,
+        InputSource.key(LogicalKeyboardKey.arrowLeft.keyId):
+            GameAction.moveLeft,
+        InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
+            GameAction.moveRight,
+      }),
+    ),
     inputState: input,
   );
 
+  /// The cube Flame steers: its position is Flame's, in Flame's units, and the
+  /// component writes it into the scene on [floor] every update. Set by
+  /// [buildWorld].
   late final Object3dComponent cube;
+
+  /// The crate the physics drops onto the pad, four metres up to begin with and
+  /// put back there two seconds after each landing. Set by [buildWorld].
   late final RigidBody crate;
   late final Map<String, Object?> _crateStart;
-  late final engine.Material _padMaterial;
+  late final engine.RenderMaterial _padMaterial;
 
+  /// The line of text Flame draws over the 3D layer, top left: what to press,
+  /// and how many landings Flame has heard.
   final TextComponent hud = TextComponent(
     text: 'Arrow keys move the cube. Waiting for the crate.',
     position: Vector2(16.0, 16.0),
@@ -107,14 +126,18 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
 
   /// The yard, the cube, the crate and the pad, once the device is open.
   void buildWorld(GraphicsDevice device, Scene scene) {
-    MeshNode mesh(Shape shape, Vector4 colour) => MeshNode(
+    MeshNode mesh(Shape shape, Vector4 color) => MeshNode(
       DeviceMesh.upload(device, shape.build()),
-      engine.Material(name: 'mesh', baseColor: colour, roughness: 0.6),
+      engine.RenderMaterial(
+        name: 'mesh',
+        baseColor: _fromSrgb(color),
+        roughness: 0.6,
+      ),
     );
 
-    _padMaterial = engine.Material(
+    _padMaterial = engine.RenderMaterial(
       name: 'pad',
-      baseColor: Vector4(0.35, 0.4, 0.5, 1.0),
+      baseColor: LinearColor.fromSrgb(0.35, 0.4, 0.5, 1.0),
     );
     scene
       ..add(
@@ -130,14 +153,16 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
         )..setPosition(2.0, 0.025, 0.0),
       )
       ..add(
-        LightNode(intensity: 2.5)..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
+        // About 14 500 lux: a bright overcast noon.
+        LightNode(intensity: 14476.0)
+          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
 
     // The floor stops the crate; the pad is a trigger just above it, because
     // the solver rests a body on a surface and never inside it, so the floor
     // itself never reports an overlap.
-    collisionWorld.addBox(Vector3(0.0, -0.5, 0.0), Vector3(12.0, 1.0, 12.0));
-    final pad = collisionWorld.add(
+    _collisionWorld.addBox(Vector3(0.0, -0.5, 0.0), Vector3(12.0, 1.0, 12.0));
+    final pad = _collisionWorld.add(
       Collider(
         shape: CollisionBox(Vector3(1.0, 0.05, 1.0)),
         position: Vector3(2.0, 0.05, 0.0),
@@ -158,9 +183,9 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
     );
 
     // The physics moves this one, and Flame reads it.
-    crate = dynamics.add(
+    crate = _dynamics.add(
       RigidBody(
-        world: collisionWorld,
+        world: _collisionWorld,
         shape: CollisionBox(Vector3.all(0.3)),
         position: Vector3(2.0, 4.0, 0.0),
         mass: 1.0,
@@ -188,8 +213,8 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
     addAll(<Component>[
       // Stepped before the components that read the bodies it moves.
       PhysicsStepComponent(
-        dynamics: dynamics,
-        world: collisionWorld,
+        dynamics: _dynamics,
+        world: _collisionWorld,
         priority: -100,
       ),
       cube,
@@ -202,7 +227,7 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
     landings++;
     _sinceLanding = 0.0;
     hud.text = 'Flame heard the crate land ($landings)';
-    _padMaterial.baseColor.setValues(0.3, 0.8, 0.4, 1.0);
+    _padMaterial.baseColor = LinearColor.fromSrgb(0.3, 0.8, 0.4, 1.0);
   }
 
   @override
@@ -218,7 +243,7 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
       if (_sinceLanding > 2.0) {
         _sinceLanding = -1.0;
         crate.restore(_crateStart);
-        _padMaterial.baseColor.setValues(0.35, 0.4, 0.5, 1.0);
+        _padMaterial.baseColor = LinearColor.fromSrgb(0.35, 0.4, 0.5, 1.0);
       }
     }
     super.update(dt);
@@ -228,12 +253,12 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
   KeyEventResult onKeyEvent(
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
-  ) => inputBridge.onGameKeyEvent(event, keysPressed);
+  ) => _inputBridge.onGameKeyEvent(event, keysPressed);
 }
 
 /// The crate: a physics body the scene and Flame both follow, and the
 /// Flame-side collision callbacks `CollisionBridge` calls.
-class _CrateComponent extends RigidBodyComponent {
+final class _CrateComponent extends RigidBodyComponent {
   _CrateComponent({
     required super.body,
     required super.node,
@@ -253,3 +278,6 @@ class _CrateComponent extends RigidBodyComponent {
     onLanded();
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

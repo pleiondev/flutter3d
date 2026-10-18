@@ -12,18 +12,22 @@ import 'tape.dart';
 /// with would be a body from a previous run blocking the one being made, which
 /// is the one thing it must never do.
 final class Playback {
+  /// A playback of [tape].
   Playback(this.tape);
 
+  /// The recording played back, its poses in time order.
   final Tape tape;
 
   /// Fills [out] with where the body was at [time].
   ///
   /// Returns false before the lap started and after it ended, which is how the
   /// caller knows not to draw anything.
-  bool sampleAt(double time, Pose out) {
+  bool sampleAt(double time, GhostFrame out) {
     final frames = tape.poses;
     if (frames.isEmpty) return false;
-    if (time < frames.first.time || time > frames.last.time) return false;
+    if (time < frames.first.timeSeconds || time > frames.last.timeSeconds) {
+      return false;
+    }
     if (frames.length == 1) {
       out.setFrom(frames.first);
       return true;
@@ -32,8 +36,10 @@ final class Playback {
     final index = _segmentAt(time);
     final a = frames[index];
     final b = frames[index + 1];
-    final span = b.time - a.time;
-    final t = span > Tolerance.divisor ? (time - a.time) / span : 0.0;
+    final span = b.timeSeconds - a.timeSeconds;
+    final t = span > GeometryTolerance.divisor
+        ? (time - a.timeSeconds) / span
+        : 0.0;
 
     // The two beyond the segment. Curved rather than straight between samples:
     // at fifteen a second and forty metres a second the samples are nearly
@@ -69,14 +75,14 @@ final class Playback {
     // plain blend spins almost all the way round the wrong way, once a lap,
     // wherever the track happens to point south.
     out.yaw = a.yaw + shortestAngle(a.yaw, b.yaw) * t;
-    out.time = time;
+    out.timeSeconds = time;
 
     out.up
       ..setFrom(a.up)
       ..scale(1.0 - t)
       ..addScaled(b.up, t);
     final length = out.up.length;
-    if (length > Tolerance.divisor) out.up.scale(1.0 / length);
+    if (length > GeometryTolerance.divisor) out.up.scale(1.0 / length);
 
     return true;
   }
@@ -88,7 +94,7 @@ final class Playback {
     var high = frames.length - 2;
     while (low < high) {
       final middle = (low + high + 1) >> 1;
-      if (frames[middle].time <= time) {
+      if (frames[middle].timeSeconds <= time) {
         low = middle;
       } else {
         high = middle - 1;

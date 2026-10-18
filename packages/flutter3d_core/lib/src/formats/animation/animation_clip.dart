@@ -1,15 +1,35 @@
 import 'animation_track.dart';
 
+/// A named moment in an animation: [at] seconds into a clip, or a share of
+/// a state's cycle — see where it is held.
+final class AnimationMarker {
+  /// A marker called [name] at [at].
+  const AnimationMarker(this.at, this.name);
+
+  /// Seconds into a clip, or a 0..1 share of a state's cycle.
+  final double at;
+
+  /// What the moment is called, as the file wrote it: `step`, `hit`.
+  final String name;
+
+  @override
+  String toString() => 'AnimationMarker($name at $at)';
+}
+
 /// A named set of tracks that play together.
 final class AnimationClip {
+  /// A clip of [tracks], its [durationSeconds] taken from their last keyframes.
   AnimationClip({
     required this.tracks,
     this.name,
     this.extras,
-    this.referenceTime,
-  }) : duration = _durationOf(tracks);
+    this.referenceSeconds,
+  }) : durationSeconds = _durationOf(tracks);
 
+  /// The animation's name in the file; null when it has none.
   final String? name;
+
+  /// The channels the clip drives, each with its own keyframes.
   final List<AnimationTrack> tracks;
 
   /// The moment in this clip that an additive layer measures its delta from —
@@ -35,21 +55,37 @@ final class AnimationClip {
   /// read from a file has: a layer asking for an additive blend over a clip
   /// with no reference has nothing to subtract, and the player says so rather
   /// than guessing at zero.
-  final double? referenceTime;
+  final double? referenceSeconds;
 
   /// Time of the last keyframe in any track.
-  final double duration;
+  final double durationSeconds;
 
   /// glTF's own `extras` on this animation, carried opaquely — see
   /// `ModelNode.extras` for what that means and why.
   final Map<String, Object?>? extras;
 
+  /// Whether the clip has no tracks, and so moves nothing.
   bool get isEmpty => tracks.isEmpty;
+
+  /// The moments named in this clip — a foot down, a blow landing — read
+  /// from [extras] as `{"markers": [{"time": 0.3, "name": "step"}, …]}`,
+  /// seconds into the clip, earliest first. glTF has nowhere of its own to
+  /// put them; an animation's `extras` is where an exporter's custom
+  /// properties go. Empty when it names none, or names them in another way.
+  late final List<AnimationMarker> markers = () {
+    final listed = extras?['markers'];
+    if (listed is! List) return const <AnimationMarker>[];
+    return <AnimationMarker>[
+      for (final m in listed)
+        if (m is Map && m['time'] is num && m['name'] is String)
+          AnimationMarker((m['time'] as num).toDouble(), m['name'] as String),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+  }();
 
   static double _durationOf(List<AnimationTrack> tracks) {
     var longest = 0.0;
     for (final track in tracks) {
-      if (track.endTime > longest) longest = track.endTime;
+      if (track.endSeconds > longest) longest = track.endSeconds;
     }
     return longest;
   }
@@ -57,5 +93,5 @@ final class AnimationClip {
   @override
   String toString() =>
       'AnimationClip(${name ?? 'unnamed'}, ${tracks.length} tracks, '
-      '${duration.toStringAsFixed(3)}s)';
+      '${durationSeconds.toStringAsFixed(3)}s)';
 }

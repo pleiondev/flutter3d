@@ -15,24 +15,8 @@
 library;
 
 import 'package:flutter/foundation.dart' show debugPrint;
-
-/// What a library is reporting.
-///
-/// **One object rather than a bare string, so this can grow.** A function type
-/// is frozen the day it is published: adding a severity, or which subsystem
-/// spoke, means widening `void Function(String)` and breaking every sink
-/// anybody has written. Adding a field here does not.
-final class Issue {
-  const Issue(this.message);
-
-  /// What went wrong, in a sentence a person can read.
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
-typedef IssueSink = void Function(Issue issue);
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Issue, IssueSink;
 
 /// Prints and carries on: the behaviour every one of these sites had.
 void printIssue(Issue issue) => debugPrint(issue.message);
@@ -43,10 +27,16 @@ void printIssue(Issue issue) => debugPrint(issue.message);
 /// wants to assert a failure was reported rather than hunt through console
 /// output for it — which is the only reason half of these could not be tested
 /// before.
+///
+/// A caller makes one with `IssueLog()` to keep what a load or a save reports.
 final class IssueLog {
+  /// Every issue's message, oldest first.
   final List<String> issues = <String>[];
 
+  /// Whether nothing has been reported since it was made or last cleared.
   bool get isEmpty => issues.isEmpty;
+
+  /// Whether anything has been reported since it was made or last cleared.
   bool get isNotEmpty => issues.isNotEmpty;
 
   /// Pass this where an [IssueSink] is wanted.
@@ -55,5 +45,6 @@ final class IssueLog {
   /// Everything said so far, as one block, or null when nothing was.
   String? get summary => issues.isEmpty ? null : issues.join('\n');
 
+  /// Forgets everything reported so far.
   void clear() => issues.clear();
 }

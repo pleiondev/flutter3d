@@ -21,20 +21,20 @@ TrackSpline ringTrack({double radius = 70.0, int points = 20}) {
         radius * math.sin(2 * math.pi * i / points),
       ),
   ];
-  final centre = CatmullRom(positions);
+  final center = CatmullRom(positions);
   return TrackSpline(
-    centre: centre,
+    center: center,
     widths: List<double>.filled(points, 18.0),
     banks: List<double>.filled(points, 0.0),
     surfaces: <SurfaceBand>[
       SurfaceBand(
         fromS: 0.0,
-        toS: centre.length,
-        centre: 'asphalt',
+        toS: center.length,
+        center: 'asphalt',
         shoulder: 'grass',
       ),
     ],
-    checkpoints: <double>[for (var i = 1; i < 4; i++) centre.length * i / 4],
+    checkpoints: <double>[for (var i = 1; i < 4; i++) center.length * i / 4],
     grid: const StartGrid(s: -10.0, columns: 2),
   );
 }

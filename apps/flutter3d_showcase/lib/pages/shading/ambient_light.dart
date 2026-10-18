@@ -6,9 +6,13 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `ambient-light` page: a ball with one key light, its unlit side left
+/// to the ambient term. Its check is that the scene's ambient tracks the
+/// slider and that there is exactly one direct light.
 final class AmbientLightDemo extends ShowcaseDemo {
+  /// The scene's ambient intensity as a multiple of
+  /// `LightNode.defaultIntensity`, 0 to 1.
   double ambientIntensity = 0.35;
 
   late final Scene _scene;
@@ -34,7 +38,10 @@ final class AmbientLightDemo extends ShowcaseDemo {
         context.device,
         SphereShape(segments: 40, rings: 20).build(),
       ),
-      Material(baseColor: Vector4(0.7, 0.7, 0.75, 1.0), roughness: 0.6),
+      RenderMaterial(
+        baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.75, 1.0),
+        roughness: 0.6,
+      ),
       name: 'ball',
     );
 
@@ -44,11 +51,12 @@ final class AmbientLightDemo extends ShowcaseDemo {
     _scene = Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'key', intensity: 3.0)
+        LightNode(name: 'key', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.8, -0.2, -0.2)),
       )
-      ..ambientColor = Vector3(0.55, 0.65, 1.0)
-      ..ambientIntensity = ambientIntensity;
+      ..ambientColor = LinearColor(0.55, 0.65, 1.0)
+      // Lux; the slider is a share of the engine's old unit of light.
+      ..ambientIntensity = ambientIntensity * LightNode.defaultIntensity;
     // #endregion ambient
 
     return _scene;
@@ -57,7 +65,7 @@ final class AmbientLightDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region live
-    _scene.ambientIntensity = ambientIntensity;
+    _scene.ambientIntensity = ambientIntensity * LightNode.defaultIntensity;
     // #endregion live
   }
 
@@ -75,7 +83,8 @@ final class AmbientLightDemo extends ShowcaseDemo {
   @override
   void verify(Scene scene, FrameResult frame) {
     // #region check
-    if (scene.ambientIntensity != ambientIntensity) {
+    if (scene.ambientIntensity !=
+        ambientIntensity * LightNode.defaultIntensity) {
       throw StateError('the scene ambient did not track the slider');
     }
     if (scene.lights.length != 1) {

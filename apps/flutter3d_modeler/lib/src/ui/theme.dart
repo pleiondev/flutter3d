@@ -30,9 +30,17 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
 /// that checks it measures the real `RenderBox`. A literal repeated in the
 /// widget and in the test would let both drift together and still agree.
 abstract final class ModelerMetrics {
+  /// The top bar's height.
   static const double topBar = 52;
+
+  /// The tool rail's width.
   static const double rail = 52;
+
+  /// The narrowest the layout makes the properties panel.
   static const double propertiesMin = 250;
+
+  /// The widest the layout makes the properties panel; a person may drag it
+  /// wider, to [propertiesWidest].
   static const double propertiesMax = 330;
 
   /// The widest a person may drag the properties panel — `ux-27`.
@@ -43,10 +51,14 @@ abstract final class ModelerMetrics {
   /// drags it there has said so; half the window is where it stops, because
   /// past that the picture is the thing that has been folded away.
   static const double propertiesWidest = 640;
+
+  /// The status line's height.
   static const double statusBar = 30;
 
   /// A row in a properties panel, and a button on the rail.
   static const double row = 32;
+
+  /// The size every `IconButton` gets from the ambient theme, rail or not.
   static const double railButton = 36;
 
   /// `ui-05`'s own tablet shell: a narrower rail, since a tablet's own hand
@@ -137,6 +149,7 @@ abstract final class ModelerMetrics {
 /// own answers.
 @immutable
 final class ModelerColors extends ThemeExtension<ModelerColors> {
+  /// A set of the modeller's own colours. [dark] is the one it ships.
   const ModelerColors({
     required this.viewport,
     required this.gridMinor,
@@ -169,9 +182,16 @@ final class ModelerColors extends ThemeExtension<ModelerColors> {
   /// person makes about a shape is made against it.
   final Color viewport;
 
+  /// The fine lines of the viewport's floor grid.
   final Color gridMinor;
+
+  /// The heavier lines of the floor grid, every few fine ones.
   final Color gridMajor;
+
+  /// The floor grid's X axis line.
   final Color axisX;
+
+  /// The floor grid's Z axis line.
   final Color axisZ;
 
   /// An edge of the mesh in the wireframe.

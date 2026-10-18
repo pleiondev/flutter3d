@@ -8,14 +8,16 @@ import 'package:flutter3d_showcase/src/catalog/feature.dart';
 /// "since 0.5.0", coloured by the minor version so a run of pages reads as a
 /// timeline. The tooltip is the line of the CHANGELOG the tag was read from.
 class VersionChip extends StatelessWidget {
+  /// A chip for [feature]'s version.
   const VersionChip(this.feature, {super.key});
 
+  /// The page whose `since` the chip shows.
   final Feature feature;
 
   @override
   Widget build(BuildContext context) {
     final int minor = int.tryParse(feature.since.split('.')[1]) ?? 0;
-    final Color colour = HSLColor.fromAHSL(
+    final Color color = HSLColor.fromAHSL(
       1,
       (minor * 47.0) % 360,
       0.55,
@@ -29,13 +31,13 @@ class VersionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          border: Border.all(color: colour),
+          border: Border.all(color: color),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: colour,
+            color: color,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -47,8 +49,11 @@ class VersionChip extends StatelessWidget {
 
 /// A line that says what this device cannot do for the page, or nothing.
 class BackendNotice extends StatelessWidget {
+  /// A notice listing [lines], or nothing when it is empty.
   const BackendNotice({super.key, required this.lines});
 
+  /// One sentence for each thing this device declined, as the stage collected
+  /// them from the last frame.
   final List<String> lines;
 
   @override

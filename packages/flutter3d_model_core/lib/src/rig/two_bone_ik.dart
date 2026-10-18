@@ -17,25 +17,30 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
-
-import 'portable_math.dart';
 
 /// The result of one [solveTwoBoneIk] call: the corrected *local* rotations
 /// for `root` and `mid` — `tip` never rotates, the same convention its own
 /// engine namesake uses.
-class TwoBoneIkResult {
+final class TwoBoneIkResult {
+  /// A result rotating `root` by [rootLocalRotation] and `mid` by
+  /// [midLocalRotation], missing the target by [reachError] metres.
   const TwoBoneIkResult({
     required this.rootLocalRotation,
     required this.midLocalRotation,
     required this.reachError,
   });
 
+  /// New rotation of `root` relative to its parent.
   final Quaternion rootLocalRotation;
+
+  /// New rotation of `mid` relative to `root`.
   final Quaternion midLocalRotation;
 
   /// Distance between where `tip` actually lands and the requested target —
   /// zero within floating-point error whenever the target was in reach.
+  /// In metres.
   final double reachError;
 }
 

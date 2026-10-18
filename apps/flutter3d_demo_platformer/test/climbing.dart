@@ -24,6 +24,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -48,7 +49,7 @@ final class Climb {
 
   final EntityRegistry kinds = platformerRegistry();
   late final Staged staged;
-  Dynamics get dynamics => staged.dynamics;
+  RigidDynamics get dynamics => staged.dynamics;
   MechanismWorld get mechanisms => staged.mechanisms;
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
@@ -77,7 +78,7 @@ final class Climb {
       ..addAll(want);
     final to = goal - runner.position;
     sim.cameraYaw = math.atan2(to.x, to.z);
-    sim.step(_dt);
+    staged.step(_dt);
     input.endStep();
   }
 

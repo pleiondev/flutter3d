@@ -14,14 +14,20 @@
 /// project having no honest replay form — this one always *could* be; it
 /// only stayed out while wiring an MCP tool for it was later,
 /// app-integration work. That work is the `applyClipResult` tool in
-/// `flutter3d_model_mcp`'s own `model_tools.dart` now, so a cold
+/// `flutter3d_mcp/model.dart`'s own `model_tools.dart` now, so a cold
 /// `CommandJournal` replay past a retarget/IK-bake/shape-driver-bake step
 /// no longer refuses for want of a name this build did not know.
 part of 'command.dart';
 
+/// Writes a clip a background rig job baked into [ModelProject.clips],
+/// appending it or replacing one at [clipIndex].
+///
+/// Refused when [clipIndex] names no clip of the project.
 final class ApplyClipResult extends ModelCommand {
+  /// A step writing [clip], appended when [clipIndex] is null.
   const ApplyClipResult({required this.clip, this.clipIndex});
 
+  /// The baked clip as the job answered it.
   final ProjectClip clip;
 
   /// Null appends [clip] as a new one; given, replaces the clip already at
@@ -59,8 +65,8 @@ final class ApplyClipResult extends ModelCommand {
 
 Map<String, Object?> _trackToJson(AnimationTrack track) => <String, Object?>{
   'nodeIndex': track.nodeIndex,
-  'path': track.path.name,
-  'interpolation': track.interpolation.name,
+  'path': animationPathWord(track.path),
+  'interpolation': interpolationWord(track.interpolation),
   'times': track.times.toList(),
   'values': track.values.toList(),
   'componentCount': track.componentCount,

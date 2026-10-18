@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 
 /// Which of the renderer's own debug outputs a frame is asked for — the four
 /// ways `RenderSettings` already knows how to answer "why is the frame
@@ -25,7 +24,55 @@ import 'package:vector_math/vector_math.dart';
 /// cube atlases the point-shadow pass fills. A per-node texture, a per-cascade
 /// break-out and an overdraw counter are none of them anywhere in
 /// `RenderSettings`, and building them is a wider spike than this one.
-enum DiagnosticView { lit, normals, shadowMap, staticShadowMap }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class DiagnosticView {
+  const DiagnosticView._(this.name);
+
+  /// The ordinary frame, lit and composited as a game draws it.
+  static const DiagnosticView lit = DiagnosticView._('lit');
+
+  /// The surface buffer: an octahedral normal in the first two channels,
+  /// roughness in the third and view depth in metres in the fourth.
+  static const DiagnosticView normals = DiagnosticView._('normals');
+
+  /// The shadow cube atlas the moving things are redrawn into every frame,
+  /// or the directional shadow map when there is no cube.
+  static const DiagnosticView shadowMap = DiagnosticView._('shadowMap');
+
+  /// The shadow cube atlas of the things that never move, drawn once at
+  /// load.
+  static const DiagnosticView staticShadowMap = DiagnosticView._(
+    'staticShadowMap',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<DiagnosticView> values = <DiagnosticView>[
+    lit,
+    normals,
+    shadowMap,
+    staticShadowMap,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static DiagnosticView? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'DiagnosticView.$name';
+}
 
 RenderSettings _settingsFor(DiagnosticView view) => switch (view) {
   DiagnosticView.lit => const RenderSettings(),
@@ -42,6 +89,7 @@ RenderSettings _settingsFor(DiagnosticView view) => switch (view) {
   DiagnosticView.staticShadowMap => const RenderSettings(
     showStaticShadowMap: true,
   ),
+  _ => throw UnsupportedError('no render settings show $view'),
 };
 
 /// One rendered frame, read back two ways: [png] is what a person or a model
@@ -49,6 +97,8 @@ RenderSettings _settingsFor(DiagnosticView view) => switch (view) {
 /// texture, before [CpuDevice.readPixels]'s clamp to 8 bits throws away
 /// everything a depth or a NaN needed.
 final class DiagnosticFrame {
+  /// One frame of [view], [width] by [height] pixels, as [png] and as
+  /// [raw]; made by the renderer.
   const DiagnosticFrame({
     required this.view,
     required this.width,
@@ -58,9 +108,17 @@ final class DiagnosticFrame {
     required this.passes,
   });
 
+  /// Which of the renderer's outputs the frame shows.
   final DiagnosticView view;
+
+  /// The frame's width in pixels.
   final int width;
+
+  /// The frame's height in pixels.
   final int height;
+
+  /// The frame as a PNG, clamped to 8 bits a channel: what a person or a
+  /// model looks at.
   final Uint8List png;
 
   /// RGBA floats, row-major from the top — [CpuDevice.readHdrPixels]'s own
@@ -87,17 +145,52 @@ final class DiagnosticFrame {
   /// ordinary, and not what this looks for; a target nothing wrote is a
   /// different, and much easier, question a caller can put to [rawAt](0, 0)
   /// once instead.
-  ({int x, int y, int channel})? firstNonFinite() {
+  NonFinitePixel? firstNonFinite() {
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
         final i = y * _stride + x * 4;
         for (var c = 0; c < 4; c++) {
-          if (!raw[i + c].isFinite) return (x: x, y: y, channel: c);
+          if (!raw[i + c].isFinite) {
+            return NonFinitePixel(x: x, y: y, channel: c);
+          }
         }
       }
     }
     return null;
   }
+}
+
+/// A pixel of a [DiagnosticFrame] with a channel that is not finite: what
+/// [DiagnosticFrame.firstNonFinite] answers.
+final class NonFinitePixel {
+  /// The pixel at column [x] and row [y] whose [channel] is not finite.
+  const NonFinitePixel({
+    required this.x,
+    required this.y,
+    required this.channel,
+  });
+
+  /// The pixel's column, from the left.
+  final int x;
+
+  /// The pixel's row, from the top.
+  final int y;
+
+  /// Which channel is not finite: 0 to 3 for R, G, B and A.
+  final int channel;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NonFinitePixel &&
+      other.x == x &&
+      other.y == y &&
+      other.channel == channel;
+
+  @override
+  int get hashCode => Object.hash(x, y, channel);
+
+  @override
+  String toString() => 'NonFinitePixel($x, $y, channel $channel)';
 }
 
 /// Decodes [DiagnosticView.normals]'s R and G channels back into a unit
@@ -127,19 +220,39 @@ Vector3 decodeOctahedralNormal(double r, double g) {
 /// package's own tests) decides what the level is allowed to spawn, and
 /// this package never needs to know.
 final class DiagnosticRenderer {
-  DiagnosticRenderer._(this._device, this._renderer, this._scene);
+  DiagnosticRenderer._(
+    this._device,
+    this._renderer,
+    this._scene, {
+    this.issues = const <LevelIssue>[],
+  });
+
+  /// What the loader said about the level as it read it: a texture it could
+  /// not load (or that [open]'s root refused), a field it did not know.
+  final List<LevelIssue> issues;
 
   final CpuDevice _device;
   final Renderer _renderer;
   final Scene _scene;
 
+  /// The width of every frame drawn, in pixels.
   static const int width = 320;
+
+  /// The height of every frame drawn, in pixels.
   static const int height = 200;
 
+  ///
+  /// Every file the level names — a document it includes, a texture — is
+  /// read through [root] and refused outside it, the project around
+  /// [levelPath] when not given: a level is somebody's file, and its
+  /// `"/Users/x/.ssh/id_rsa"` or `"../../../etc/passwd"` is a read the
+  /// person opening it never asked for.
   static Future<DiagnosticRenderer> open(
     String levelPath, {
     required EntityRegistry registry,
+    ProjectRoot? root,
   }) async {
+    final inside = root ?? ProjectRoot.around(levelPath);
     final it = cpuTestDevice(width: width, height: height);
     const marker = '/assets/levels/';
     final markerAt = levelPath.indexOf(marker);
@@ -151,12 +264,15 @@ final class DiagnosticRenderer {
       device: it.device,
       registry: registry,
       sidecars: false,
-      readDocument: (request) => File(request.uri).readAsString(),
+      readDocument: (request) =>
+          File(inside.resolve(request.uri)).readAsString(),
       readAsset: (request) async {
         final path = request.uri.startsWith('/')
             ? request.uri
             : '$assetRoot/${request.uri}';
-        return ByteData.sublistView(await File(path).readAsBytes());
+        return ByteData.sublistView(
+          await File(inside.resolve(path)).readAsBytes(),
+        );
       },
     );
     return DiagnosticRenderer._(
@@ -167,10 +283,42 @@ final class DiagnosticRenderer {
         fallbackNormal: it.normal,
       ),
       loaded.scene,
+      issues: List<LevelIssue>.unmodifiable(loaded.issues),
     );
   }
 
-  /// One frame, from [at] looking at [aim], in [view].
+  /// How far, in metres, the eye may be from the scene's origin before
+  /// [frameFrom] moves the origin to it: a kilometre, where float32 holds a
+  /// tenth of a millimetre.
+  static const double rebaseBeyond = 1000.0;
+
+  /// One frame from [eye], a place in the world in doubles, looking along
+  /// [aim], in [view].
+  ///
+  /// **The eye goes through the scene's own origin**, not the default one:
+  /// past [rebaseBeyond] the scene's origin is first moved to the eye,
+  /// rounded to whole metres (`Scene.rebaseAround`'s rule), so the camera
+  /// is narrowed to float32 near zero rather than at its distance from the
+  /// world's origin, where float32 steps are a metre at 10 000 km.
+  Future<DiagnosticFrame> frameFrom({
+    required WorldPosition eye,
+    required Vector3 aim,
+    DiagnosticView view = DiagnosticView.lit,
+  }) {
+    if (eye.distanceSquaredTo(_scene.origin) > rebaseBeyond * rebaseBeyond) {
+      _scene.shiftOrigin(
+        WorldPosition(
+          eye.x.roundToDouble(),
+          eye.y.roundToDouble(),
+          eye.z.roundToDouble(),
+        ),
+      );
+    }
+    return frame(at: _scene.toScene(eye), aim: aim, view: view);
+  }
+
+  /// One frame, from [at] — in the scene's own space, an offset from its
+  /// origin — looking at [aim], in [view].
   Future<DiagnosticFrame> frame({
     required Vector3 at,
     required Vector3 aim,
@@ -178,7 +326,7 @@ final class DiagnosticRenderer {
   }) async {
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.2,
+        fovY: 1.2,
         near: 0.05,
         far: 200.0,
       ),
@@ -190,16 +338,16 @@ final class DiagnosticRenderer {
         width: width,
         height: height,
         scene: _scene,
-        views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        views: <CameraView>[
+          CameraView(
+            camera: camera,
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: _settingsFor(view),
       );
       final raw = _device.readHdrPixels(result.frame);
-      final pixels = await _device.readPixels(result.frame);
-      if (pixels == null) {
-        throw StateError('the frame could not be read back');
-      }
+      final pixels = await _device.readback(result.frame);
       return DiagnosticFrame(
         view: view,
         width: width,

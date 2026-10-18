@@ -1,28 +1,51 @@
 import 'dart:typed_data';
+import '../format_exceptions.dart';
 
 /// glTF primitive topology.
 ///
 /// The conversion to a triangle list lives here rather than as a static helper on
 /// the loader: it is entirely determined by the topology, and keeping it on the
 /// enum means the switch is exhaustive by construction.
+///
+/// **Closed for good**: glTF 2.0's seven primitive modes, numbered by the
+/// format: the specification is versioned, and a file naming an eighth is not
+/// glTF 2.0. No member can be added without changing what the type means, so it
+/// stays an enum and a `switch` over it may name every case.
 enum GltfPrimitiveMode {
+  /// Each index a point; makes no triangles.
   points(0),
+
+  /// Each pair of indices a line; makes no triangles.
   lines(1),
+
+  /// A closed polyline through the indices; makes no triangles.
   lineLoop(2),
+
+  /// An open polyline through the indices; makes no triangles.
   lineStrip(3),
+
+  /// Each three indices a triangle, the default.
   triangles(4),
+
+  /// A triangle for each index after the first two, sharing an edge with
+  /// the one before.
   triangleStrip(5),
+
+  /// A triangle for each index after the first two, all sharing the first.
   triangleFan(6);
 
   const GltfPrimitiveMode(this.code);
 
+  /// The number glTF's `primitive.mode` writes for this topology.
   final int code;
 
+  /// Returns the mode glTF numbers [code]. Throws a [GltfFormatException]
+  /// for a number outside nought to six.
   static GltfPrimitiveMode fromCode(int code) {
     for (final value in values) {
       if (value.code == code) return value;
     }
-    throw FormatException('Unknown glTF primitive mode $code.');
+    throw GltfFormatException('Unknown glTF primitive mode $code.');
   }
 
   /// Whether this topology produces triangles at all.

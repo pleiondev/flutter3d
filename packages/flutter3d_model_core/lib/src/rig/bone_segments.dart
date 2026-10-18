@@ -1,7 +1,7 @@
 /// [boneSegmentsOf]: a [RetargetRig] read as [BoneSegment]s, for a caller
 /// about to call [bindWeights] — `anim-33d`'s own row, screen 16's auto-rig
 /// wiring `bindWeightsJobRequestFor` to whatever composition
-/// `RigBuildOptions` just built.
+/// `RigBuildSettings` just built.
 ///
 /// `rig_job.dart` one directory up builds `BindWeightsJobRequest` — the
 /// actual job, holding a `ModelProject`'s own mesh bytes — and this file
@@ -28,7 +28,7 @@ import 'retarget.dart';
 /// **A joint's own parent need not itself be one of [rig]'s own joints.**
 /// [RetargetRig]'s own class comment already names why a rig carries more
 /// nodes than joints — "an armature root, an empty the whole rig is
-/// parented to" — and `anim-33d`'s own `RigBuildOptions.controllers` is
+/// parented to" — and `anim-33d`'s own `RigBuildSettings.controllers` is
 /// exactly that case: a socket parent `rig_template.dart`'s own
 /// `buildSkeleton` hangs a template's root joint from without ever listing
 /// it as a joint itself. Walking up through [rig] itself (not through

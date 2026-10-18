@@ -8,11 +8,12 @@
 library;
 
 import 'package:flutter/material.dart' as m show Material;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 /// The banner, and the button that makes the mesh.
 class NoMeshBanner extends StatelessWidget {
+  /// A banner for [object]; it decides from that alone what to say.
   const NoMeshBanner({
     super.key,
     required this.object,
@@ -52,6 +53,7 @@ class NoMeshBanner extends StatelessWidget {
           button: null,
         ),
         EditedGeometry() => (said: '', button: null),
+        _ => (said: 'This object cannot be edited as a mesh', button: null),
       };
 
   @override

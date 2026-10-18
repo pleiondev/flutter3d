@@ -22,9 +22,9 @@ typedef BrushFace = ({
   Vector3 normal,
   Vector3 u,
   Vector3 v,
-  double centreX,
-  double centreY,
-  double centreZ,
+  double centerX,
+  double centerY,
+  double centerZ,
   double halfU,
   double halfV,
 });
@@ -50,8 +50,12 @@ typedef BrushFace = ({
 /// generator that removed those would eventually remove one that was visible,
 /// and a hole in a wall is far worse than a triangle nobody sees.
 final class BrushGeometry {
+  /// A builder that drops hidden faces and indexes brushes in 8-metre
+  /// cells, unless told otherwise.
   const BrushGeometry({this.cullHiddenFaces = true, this.cellSize = 8.0});
 
+  /// Whether a face whose centre is strictly inside another solid brush is
+  /// left out.
   final bool cullHiddenFaces;
 
   /// Cell side for the index used to find neighbouring brushes.
@@ -63,14 +67,37 @@ final class BrushGeometry {
   /// counter-clockwise seen from outside. Get one of these wrong and the face
   /// is culled as a back face, which looks like a hole rather than like a
   /// winding error.
-  static final List<(Vector3, Vector3, Vector3)>
-  faceAxes = <(Vector3, Vector3, Vector3)>[
-    (Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0), Vector3(0.0, 1.0, 0.0)),
-    (Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0)),
-    (Vector3(0.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0)),
-    (Vector3(0.0, -1.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0)),
-    (Vector3(0.0, 0.0, 1.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
-    (Vector3(0.0, 0.0, -1.0), Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
+  static final List<BrushFaceAxes> faceAxes = <BrushFaceAxes>[
+    BrushFaceAxes(
+      normal: Vector3(1.0, 0.0, 0.0),
+      u: Vector3(0.0, 0.0, -1.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(-1.0, 0.0, 0.0),
+      u: Vector3(0.0, 0.0, 1.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, 1.0, 0.0),
+      u: Vector3(1.0, 0.0, 0.0),
+      v: Vector3(0.0, 0.0, -1.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, -1.0, 0.0),
+      u: Vector3(1.0, 0.0, 0.0),
+      v: Vector3(0.0, 0.0, 1.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, 0.0, 1.0),
+      u: Vector3(1.0, 0.0, 0.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
+    BrushFaceAxes(
+      normal: Vector3(0.0, 0.0, -1.0),
+      u: Vector3(-1.0, 0.0, 0.0),
+      v: Vector3(0.0, 1.0, 0.0),
+    ),
   ];
 
   /// One surface per material actually used, per answer about shadows — and,
@@ -112,7 +139,8 @@ final class BrushGeometry {
   }) {
     final builders = <String, SurfaceBuilder>{};
 
-    // Keyed by material and by the shadow answer, because a batch is the
+    // Keyed by material, by the draw order — `P7` — and by the shadow
+    // answer, because a batch is the
     // smallest thing that can be taken out of the shadow pass — and by the
     // cell, when there is a table to say which cell a face is in. A level
     // with no fences and no table produces exactly the batches it always did.
@@ -120,12 +148,20 @@ final class BrushGeometry {
       final brush = level.brushes[index];
       final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
       final own = perBrush ? '|#$index' : '';
-      final key = '${brush.material}|${brush.shadowCasting.name}|$slot$own';
+      final layer = brush.depthLayerIn(level.materialFor(brush));
+      // And by the depth layer, which a batch draws with as one: written
+      // only when it is not nought, so the keys of a level without layers
+      // are the keys they always were.
+      final key =
+          '${brush.material}|${brush.shadowCasting.name}|$slot$own'
+          '|${brush.drawOrder}${layer == 0 ? '' : '|L$layer'}';
       return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(
           brush.material,
           shadowCasting: brush.shadowCasting,
+          drawOrder: brush.drawOrder,
+          depthLayer: layer,
           lightmapped: lightmap != null,
           brush: perBrush ? index : null,
         ),
@@ -144,7 +180,7 @@ final class BrushGeometry {
       final planned = layout.faceOf(origins[face.brush], face.face);
       final kept =
           planned != null &&
-          layout.isOnPlane(planned, face.centreX, face.centreY, face.centreZ);
+          layout.isOnPlane(planned, face.centerX, face.centerY, face.centerZ);
       return (kept ? planned : null, true);
     }
 
@@ -154,7 +190,7 @@ final class BrushGeometry {
       _emitFace(
         face,
         level.materialFor(brush),
-        builderFor(face.brush, face.centreX, face.centreY, face.centreZ),
+        builderFor(face.brush, face.centerX, face.centerY, face.centerZ),
         lightmap,
         placed,
         measured: measured,
@@ -164,12 +200,12 @@ final class BrushGeometry {
       final brush = level.brushes[index];
       final ramp = brush.ramp;
       if (ramp == null) continue;
-      final centre = brush.centre;
+      final center = brush.center;
       _emitRamp(
         brush,
         ramp,
         level.materialFor(brush),
-        builderFor(index, centre.x, centre.y, centre.z),
+        builderFor(index, center.x, center.y, center.z),
         lightmap,
       );
     }
@@ -193,7 +229,7 @@ final class BrushGeometry {
       final half = brush.halfExtents;
       final ramp = brush.ramp;
       for (var f = 0; f < faceAxes.length; f++) {
-        final (normal, u, v) = faceAxes[f];
+        final BrushFaceAxes(:normal, :u, :v) = faceAxes[f];
         // A ramp keeps two of the block's six faces — the floor and the wall
         // at the top of the climb — loses the one at the thin end entirely,
         // and trades the other three for a slope and two triangles.
@@ -203,11 +239,11 @@ final class BrushGeometry {
             normal.x.abs() * half.x +
             normal.y.abs() * half.y +
             normal.z.abs() * half.z;
-        final centreX = brush.centre.x + normal.x * offset;
-        final centreY = brush.centre.y + normal.y * offset;
-        final centreZ = brush.centre.z + normal.z * offset;
+        final centerX = brush.center.x + normal.x * offset;
+        final centerY = brush.center.y + normal.y * offset;
+        final centerZ = brush.center.z + normal.z * offset;
         if (cullHiddenFaces &&
-            index.containsPoint(centreX, centreY, centreZ, brush)) {
+            index.containsPoint(centerX, centerY, centerZ, brush)) {
           continue;
         }
         yield (
@@ -216,9 +252,9 @@ final class BrushGeometry {
           normal: normal,
           u: u,
           v: v,
-          centreX: centreX,
-          centreY: centreY,
-          centreZ: centreZ,
+          centerX: centerX,
+          centerY: centerY,
+          centerZ: centerZ,
           // Half the face, measured along its own two axes.
           halfU: u.x.abs() * half.x + u.y.abs() * half.y + u.z.abs() * half.z,
           halfV: v.x.abs() * half.x + v.y.abs() * half.y + v.z.abs() * half.z,
@@ -235,13 +271,13 @@ final class BrushGeometry {
     LightmapFace? placed, {
     required bool measured,
   }) {
-    final scale = material.texelsPerMetre;
+    final scale = material.texelsPerMeter;
     final normal = face.normal;
     final u = face.u;
     final v = face.v;
-    final centreX = face.centreX;
-    final centreY = face.centreY;
-    final centreZ = face.centreZ;
+    final centerX = face.centerX;
+    final centerY = face.centerY;
+    final centerZ = face.centerZ;
     final halfU = face.halfU;
     final halfV = face.halfV;
 
@@ -252,14 +288,14 @@ final class BrushGeometry {
       (1.0, 1.0),
       (-1.0, 1.0),
     ]) {
-      final x = centreX + u.x * halfU * su + v.x * halfV * sv;
-      final y = centreY + u.y * halfU * su + v.y * halfV * sv;
-      final z = centreZ + u.z * halfU * su + v.z * halfV * sv;
-      final (lu, lv) = switch ((lightmap, placed)) {
+      final x = centerX + u.x * halfU * su + v.x * halfV * sv;
+      final y = centerY + u.y * halfU * su + v.y * halfV * sv;
+      final z = centerZ + u.z * halfU * su + v.z * halfV * sv;
+      final LightmapUv(u: lu, v: lv) = switch ((lightmap, placed)) {
         (final layout?, final at?) =>
           measured ? layout.uvOfPoint(at, x, y, z) : layout.uvAt(at, su, sv),
         (final layout?, null) => layout.neutralUv,
-        _ => (0.0, 0.0),
+        _ => const LightmapUv(u: 0.0, v: 0.0),
       };
 
       out.addVertex(
@@ -306,11 +342,12 @@ final class BrushGeometry {
     LightmapLayout? lightmap,
   ) {
     final half = brush.halfExtents;
-    final centre = brush.centre;
-    final scale = material.texelsPerMetre;
+    final center = brush.center;
+    final scale = material.texelsPerMeter;
     final axis = uphill.axis;
     final side = axis == 0 ? 2 : 0;
-    final (lightmapU, lightmapV) = lightmap?.neutralUv ?? (0.0, 0.0);
+    final LightmapUv(u: lightmapU, v: lightmapV) =
+        lightmap?.neutralUv ?? const LightmapUv(u: 0.0, v: 0.0);
 
     // The slope is a rectangle centred on the brush's own centre, because the
     // cut runs corner to corner. Its two axes are the side of the brush and the
@@ -329,9 +366,9 @@ final class BrushGeometry {
       (1.0, 1.0),
       (-1.0, 1.0),
     ]) {
-      final x = centre.x + u.x * halfU * su + v.x * halfV * sv;
-      final y = centre.y + u.y * halfU * su + v.y * halfV * sv;
-      final z = centre.z + u.z * halfU * su + v.z * halfV * sv;
+      final x = center.x + u.x * halfU * su + v.x * halfV * sv;
+      final y = center.y + u.y * halfU * su + v.y * halfV * sv;
+      final z = center.z + u.z * halfU * su + v.z * halfV * sv;
       out.addVertex(
         x,
         y,
@@ -352,14 +389,14 @@ final class BrushGeometry {
 
     // The two ends, which are right-angled triangles: along the floor from the
     // thin edge to the tall end, and up the tall end to the top of the slope.
-    final thin = centre[axis] - uphill.sign * half[axis];
-    final tall = centre[axis] + uphill.sign * half[axis];
-    final bottom = centre.y - half.y;
-    final top = centre.y + half.y;
+    final thin = center[axis] - uphill.sign * half[axis];
+    final tall = center[axis] + uphill.sign * half[axis];
+    final bottom = center.y - half.y;
+    final top = center.y + half.y;
 
     for (final outward in <double>[-1.0, 1.0]) {
       final faceNormal = Vector3.zero()..[side] = outward;
-      final at = centre[side] + outward * half[side];
+      final at = center[side] + outward * half[side];
       final corners = <Vector3>[
         _at(axis, side, thin, bottom, at),
         _at(axis, side, tall, bottom, at),
@@ -415,4 +452,34 @@ final class BrushGeometry {
     point[side] = across;
     return point;
   }
+}
+
+/// One of a block's six faces as [BrushGeometry.faceAxes] lists it: the
+/// outward normal and the two axes across the face, all unit vectors, with
+/// `cross(u, v) == normal`.
+final class BrushFaceAxes {
+  /// A face facing [normal], with [u] and [v] across it.
+  const BrushFaceAxes({required this.normal, required this.u, required this.v});
+
+  /// The face's outward normal, a unit vector in the block's frame.
+  final Vector3 normal;
+
+  /// The face's first axis across it, a unit vector.
+  final Vector3 u;
+
+  /// The face's second axis across it, a unit vector.
+  final Vector3 v;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BrushFaceAxes &&
+      other.normal == normal &&
+      other.u == u &&
+      other.v == v;
+
+  @override
+  int get hashCode => Object.hash(normal, u, v);
+
+  @override
+  String toString() => 'BrushFaceAxes(normal: $normal, u: $u, v: $v)';
 }

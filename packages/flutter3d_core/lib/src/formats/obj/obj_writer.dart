@@ -29,6 +29,8 @@ import '../model_document.dart';
 /// reports it. Refusing would force every caller through a result type to guard
 /// a case the format represents.
 final class ObjWriter {
+  /// A writer for [document] under the base [name], six decimals a number
+  /// and V flipped as `ObjLoader` expects, unless told otherwise.
   ObjWriter(
     this.document, {
     this.name = 'model',
@@ -36,6 +38,7 @@ final class ObjWriter {
     this.flipTexcoordV = true,
   });
 
+  /// The model written; read, never changed.
   final ModelDocument document;
 
   /// The base name, without a suffix: it names the `.mtl` and appears in the
@@ -281,15 +284,15 @@ final class ObjWriter {
         ..writeln()
         ..writeln('newmtl ${names[i]}')
         ..writeln(
-          'Kd ${_number(material.baseColor.x)} '
-          '${_number(material.baseColor.y)} '
-          '${_number(material.baseColor.z)}',
+          'Kd ${_number(material.baseColor.toSrgb().r)} '
+          '${_number(material.baseColor.toSrgb().g)} '
+          '${_number(material.baseColor.toSrgb().b)}',
         )
         ..writeln(
           'Ks ${_number(specular)} ${_number(specular)} ${_number(specular)}',
         )
         ..writeln('Ns ${_number(exponent)}')
-        ..writeln('d ${_number(material.baseColor.w)}');
+        ..writeln('d ${_number(material.baseColor.a)}');
 
       // Only when the image remembers where it came from. A writer that
       // invented `material_0.png` would put a filename in the library that
@@ -363,7 +366,7 @@ final class ObjWriter {
   /// Names for `newmtl`, parallel to `document.materials`.
   ///
   /// Made unique, because a `.mtl` library is keyed by name on the way back in:
-  /// two materials both called `Material` would collapse to one entry and every
+  /// two materials both called `RenderMaterial` would collapse to one entry and every
   /// surface using the first would silently draw with the second. Two materials
   /// sharing a name is ordinary in an exported scene, not a corner case.
   List<String> _buildMaterialNames() {

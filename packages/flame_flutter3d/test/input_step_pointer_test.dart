@@ -9,7 +9,8 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,7 +18,10 @@ const GameAction _fire = GameAction('fire');
 const GameAction _hop = GameAction('hop');
 
 FlameInputBridge _bridge() => FlameInputBridge(
-  bindings: Bindings(<InputSource, GameAction>{}),
+  actions: ActionMap(
+    actions: ActionSet.common,
+    buttons: Bindings(<InputSource, GameAction>{}),
+  ),
   inputState: InputState(),
 );
 

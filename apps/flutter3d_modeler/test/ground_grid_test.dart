@@ -20,17 +20,17 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_modeler/src/ground_grid.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// An overlay that knows where the camera is, with the depth nudge switched off
 /// unless a test is about the nudge — a grid vertex is then exactly where the
 /// builder put it, and a position can be compared to a whole number.
 MeshOverlay _overlay({required Vector3 eye, double biasPixels = 0}) {
   final overlay = MeshOverlay(
-    vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
-    fragmentShader: const ShaderHandle(backend: 1, name: 'DebugLine'),
+    vertexShader: wrapShader(backend: 0, name: 'DebugLineVertex'),
+    fragmentShader: wrapShader(backend: 1, name: 'DebugLine'),
   )..biasPixels = biasPixels;
   overlay.lookFrom(
     eye: eye,
@@ -132,13 +132,13 @@ void main() {
       final overlay = _overlay(eye: eye);
 
       grid.writeInto(overlay, eye: eye, fadeRadius: 1000);
-      final colours = _coloursOf(overlay.lines);
+      final colors = _coloursOf(overlay.lines);
       final counted = <int, int>{};
-      for (final colour in colours) {
-        counted[colour] = (counted[colour] ?? 0) + 1;
+      for (final color in colors) {
+        counted[color] = (counted[color] ?? 0) + 1;
       }
 
-      expect(colours, contains(0xFF2A3234));
+      expect(colors, contains(0xFF2A3234));
       // The ordinary line is the commonest thing on the floor, so a grid whose
       // ordinary lines were some other colour would show it here even if
       // #2A3234 appeared somewhere as an axis or a tenth.
@@ -159,7 +159,7 @@ void main() {
 
       grid.writeInto(overlay, eye: eye, fadeRadius: 1000);
       final positions = _positionsOf(overlay.lines);
-      final colours = _coloursOf(overlay.lines);
+      final colors = _coloursOf(overlay.lines);
 
       // A segment at a time, because a vertex of a line running along Z sits at
       // z == 0 once without that line being the X axis.
@@ -168,8 +168,8 @@ void main() {
       for (var v = 0; v < positions.length; v += 2) {
         final from = positions[v];
         final to = positions[v + 1];
-        if (from.z == 0 && to.z == 0) alongX.add(colours[v]);
-        if (from.x == 0 && to.x == 0) alongZ.add(colours[v]);
+        if (from.z == 0 && to.z == 0) alongX.add(colors[v]);
+        if (from.x == 0 && to.x == 0) alongZ.add(colors[v]);
       }
 
       expect(alongX, <int>{grid.axisXColour});
@@ -189,13 +189,13 @@ void main() {
 
       grid.writeInto(overlay, eye: eye, fadeRadius: 1000);
       final positions = _positionsOf(overlay.lines);
-      final colours = _coloursOf(overlay.lines);
+      final colors = _coloursOf(overlay.lines);
 
       // The line running along Z at a given x: both ends of one of its cells sit
       // at that x, which no cell of a line running along X does.
       Set<int> lineAt(double x) => <int>{
         for (var v = 0; v < positions.length; v += 2)
-          if (positions[v].x == x && positions[v + 1].x == x) colours[v],
+          if (positions[v].x == x && positions[v + 1].x == x) colors[v],
       };
 
       expect(lineAt(10), <int>{grid.majorColour});
@@ -219,12 +219,12 @@ void main() {
 
       grid.writeInto(overlay, eye: eye, fadeRadius: 12);
       final positions = _positionsOf(overlay.lines);
-      final colours = _coloursOf(overlay.lines);
+      final colors = _coloursOf(overlay.lines);
 
       int greenAt(double distance) {
         for (var v = 0; v < positions.length; v++) {
           final away = positions[v].length;
-          if ((away - distance).abs() < 0.51) return (colours[v] >> 8) & 0xFF;
+          if ((away - distance).abs() < 0.51) return (colors[v] >> 8) & 0xFF;
         }
         fail('nothing was drawn about $distance units out');
       }
@@ -356,7 +356,7 @@ void main() {
       expect(faded.w, closeTo(0x80 / 255, 1e-6));
       expect(whole.w, closeTo(0x80 / 255, 1e-6));
       expect(faded.y, lessThan(whole.y));
-      // Mutation: `colour.w` to `mix` in `fadedColour`. The alpha comes back as
+      // Mutation: `color.w` to `mix` in `fadedColour`. The alpha comes back as
       // the fade strength in place of the ink's own, and because the line batch
       // draws with no blend the picture is unchanged, which is
       // the trap: anything else reading these vertices — a picker, a second pass
@@ -376,9 +376,9 @@ void main() {
       // the first line off the origin. Nought is a real setting — it is how a
       // caller asks for an even floor with no counting lines in it — so the
       // guard is what makes the setting exist rather than merely be accepted.
-      final colours = _coloursOf(overlay.lines);
-      expect(colours, contains(grid.minorColour));
-      expect(colours, isNot(contains(grid.majorColour)));
+      final colors = _coloursOf(overlay.lines);
+      expect(colors, contains(grid.minorColour));
+      expect(colors, isNot(contains(grid.majorColour)));
     });
 
     test('a solid fraction of more than the whole still fades', () {

@@ -41,11 +41,10 @@ library;
 import 'dart:async' show unawaited;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_model_core/flutter3d_model_core.dart'
-    hide Key, Outcome;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../../l10n/app_localizations.dart';
 import '../game_preview_settings.dart';
@@ -96,6 +95,8 @@ Future<void> showGamePreviewScreen(
 
 /// Screen 19 itself.
 class GamePreviewScreen extends StatefulWidget {
+  /// The preview over the editor's own [renderer] and [stage]; use
+  /// [showGamePreviewScreen] to open it.
   const GamePreviewScreen({
     super.key,
     required this.renderer,
@@ -109,14 +110,34 @@ class GamePreviewScreen extends StatefulWidget {
     this.onTick,
   });
 
+  /// The editor's renderer, drawn through again and asked for the frame
+  /// capture.
   final Renderer renderer;
+
+  /// The editor's live stage, never a copy.
   final ModelerStage stage;
+
+  /// The document, for the budget report and the light status.
   final ModelProject project;
+
+  /// What the export would refuse, shown on the preview's viewport.
   final ExportReadiness readiness;
+
+  /// The settings the editor's own viewport draws with; the preview's own
+  /// choices are applied on top.
   final RenderSettings baseSettings;
+
+  /// The timeline's playback state, for the transport.
   final Playback playback;
+
+  /// The timeline's current frame; the transport rebuilds on it.
   final ValueListenable<int> frame;
+
+  /// The transport's play button was pressed.
   final VoidCallback onPlayPause;
+
+  /// Called each frame with the time since the last, in seconds, clamped to
+  /// 0.1; null when the caller advances nothing.
   final ValueChanged<double>? onTick;
 
   @override
@@ -184,8 +205,9 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
     );
     _lastTick = elapsed;
     widget.onTick?.call(seconds);
-    if (seconds > 0) _fps = 1 / seconds;
-    setState(() {});
+    setState(() {
+      if (seconds > 0) _fps = 1 / seconds;
+    });
   }
 
   @override

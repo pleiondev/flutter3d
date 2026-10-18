@@ -3,9 +3,8 @@
 /// editing) do not cover.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **`SetRestPose` reads `worldTransformOf`, added alongside it.** Setting
 /// a joint's rest pose in world space and recomputing its inverse bind
@@ -65,8 +64,10 @@ ModelProject _withSkeleton(
 /// first joint," which [AddJoint] cannot be first to run because it refuses
 /// a `skeletonIndex` naming nothing at all.
 final class AddSkeleton extends ModelCommand {
+  /// A step appending an empty skeleton called [skeletonName].
   const AddSkeleton({this.skeletonName});
 
+  /// The new skeleton's name, or null for an unnamed one.
   final String? skeletonName;
 
   @override
@@ -102,9 +103,14 @@ final class AddSkeleton extends ModelCommand {
 /// `BindSkin`. A mesh with no skin of its own reads `null`; this is the one
 /// command that ever sets it to something else.
 final class BindSkin extends ModelCommand {
+  /// A step skinning object [objectId] to skeleton [skeletonIndex].
   const BindSkin({required this.objectId, required this.skeletonIndex});
 
+  /// The object bound. [apply] refuses when the project has no such object.
   final int objectId;
+
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
 
   @override
@@ -138,14 +144,24 @@ final class BindSkin extends ModelCommand {
 /// [inverseBindMatrix] (identity when the object's own bind pose is
 /// already its rest pose).
 final class AddJoint extends ModelCommand {
+  /// A step adding object [objectId] as a joint of skeleton [skeletonIndex], at
+  /// [inverseBindMatrix] or the identity when it is null.
   const AddJoint({
     required this.skeletonIndex,
     required this.objectId,
     this.inverseBindMatrix,
   });
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
+
+  /// The object that becomes a joint. [apply] refuses when the project has no
+  /// such object, or it is already a joint of this skeleton.
   final int objectId;
+
+  /// The matrix undoing the joint's bind pose, or null for the identity: the
+  /// object's bind pose is already its rest pose.
   final Matrix4? inverseBindMatrix;
 
   @override
@@ -191,9 +207,15 @@ final class AddJoint extends ModelCommand {
 /// itself one of this skeleton's joints) and shifting every weight naming a
 /// later joint index down by one.
 final class RemoveJoint extends ModelCommand {
+  /// A step removing joint [jointIndex] from skeleton [skeletonIndex].
   const RemoveJoint({required this.skeletonIndex, required this.jointIndex});
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
+
+  /// Position of the joint in [ProjectSkeleton.joints]. [apply] refuses a
+  /// position with no joint; every later joint moves down one.
   final int jointIndex;
 
   @override
@@ -300,14 +322,22 @@ final class RemoveJoint extends ModelCommand {
 /// [Rename]'s own refusal for a blank name, reached through a skeleton's
 /// own joint index rather than an id directly.
 final class RenameJoint extends ModelCommand {
+  /// A step renaming joint [jointIndex] of skeleton [skeletonIndex] to [to].
   const RenameJoint({
     required this.skeletonIndex,
     required this.jointIndex,
     required this.to,
   });
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
+
+  /// Position of the joint in [ProjectSkeleton.joints]. [apply] refuses a
+  /// position with no joint.
   final int jointIndex;
+
+  /// The new name. [apply] refuses a blank one.
   final String to;
 
   @override
@@ -347,14 +377,24 @@ final class RenameJoint extends ModelCommand {
 /// through a skeleton's own joint index rather than an id directly — the
 /// cycle check and the refusals are [SetParent]'s own, not repeated here.
 final class ReparentJoint extends ModelCommand {
+  /// A step hanging joint [jointIndex] of skeleton [skeletonIndex] under object
+  /// [to], or at the top level when [to] is null.
   const ReparentJoint({
     required this.skeletonIndex,
     required this.jointIndex,
     required this.to,
   });
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
+
+  /// Position of the joint in [ProjectSkeleton.joints]. [apply] refuses a
+  /// position with no joint.
   final int jointIndex;
+
+  /// Object id of the new parent, or null for the top level. [SetParent]'s
+  /// refusals apply, the cycle check among them.
   final int? to;
 
   @override
@@ -392,14 +432,24 @@ final class ReparentJoint extends ModelCommand {
 /// skeleton's own inverse bind matrix for it, "с пересчётом inverseBind",
 /// the row's own words.
 final class SetRestPose extends ModelCommand {
+  /// A step moving joint [jointIndex] of skeleton [skeletonIndex] to rest at
+  /// [worldTransform].
   const SetRestPose({
     required this.skeletonIndex,
     required this.jointIndex,
     required this.worldTransform,
   });
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
+
+  /// Position of the joint in [ProjectSkeleton.joints]. [apply] refuses a
+  /// position with no joint.
   final int jointIndex;
+
+  /// The joint's new rest transform in world space; its local transform and
+  /// inverse bind matrix are worked out from it.
   final Matrix4 worldTransform;
 
   @override
@@ -463,17 +513,24 @@ final class SetRestPose extends ModelCommand {
 /// otherwise have the second write read the first write's own
 /// already-mirrored result instead of the original.
 final class MirrorJoints extends ModelCommand {
+  /// A step mirroring joints of skeleton [skeletonIndex] across [axis] as
+  /// [jointMirror] pairs them.
   const MirrorJoints({
     required this.skeletonIndex,
     required this.axis,
     required this.jointMirror,
   });
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
 
   /// `0` for x, `1` for y, `2` for z.
   final int axis;
 
+  /// Source joint position to target joint position, both into
+  /// [ProjectSkeleton.joints]; a joint on the mirror plane maps to itself.
+  /// [apply] refuses a position with no joint.
   final Map<int, int> jointMirror;
 
   @override
@@ -519,7 +576,7 @@ final class MirrorJoints extends ModelCommand {
         jointIndex: target.key,
         worldTransform: target.value,
       ).apply(next, selection);
-      if (!outcome.ok) return outcome;
+      if (!outcome.isOk) return outcome;
       next = outcome.project!;
     }
     return Outcome.done(next);
@@ -585,18 +642,26 @@ Matrix4 _reflected(Matrix4 transform, int axis) {
 /// them, so a rig whose joints have been moved deliberately keeps that and
 /// only its orientation is spoken for.
 final class BendJoint extends ModelCommand {
+  /// A step turning joint [jointIndex] of skeleton [skeletonIndex] [angle]
+  /// radians from its bind pose about its local [axis], X unless given.
   const BendJoint({
     required this.skeletonIndex,
     required this.jointIndex,
-    required this.degrees,
+    required this.angle,
     this.axis = 0,
   });
 
+  /// Index of the skeleton in [ModelProject.skeletons]. [apply] refuses an
+  /// index with no skeleton.
   final int skeletonIndex;
+
+  /// Position of the joint in [ProjectSkeleton.joints]. [apply] refuses a
+  /// position with no joint, and an [axis] other than nought, one or two.
   final int jointIndex;
 
-  /// The turn from the bind pose, in degrees.
-  final double degrees;
+  /// The turn from the bind pose, in radians. The journal and the MCP tool
+  /// keep it in degrees (`degrees`), converted where it is read and written.
+  final double angle;
 
   /// `0` for x, `1` for y, `2` for z — the same spelling [MirrorJoints] uses.
   final int axis;
@@ -611,7 +676,7 @@ final class BendJoint extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'skeletonIndex': skeletonIndex,
     'jointIndex': jointIndex,
-    'degrees': degrees,
+    'degrees': degrees(angle),
     'axis': axis,
   };
 
@@ -652,7 +717,7 @@ final class BendJoint extends ModelCommand {
       0 => Vector3(1.0, 0.0, 0.0),
       1 => Vector3(0.0, 1.0, 0.0),
       _ => Vector3(0.0, 0.0, 1.0),
-    }, radians(degrees));
+    }, angle);
     // `bind · turn`, the order `bend_slider_bar.dart` composes: the axis
     // then reads the same whichever way the bind pose itself is turned.
     final bent = bindRotation * turn

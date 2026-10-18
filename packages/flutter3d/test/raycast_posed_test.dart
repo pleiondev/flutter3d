@@ -21,7 +21,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A bar lying along +X from the origin, bound entirely to one joint.
 ///
@@ -36,7 +35,7 @@ import 'package:vector_math/vector_math.dart';
 
   final bar = MeshNode(
     DeviceMesh.upload(device, skinned),
-    Material(name: 'bar'),
+    RenderMaterial(name: 'bar'),
     name: 'bar',
   )..skinReach = 3.0;
   // The bar's own geometry is centred on the origin, so it reaches from -1 to

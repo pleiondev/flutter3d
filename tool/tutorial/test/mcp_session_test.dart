@@ -32,10 +32,10 @@ void main() {
 
     expect(session.port, 54321);
     expect(session.token, 'sekret');
-    expect(
-      session.endpoint,
-      Uri.parse('http://127.0.0.1:54321/mcp?token=sekret'),
-    );
+    // The token travels in the header only: a server that reads it from the
+    // query answers 401, and a URL carrying it ends up in logs.
+    expect(session.endpoint, Uri.parse('http://127.0.0.1:54321/mcp'));
+    expect(session.authorization, 'Bearer sekret');
   });
 
   test('refuses a missing file', () {

@@ -31,6 +31,8 @@ const Color kMetricsOverlayBackground = Color(0xB80B0E0F);
 
 /// Screen 19's own fps/draw-calls/triangles/bones card.
 class MetricsOverlay extends StatelessWidget {
+  /// A card showing the four numbers and, when [passes] is not empty, what
+  /// each pass cost.
   const MetricsOverlay({
     super.key,
     required this.fps,
@@ -40,9 +42,16 @@ class MetricsOverlay extends StatelessWidget {
     this.passes = const <FramePass>[],
   });
 
+  /// Frames per second, from a rolling average of recent frame times.
   final double fps;
+
+  /// Draw calls the last frame made, from its `FrameResult`.
   final int drawCalls;
+
+  /// Triangles the last frame drew, from its `FrameResult`.
   final int triangles;
+
+  /// Joints the model uses, from `ProfileBudgetReport.joints.used`.
   final int bones;
 
   /// What each pass of the frame cost, in the order it ran. Empty hides the

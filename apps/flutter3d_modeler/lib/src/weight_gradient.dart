@@ -17,7 +17,7 @@
 /// vertex_layout.dart` — and `surface.glsl`'s own `ReadSurface` already multiplies it into
 /// the albedo, so no shader or layout work is needed here; what is needed is
 /// getting a weight into that channel. [EditMesh] has its own per-corner
-/// `colourOf`, and a document command that painted through it would cost a
+/// `colorOf`, and a document command that painted through it would cost a
 /// full `toMeshData()` re-triangulation for a channel nothing else about the
 /// mesh needs re-cut. [DeviceMesh.overwriteVertices] is the same partial-
 /// buffer contract `pro-eng-01`/`view-14` already give a stroke: whole
@@ -39,7 +39,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One stop of the weight gradient: the sRGB the design named, at [position]
 /// along the 0..1 weight axis.
@@ -48,9 +47,13 @@ import 'package:vector_math/vector_math.dart';
 /// any other colour on screen is; [weightGradientColor] is what carries the
 /// sRGB→linear step, and only for the mesh's own vertex buffer.
 final class WeightGradientStop {
+  /// A stop of colour [srgb] at [position].
   const WeightGradientStop(this.position, this.srgb);
 
+  /// Where along the weight axis the stop sits, 0 to 1.
   final double position;
+
+  /// The stop's colour as sRGB components, each 0 to 1.
   final Vector3 srgb;
 }
 
@@ -213,7 +216,7 @@ void paintWeightGradient({
 /// else tinting it — the same reasoning `SurfaceShading.normals` gives the
 /// normals view in `display_modes.dart`, one lighting model swapped in for a
 /// diagnostic that is not a picture of light.
-final Material kWeightGradientMaterial = Material(
+final RenderMaterial kWeightGradientMaterial = RenderMaterial(
   name: 'weights',
   lighting: LightingModel.unlit,
 );
@@ -243,7 +246,7 @@ RenderSettings weightGradientSettings(RenderSettings over) =>
 /// leave those drawn with their own material in a view that is meant to show
 /// weights.
 final class WeightGradientShading {
-  final Map<MeshNode, Material> _own = <MeshNode, Material>{};
+  final Map<MeshNode, RenderMaterial> _own = <MeshNode, RenderMaterial>{};
 
   /// Draws every [MeshNode] under [subject] with [kWeightGradientMaterial]
   /// when [active], and puts back whatever it took away otherwise.
@@ -258,7 +261,7 @@ final class WeightGradientShading {
   /// had the same fault and is fixed the same way.
   void apply(SceneNode subject, {required bool active}) {
     if (!active) {
-      for (final MapEntry<MeshNode, Material> each in _own.entries) {
+      for (final MapEntry<MeshNode, RenderMaterial> each in _own.entries) {
         each.key.material = each.value;
       }
       _own.clear();

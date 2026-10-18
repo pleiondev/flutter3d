@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, Vector3Foundation;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,23 +35,12 @@ import 'package:vector_math/vector_math.dart';
 /// three monsters, and a game that adds a fourth adds a file rather than a
 /// mapping.
 final class Looks {
+  /// Looks keyed by entity type.
   const Looks(this._byType);
 
-  /// A game that has said nothing, which is most of them.
-  static const Looks none = Looks(<String, Look>{});
-
-  final Map<String, Look> _byType;
-
-  bool get isEmpty => _byType.isEmpty;
-
-  /// Every type the game described, whether this level has one or not.
-  ///
-  /// **What a palette offers.** Without it the palette can only list what is
-  /// already in the document, which in a level nobody has built yet is nothing
-  /// — and in an old level is every word except the one somebody opened the
-  /// editor to add.
-  Iterable<String> get types => _byType.keys;
-
+  /// Reads a `looks.json`: [none] when it is not an object, and an entry
+  /// that is not an object left out. Throws a [FormatException] for text
+  /// that is not JSON.
   factory Looks.parse(String text) {
     final json = jsonDecode(text);
     if (json is! Map<String, Object?>) return none;
@@ -58,6 +50,22 @@ final class Looks {
           entry.key: Look.fromJson(entry.value! as Map<String, Object?>),
     });
   }
+
+  /// A game that has said nothing, which is most of them.
+  static const Looks none = Looks(<String, Look>{});
+
+  final Map<String, Look> _byType;
+
+  /// Whether the game described no type at all, as with [none].
+  bool get isEmpty => _byType.isEmpty;
+
+  /// Every type the game described, whether this level has one or not.
+  ///
+  /// **What a palette offers.** Without it the palette can only list what is
+  /// already in the document, which in a level nobody has built yet is nothing
+  /// — and in an old level is every word except the one somebody opened the
+  /// editor to add.
+  Iterable<String> get types => _byType.keys;
 
   /// The model [entity] should be drawn as, or null.
   ///
@@ -73,7 +81,7 @@ final class Looks {
 
   /// What colour to draw the mark, or null to keep the one from the type's
   /// name.
-  Vector3? tintFor(EntityDef entity) => _byType[entity.type]?.tint;
+  LinearColor? tintFor(EntityDef entity) => _byType[entity.type]?.tint;
 
   /// The shapes this type is built out of, or empty.
   ///
@@ -109,19 +117,15 @@ final class Looks {
 
 /// What one type looks like.
 final class Look {
+  /// A look that says only what is given; no parts by default.
   const Look({this.model, this.size, this.tint, this.parts = const <Part>[]});
 
-  final String? model;
-  final Vector3? size;
-  final Vector3? tint;
-
-  /// The shapes it is built out of, for a thing with no model.
-  final List<Part> parts;
-
+  /// Reads one type's entry; a field of the wrong shape is left unsaid
+  /// rather than refused, and a part that is not an object is skipped.
   factory Look.fromJson(Map<String, Object?> json) => Look(
     model: json['model'] is String ? json['model']! as String : null,
     size: _vector(json['size']),
-    tint: _vector(json['tint']),
+    tint: _vector(json['tint'])?.toLinearColor(),
     parts: <Part>[
       for (final part
           in json['parts'] is List
@@ -130,6 +134,19 @@ final class Look {
         if (part is Map<String, Object?>) Part.fromJson(part),
     ],
   );
+
+  /// The model file to draw the type as, which may carry `{property}`
+  /// slots; null when the type has none.
+  final String? model;
+
+  /// The size of the type's mark in metres; null for the default mark.
+  final Vector3? size;
+
+  /// What it is drawn in, linear: the document's `tint`.
+  final LinearColor? tint;
+
+  /// The shapes it is built out of, for a thing with no model.
+  final List<Part> parts;
 
   /// A vector this document may or may not carry.
   ///
@@ -149,6 +166,7 @@ final class Look {
 /// than a drawing: a game names `cylinder` and a size, and the editor asks the
 /// same `CylinderShape` the game would have asked for.
 final class Part {
+  /// A part with every field given.
   const Part({
     required this.shape,
     required this.at,
@@ -156,9 +174,27 @@ final class Part {
     required this.radius,
     required this.height,
     required this.pitch,
-    required this.colour,
+    required this.color,
     required this.glows,
   });
+
+  /// Reads one part, never throwing: a box at the origin, a tenth of a
+  /// metre each way, radius 0.05 and height 0.1 m, untilted and grey, for
+  /// whatever is missing or of the wrong shape. A `glow` colour stands in
+  /// for a missing `colour` and makes the part glow.
+  factory Part.fromJson(Map<String, Object?> json) => Part(
+    shape: json['shape'] is String ? json['shape']! as String : 'box',
+    at: Look._vector(json['at']) ?? Vector3.zero(),
+    size: Look._vector(json['size']) ?? Vector3.all(0.1),
+    radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
+    height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
+    pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
+    color:
+        (Look._vector(json['colour']) ?? Look._vector(json['glow']))
+            ?.toLinearColor() ??
+        const LinearColor(0.6, 0.6, 0.62),
+    glows: json['glow'] != null,
+  );
 
   /// `box`, `cylinder`, `sphere` or `cone`. Anything else is drawn as a box,
   /// because a shape nobody recognises is still somewhere a thing is.
@@ -168,35 +204,27 @@ final class Part {
   /// the level's yaw turns the whole thing.
   final Vector3 at;
 
+  /// The extent of a box along each axis, in metres.
   final Vector3 size;
+
+  /// The radius of a cylinder, sphere or cone, in metres.
   final double radius;
+
+  /// The height of a cylinder or cone, in metres.
   final double height;
 
   /// Tilt about the entity's X, in radians. What holds a torch's shaft up and
   /// out of the wall.
   final double pitch;
 
-  final Vector3 colour;
+  /// What it is drawn in, linear.
+  final LinearColor color;
 
   /// Whether this part is the light rather than the thing holding it. Drawn so
   /// that a dark corridor cannot swallow it, which is the whole point of a
   /// flame.
   final bool glows;
-
-  factory Part.fromJson(Map<String, Object?> json) => Part(
-    shape: json['shape'] is String ? json['shape']! as String : 'box',
-    at: Look._vector(json['at']) ?? Vector3.zero(),
-    size: Look._vector(json['size']) ?? Vector3.all(0.1),
-    radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
-    height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
-    pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
-    colour:
-        Look._vector(json['colour']) ??
-        Look._vector(json['glow']) ??
-        Vector3(0.6, 0.6, 0.62),
-    glows: json['glow'] != null,
-  );
 }
 
 /// Where a game keeps the file, if it keeps one.
-const String kLooksFile = 'assets/editor.json';
+const String looksFile = 'assets/editor.json';

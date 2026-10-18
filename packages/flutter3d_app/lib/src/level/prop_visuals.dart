@@ -1,6 +1,5 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'level_loader.dart';
 
@@ -22,12 +21,22 @@ import 'level_loader.dart';
 /// and any lesson content that wants `offsets`/`visible`/`highlight` to
 /// move or hide a simple shape without authoring a model for it.
 final class PropVisuals {
+  /// Props for [scene], uploaded through [device], their materials read
+  /// from [level].
   PropVisuals(this.scene, {required this.device, required this.level});
 
+  /// Where every prop's node is added.
   final Scene scene;
+
+  /// What every prop's mesh is uploaded through, and given back to by
+  /// [dispose].
   final GraphicsDevice device;
+
+  /// The document whose `materials` a prop's `material` names; a name it
+  /// does not hold draws the default material.
   final Level level;
 
+  /// The entity type [add] builds; every other type it leaves alone.
   static const String entityType = 'prop';
 
   final Map<String, MeshNode> _nodes = <String, MeshNode>{};

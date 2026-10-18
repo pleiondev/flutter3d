@@ -1,3 +1,108 @@
+## 1.0.0-rc.1
+
+- **The party, the turns and the feed speak under the reserved key.**
+  `PartyTape`, `PartyTapeWatcher`, `AuthorityServer` and
+  `PredictingClient` send `{"f3d": "party", "event": …}`, `BatonStream`
+  `{"f3d": "baton", …}` and `PeerFeed` `{"f3d": "feed", …}`, where they
+  sent bare `tape`, `frames`, `watching`, `inputs`, `snapshot`, `k`, `n` and
+  `body`: a game's message with one of those fields was taken for the
+  engine's, and the feed read the turns' messages as its own. Each reads
+  only its own messages now.
+- **A party says the hello before it plays.** A spectator's ask and a
+  predicting machine's hands carry its `WireHello`, and the host's and the
+  authority's answers carry theirs, read as `PeerRoom` reads one. A machine
+  that said no hello is not acted on, and one on another protocol major or
+  simulation is refused: `PartyTape.refusals`, `AuthorityServer.refusals`,
+  `PartyTapeWatcher.refusal` and `PredictingClient.refusal` (new) say why,
+  naming what to update. Each takes `hello`, `WireHello.engineOnly` unless
+  the game names its simulation. Turns and the feed run on a `PeerRoom`
+  channel, behind the room's hello.
+
+**The version jumps from 0.1.0 to 1.0.0-rc.1.** This package now stands on
+`flutter3d_net`, which is on the engine's 1.0 line, and pub asks a package
+that depends on a pre-release to be one itself. It also joins the engine's
+number, so `^1.0.0-rc.1` means the same thing here as on every sibling, and
+from 1.0.0 it follows strict semver with them. The 0.2.0 and 0.3.0 entries
+were never published; everything below up to 0.1.0 ships in this release.
+
+- **A rollback step's object is exported**: `RollbackStep` and
+  `InputStatus`, which `RollbackSession.applyAndStep` is handed since
+  `flutter3d_net` 1.0.0-rc.1.
+- **A party's tape takes the rollback's objects.** `PartyTape.settled`
+  takes a `SettledStep` and `PartyTape.hear` a `PeerMessage`, so each is
+  handed to `RollbackSession.onSettled` and `onMessage` as it is;
+  `SettledStep` and `ObserverRestore` are exported beside the rollback
+  and the observer.
+- **The wire's contexts are exported**: `PeerSend`, `PeerSendBytes`,
+  `PeerDelivery`, `PeerBytesDelivery`, `PeerMessage` and `PeerBytes`, which
+  `PeerWire`'s hooks and listeners take since `flutter3d_net` 1.0.0-rc.1.
+- **The observer is exported**: `ObserverFeed`, `SimulationObserver`,
+  `ObserverFilter`, `ObserverMode` and `ObserverSnapshot`, from
+  `flutter3d_net`, for watching an authoritative simulation.
+- **`LoopbackPair` is exported beside `LoopbackWire`**, the two ends
+  `LoopbackWire.pair()` now returns (see `flutter3d_net`).
+- **A spectator presents the party owner's token.** See `flutter3d_net`:
+  `joinParty(watching: true, owner: host.owner)`.
+
+- **Breaking: `Registration` and `SimulationVersion` are not re-exported.**
+  They are `flutter3d_foundation`'s and `flutter3d_plugin_api`'s; the wire,
+  the room and the rollback still are, from `flutter3d_net`.
+
+- **Breaking: the network core moved to `flutter3d_net`.** `PeerWire`,
+  `WireState`, `LoopbackWire`, `LoopbackParty`, `PeerRoom`, `WireHello` and
+  `RollbackSession` are `flutter3d_net`'s, on its 1.0 line, and this
+  package depends on it. They are re-exported from here, so an import of
+  `flame_multiplayer` keeps compiling; what stays is the turns
+  (`BatonStream`), the feed (`PeerFeed`) and the party's spectator and
+  authority (`PartyTape`, `AuthorityServer`, `PredictingClient`).
+- **Breaking: a wire has several listeners, and the rollback's messages a
+  reserved key** — `flutter3d_net` 1.0.0-rc.1 has the detail: `listen`
+  returns a `Registration`, an adapter calls `deliver`, and the protocol is
+  3. A spectator's tape is no longer taken for a rollback's frames.
+
+## 0.2.0
+
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `BatonStream.holding` is `isHolding`; `PeerRoom.met` is `hasMet`;
+  `RollbackSession.connected` is `isConnected`;
+  `RollbackSession.resimulating` is `isResimulating`. `dart fix` carries the
+  renames.
+- **Breaking: `BatonStream.take` is `claim`.**
+- **Breaking: `BatonStream` takes `holding:` as a plain parameter**, in its
+  signature only. It was declared as `this._holding`, a private named
+  parameter, so the signature and the API snapshot spelled a private field.
+  Calls are unchanged: they always passed `holding:`.
+
+- **Breaking: one transport, `PeerWire`, and one rollback,
+  `RollbackSession`.** `PeerWire` is an `abstract base class` an adapter
+  `extends`, with `slot`, `state`, `listenFrom` and `close` beside `send`
+  and `listen`; `PartyWire` folded into it (`PeerWire.party` over a relay's
+  party room). `RollbackSession` rolls back for two to thirty-two machines,
+  hands `applyAndStep` every slot's frame by slot, and keeps the agreed
+  ending; `RollbackPlay` and `PartyRollback` are gone. `LoopbackWire`'s two
+  ends are slots nought and one.
+- **Breaking: the hello carries the whole `SimulationVersion`** (protocol
+  2): the engine's number, the genre's and every simulation plugin's.
+  `PeerRoom` takes `simulation:`. This package now depends on
+  `flutter3d_plugin_api`, which depends on nothing, and exports
+  `SimulationVersion`.
+- **Parties of more than two.**
+  - `PartyWire` and `LoopbackParty`.
+  - `PartyRollback` rolls back for two to thirty-two.
+  - `PartyTape` and `PartyTapeWatcher` serve spectators from the settled
+    tape.
+  - `AuthorityServer` and `PredictingClient` are the authoritative model.
+
+- **The hello names its versions, and a mismatch is refused.** `WireHello`
+  is the protocol, major and minor, and the game's simulation version.
+  `PeerRoom` takes `simulationVersion` and says both in every hello. Two
+  machines on different simulation versions, or protocol majors, do not
+  meet: `refusal` says why and names the version to update to, the room
+  answers once so the other side hears the same, and nothing on a channel
+  passes from the refused machine. Within a major the protocol only grows,
+  so a lower minor still plays, on `sharedMinor`. A 0.1.0 machine names
+  no protocol, reads as 0.0, and is refused with a reason rather than met.
+
 ## 0.1.0
 
 **Two players on two machines, in four ways a game can share itself.**

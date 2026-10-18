@@ -2,9 +2,14 @@ part of 'command.dart';
 
 /// Appends [modifier] to [id]'s own stack, enabled.
 final class AddModifier extends ModelCommand {
+  /// A step appending [modifier] to object [id]'s stack.
   const AddModifier({required this.id, required this.modifier});
 
+  /// The object whose stack grows. [apply] refuses when the project has no such
+  /// object.
   final int id;
+
+  /// The modifier added, enabled in the viewport and in the export.
   final Modifier modifier;
 
   @override
@@ -42,6 +47,7 @@ final class AddModifier extends ModelCommand {
 /// whose meaning depends on which modifier kind owns it — see
 /// `_modifierFieldSet` for which names each kind answers to.
 final class SetModifierField extends ModelCommand {
+  /// A step setting [field] of modifier [index] on object [id] to [value].
   const SetModifierField({
     required this.id,
     required this.index,
@@ -49,9 +55,19 @@ final class SetModifierField extends ModelCommand {
     required this.value,
   });
 
+  /// The object whose stack holds the modifier. [apply] refuses when the
+  /// project has no such object.
   final int id;
+
+  /// Position of the modifier in the object's stack, counted from nought.
+  /// [apply] refuses a position with no modifier.
   final int index;
+
+  /// Name of the field, as the modifier's own kind spells it. [apply] refuses a
+  /// name the kind does not have, or a [value] of the wrong shape for it.
   final String field;
+
+  /// The new value: a number, a bool or a word, depending on [field].
   final Object? value;
 
   @override
@@ -98,9 +114,16 @@ final class SetModifierField extends ModelCommand {
 
 /// Flips whether the modifier at [index] on [id]'s own stack runs.
 final class ToggleModifier extends ModelCommand {
+  /// A step flipping whether modifier [index] on object [id] runs in the
+  /// viewport.
   const ToggleModifier({required this.id, required this.index});
 
+  /// The object whose stack holds the modifier. [apply] refuses when the
+  /// project has no such object.
   final int id;
+
+  /// Position of the modifier in the object's stack, counted from nought.
+  /// [apply] refuses a position with no modifier.
   final int index;
 
   @override
@@ -145,9 +168,16 @@ final class ToggleModifier extends ModelCommand {
 /// export runs it — and one command with a "which flag" argument would be a
 /// command whose `says` could not say what it did.
 final class ToggleModifierExport extends ModelCommand {
+  /// A step flipping whether modifier [index] on object [id] runs in the
+  /// export.
   const ToggleModifierExport({required this.id, required this.index});
 
+  /// The object whose stack holds the modifier. [apply] refuses when the
+  /// project has no such object.
   final int id;
+
+  /// Position of the modifier in the object's stack, counted from nought.
+  /// [apply] refuses a position with no modifier.
   final int index;
 
   @override
@@ -189,14 +219,23 @@ final class ToggleModifierExport extends ModelCommand {
 /// shifting to make room the way a list's own `insert` after a `removeAt`
 /// would.
 final class ReorderModifier extends ModelCommand {
+  /// A step moving modifier [from] on object [id] to position [to].
   const ReorderModifier({
     required this.id,
     required this.from,
     required this.to,
   });
 
+  /// The object whose stack is reordered. [apply] refuses when the project has
+  /// no such object.
   final int id;
+
+  /// Position the modifier is taken from, counted from nought. [apply] refuses
+  /// a position with no modifier.
   final int from;
+
+  /// Position the modifier ends up at once the others have shifted. [apply]
+  /// refuses a position outside the stack, and one equal to [from].
   final int to;
 
   @override
@@ -236,9 +275,15 @@ final class ReorderModifier extends ModelCommand {
 
 /// Drops the modifier at [index] from [id]'s own stack.
 final class RemoveModifier extends ModelCommand {
+  /// A step removing modifier [index] from object [id].
   const RemoveModifier({required this.id, required this.index});
 
+  /// The object whose stack shrinks. [apply] refuses when the project has no
+  /// such object.
   final int id;
+
+  /// Position of the modifier in the object's stack, counted from nought.
+  /// [apply] refuses a position with no modifier.
   final int index;
 
   @override
@@ -286,9 +331,15 @@ final class RemoveModifier extends ModelCommand {
 /// applied, the same way a hidden layer in an image editor can still be
 /// merged down on purpose.
 final class ApplyModifier extends ModelCommand {
+  /// A step baking modifier [index] on object [id] into its mesh.
   const ApplyModifier({required this.id, required this.index});
 
+  /// The object whose mesh is baked. [apply] refuses when the project has no
+  /// such object or the object has no edited mesh.
   final int id;
+
+  /// Position of the modifier in the object's stack, counted from nought.
+  /// [apply] refuses a position with no modifier.
   final int index;
 
   @override
@@ -477,6 +528,7 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
               : null,
         _ => null,
       },
+      _ => null,
     };
 
 /// [value] as one of [CsgOperation]'s own three names, or null when it is
@@ -485,10 +537,4 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
 /// number/bool/three-number value fits, and nothing yet needs to move a
 /// boolean's own operand from a command rather than from whatever rebuilds
 /// it alongside the operand object's own transform.
-CsgOperation? _csgOperationNamed(Object? value) {
-  if (value is! String) return null;
-  for (final operation in CsgOperation.values) {
-    if (operation.name == value) return operation;
-  }
-  return null;
-}
+CsgOperation? _csgOperationNamed(Object? value) => csgOperationOf(value);

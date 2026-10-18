@@ -5,8 +5,8 @@ library;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,7 +23,7 @@ void main() {
       device: device,
       scene: game.scene,
       plane: BridgePlane.ground(),
-      material: engine.Material(),
+      material: engine.RenderMaterial(),
       position: Vector2(10.0, -5.0),
     );
     await game.add(shield);
@@ -50,7 +50,7 @@ void main() {
       device: device,
       scene: game.scene,
       plane: BridgePlane.ground(),
-      material: engine.Material(),
+      material: engine.RenderMaterial(),
     );
     await game.add(shield);
     await game.ready();

@@ -108,7 +108,7 @@ void main() {
               ..pitch = 0.65
               ..yaw = 0.9
               ..apply();
-            return (scene: stage.scene, camera: stage.camera);
+            return FrameSubject(scene: stage.scene, camera: stage.camera);
           },
         );
 

@@ -13,8 +13,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `flame-camera-bridge` page: an orthographic lens over a floor of
+/// pillars, synced with a Flame viewfinder. Its check drives the sync both
+/// ways: the viewfinder follows the camera to x = 3 with zoom 1 / height, and
+/// the camera follows the viewfinder to x = 1 with height 1 / zoom.
 final class FlameCameraBridgeDemo extends ShowcaseDemo {
   late final String _report;
   late final double _viewfinderX;
@@ -26,7 +29,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   int _leader = 0;
 
   late final CameraNode _lens;
-  late final RenderView _view;
+  late final CameraView _view;
   late final Scene _scene;
   late final TransparentFlameGame _game;
   late final CameraSyncController _sceneLeads;
@@ -35,7 +38,10 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   late final Widget _body = Flutter3dFlameWidget(
     game: _game,
     camera: _lens,
-    existing: (device: _context.device, renderer: _context.renderer),
+    existing: BorrowedRenderer(
+      device: _context.device,
+      renderer: _context.renderer,
+    ),
     buildScene: (GraphicsDevice device) => _scene,
   );
   double _clock = 0.0;
@@ -57,7 +63,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   static const double _eyeHeight = 6.0;
 
   @override
-  List<RenderView> views(DemoContext context) => <RenderView>[_view];
+  List<CameraView> views(DemoContext context) => <CameraView>[_view];
 
   @override
   Scene build(DemoContext context) {
@@ -85,14 +91,14 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
           // downwards and the plane maps it to z, so the two agree on which way
           // is up.
           ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
-    _view = RenderView(
+    _view = CameraView(
       camera: _lens,
-      clearColor: Vector4(0.05, 0.05, 0.07, 1.0),
+      clearColor: LinearColor.fromSrgb(0.05, 0.05, 0.07, 1.0),
     );
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.35
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.35 * LightNode.defaultIntensity
       ..add(_lens)
       ..add(
         MeshNode(
@@ -100,12 +106,15 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(40.0, 0.1, 40.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.3, 0.33, 0.32, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.3, 0.33, 0.32, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
     for (final (int i, (double, double) at) in _pillars.indexed) {
@@ -115,9 +124,9 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(0.6, 0.4 + 0.15 * (i % 4), 0.6)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'pillar $i',
-            baseColor: Vector4(
+            baseColor: LinearColor.fromSrgb(
               0.55 + 0.4 * math.sin(i * 0.9),
               0.5 + 0.3 * math.sin(i * 1.7 + 1.0),
               0.4 + 0.3 * math.sin(i * 2.3 + 2.0),

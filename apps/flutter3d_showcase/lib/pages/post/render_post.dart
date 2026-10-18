@@ -6,18 +6,25 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `render-post` page: a bar rendered once by a second eye, put through
+/// `renderPost`, and shown on a screen in the scene. Its check is that
+/// `renderPost` was called and drew into its target.
 final class RenderPostDemo extends ShowcaseDemo {
+  /// The brightness above which `renderPost` blooms the image, 0.1 to 1.5.
   double threshold = 0.6;
+
+  /// How much bloom `renderPost` adds back, 0 to 1.5.
   double intensity = 0.6;
+
+  /// The exposure `renderPost` applies to the image, 0.3 to 3.
   double exposure = 1.0;
 
   static const int _width = 320;
   static const int _height = 180;
 
   late final Scene _source;
-  late final RenderView _sourceView;
+  late final CameraView _sourceView;
   late final TextureHandle _output;
 
   /// What the last call to `renderPost` handed back.
@@ -44,25 +51,25 @@ final class RenderPostDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(2.4, 0.5, 0.2)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'bar',
-            baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-            emissive: Vector3(1.0, 0.55, 0.2),
-            emissiveStrength: 6.0,
+            baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+            emissive: LinearColor(1.0, 0.55, 0.2),
+            emissiveStrength: 6.0 * RenderMaterial.defaultEmissiveStrength,
           ),
           name: 'bar',
         ),
       )
       ..add(eye);
-    _sourceView = RenderView(
+    _sourceView = CameraView(
       camera: eye,
-      clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
     );
     // #endregion source
 
     // #region screen
     _output = context.device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: _width,
         height: _height,
         format: context.device.defaultColorFormat,
@@ -73,7 +80,11 @@ final class RenderPostDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3(3.2, 1.8, 0.02)).build(),
       ),
-      Material(name: 'screen', lighting: LightingModel.unlit, albedo: _output),
+      RenderMaterial(
+        name: 'screen',
+        lighting: LightingModel.unlit,
+        albedo: _output,
+      ),
       name: 'screen',
     );
     // #endregion screen
@@ -89,7 +100,7 @@ final class RenderPostDemo extends ShowcaseDemo {
           width: _width,
           height: _height,
           scene: _source,
-          views: <RenderView>[_sourceView],
+          views: <CameraView>[_sourceView],
           settings: const RenderSettings(
             bloom: BloomSettings(enabled: false),
             shadows: ShadowSettings(enabled: false),

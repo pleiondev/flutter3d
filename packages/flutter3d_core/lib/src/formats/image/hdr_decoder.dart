@@ -24,6 +24,11 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
+import '../pixel_extent.dart';
+
 /// A decoded Radiance image: three floats a pixel, row 0 at the top.
 typedef HdrImage = ({int width, int height, Float32List rgb});
 
@@ -33,9 +38,11 @@ typedef HdrImage = ({int width, int height, Float32List rgb});
 /// *why* — "not a Radiance file", "the resolution line is not one this reads"
 /// and "a scanline runs off the end" are three different things for somebody
 /// to do something about, and a null flattens them into one.
-final class HdrFormatException implements Exception {
+final class HdrFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const HdrFormatException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -51,10 +58,10 @@ final class HdrFormatException implements Exception {
 ///
 /// Null for anything [readHdr] would refuse, without saying why: a caller
 /// that wants the reason calls [readHdr] and catches it.
-({int width, int height})? hdrSizeOf(Uint8List bytes) {
+PixelExtent? hdrSizeOf(Uint8List bytes) {
   try {
     final _Header header = _readHeader(bytes);
-    return (width: header.width, height: header.height);
+    return PixelExtent(width: header.width, height: header.height);
   } on HdrFormatException {
     return null;
   }

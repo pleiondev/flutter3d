@@ -29,8 +29,71 @@ import 'package:flutter/services.dart';
 
 import 'editor_widgets_theme.dart';
 
+/// A colour as hue, saturation and value: what [ColorField.rgbToHsv]
+/// answers.
+final class HueSaturationValue {
+  /// The colour of [hue] at [saturation] and [value].
+  const HueSaturationValue({
+    required this.hue,
+    required this.saturation,
+    required this.value,
+  });
+
+  /// The hue, in degrees 0..360.
+  final double hue;
+
+  /// The saturation, a fraction 0..1.
+  final double saturation;
+
+  /// The value (brightness), a fraction 0..1.
+  final double value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is HueSaturationValue &&
+      other.hue == hue &&
+      other.saturation == saturation &&
+      other.value == value;
+
+  @override
+  int get hashCode => Object.hash(hue, saturation, value);
+
+  @override
+  String toString() => 'HueSaturationValue($hue, $saturation, $value)';
+}
+
+/// A colour as the red, green and blue a screen shows, sRGB-encoded: what
+/// [ColorField.hsvToRgb] answers.
+final class DisplayRgb {
+  /// The colour of [r], [g] and [b].
+  const DisplayRgb({required this.r, required this.g, required this.b});
+
+  /// The red channel, a fraction 0..1.
+  final double r;
+
+  /// The green channel, a fraction 0..1.
+  final double g;
+
+  /// The blue channel, a fraction 0..1.
+  final double b;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DisplayRgb && other.r == r && other.g == g && other.b == b;
+
+  @override
+  int get hashCode => Object.hash(r, g, b);
+
+  @override
+  String toString() => 'DisplayRgb($r, $g, $b)';
+}
+
 /// One colour, [ColorField.channels] components long, each in `0..1`.
-class ColorField extends StatefulWidget {
+final class ColorField extends StatefulWidget {
+  /// A picker for [value], sRGB-encoded and enabled unless said otherwise.
+  ///
+  /// Asserts that [channels] is three or four and that [value] has exactly
+  /// that many components.
   const ColorField({
     super.key,
     required this.value,
@@ -63,6 +126,8 @@ class ColorField extends StatefulWidget {
   /// Whether [value] is linear light rather than already sRGB-encoded.
   final bool linear;
 
+  /// Whether the sliders and the hex box take input; false shows the
+  /// colour and never calls [onChanged].
   final bool enabled;
 
   /// The threshold and the two branches of the sRGB transfer function, taken
@@ -116,11 +181,7 @@ class ColorField extends StatefulWidget {
   /// would round-trip every colour through 8-bit integer channels — a hex
   /// box a person is dragging the value slider on would then quietly lose
   /// the fractional colour a linear swatch decoded to.
-  static ({double hue, double saturation, double value}) rgbToHsv(
-    double r,
-    double g,
-    double b,
-  ) {
+  static HueSaturationValue rgbToHsv(double r, double g, double b) {
     final double maxc = math.max(r, math.max(g, b));
     final double minc = math.min(r, math.min(g, b));
     final double delta = maxc - minc;
@@ -137,15 +198,11 @@ class ColorField extends StatefulWidget {
       hue = 60 * (((r - g) / delta) + 4);
     }
     if (hue < 0) hue += 360;
-    return (hue: hue, saturation: saturation, value: value);
+    return HueSaturationValue(hue: hue, saturation: saturation, value: value);
   }
 
   /// The inverse of [rgbToHsv].
-  static (double r, double g, double b) hsvToRgb(
-    double hue,
-    double saturation,
-    double value,
-  ) {
+  static DisplayRgb hsvToRgb(double hue, double saturation, double value) {
     final double h = (hue % 360) / 60;
     final double c = value * saturation;
     final double x = c * (1 - (h % 2 - 1).abs());
@@ -158,7 +215,8 @@ class ColorField extends StatefulWidget {
       4 => (x, 0.0, c),
       _ => (c, 0.0, x),
     };
-    return (base.$1 + m, base.$2 + m, base.$3 + m);
+    final (double r, double g, double b) = base;
+    return DisplayRgb(r: r + m, g: g + m, b: b + m);
   }
 
   @override
@@ -181,12 +239,11 @@ class _ColorFieldState extends State<ColorField> {
 
   /// Local hue/saturation/value, source of truth while a slider is being
   /// dragged, for the reason above.
-  late ({double hue, double saturation, double value}) _hsv =
-      ColorField.rgbToHsv(
-        _lastReportedRgb[0],
-        _lastReportedRgb[1],
-        _lastReportedRgb[2],
-      );
+  late HueSaturationValue _hsv = ColorField.rgbToHsv(
+    _lastReportedRgb[0],
+    _lastReportedRgb[1],
+    _lastReportedRgb[2],
+  );
 
   static List<double> _displayRgb(List<double> value, bool linear) => linear
       ? <double>[for (final double c in value.take(3)) ColorField.encodeSrgb(c)]
@@ -255,7 +312,7 @@ class _ColorFieldState extends State<ColorField> {
   }
 
   void _applyHsv({double? hue, double? saturation, double? value}) {
-    final (double r, double g, double b) = ColorField.hsvToRgb(
+    final DisplayRgb(:r, :g, :b) = ColorField.hsvToRgb(
       hue ?? _hsv.hue,
       saturation ?? _hsv.saturation,
       value ?? _hsv.value,
@@ -382,6 +439,8 @@ class _ChannelSlider extends StatelessWidget {
 
   final String label;
   final String semanticLabel;
+
+  /// Where the slider sits, a 0..1 fraction of its track.
   final double value;
   final ValueChanged<double> onChanged;
   final bool enabled;

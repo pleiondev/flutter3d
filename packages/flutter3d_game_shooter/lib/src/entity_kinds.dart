@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -13,7 +15,22 @@ import 'secret.dart';
 /// pickup gives, what a key unlocks and what a note says are this genre's, and
 /// they left the format the day the format stopped being one game's.
 
+/// The entity kinds that are the shooter's own and need nothing of the
+/// game's roster: a secret and a note. What a `ShooterPlugin` installs unless
+/// the game hands its own. A pickup ([PickupKind]) needs the game's gifts
+/// and the key is the engine's word, so a game adds those itself.
+List<EntityKind> shooterKinds() => <EntityKind>[
+  const SecretKind(),
+  const NoteKind(),
+];
+
+/// Places a [Pickup] of whatever gift its `gives` names in [gifts].
+///
+/// A missing `gives`, or one [gifts] does not know, is an error and spawns
+/// nothing; an `amount` of nought or less is warned about. `amount` defaults
+/// to the gift's own, and `color` is passed on as the pickup's detail.
 final class PickupKind extends EntityKind {
+  /// The kind, granting from [gifts].
   const PickupKind(this.gifts) : super(ShooterEntities.pickup);
 
   /// What a `gives` string may name, and what it grants.
@@ -27,12 +44,15 @@ final class PickupKind extends EntityKind {
   Iterable<String> get gives => gifts.names;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final what = entity.string('gives');
     if (what == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "gives", so picking it up would do nothing',
           where: scope.describe(entity),
         ),
@@ -42,7 +62,7 @@ final class PickupKind extends EntityKind {
     if (!gifts.knows(what)) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'gives "$what", which nothing knows how to grant',
           where: scope.describe(entity),
         ),
@@ -52,7 +72,7 @@ final class PickupKind extends EntityKind {
     if (amount != null && amount <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'gives an amount of $amount',
           where: scope.describe(entity),
         ),
@@ -61,7 +81,9 @@ final class PickupKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final gift = gifts[entity.string('gives') ?? ''];
     if (gift == null) return;
     final collider = place(
@@ -97,6 +119,7 @@ final class PickupKind extends EntityKind {
 /// it is whatever else the author put there, which is the whole idea: the
 /// reward is the room, not the trigger.
 final class SecretKind extends EntityKind {
+  /// The kind, under the type `ShooterEntities.secret`.
   const SecretKind() : super(ShooterEntities.secret);
 
   /// Big enough to be walked into rather than stepped over, and no bigger: a
@@ -104,7 +127,9 @@ final class SecretKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(2.0, 2.5, 2.0);
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -118,22 +143,33 @@ final class SecretKind extends EntityKind {
   }
 }
 
-final class KeyKind extends EntityKind {
-  const KeyKind() : super(EntityTypes.key);
+/// Places a key: a [Pickup] of [KeyGift] whose detail is the entity's
+/// `color`.
+///
+/// Under the format's own `key` type, so the validator can match locked
+/// doors to keys. A key without a `color` is an error and spawns nothing.
+final class ShooterKeyKind extends EntityKind {
+  /// The kind, under the format's own type `EntityTypes.key`.
+  const ShooterKeyKind() : super(EntityTypes.key);
 
   /// Small enough to walk past without collecting by accident, big enough to
   /// walk into on purpose.
   static Vector3 get defaultSize => Vector3(0.4, 0.4, 0.4);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'color');
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
-    final colour = entity.string('color');
-    if (colour == null) return;
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
+    final color = entity.string('color');
+    if (color == null) return;
     final collider = place(
       entity,
       context,
@@ -147,7 +183,7 @@ final class KeyKind extends EntityKind {
         name: entity.name,
         gift: const KeyGift(),
         amount: 1.0,
-        detail: colour,
+        detail: color,
         collider: collider,
       ),
     );
@@ -160,11 +196,20 @@ final class KeyKind extends EntityKind {
   }
 }
 
+/// A note an author leaves in a level: its `text` is required, and a note
+/// without one is an error.
+///
+/// Validated and nothing more: it spawns nothing into the world, and what
+/// shows the text is the game's.
 final class NoteKind extends EntityKind {
+  /// The kind, under the type `ShooterEntities.note`.
   const NoteKind() : super(ShooterEntities.note);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'text');
   }
 }

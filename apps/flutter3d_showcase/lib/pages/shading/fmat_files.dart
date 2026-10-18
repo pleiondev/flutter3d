@@ -9,12 +9,14 @@ import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `fmat-files` page: a hull plate whose material went through `.fmat`
+/// and back. Its check is that the round trip changed nothing, a clean file
+/// does not warn, and a file with an unknown key does.
 final class FmatFilesDemo extends ShowcaseDemo {
   late final String _text;
   late final MaterialDocument _roundTripped;
@@ -34,7 +36,7 @@ final class FmatFilesDemo extends ShowcaseDemo {
     final MaterialDocument document = MaterialDocument(
       surface: SurfaceMaterial(
         name: 'hull-plate',
-        baseColor: Vector4(0.55, 0.6, 0.65, 1.0),
+        baseColor: LinearColor.fromSrgb(0.55, 0.6, 0.65, 1.0),
         metallic: 0.9,
         roughness: 0.28,
       ),
@@ -69,7 +71,7 @@ final class FmatFilesDemo extends ShowcaseDemo {
             context.device,
             SphereShape(segments: 40, rings: 20).build(),
           ),
-          f3d.Material(
+          f3d.RenderMaterial(
             name: surface.name,
             baseColor: surface.baseColor,
             metallic: surface.metallic,
@@ -79,7 +81,7 @@ final class FmatFilesDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.6)),
       );
   }

@@ -15,8 +15,8 @@
 /// picker of their own either.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../../l10n/app_localizations.dart';
@@ -27,6 +27,7 @@ import '../staging.dart';
 /// `overlay: false` on both, since neither has a gizmo, a wireframe or a
 /// floor grid to spend a `MeshOverlay` on.
 class RetargetViewports extends StatefulWidget {
+  /// The pair, drawn with [renderer]; neither one takes a pointer.
   const RetargetViewports({
     super.key,
     required this.renderer,

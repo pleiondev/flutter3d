@@ -7,19 +7,27 @@
 /// verbs this file's nouns are for.
 library;
 
-import 'package:vector_math/vector_math.dart' as vm;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, UnsupportedCapabilityException;
+import 'package:meta/meta.dart';
 
+import 'capabilities.dart';
+import 'device_exceptions.dart';
+import 'format_info.dart';
 import 'formats.dart';
+import 'resources.dart';
 import 'texture.dart';
 
-/// A rectangle of a render target, in pixels.
+/// A rectangle of a render target, in whole pixels: the scissor, a readback
+/// region, an overwrite's region.
 ///
-/// One type for both the viewport and the scissor, because every site in this
-/// engine sets them to the same rectangle — with one exception, the composite's
-/// overlay loop, which re-aims the viewport per view inside a scissor that
-/// already covers the whole frame. That exception is why they are still two
-/// methods and not one.
+/// **The viewport is a [PassViewport] since 1.0.0-rc.1**, with a rectangle in
+/// doubles and a depth range, which is what WebGPU and flutter_gpu set; the
+/// scissor stays whole pixels on every API. [PassViewport.ofRect] turns one of
+/// these into the viewport over the same pixels.
 final class ScreenRect {
+  /// Creates a rectangle [width] by [height] pixels from ([x], [y]) at the top
+  /// left.
   const ScreenRect({
     this.x = 0,
     this.y = 0,
@@ -31,9 +39,16 @@ final class ScreenRect {
   factory ScreenRect.of(TextureHandle texture) =>
       ScreenRect(width: texture.width, height: texture.height);
 
+  /// Left edge in pixels from the attachment's left; zero by default.
   final int x;
+
+  /// Top edge in pixels from the attachment's top row; zero by default.
   final int y;
+
+  /// Width in pixels.
   final int width;
+
+  /// Height in pixels.
   final int height;
 
   @override
@@ -51,16 +66,323 @@ final class ScreenRect {
   String toString() => 'ScreenRect($x, $y, ${width}x$height)';
 }
 
+/// Where the rasteriser maps clip space: a rectangle of the target in pixels,
+/// which may be fractional, and the window depth range clip depth maps onto —
+/// `PassEncoder.setViewport`.
+///
+/// **A rectangle in doubles and a depth range**, the two things every native
+/// viewport has that a [ScreenRect] cannot say. Clip depth from the device's
+/// `GraphicsDevice.depthRange` maps linearly onto [minDepth]..[maxDepth],
+/// both in `[0, 1]`; the defaults are the whole range, which is what every
+/// pass had before. A rectangle that is not whole pixels needs
+/// `DeviceFeature.fractionalViewport` ([checkFeatures]); the depth range
+/// needs nothing.
+@immutable
+final class PassViewport {
+  /// The viewport [width] by [height] pixels from ([x], [y]), mapping depth
+  /// onto [minDepth]..[maxDepth].
+  const PassViewport({
+    this.x = 0,
+    this.y = 0,
+    required this.width,
+    required this.height,
+    this.minDepth = 0,
+    this.maxDepth = 1,
+  }) : assert(
+         0 <= minDepth && minDepth <= maxDepth && maxDepth <= 1,
+         'a depth range lies in [0, 1] and starts at or below where it ends',
+       ),
+       assert(width >= 0 && height >= 0, 'a viewport has no negative size');
+
+  /// The viewport over the whole of [texture], with the whole depth range.
+  factory PassViewport.of(TextureHandle texture) => PassViewport(
+    width: texture.width.toDouble(),
+    height: texture.height.toDouble(),
+  );
+
+  /// The viewport over exactly the pixels of [rect], with the whole depth
+  /// range — what a pass that sets its viewport and its scissor to the same
+  /// rectangle says for the first.
+  factory PassViewport.ofRect(ScreenRect rect) => PassViewport(
+    x: rect.x.toDouble(),
+    y: rect.y.toDouble(),
+    width: rect.width.toDouble(),
+    height: rect.height.toDouble(),
+  );
+
+  /// The left edge, in pixels from the target's left.
+  final double x;
+
+  /// The top edge, in pixels from row zero (see `FramebufferOrigin`).
+  final double y;
+
+  /// How wide, in pixels.
+  final double width;
+
+  /// How high, in pixels.
+  final double height;
+
+  /// The window depth the near end of clip depth maps to: a depth from 0 to
+  /// 1, unitless.
+  final double minDepth;
+
+  /// The window depth the far end of clip depth maps to: a depth from 0 to
+  /// 1, unitless.
+  final double maxDepth;
+
+  /// Whether the rectangle lies on whole pixels — what a backend whose API
+  /// takes integers can set exactly.
+  bool get isWholePixels =>
+      x == x.roundToDouble() &&
+      y == y.roundToDouble() &&
+      width == width.roundToDouble() &&
+      height == height.roundToDouble();
+
+  /// Whether the depth range is the whole of `[0, 1]`.
+  bool get coversFullDepth => minDepth == 0 && maxDepth == 1;
+
+  /// The rectangle rounded to whole pixels — for a backend whose API takes
+  /// integers, once [checkFeatures] has let it through.
+  ScreenRect get rect => ScreenRect(
+    x: x.round(),
+    y: y.round(),
+    width: width.round(),
+    height: height.round(),
+  );
+
+  /// Throws [UnsupportedCapabilityException] when this viewport needs a
+  /// feature [features] lacks: a rectangle that is not whole pixels
+  /// (`fractionalViewport`).
+  ///
+  /// **For a backend's `setViewport`**, so that every backend refuses the
+  /// same viewports in the same words, and a field a minor adds with its
+  /// feature is refused by a backend written before it rather than ignored.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (!isWholePixels) {
+      features.require(
+        DeviceFeature.fractionalViewport,
+        backend: backend,
+        reason: 'the viewport $this is not whole pixels',
+      );
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PassViewport &&
+      other.x == x &&
+      other.y == y &&
+      other.width == width &&
+      other.height == height &&
+      other.minDepth == minDepth &&
+      other.maxDepth == maxDepth;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height, minDepth, maxDepth);
+
+  @override
+  String toString() =>
+      'PassViewport($x, $y, ${width}x$height'
+      '${coversFullDepth ? '' : ', depth $minDepth..$maxDepth'})';
+}
+
+/// What a colour attachment is cleared to: four channels of one kind.
+///
+/// **An immutable value of doubles, since 1.0.0-rc.1.** It was a
+/// `vector_math` `Vector4`: mutable inside an immutable descriptor, the one
+/// third-party type in the contract, and float32, so an integer target (an
+/// `r32UInt` id buffer) cleared exactly only up to 2^24. A double holds every
+/// 32-bit integer exactly, and the three constructors say which kind of
+/// target the value is for: [ClearColor.new] for float and normalised
+/// formats, [ClearColor.uint] and [ClearColor.sint] for the integer ones.
+@immutable
+final class ClearColor {
+  /// A float clear, for a float, normalised or sRGB target. Linear light,
+  /// not sRGB, for anything written into an HDR target.
+  const ClearColor(
+    double this.red,
+    double this.green,
+    double this.blue,
+    double this.alpha,
+  ) : kind = ClearColorKind.float;
+
+  /// An unsigned integer clear, for a `…UInt` target. Each channel is
+  /// written as it is, in the target's own width.
+  const ClearColor.uint(
+    int this.red,
+    int this.green,
+    int this.blue,
+    int this.alpha,
+  ) : kind = ClearColorKind.uint,
+      assert(
+        red >= 0 && green >= 0 && blue >= 0 && alpha >= 0,
+        'an unsigned clear has no negative channel',
+      );
+
+  /// A signed integer clear, for a `…SInt` target.
+  const ClearColor.sint(
+    int this.red,
+    int this.green,
+    int this.blue,
+    int this.alpha,
+  ) : kind = ClearColorKind.sint;
+
+  /// A float clear to [color], channel for channel.
+  factory ClearColor.fromLinear(LinearColor color) =>
+      ClearColor(color.r, color.g, color.b, color.a);
+
+  /// Transparent black, which is what a null `ColorTarget.clearValue` means.
+  static const ClearColor transparentBlack = ClearColor(0, 0, 0, 0);
+
+  /// Which kind of target the channels are for.
+  final ClearColorKind kind;
+
+  /// The red channel: a double for [ClearColorKind.float], an int otherwise.
+  final num red;
+
+  /// The green channel, as [red].
+  final num green;
+
+  /// The blue channel, as [red].
+  final num blue;
+
+  /// The alpha channel, as [red].
+  final num alpha;
+
+  /// The four channels as doubles, in order — exact for every kind, since a
+  /// double holds every 32-bit integer.
+  List<double> get channels => <double>[
+    red.toDouble(),
+    green.toDouble(),
+    blue.toDouble(),
+    alpha.toDouble(),
+  ];
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClearColor &&
+      other.kind == kind &&
+      other.red == red &&
+      other.green == green &&
+      other.blue == blue &&
+      other.alpha == alpha;
+
+  @override
+  int get hashCode => Object.hash(kind, red, green, blue, alpha);
+
+  @override
+  String toString() => 'ClearColor.${kind.name}($red, $green, $blue, $alpha)';
+}
+
+/// Which kind of target a [ClearColor] is for.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+@immutable
+final class ClearColorKind {
+  const ClearColorKind._(this.name);
+
+  /// Float, normalised and sRGB formats.
+  static const ClearColorKind float = ClearColorKind._('float');
+
+  /// Unsigned integer formats.
+  static const ClearColorKind uint = ClearColorKind._('uint');
+
+  /// Signed integer formats.
+  static const ClearColorKind sint = ClearColorKind._('sint');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ClearColorKind> values = <ClearColorKind>[
+    float,
+    uint,
+    sint,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ClearColorKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ClearColorKind.$name';
+}
+
+/// The features a [PrimitiveType] needs — since 1.0.0-rc.1.
+extension PrimitiveTypeFeatures on PrimitiveType {
+  /// Throws [UnsupportedCapabilityException] when [features] lacks what
+  /// this topology needs: a strip (`primitiveStrips`) or points
+  /// (`pointPrimitives`). Triangle and line lists need nothing.
+  ///
+  /// **For a backend's `setPrimitiveType`**, so that every backend refuses
+  /// the same topologies in the same words, and a topology a minor adds with
+  /// its feature is refused by a backend written before it rather than
+  /// assembled as something else.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (this == PrimitiveType.triangleStrip ||
+        this == PrimitiveType.lineStrip) {
+      features.require(
+        DeviceFeature.primitiveStrips,
+        backend: backend,
+        reason: 'it assembles no strips',
+      );
+    } else if (this == PrimitiveType.point) {
+      features.require(
+        DeviceFeature.pointPrimitives,
+        backend: backend,
+        reason: 'it draws no points',
+      );
+    }
+  }
+
+  /// Whether this is a strip, where an all-ones index restarts.
+  bool get isStrip =>
+      this == PrimitiveType.triangleStrip || this == PrimitiveType.lineStrip;
+}
+
+/// The features an [IndexType] needs, and its restart value — since
+/// 1.0.0-rc.1.
+extension IndexTypeFeatures on IndexType {
+  /// Throws [UnsupportedCapabilityException] when [features] lacks what
+  /// this index width needs: 32-bit indices (`indexUint32`).
+  ///
+  /// **For a backend's `bindIndexBuffer` and `bindIndexData`**, for the
+  /// reason [PrimitiveTypeFeatures.checkFeatures] gives.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (this == IndexType.int32) {
+      features.require(
+        DeviceFeature.indexUint32,
+        backend: backend,
+        reason: 'its indices are 16 bits',
+      );
+    }
+  }
+
+  /// The all-ones index that ends a strip and starts the next: `0xFFFF` for
+  /// [IndexType.int16], `0xFFFFFFFF` for [IndexType.int32].
+  int get restartIndex => this == IndexType.int16 ? 0xFFFF : 0xFFFFFFFF;
+}
+
 /// How a draw is combined with what the attachment already holds.
 ///
 /// A value type with `==`, so a backend can cache one native object per
 /// distinct state and a test can assert on the state a pass was left in — the
-/// same two reasons `SamplerOptions` is one.
+/// same two reasons `SamplerDescriptor` is one.
 ///
 /// The field set and the defaults are flutter_gpu's, unchanged, which is what
 /// makes [alphaBlend] exactly the equation the engine used to get by
 /// constructing an empty `ColorBlendEquation`.
 final class BlendState {
+  /// Creates a blend state; the defaults are [alphaBlend]'s, premultiplied
+  /// source over destination.
   const BlendState({
     this.colorOperation = BlendOperation.add,
     this.sourceColorFactor = BlendFactor.one,
@@ -103,11 +425,24 @@ final class BlendState {
     destinationAlphaFactor: BlendFactor.one,
   );
 
+  /// How the colour channels' two terms combine; added by default.
   final BlendOperation colorOperation;
+
+  /// What the fragment's colour is multiplied by; one by default.
   final BlendFactor sourceColorFactor;
+
+  /// What the attachment's colour is multiplied by; one minus the source alpha
+  /// by default.
   final BlendFactor destinationColorFactor;
+
+  /// How the alpha channel's two terms combine; added by default.
   final BlendOperation alphaOperation;
+
+  /// What the fragment's alpha is multiplied by; one by default.
   final BlendFactor sourceAlphaFactor;
+
+  /// What the attachment's alpha is multiplied by; one minus the source alpha
+  /// by default.
   final BlendFactor destinationAlphaFactor;
 
   /// Whether any of the four factors reads the constant
@@ -128,6 +463,73 @@ final class BlendState {
       _readsConstant(sourceAlphaFactor) ||
       _readsConstant(destinationAlphaFactor);
 
+  /// Whether any factor is [BlendFactor.blendAlpha] or
+  /// [BlendFactor.oneMinusBlendAlpha], which read the constant's alpha for
+  /// every channel — what a backend without
+  /// `DeviceFeature.blendConstantAlpha` refuses. Since 1.0.0-rc.1.
+  bool get usesBlendAlpha =>
+      _readsConstantAlpha(sourceColorFactor) ||
+      _readsConstantAlpha(destinationColorFactor) ||
+      _readsConstantAlpha(sourceAlphaFactor) ||
+      _readsConstantAlpha(destinationAlphaFactor);
+
+  /// Whether any factor reads the fragment's second output — what a backend
+  /// without `DeviceFeature.dualSourceBlending` refuses.
+  bool get usesDualSource =>
+      sourceColorFactor.isDualSource ||
+      destinationColorFactor.isDualSource ||
+      sourceAlphaFactor.isDualSource ||
+      destinationAlphaFactor.isDualSource;
+
+  /// Whether either operation is [BlendOperation.min] or
+  /// [BlendOperation.max] — what a backend without
+  /// `DeviceFeature.minMaxBlend` refuses.
+  bool get usesMinMax =>
+      extendedBlendOperations.contains(colorOperation) ||
+      extendedBlendOperations.contains(alphaOperation);
+
+  /// Throws [UnsupportedCapabilityException] when this state needs a feature
+  /// [features] lacks: a factor that reads the blend constant
+  /// (`blendConstant`), one that reads the constant's alpha for every channel
+  /// (`blendConstantAlpha`, asked after `blendConstant`), a min or max
+  /// operation (`minMaxBlend`), a factor that reads a second fragment output
+  /// (`dualSourceBlending`).
+  ///
+  /// **For a backend's `setBlend`**, so that every backend refuses the same
+  /// states in the same words, and an operation a minor adds with its
+  /// feature is refused by a backend written before it rather than ignored.
+  /// [backend] names the backend as a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (usesBlendColor) {
+      features.require(
+        DeviceFeature.blendConstant,
+        backend: backend,
+        reason: 'the blend state reads the blend constant',
+      );
+    }
+    if (usesBlendAlpha) {
+      features.require(
+        DeviceFeature.blendConstantAlpha,
+        backend: backend,
+        reason: "the blend state reads the blend constant's alpha",
+      );
+    }
+    if (usesMinMax) {
+      features.require(
+        DeviceFeature.minMaxBlend,
+        backend: backend,
+        reason: 'the blend state names min or max',
+      );
+    }
+    if (usesDualSource) {
+      features.require(
+        DeviceFeature.dualSourceBlending,
+        backend: backend,
+        reason: 'the blend state reads a second fragment output',
+      );
+    }
+  }
+
   /// Whether one factor multiplies by the blend constant.
   static bool _readsConstant(BlendFactor factor) => switch (factor) {
     BlendFactor.blendColor ||
@@ -136,6 +538,11 @@ final class BlendState {
     BlendFactor.oneMinusBlendAlpha => true,
     _ => false,
   };
+
+  /// Whether one factor multiplies by the constant's alpha alone.
+  static bool _readsConstantAlpha(BlendFactor factor) =>
+      factor == BlendFactor.blendAlpha ||
+      factor == BlendFactor.oneMinusBlendAlpha;
 
   @override
   bool operator ==(Object other) =>
@@ -160,6 +567,12 @@ final class BlendState {
 
 /// One colour attachment of a pass.
 final class ColorTarget {
+  /// Creates an attachment drawing into [texture].
+  ///
+  /// Asserts that [face] is from nought to five, that [layer] and [mipLevel]
+  /// are not negative, and that a [resolveTexture] comes with a store action
+  /// that resolves: [StoreAction.multisampleResolve] or
+  /// [StoreAction.storeAndMultisampleResolve].
   const ColorTarget({
     required this.texture,
     this.resolveTexture,
@@ -168,7 +581,9 @@ final class ColorTarget {
     this.clearValue,
     this.face = 0,
     this.mipLevel = 0,
+    this.layer = 0,
   }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
+       assert(layer >= 0, 'a layer counts up from the first'),
        assert(mipLevel >= 0, 'a mip level counts down from the base'),
        // **Checked here rather than by each backend, because no backend was
        // checking.** The doc on [resolveTexture] said "the backend checks" and
@@ -216,11 +631,20 @@ final class ColorTarget {
   /// that size for the pass. A depth attachment beside it has to be that size
   /// too, and is a plain 2D texture at its own base level.
   ///
-  /// Ask `GraphicsDevice.supportsRenderToMip` before asking for anything but
+  /// Ask `features.has(DeviceFeature.renderToMipLevel)` before asking for anything but
   /// zero. The one backend that cannot — flutter_gpu on OpenGL ES — refuses
   /// at the attachment, which is louder than drawing into the base level and
   /// leaving the chain as it was allocated.
   final int mipLevel;
+
+  /// Which layer of an array [texture], which cube of a cube array (its
+  /// faces then chosen by [face]), or which slice of a 3D texture the pass
+  /// draws into. Zero for every texture that has one.
+  ///
+  /// Ask `DeviceFeature.renderToArrayLayer` before naming anything but zero:
+  /// a backend without it throws `UnsupportedCapabilityException` from
+  /// `beginRenderPass` rather than drawing into layer zero.
+  final int layer;
 
   /// Where a multisampled [texture] is resolved to when the pass ends.
   ///
@@ -235,11 +659,15 @@ final class ColorTarget {
   /// and the scissor are set. The shadow atlas depends on that: it loads, and
   /// blanks one tile by drawing inside it.
   final LoadAction loadAction;
+
+  /// What happens to the attachment when the pass ends; kept by default. With a
+  /// [resolveTexture] it must be one of the two resolving actions.
   final StoreAction storeAction;
 
-  /// Null clears to transparent black. Linear light, not sRGB, for anything
-  /// written into an HDR target.
-  final vm.Vector4? clearValue;
+  /// Null clears to transparent black ([ClearColor.transparentBlack]).
+  /// Linear light, not sRGB, for anything written into an HDR target; an
+  /// integer target takes a [ClearColor.uint] or [ClearColor.sint].
+  final ClearColor? clearValue;
 }
 
 /// How the stencil test treats the draws that follow, for one face.
@@ -261,6 +689,8 @@ final class ColorTarget {
 /// attachment's bit depth, and a value the specification calls out of range
 /// is a value somebody will eventually have to explain.
 final class StencilState {
+  /// Creates a stencil state; the defaults are [disabled]: compare always, keep
+  /// on every outcome, both masks 0xFF.
   const StencilState({
     this.compare = CompareFunction.always,
     this.failOp = StencilOperation.keep,
@@ -351,6 +781,10 @@ final class StencilState {
 /// throw away at the end — are what every pass that never mentions the
 /// stencil has always had.
 final class DepthTarget {
+  /// Creates a depth attachment drawing into [texture], cleared to depth one by
+  /// default.
+  ///
+  /// Asserts that `face` is from nought to five and `layer` is not negative.
   const DepthTarget({
     required this.texture,
     this.clearValue = 1.0,
@@ -359,12 +793,46 @@ final class DepthTarget {
     this.stencilLoadAction = LoadAction.clear,
     this.stencilStoreAction = StoreAction.dontCare,
     this.stencilClearValue = 0,
-  });
+    this.mipLevel = 0,
+    this.layer = 0,
+    this.face = 0,
+    this.depthReadOnly = false,
+    this.stencilReadOnly = false,
+  }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
+       assert(layer >= 0, 'a layer counts up from the first');
 
+  /// The depth, or depth and stencil, texture the pass tests and writes.
   final TextureHandle texture;
+
+  /// Which level of [texture] is the attachment — for a depth pyramid, or a
+  /// shadow drawn into one level of a chain. Ask
+  /// `DeviceFeature.renderToMipLevel` before naming anything but zero.
+  final int mipLevel;
+
+  /// Which layer of an array [texture] is the attachment — a cascaded or
+  /// point-light shadow drawn layer by layer. Ask
+  /// `DeviceFeature.renderToArrayLayer` before naming anything but zero.
+  ///
+  /// Counted as `ColorTarget.layer` counts: on a cube array it is the cube,
+  /// and [face] is the face of it, so a colour and a depth attachment that
+  /// name the same `layer` and `face` are the same plane.
+  final int layer;
+
+  /// Which face of a cube or cube-array [texture] is the attachment, in
+  /// `ColorTarget.face`'s order. Zero for every other shape.
+  final int face;
+
+  /// The pass tests against the depth but never writes it, so the same
+  /// texture may be sampled by the pass at the same time. WebGPU's
+  /// `depthReadOnly`; the load and store actions are then ignored.
+  final bool depthReadOnly;
+
+  /// As [depthReadOnly], for the stencil.
+  final bool stencilReadOnly;
 
   /// The far plane. One under this engine's `[0, 1]` depth convention; a
   /// reversed-Z backend would want zero, which is why it is a parameter.
+  /// A depth from 0 to 1, unitless.
   final double clearValue;
 
   /// What the depth holds when the pass opens: [clearValue] everywhere, or
@@ -396,7 +864,94 @@ final class DepthTarget {
 
 /// Everything a pass draws into.
 final class RenderPassDescriptor {
-  const RenderPassDescriptor({required this.colors, this.depth, this.label});
+  /// Creates a pass drawing into [colors] and, when given, [depth].
+  ///
+  /// Asserts that a [viewMask] names at least one view and fits in 32 bits.
+  const RenderPassDescriptor({
+    required this.colors,
+    this.depth,
+    this.label,
+    this.occlusionQuerySet,
+    this.timestampWrites,
+    this.viewMask,
+  }) : assert(
+         viewMask == null || (viewMask > 0 && viewMask <= 0xFFFFFFFF),
+         'a view mask names at least one view, in 32 bits',
+       );
+
+  /// The views this pass draws at once, one bit per view: bit `i` set draws
+  /// view `i` into layer `i` of every attachment, and a stage reads which
+  /// view it is drawing as its view index. Null draws one view, the
+  /// attachments' own [ColorTarget.layer]s, as every pass did before 1.0.
+  ///
+  /// `DeviceFeature.multiview` (WebGL2 with `OVR_multiview2`); a device without
+  /// it refuses the pass from `beginRenderPass` with the feature named.
+  /// [views] and [forView] are how a caller draws the same views one pass
+  /// at a time instead, and `ViewPasses` decides between the two.
+  final int? viewMask;
+
+  /// The view indices [viewMask] names, lowest first; `[0]` without one.
+  List<int> get views {
+    final mask = viewMask;
+    if (mask == null) return const <int>[0];
+    return <int>[
+      for (var i = 0; i < 32; i++)
+        if (mask & (1 << i) != 0) i,
+    ];
+  }
+
+  /// This pass drawing only [view], into layer [view] of each attachment and
+  /// with no [viewMask]: the fallback for a device without multiview. Every
+  /// attachment keeps its texture, its actions and its clear value.
+  ///
+  /// A view above zero needs `DeviceFeature.renderToArrayLayer`, which
+  /// [checkFeatures] asks of the pass this returns, as of any other.
+  RenderPassDescriptor forView(int view) {
+    RangeError.checkValueInInterval(view, 0, 31, 'view');
+    final depth = this.depth;
+    return RenderPassDescriptor(
+      colors: <ColorTarget>[
+        for (final c in colors)
+          ColorTarget(
+            texture: c.texture,
+            resolveTexture: c.resolveTexture,
+            loadAction: c.loadAction,
+            storeAction: c.storeAction,
+            clearValue: c.clearValue,
+            face: c.face,
+            mipLevel: c.mipLevel,
+            layer: view,
+          ),
+      ],
+      depth: depth == null
+          ? null
+          : DepthTarget(
+              texture: depth.texture,
+              clearValue: depth.clearValue,
+              loadAction: depth.loadAction,
+              storeAction: depth.storeAction,
+              stencilLoadAction: depth.stencilLoadAction,
+              stencilStoreAction: depth.stencilStoreAction,
+              stencilClearValue: depth.stencilClearValue,
+              mipLevel: depth.mipLevel,
+              layer: view,
+              face: depth.face,
+              depthReadOnly: depth.depthReadOnly,
+              stencilReadOnly: depth.stencilReadOnly,
+            ),
+      label: label == null ? null : '$label (view $view)',
+      occlusionQuerySet: occlusionQuerySet,
+      timestampWrites: timestampWrites,
+    );
+  }
+
+  /// The [QueryType.occlusion] set `PassEncoder.beginOcclusionQuery` writes
+  /// into, or null for a pass that asks none. `DeviceFeature.occlusionQuery`.
+  final QuerySet? occlusionQuerySet;
+
+  /// Where the pass writes its start and end GPU times, or null.
+  /// `DeviceFeature.timestampQuery`.
+  final PassTimestampWrites? timestampWrites;
 
   /// What the pass is called, for a GPU debugger and for
   /// `GraphicsDevice.onGpuTimings` — `H2`. The renderer passes its frame
@@ -412,10 +967,57 @@ final class RenderPassDescriptor {
   /// listening. See ARCHITECTURE.md §2.
   final List<ColorTarget> colors;
 
+  /// The depth attachment; null for a pass without one, whose draws are not
+  /// depth-tested.
   final DepthTarget? depth;
 
-  /// Throws when this opens more colour attachments than [limit] allows —
-  /// `gfx-50n`.
+  /// Throws [UnsupportedCapabilityException] when this pass needs a feature
+  /// [features] lacks: a colour or depth attachment at a layer above zero
+  /// (`renderToArrayLayer`), at a mip level above zero (`renderToMipLevel`),
+  /// an occlusion query set (`occlusionQuery`), timestamp writes
+  /// (`timestampQuery`) or a view mask (`multiview`).
+  ///
+  /// **For a backend's `beginRenderPass`, beside [checkAttachmentLimit]**,
+  /// so that every backend refuses the same descriptors in the same words.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    void need(bool used, DeviceFeature feature, String what) {
+      if (used) features.require(feature, backend: backend, reason: what);
+    }
+
+    final depth = this.depth;
+    need(
+      colors.any((ColorTarget c) => c.layer > 0) || (depth?.layer ?? 0) > 0,
+      DeviceFeature.renderToArrayLayer,
+      'this pass draws into a layer above zero',
+    );
+    need(
+      colors.any((ColorTarget c) => c.mipLevel > 0) ||
+          (depth?.mipLevel ?? 0) > 0,
+      DeviceFeature.renderToMipLevel,
+      'this pass draws into a mip level above the base',
+    );
+    need(
+      occlusionQuerySet != null,
+      DeviceFeature.occlusionQuery,
+      'this pass names an occlusion query set',
+    );
+    need(
+      timestampWrites != null,
+      DeviceFeature.timestampQuery,
+      'this pass names timestamp writes',
+    );
+    // 1.0: a multiview pass on a device without it is refused here, in the
+    // same words on every backend; `ViewPasses` draws the views instead.
+    need(
+      viewMask != null,
+      DeviceFeature.multiview,
+      'this pass names a view mask; draw its views one pass each through '
+      'ViewPasses',
+    );
+  }
+
+  /// Throws a [DeviceResourceException] (operation `beginRenderPass`) when
+  /// this opens more colour attachments than [limit] allows — `gfx-50n`.
   ///
   /// **Every backend calls this on the way into `beginRenderPass`, and the
   /// reason it is shared is that the answer has to be the same everywhere.**
@@ -424,18 +1026,23 @@ final class RenderPassDescriptor {
   /// device the author had, and the one that aborts would be the one the
   /// author did not have.
   ///
-  /// [limit] is `GraphicsDevice.maxColorAttachments`. Passed rather than
-  /// taken from a device, because this file may not know what a device is —
-  /// the descriptor is what a caller builds before it has opened anything.
+  /// [limit] is `GraphicsDevice.limits.maxColorAttachments`. Passed rather
+  /// than taken from a device, because this file may not know what a device
+  /// is — the descriptor is what a caller builds before it has opened
+  /// anything. A limit is not a feature, so the refusal is the one a device
+  /// gives for a request it has the feature for and still cannot honour.
   void checkAttachmentLimit(int limit, {required String backend}) {
     if (colors.length <= limit) return;
-    throw UnsupportedError(
-      '$backend opens at most $limit colour '
-      '${limit == 1 ? "attachment" : "attachments"} and this pass asks for '
-      '${colors.length}. Ask `GraphicsDevice.maxColorAttachments` before '
-      'building a pass that wants more than one: this throw is the whole '
-      'point of the number, because the alternative on at least one backend '
-      'is that the process aborts.',
+    throw DeviceResourceException(
+      operation: 'beginRenderPass',
+      backend: backend,
+      reason:
+          'it opens at most $limit colour '
+          '${limit == 1 ? "attachment" : "attachments"} and this pass asks '
+          'for ${colors.length}. Ask `GraphicsDevice.limits.'
+          'maxColorAttachments` before building a pass that wants more than '
+          'one: this throw is the whole point of the number, because the '
+          'alternative on at least one backend is that the process aborts.',
     );
   }
 }

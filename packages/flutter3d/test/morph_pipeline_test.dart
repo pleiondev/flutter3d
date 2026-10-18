@@ -21,7 +21,7 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kCube = '$kSamplesPath/AnimatedMorphCube.glb';
+const String kCube = '$samplesPath/AnimatedMorphCube.glb';
 
 Future<({ModelDocument document, ModelAsset asset})> loadCube() async {
   final document = await GltfLoader().load(File(kCube).readAsBytesSync());
@@ -65,6 +65,22 @@ void main() {
       final part = asset.parts.single;
       expect(part.morphTexture, isNotNull);
       expect(part.morphTargetCount, 2);
+    });
+
+    test('gives the deltas back when the asset is disposed', () async {
+      // Its own load: disposing the shared one would pull the texture out
+      // from under the tests after this one.
+      final device = FakeBackend();
+      final own = await ModelAsset.fromDocument(
+        document,
+        device: device,
+        lighting: LightingModel.unlit,
+      );
+      final deltas = own.parts.single.morphTexture!;
+
+      own.dispose();
+
+      expect(device.releasedTextures, contains(same(deltas)));
     });
 
     test('hands the uploaded deltas to the node it builds', () {
@@ -113,11 +129,11 @@ void main() {
       expect(player, isNotNull, reason: 'the sample carries a clip');
 
       final node = instance.meshes.single;
-      player!.play(0);
+      player!.play(index: 0);
 
       final seen = <List<double>>[];
       for (final time in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
-        player.seek(time * player.clips.first.duration);
+        player.seek(time * player.clips.first.durationSeconds);
         seen.add(List<double>.of(node.morphWeights));
       }
 

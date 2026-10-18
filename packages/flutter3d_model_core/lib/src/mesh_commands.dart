@@ -64,6 +64,7 @@ typedef _MeshTarget = ({ModelObject object, EditMesh mesh, Selection elements});
       target: null,
       refused: '"${object.name}" is a socket and has no topology to edit',
     ),
+    _ => (target: null, refused: 'the selected object is not a mesh'),
   };
 }
 
@@ -84,7 +85,7 @@ Outcome _asMeshStep(
 
   target.mesh.beginStep();
   final OpResult result = edit(target);
-  if (!result.ok) {
+  if (!result.isOk) {
     // Abandoned rather than ended and undone: pushing the step would clear
     // the mesh's redo stack, so a refusal right after an undo would leave
     // `ModelHistory` offering a redo the mesh could no longer perform.
@@ -135,8 +136,10 @@ ModelObject _resyncShapeSet(ModelObject object, EditMesh mesh) {
 
 /// Pulls the selected faces out along their own normal.
 final class Extrude extends ModelCommand {
+  /// A step extruding the selected faces by [distance].
   const Extrude(this.distance);
 
+  /// In metres.
   final double distance;
 
   @override
@@ -165,9 +168,14 @@ final class Extrude extends ModelCommand {
 
 /// Cuts a ring of edges across the quads the selected edge runs through.
 final class LoopCut extends ModelCommand {
+  /// A step cutting [cuts] loops, one unless given, the first at [factor] of
+  /// the edge, a half unless given.
   const LoopCut({this.cuts = 1, this.factor = 0.5});
 
+  /// How many parallel loops to cut, a count from one to a hundred.
   final int cuts;
+
+  /// A 0..1 fraction of the edge.
   final double factor;
 
   @override
@@ -210,9 +218,12 @@ final class LoopCut extends ModelCommand {
 /// selected). Anything else goes through [bevelEdges], which converts the
 /// selection to edges the ordinary way on its own.
 final class BevelEdges extends ModelCommand {
+  /// A step bevelling the selection [width] metres wide, in one segment with
+  /// overlaps clamped unless given.
   const BevelEdges(this.width, {this.segments = 1, this.clampOverlap = true});
 
   /// How far the new face wall sits from the original corner.
+  /// In metres.
   final double width;
 
   /// Segments above `1` are not built yet — see [bevelEdges]'s own doc
@@ -268,13 +279,17 @@ final class BevelEdges extends ModelCommand {
 /// Shrinks every selected face inward and walls the ring it leaves —
 /// `ux-39`.
 final class InsetFaces extends ModelCommand {
+  /// A step insetting the selected faces by [thickness], flat unless [depth] is
+  /// given.
   const InsetFaces(this.thickness, {this.depth = 0.0});
 
   /// How far the new ring sits inside the face's own border.
+  /// In metres.
   final double thickness;
 
   /// How far the new ring is pushed along the face's own normal — nought
   /// for a flat inset, which is what a panel is.
+  /// In metres.
   final double depth;
 
   @override
@@ -312,6 +327,7 @@ final class InsetFaces extends ModelCommand {
 /// Joins the two open borders the selection names with a ring of quads —
 /// `ux-39`.
 final class BridgeLoops extends ModelCommand {
+  /// A step bridging the two open borders the selection names.
   const BridgeLoops();
 
   @override
@@ -334,6 +350,7 @@ final class BridgeLoops extends ModelCommand {
 
 /// Moves the selected loop along the edges that cross it — `ux-39`.
 final class SlideEdges extends ModelCommand {
+  /// A step sliding the selected loop by [amount] of its rails.
   const SlideEdges(this.amount);
 
   /// How far along the rail, as a fraction of its own length. Negative
@@ -366,6 +383,7 @@ final class SlideEdges extends ModelCommand {
 
 /// Takes the selected elements out of the mesh.
 final class DeleteElements extends ModelCommand {
+  /// A step deleting the selected vertices, edges or faces.
   const DeleteElements();
 
   @override
@@ -400,6 +418,9 @@ final class DeleteElements extends ModelCommand {
 /// three matrices and getting the order wrong. A caller that has already
 /// wrapped its own pivot in will find it applied twice.
 final class TransformElements extends ModelCommand {
+  /// A step applying [by] to the selected elements about [pivot] in [space],
+  /// offered for undo as [what]: a move about the median in world axes unless
+  /// given.
   const TransformElements(
     this.by, {
     this.what = 'move',
@@ -407,6 +428,8 @@ final class TransformElements extends ModelCommand {
     this.space = TransformSpace.global,
   });
 
+  /// The transform about the origin; the command moves it to [pivot] itself, so
+  /// a caller passes the bare turn, scale or translation.
   final Matrix4 by;
 
   /// The word the history offers: `move`, `turn` or `scale`.
@@ -433,8 +456,8 @@ final class TransformElements extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'by': by.storage.toList(),
     'what': what,
-    'pivot': pivot.name,
-    'space': space.name,
+    'pivot': transformPivotWord(pivot),
+    'space': transformSpaceWord(space),
   };
 
   // No hint for `by`: it is the whole transform matrix rather than a single
@@ -443,8 +466,12 @@ final class TransformElements extends ModelCommand {
   // actually offer a person a choice between.
   @override
   Map<String, ParamHint> get hints => <String, ParamHint>{
-    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
-    'space': EnumHint(<String>[for (final s in TransformSpace.values) s.name]),
+    'pivot': ChoiceHint(<String>[
+      for (final p in TransformPivot.values) transformPivotWord(p),
+    ]),
+    'space': ChoiceHint(<String>[
+      for (final s in TransformSpace.values) transformSpaceWord(s),
+    ]),
   };
 
   /// **[TransformPivot.individual] is refused rather than approximated.**
@@ -495,6 +522,8 @@ final class TransformElements extends ModelCommand {
 /// why the mesh's own journal is thrown away by a merge: the old mesh keeps
 /// its, and the new one starts with none.
 final class MergeByDistance extends ModelCommand {
+  /// A step merging vertices closer than [distance] metres, or than the mesh's
+  /// own guess when [distance] is null.
   const MergeByDistance({this.distance});
 
   /// How close is close enough, or null for the mesh's own guess — a fraction
@@ -529,7 +558,7 @@ final class MergeByDistance extends ModelCommand {
     if (found.target == null) return Outcome.refused(found.refused!);
     final _MeshTarget target = found.target!;
 
-    final (EditMesh merged, MergeReport report) = mergeByDistance(
+    final MergedMesh(mesh: merged, :report) = mergeByDistance(
       target.mesh,
       distance: distance,
       within: target.elements.isEmpty ? null : target.elements,
@@ -557,6 +586,8 @@ final class MergeByDistance extends ModelCommand {
 
 /// Takes the selected edges out, leaving the faces either side joined.
 final class DissolveEdges extends ModelCommand {
+  /// A step dissolving the selected edges. Refused when none of them has a face
+  /// on both sides.
   const DissolveEdges();
 
   @override
@@ -611,6 +642,8 @@ final class DissolveEdges extends ModelCommand {
 /// walks later is unchanged in shape; only what it is willing to cut along
 /// is.
 final class MarkSeam extends ModelCommand {
+  /// A step marking the selected edges as a seam, or clearing the mark when
+  /// [on] is false.
   const MarkSeam({this.on = true});
 
   /// True to mark the selected edges as a seam, false to clear it — a caller
@@ -654,6 +687,7 @@ final class MarkSeam extends ModelCommand {
 
 /// Cuts every selected face into triangles.
 final class Triangulate extends ModelCommand {
+  /// A step cutting the selected faces into triangles.
   const Triangulate();
 
   @override
@@ -683,8 +717,12 @@ final class Triangulate extends ModelCommand {
 /// consistent, which is what this does. [flip] turns the whole mesh inside out
 /// instead, which is the other half of what the menu item is for.
 final class RecalculateNormals extends ModelCommand {
+  /// A step making every face wind like its neighbours, or turning the whole
+  /// mesh inside out when [flip] is true.
   const RecalculateNormals({this.flip = false});
 
+  /// Whether to reverse every face's winding instead of making the windings
+  /// agree. Without it, a mesh whose faces already agree is refused.
   final bool flip;
 
   @override
@@ -711,7 +749,7 @@ final class RecalculateNormals extends ModelCommand {
             topologyChanged: true,
           );
         }
-        if (!target.mesh.makeConsistent()) {
+        if (!target.mesh.ensureConsistent()) {
           return OpResult.refused(
             'every face already agrees with its neighbours',
             selection: target.elements,
@@ -743,6 +781,8 @@ final class RecalculateNormals extends ModelCommand {
 /// exactly what `ExportReadiness` calls an error, so the answer here is to say
 /// the model is already one piece rather than to make a broken one.
 final class Separate extends ModelCommand {
+  /// A step moving the selected faces into a new object at the same place.
+  /// Refused when nothing is selected or everything is.
   const Separate();
 
   @override
@@ -781,11 +821,11 @@ final class Separate extends ModelCommand {
       );
     }
 
-    final (EditMesh part, IdRemap _) = subMesh(target.mesh, faces.ids);
+    final RemappedMesh(mesh: part) = subMesh(target.mesh, faces.ids);
 
     target.mesh.beginStep();
     final OpResult cut = deleteSelection(target.mesh, faces);
-    if (!cut.ok) {
+    if (!cut.isOk) {
       target.mesh.abandonStep();
       return Outcome.refused(cut.reason!);
     }
@@ -837,6 +877,8 @@ final class Separate extends ModelCommand {
 /// caller of `fillHoles` itself to carry an `OpResult`'s own selection
 /// machinery it would never use.
 final class FillHoles extends ModelCommand {
+  /// A step closing every open boundary loop of the selected object's mesh with
+  /// one face each, and selecting the new faces.
   const FillHoles();
 
   @override
@@ -911,6 +953,8 @@ final class FillHoles extends ModelCommand {
 /// character would silently unbind it. A refusal that names what is in the
 /// way is the honest answer, and bakes are what a person does about it.
 final class SubdivideMesh extends ModelCommand {
+  /// A step subdividing the selected object's mesh [levels] times, one unless
+  /// given, smoothly unless [smooth] is false.
   const SubdivideMesh({this.levels = 1, this.smooth = true});
 
   /// How many times. Capped at four: a level is four times the faces, so
@@ -919,6 +963,8 @@ final class SubdivideMesh extends ModelCommand {
   /// gets finer.
   final int levels;
 
+  /// Whether each level is Catmull-Clark, rounding the surface, or a plain
+  /// split that keeps its shape. True by default.
   final bool smooth;
 
   @override
@@ -1000,6 +1046,9 @@ final class SubdivideMesh extends ModelCommand {
 /// against the mesh as it was rather than against the quad's own new
 /// vertices.
 final class DrawQuad extends ModelCommand {
+  /// A step adding a quad with corners [points] to object [objectId], snapping
+  /// to existing vertices within [snap] metres, two centimetres unless given,
+  /// and onto [sourceId]'s surface when one is named.
   const DrawQuad({
     required this.objectId,
     required this.points,
@@ -1141,8 +1190,12 @@ int _vertexNear(EditMesh mesh, Vector3 point, double snap) {
 /// [SubdivideMesh] refuses: skin weights and shape keys are per-vertex, and
 /// a retopology has none of the old vertices.
 final class Retopologize extends ModelCommand {
+  /// A step rebuilding object [objectId] as about [targetQuads] quads, 2000
+  /// unless given; fewer than twenty is refused.
   const Retopologize({required this.objectId, this.targetQuads = 2000});
 
+  /// The object rebuilt. [apply] refuses when the project has no such object,
+  /// the object has no edited mesh, or it carries shape keys or a skin.
   final int objectId;
 
   /// About how many quads to come out at. About, not exactly: a

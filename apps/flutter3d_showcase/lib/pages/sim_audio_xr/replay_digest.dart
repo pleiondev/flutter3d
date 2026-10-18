@@ -13,11 +13,15 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `replay-digest` page: a run and its replay, digested at checkpoints.
+/// Its check is that two recordings of one run agree, that a drift is
+/// reported at the first checkpoint covering it, and that a trace reads back
+/// what it wrote.
 final class ReplayDigestDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// The step from which the replay drifts, 1 to 20; 21 means it never does.
   double driftAt = 9.0;
   bool _dirty = true;
   late final List<BarGauge> _original;
@@ -97,7 +101,7 @@ final class ReplayDigestDemo extends ShowcaseDemo {
       _original[k].set(step / 22.0);
       _replay[k].set((step >= driftAt.round() ? step + 1 : step) / 22.0);
       final bool same = original.digests[k] == replay.digests[k];
-      _lamps[k].material.baseColor.setValues(
+      _lamps[k].material.baseColor = LinearColor.fromSrgb(
         same ? 0.35 : 0.9,
         same ? 0.85 : 0.3,
         same ? 0.4 : 0.3,

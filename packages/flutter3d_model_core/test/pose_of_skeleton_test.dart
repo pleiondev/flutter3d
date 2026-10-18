@@ -4,7 +4,7 @@
 ///     dart test test/pose_of_skeleton_test.dart
 library;
 
-import 'package:flutter3d_core/flutter3d_core.dart' show Pose;
+import 'package:flutter3d_core/flutter3d_core.dart' show AnimationPose;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -42,7 +42,7 @@ void main() {
         inverseBindMatrices: <Matrix4>[Matrix4.identity(), Matrix4.identity()],
       );
 
-      final Pose pose = poseOf(project, skeleton);
+      final AnimationPose pose = poseOf(project, skeleton);
       final world = pose.worldMatrices();
 
       expect(pose.parents, <int>[-1, 0]);

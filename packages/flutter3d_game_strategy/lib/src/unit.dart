@@ -11,6 +11,7 @@
 /// is, and where it was told to go.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -46,6 +47,19 @@ final class UnitType {
   }) : assert(health > 0.0, 'a kind that is dead the moment it is made'),
        assert(radius > 0.0, 'a kind that needs no room');
 
+  /// A kind read back from [toJson], filling in the worker for anything the
+  /// document left out.
+  factory UnitType.fromJson(Map<String, Object?> from) => UnitType(
+    name: from.text('name') ?? worker.name,
+    radius: from.number('radius', orElse: worker.radius),
+    speed: from.number('speed', orElse: worker.speed),
+    sight: from.number('sight', orElse: worker.sight),
+    health: from.number('health', orElse: worker.health),
+    damage: from.number('damage', orElse: worker.damage),
+    range: from.number('range', orElse: worker.range),
+    reload: from.number('reload', orElse: worker.reload),
+  );
+
   /// The kind that digs. Unarmed, and that is the interesting part: [damage]
   /// of nought is what makes the fight skip it entirely rather than what makes
   /// it lose one.
@@ -74,6 +88,19 @@ final class UnitType {
     reload: 1.6,
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<UnitType> values = <UnitType>[soldier, tank];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static UnitType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// What it is called, for a game that shows the word and for a reader of a
   /// save who wants to know what a row of numbers was meant to be.
   final String name;
@@ -94,9 +121,11 @@ final class UnitType {
   final double sight;
 
   /// How much punishment one of these starts with.
+  /// In hit points (unitless).
   final double health;
 
   /// How much it takes off whatever it hits, per shot.
+  /// In hit points (unitless).
   final double damage;
 
   /// How far it can reach, in metres, measured centre to centre.
@@ -152,19 +181,6 @@ final class UnitType {
     'reload': reload,
   };
 
-  /// A kind read back from [toJson], filling in the worker for anything the
-  /// document left out.
-  factory UnitType.fromJson(Map<String, Object?> from) => UnitType(
-    name: from.text('name') ?? worker.name,
-    radius: from.number('radius', worker.radius),
-    speed: from.number('speed', worker.speed),
-    sight: from.number('sight', worker.sight),
-    health: from.number('health', worker.health),
-    damage: from.number('damage', worker.damage),
-    range: from.number('range', worker.range),
-    reload: from.number('reload', worker.reload),
-  );
-
   /// Two kinds are the same kind when their numbers are.
   ///
   /// A value rather than an identity, because a kind that has been through a
@@ -211,46 +227,9 @@ final class UnitOrder {
   const UnitOrder.moveTo(Vector3 this.goal, {this.slot}) : target = null;
 
   /// An order to go for [target] and keep shooting it.
-  UnitOrder.attack(Unit this.target) : goal = target.position, slot = null;
-
-  /// Where the order points, or null for one that points nowhere.
-  final Vector3? goal;
-
-  /// Where in the arrangement this unit stands, as an offset from [goal].
-  ///
-  /// Null for an order given to one unit rather than to a squad, which then
-  /// walks to the goal itself. See `Formation` for why the slot is an offset
-  /// taken on arrival rather than a goal of its own.
-  final Vector3? slot;
-
-  /// Whom it is for, or null for an order about a place rather than a body.
-  ///
-  /// The unit itself and not its entity index, because the fight asks this
-  /// every step and a lookup per shot would be a map read in the hottest loop
-  /// this genre has. The index is what [save] writes; the object is what the
-  /// step holds.
-  final Unit? target;
-
-  /// The points, written down, and nothing else — there is nothing else.
-  ///
-  /// **An attack writes only whom, and works the goal out again on the far
-  /// side.** Writing the point as well would restore an attack as a walk to
-  /// wherever the quarry happened to be standing when the save was taken: the
-  /// unit would trudge to an empty patch of hillside and hold there while the
-  /// thing it was told to kill walked away.
-  ///
-  /// For everything else both keys are left out when the order points nowhere,
-  /// so that a hold reads back as a hold rather than as a walk to the origin.
-  /// That difference is not cosmetic: the origin is a corner of the map, and a
-  /// crowd restored with orders to walk there is a crowd that empties its own
-  /// camp.
-  Map<String, Object?> save() => switch (target) {
-    final Unit mark => <String, Object?>{'target': mark.entity.index},
-    null => <String, Object?>{
-      if (goal case final Vector3 at) 'goal': vectorOf(at),
-      if (slot case final Vector3 at) 'slot': vectorOf(at),
-    },
-  };
+  UnitOrder.attack(StrategyUnit this.target)
+    : goal = target.position,
+      slot = null;
 
   /// An order read back from [save], minus the target.
   ///
@@ -268,13 +247,55 @@ final class UnitOrder {
       slot: from.vectorInto('slot', slot) ? slot : null,
     );
   }
+
+  /// Where the order points, or null for one that points nowhere.
+  final Vector3? goal;
+
+  /// Where in the arrangement this unit stands, as an offset from [goal].
+  ///
+  /// Null for an order given to one unit rather than to a squad, which then
+  /// walks to the goal itself. See `Formation` for why the slot is an offset
+  /// taken on arrival rather than a goal of its own.
+  final Vector3? slot;
+
+  /// Whom it is for, or null for an order about a place rather than a body.
+  ///
+  /// The unit itself and not its entity index, because the fight asks this
+  /// every step and a lookup per shot would be a map read in the hottest loop
+  /// this genre has. The index is what [save] writes; the object is what the
+  /// step holds.
+  final StrategyUnit? target;
+
+  /// The points, written down, and nothing else — there is nothing else.
+  ///
+  /// **An attack writes only whom, and works the goal out again on the far
+  /// side.** Writing the point as well would restore an attack as a walk to
+  /// wherever the quarry happened to be standing when the save was taken: the
+  /// unit would trudge to an empty patch of hillside and hold there while the
+  /// thing it was told to kill walked away.
+  ///
+  /// For everything else both keys are left out when the order points nowhere,
+  /// so that a hold reads back as a hold rather than as a walk to the origin.
+  /// That difference is not cosmetic: the origin is a corner of the map, and a
+  /// crowd restored with orders to walk there is a crowd that empties its own
+  /// camp.
+  Map<String, Object?> save() => switch (target) {
+    final StrategyUnit mark => <String, Object?>{'target': mark.entity.index},
+    null => <String, Object?>{
+      if (goal case final Vector3 at) 'goal': vectorOf(at),
+      if (slot case final Vector3 at) 'slot': vectorOf(at),
+    },
+  };
 }
 
 /// One unit on the map.
-final class Unit {
+///
+/// **Named for the genre** since 1.0: `Unit` is the foundation's unit of
+/// measurement, and a public name has one home.
+final class StrategyUnit {
   /// Builds a unit of [type] standing at [position], at full health unless
   /// [health] says otherwise.
-  Unit({
+  StrategyUnit({
     required this.position,
     this.type = UnitType.worker,
     this.side = 0,
@@ -282,6 +303,27 @@ final class Unit {
     double? health,
   }) : order = order ?? const UnitOrder.hold(),
        health = health ?? type.health;
+
+  /// A unit read back from [save], standing where it stood.
+  ///
+  /// A factory rather than a `restore` on an existing unit, for the reason the
+  /// note on [entity] gives: the crowd a snapshot describes is not the crowd
+  /// the fresh map was staged with.
+  factory StrategyUnit.fromSnapshot(Map<String, Object?> from) {
+    final Vector3 at = Vector3.zero();
+    from.vectorInto('at', at);
+    final UnitType type = switch (from.object('type')) {
+      final Map<String, Object?> row => UnitType.fromJson(row),
+      null => UnitType.worker,
+    };
+    return StrategyUnit(
+      position: at,
+      type: type,
+      side: from.integer('side'),
+      order: UnitOrder.fromSnapshot(from),
+      health: from.number('health', orElse: type.health),
+    )..cooldownSeconds = from.number('cooldown');
+  }
 
   /// Where it is, in world space. Mutated in place by the step: a crowd that
   /// allocated a vector per unit per frame would spend its budget on the
@@ -312,19 +354,7 @@ final class Unit {
   /// and a bot's thinking count are: a unit restored ready to fire when it was
   /// half a second from it wins an exchange it should have lost, and two runs
   /// of one recording then disagree about who is left standing.
-  double cooldown = 0.0;
-
-  /// Whether it is still on the map. See [health].
-  bool get isAlive => health > 0.0;
-
-  /// How much room it needs, in metres. Its kind's.
-  double get radius => type.radius;
-
-  /// How fast it walks, in metres a second. Its kind's.
-  double get speed => type.speed;
-
-  /// How far it uncovers the map around itself. Its kind's.
-  double get sight => type.sight;
+  double cooldownSeconds = 0.0;
 
   /// What it is doing. Assigning a new one is how a game gives an order.
   UnitOrder order;
@@ -342,6 +372,18 @@ final class Unit {
   /// at minute three has more of them than the map it is restored into, and an
   /// index into a list of a different length names the wrong unit or none.
   Entity entity = Entity.none;
+
+  /// Whether it is still on the map. See [health].
+  bool get isAlive => health > 0.0;
+
+  /// How much room it needs, in metres. Its kind's.
+  double get radius => type.radius;
+
+  /// How fast it walks, in metres a second. Its kind's.
+  double get speed => type.speed;
+
+  /// How far it uncovers the map around itself, in metres. Its kind's.
+  double get sight => type.sight;
 
   /// Takes [amount] off, never past nought.
   ///
@@ -371,28 +413,7 @@ final class Unit {
     'type': type.toJson(),
     'side': side,
     'health': health,
-    'cooldown': cooldown,
+    'cooldown': cooldownSeconds,
     ...order.save(),
   };
-
-  /// A unit read back from [save], standing where it stood.
-  ///
-  /// A factory rather than a `restore` on an existing unit, for the reason the
-  /// note on [entity] gives: the crowd a snapshot describes is not the crowd
-  /// the fresh map was staged with.
-  factory Unit.fromSnapshot(Map<String, Object?> from) {
-    final Vector3 at = Vector3.zero();
-    from.vectorInto('at', at);
-    final UnitType type = switch (from.object('type')) {
-      final Map<String, Object?> row => UnitType.fromJson(row),
-      null => UnitType.worker,
-    };
-    return Unit(
-      position: at,
-      type: type,
-      side: from.integer('side'),
-      order: UnitOrder.fromSnapshot(from),
-      health: from.number('health', type.health),
-    )..cooldown = from.number('cooldown');
-  }
 }

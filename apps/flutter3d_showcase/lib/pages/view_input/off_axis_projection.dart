@@ -6,18 +6,21 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `off-axis-projection` page: a ball seen through a frustum shifted
+/// sideways. Its check is that the shifted frustum is not symmetric.
 final class OffAxisProjectionDemo extends ShowcaseDemo {
+  /// How far the frustum's axis is shifted, in tangent units, -0.6 to 0.6:
+  /// taken from both the left and the right edge.
   double shift = 0.5;
 
   late OffAxisProjection _off;
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.68, 0.72, 0.78, 1.0),
+      baseColor: LinearColor.fromSrgb(0.68, 0.72, 0.78, 1.0),
       roughness: 0.7,
     );
     final MeshNode ball = MeshNode(
@@ -31,7 +34,7 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
 
     // #region symmetric
     final OffAxisProjection symmetric = OffAxisProjection.symmetric(
-      fovYRadians: 0.9,
+      fovY: 0.9,
       aspect: 16 / 9,
     );
     // #endregion symmetric
@@ -47,7 +50,7 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
   }
@@ -55,7 +58,7 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     final OffAxisProjection symmetric = OffAxisProjection.symmetric(
-      fovYRadians: 0.9,
+      fovY: 0.9,
       aspect: 16 / 9,
     );
     _off = symmetric.copyWith(

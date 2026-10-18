@@ -61,7 +61,28 @@ class RevisionRecord {
   final int createdBy;
 }
 
-class ModelsRepository {
+/// Where "Download as…" keeps what it wrote: `model_exports`, through
+/// [ModelsRepository]. An interface so `storage/model_exports.dart` can be
+/// tested with no database.
+abstract interface class ExportCache {
+  Future<StoredFile?> exportOf({
+    required String sourceSha256,
+    required String format,
+    required int writerVersion,
+  });
+
+  Future<bool> keepExport({
+    required int modelId,
+    required String sourceSha256,
+    required String format,
+    required int writerVersion,
+    required StoredFile file,
+  });
+
+  Future<bool> isReferenced(String sha256);
+}
+
+class ModelsRepository implements ExportCache {
   const ModelsRepository(this._db);
 
   final Database _db;
@@ -370,11 +391,11 @@ class ModelsRepository {
     );
   });
 
-  /// Makes a model public under [licence] and [category].
+  /// Makes a model public under [license] and [category].
   ///
   /// `published_at` is kept from the first publication: taking a model down and
   /// putting it back should not move it to the top of the catalogue.
-  /// [category] is required here and nowhere earlier, the same as [licence]
+  /// [category] is required here and nowhere earlier, the same as [license]
   /// already is — a private model does not need one, publishing is what asks
   /// for it. Both are typed enums, so an unknown value cannot reach this
   /// query at all; the app layer is where that is refused, not a database
@@ -382,7 +403,7 @@ class ModelsRepository {
   /// a backstop behind this.
   Future<void> publish(
     int modelId,
-    Licence licence, {
+    Licence license, {
     required Category category,
   }) => _db.run((session) async {
     await session.execute(
@@ -394,7 +415,7 @@ class ModelsRepository {
       '''),
       parameters: {
         'id': modelId,
-        'licence': licence.spdx,
+        'licence': license.spdx,
         'category': category.column,
       },
     );
@@ -415,33 +436,40 @@ class ModelsRepository {
   });
 
   /// Deletes a model and returns the hashes of every file it pointed at —
-  /// its current files and every past revision — so the caller can free
-  /// whichever of those blobs nothing else still references.
+  /// its current files, every past revision and every cached export — so
+  /// the caller can free whichever of those blobs nothing else still
+  /// references.
   Future<List<String>> delete(int modelId) => _db.transaction((session) async {
-    final files = await session.execute(
-      Sql.named('select blob_sha256 from model_files where model_id = @id'),
-      parameters: {'id': modelId},
-    );
-    final revisions = await session.execute(
-      Sql.named('select blob_sha256 from model_revisions where model_id = @id'),
+    final rows = await session.execute(
+      Sql.named('''
+        select blob_sha256 from model_files where model_id = @id
+        union all
+        select blob_sha256 from model_revisions where model_id = @id
+        union all
+        select blob_sha256 from model_exports where model_id = @id
+      '''),
       parameters: {'id': modelId},
     );
     await session.execute(
       Sql.named('delete from models where id = @id'),
       parameters: {'id': modelId},
     );
-    return [
-      for (final row in files) row[0]! as String,
-      for (final row in revisions) row[0]! as String,
-    ];
+    return [for (final row in rows) row[0]! as String];
   });
 
-  /// The hashes of every file [ownerId]'s models point at — collected before an
-  /// account is deleted, because the cascade takes the rows with it.
+  /// The hashes of every file [ownerId]'s models point at — current files,
+  /// revisions and cached exports — collected before an account is deleted,
+  /// because the cascade takes the rows with it.
   Future<List<String>> blobsOfOwner(int ownerId) => _db.run((session) async {
     final rows = await session.execute(
       Sql.named('''
         select f.blob_sha256 from model_files f join models m on m.id = f.model_id
+        where m.owner_id = @owner
+        union all
+        select r.blob_sha256 from model_revisions r join models m on m.id = r.model_id
+        where m.owner_id = @owner
+        union all
+        select e.blob_sha256 from model_exports e join models m on m.id = e.model_id
         where m.owner_id = @owner
       '''),
       parameters: {'owner': ownerId},
@@ -449,26 +477,132 @@ class ModelsRepository {
     return [for (final row in rows) row[0]! as String];
   });
 
-  /// Whether any model still points at [sha256] — as a current file or as a
-  /// past revision.
+  /// Whether any model still points at [sha256] — as a current file, as a
+  /// past revision, or as a cached export.
   ///
   /// Asked before a blob is deleted: two people who uploaded the same file
   /// share one blob, and deleting one of their models must not take the
   /// other's. Checking `model_revisions` too is what keeps a revision's own
   /// blob alive once a newer save has moved `model_files` on to a different
   /// hash — without it, saving over a model would garbage-collect its own
-  /// history out from under it.
+  /// history out from under it. `model_exports` is checked for the same
+  /// reason the other way round: an export of one model can be the very
+  /// bytes another model was uploaded as.
+  @override
   Future<bool> isReferenced(String sha256) => _db.run((session) async {
     final rows = await session.execute(
       Sql.named('''
         select 1 from model_files where blob_sha256 = @sha
         union all
         select 1 from model_revisions where blob_sha256 = @sha
+        union all
+        select 1 from model_exports where blob_sha256 = @sha
         limit 1
       '''),
       parameters: {'sha': sha256},
     );
     return rows.isNotEmpty;
+  });
+
+  /// A cached export of the source [sourceSha256] as [format] by writers of
+  /// [writerVersion], written for any model — or null when there is none.
+  /// [StoredFile.filename] is left empty: the name a download gets is the
+  /// asking model's, not the one it was first written for.
+  @override
+  Future<StoredFile?> exportOf({
+    required String sourceSha256,
+    required String format,
+    required int writerVersion,
+  }) => _db.run((session) async {
+    final rows = await session.execute(
+      Sql.named('''
+        select blob_sha256, bytes, content_type from model_exports
+        where source_sha256 = @source and format = @format
+          and writer_version = @version
+        order by created_at desc
+        limit 1
+      '''),
+      parameters: {
+        'source': sourceSha256,
+        'format': format,
+        'version': writerVersion,
+      },
+    );
+    if (rows.isEmpty) return null;
+    final map = rows.first.toColumnMap();
+    return StoredFile(
+      blobSha256: map['blob_sha256'] as String,
+      bytes: map['bytes'] as int,
+      contentType: map['content_type'] as String,
+      filename: '',
+    );
+  });
+
+  /// Records [file] as [modelId]'s export of [sourceSha256] as [format].
+  ///
+  /// The blob is already on disk by the time this runs, the same order as
+  /// [create]. Recording a key that is already there changes nothing.
+  /// Returns false, recording nothing, when [modelId]'s source is no longer
+  /// [sourceSha256] — a save landed while the export was being written — so
+  /// no row outlives the source it was made from.
+  @override
+  Future<bool> keepExport({
+    required int modelId,
+    required String sourceSha256,
+    required String format,
+    required int writerVersion,
+    required StoredFile file,
+  }) => _db.run((session) async {
+    final inserted = await session.execute(
+      Sql.named('''
+        insert into model_exports
+          (model_id, source_sha256, format, writer_version, blob_sha256, bytes, content_type)
+        select @id, @source, @format, @version, @sha, @bytes, @type
+        where exists (
+          select 1 from model_files
+          where model_id = @id and kind = 'source' and blob_sha256 = @source
+        )
+        on conflict (model_id, source_sha256, format, writer_version) do nothing
+      '''),
+      parameters: {
+        'id': modelId,
+        'source': sourceSha256,
+        'format': format,
+        'version': writerVersion,
+        'sha': file.blobSha256,
+        'bytes': file.bytes,
+        'type': file.contentType,
+      },
+    );
+    if (inserted.affectedRows > 0) return true;
+    // Nothing inserted: either the key was already there (kept), or the
+    // source moved on (not kept). Only the second is a refusal.
+    final current = await session.execute(
+      Sql.named('''
+        select 1 from model_files
+        where model_id = @id and kind = 'source' and blob_sha256 = @source
+      '''),
+      parameters: {'id': modelId, 'source': sourceSha256},
+    );
+    return current.isNotEmpty;
+  });
+
+  /// Drops [modelId]'s cached exports of any source but [currentSourceSha256]
+  /// and returns their blobs' hashes, for the caller to free whichever
+  /// nothing else references — called after the source is replaced.
+  Future<List<String>> dropStaleExports(
+    int modelId,
+    String currentSourceSha256,
+  ) => _db.run((session) async {
+    final rows = await session.execute(
+      Sql.named('''
+        delete from model_exports
+        where model_id = @id and source_sha256 <> @source
+        returning blob_sha256
+      '''),
+      parameters: {'id': modelId, 'source': currentSourceSha256},
+    );
+    return [for (final row in rows) row[0]! as String];
   });
 
   Future<void> _putFile(
@@ -516,7 +650,7 @@ class ModelsRepository {
       title: map['title'] as String,
       description: map['description'] as String,
       visibility: Visibility.of(map['visibility'] as String),
-      licence: Licence.of(map['licence'] as String?),
+      license: Licence.of(map['licence'] as String?),
       category: Category.of(map['category'] as String?),
       sourceFormat: map['source_format'] as String,
       triangleCount: map['triangle_count'] as int,

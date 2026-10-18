@@ -35,6 +35,9 @@ import 'camera_sync_controller.dart';
 /// to remove. Flowing Flame to the scene, it syncs from the game's root
 /// wherever it is added: see [UpdatesAtRoot].
 final class CameraSyncComponent extends Component with UpdatesAtRoot {
+  /// A component advancing [controller] every frame, at [priority], or when
+  /// null at the priority its direction wants: after Flame's camera when
+  /// Flame drives the scene, with the cameras when the scene drives Flame.
   CameraSyncComponent({required this.controller, int? priority})
     : super(
         priority:

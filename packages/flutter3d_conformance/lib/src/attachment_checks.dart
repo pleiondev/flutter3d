@@ -14,7 +14,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../flutter3d_conformance.dart';
 
@@ -41,7 +40,7 @@ import '../flutter3d_conformance.dart';
 /// the refusal should go unchecked.
 Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
   const size = 4;
-  final limit = device.maxColorAttachments;
+  final limit = device.limits.maxColorAttachments;
   require(
     limit >= 1,
     'answers $limit to maxColorAttachments, and a device that cannot open a '
@@ -49,7 +48,7 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
   );
 
   TextureHandle target() => device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: device.defaultColorFormat,
@@ -96,8 +95,8 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
   final pass = device.beginRenderPass(
     RenderPassDescriptor(
       colors: <ColorTarget>[
-        ColorTarget(texture: first, clearValue: Vector4.zero()),
-        ColorTarget(texture: second, clearValue: Vector4.zero()),
+        ColorTarget(texture: first, clearValue: ClearColor.transparentBlack),
+        ColorTarget(texture: second, clearValue: ClearColor.transparentBlack),
       ],
     ),
   );
@@ -118,22 +117,21 @@ Future<void> checkColorAttachmentLimitIsHonoured(GraphicsDevice device) async {
     // second call — and a backend that ignored the index would configure the
     // wrong target, which is its own way of failing this.
     ..setBlend(null, attachment: 1)
-    ..bindPipeline(device.createPipeline(vertex!, probe!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: probe!),
+      ),
+    )
     ..bindVertexData(ByteData.sublistView(triangle), 3)
     ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
     ..draw();
   pass.submit();
 
-  final a = await device.readPixels(first);
-  final b = await device.readPixels(second);
-  require(
-    a != null && b != null,
-    'could not read back the two attachments, so nothing here can be said '
-    'about what they hold',
-  );
+  final a = await device.readback(first);
+  final b = await device.readback(second);
 
-  final red = a!.getUint8(0);
-  final blue = b!.getUint8(2);
+  final red = a.getUint8(0);
+  final blue = b.getUint8(2);
   final otherRed = b.getUint8(0);
   require(
     !(a.getUint8(0) == b.getUint8(0) && a.getUint8(2) == b.getUint8(2)),

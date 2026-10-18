@@ -5,7 +5,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A box nine hundred units long, off to one side and above its origin: the
 /// shape of a free model authored in centimetres by somebody who never
@@ -29,10 +28,10 @@ void main() {
     // Proportions kept: 300 by 120 by 900 is 1 by 0.4 by 3.
     expect(bounds.max.x - bounds.min.x, closeTo(1.0, 1e-4));
     expect(bounds.max.y - bounds.min.y, closeTo(0.4, 1e-4));
-    final centre = (bounds.min + bounds.max)..scale(0.5);
-    expect(centre.x, closeTo(10.0, 1e-4));
-    expect(centre.y, closeTo(0.0, 1e-4));
-    expect(centre.z, closeTo(5.0, 1e-4));
+    final center = (bounds.min + bounds.max)..scale(0.5);
+    expect(center.x, closeTo(10.0, 1e-4));
+    expect(center.y, closeTo(0.0, 1e-4));
+    expect(center.z, closeTo(5.0, 1e-4));
   });
 
   test('on the ground, it stands on the parent instead', () {

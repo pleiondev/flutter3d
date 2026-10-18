@@ -50,6 +50,7 @@ abstract interface class GalleryCache {
 /// A cache that remembers nothing — what a build with no storage gets, and
 /// what keeps the rest of this file honest about a cold start.
 final class NoCache implements GalleryCache {
+  /// A cache with nothing in it, which every call leaves empty.
   const NoCache();
 
   @override
@@ -69,6 +70,7 @@ const Duration kCatalogueStale = Duration(days: 1);
 
 /// A catalogue read from somewhere else, cached, and turned into items.
 final class RemoteSource implements GallerySource {
+  /// A source reading [url] through [fetch], keeping the body in [cache].
   const RemoteSource({
     required this.id,
     required this.name,
@@ -94,8 +96,12 @@ final class RemoteSource implements GallerySource {
   /// rather than a half-parsed catalogue.
   final List<GalleryItem> Function(Object? body, RemoteSource source) parse;
 
+  /// How the catalogue's bytes are got, handed in so this file knows nothing
+  /// about sockets.
   final Fetch fetch;
 
+  /// Where the last body read is kept, with when it was read, so a fresh
+  /// catalogue is not fetched again within [kCatalogueStale].
   final GalleryCache cache;
 
   /// The clock, for a test that has to age a cache entry without waiting a
@@ -164,7 +170,7 @@ GalleryItem remoteItem({
   required String name,
   required String about,
   required RecipeCategory category,
-  required GalleryLicence licence,
+  required GalleryLicence license,
   required String downloadUrl,
   String? author,
 }) => GalleryItem(
@@ -172,7 +178,7 @@ GalleryItem remoteItem({
   name: name,
   about: about,
   category: category,
-  licence: licence,
+  license: license,
   sourceId: source.id,
   author: author,
   open: () async => FetchedModel(

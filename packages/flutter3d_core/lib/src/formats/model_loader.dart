@@ -6,6 +6,7 @@ import 'package:flutter3d_core/geometry.dart';
 import 'asset_source.dart';
 import 'f3d/f3d.dart';
 import 'gltf/gltf.dart';
+import 'lighting_model.dart';
 import 'obj/obj.dart';
 import 'stl/stl.dart';
 
@@ -17,16 +18,54 @@ import 'stl/stl.dart';
 export 'asset_source.dart';
 
 /// Which decoder to use.
-enum ModelFormat {
+///
+/// **A class with constant values rather than an enum**, so a later release
+/// can name a format of its own without breaking a `switch` written against
+/// this one: a switch over these needs a default, which is where a format
+/// it does not know goes. The values compare by identity; [name] is for a
+/// message, never for a file.
+final class ModelFormat {
+  /// A format called [name]. The engine's own are the constants below.
+  const ModelFormat(this.name);
+
+  /// What the format is called, for a message.
+  final String name;
+
   /// Pick from the file extension, falling back to sniffing the bytes.
-  auto,
-  gltf,
-  obj,
+  static const ModelFormat auto = ModelFormat('auto');
+
+  /// glTF 2.0, as `.gltf` or `.glb`.
+  static const ModelFormat gltf = ModelFormat('gltf');
+
+  /// Wavefront OBJ.
+  static const ModelFormat obj = ModelFormat('obj');
 
   /// The engine's own container, produced by `dart run flutter3d_build:convert`.
-  f3d,
+  static const ModelFormat f3d = ModelFormat('f3d');
 
-  stl,
+  /// STL, binary or text.
+  static const ModelFormat stl = ModelFormat('stl');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ModelFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The engine's own values, in the order the enum had them.
+  static const List<ModelFormat> values = <ModelFormat>[
+    auto,
+    gltf,
+    obj,
+    f3d,
+    stl,
+  ];
+
+  @override
+  String toString() => 'ModelFormat.$name';
 }
 
 /// A decoder for a format the engine does not ship.
@@ -41,25 +80,67 @@ enum ModelFormat {
 ///
 /// **Implementations must be sendable**, and that is not a formality — see
 /// [ModelLoadRequest.decoders] for the isolate that makes it one.
-abstract interface class ModelDecoder {
-  /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
-  /// the whole file, so a decoder with no useful suffix can sniff its magic.
-  bool handles(String fileName, Uint8List bytes);
+///
+/// **Extended outside this package, and stays so through 1.x.** A base class
+/// rather than an interface (decision 5 of `tasks/1.0-api-review.md`): a
+/// member added in a minor arrives with a default body, so a decoder written
+/// against 1.0 keeps compiling. Write `extends ModelDecoder`, on a `final`
+/// or `base` class.
+abstract base class ModelDecoder {
+  /// A decoder; `const` so one can be a constant.
+  const ModelDecoder();
 
-  /// Reads [bytes] into a document.
-  ///
-  /// [resolveUri] fetches a sibling file — a `.gltf`'s buffer, an `.obj`'s
-  /// material library — and is the only way to reach the file system from here:
-  /// this runs on a background isolate that has none.
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  );
+  /// Whether this decoder wants the file [ModelProbe] names.
+  bool handles(ModelProbe probe);
+
+  /// Reads [ModelDecodeContext.bytes] into a document.
+  Future<ModelDocument> decode(ModelDecodeContext context);
+}
+
+/// What [ModelDecoder.handles] is asked about: a file, by name and bytes.
+///
+/// **One object, so a minor can hand a decoder more** — the file's media
+/// type, where it came from — without breaking a decoder written against
+/// 1.0.
+final class ModelProbe {
+  /// A probe of the file [fileName] holding [bytes].
+  const ModelProbe({required this.fileName, required this.bytes});
+
+  /// The file's name, lower case; may be empty.
+  final String fileName;
+
+  /// The whole file, so a decoder with no useful suffix can sniff its magic.
+  final Uint8List bytes;
+}
+
+/// What [ModelDecoder.decode] is handed.
+///
+/// One object for the reason [ModelProbe] gives.
+final class ModelDecodeContext {
+  /// The [bytes] to decode, the [request] they were read for, and the way
+  /// to [resolveUri] their siblings.
+  const ModelDecodeContext({
+    required this.bytes,
+    required this.request,
+    required this.resolveUri,
+  });
+
+  /// The file.
+  final Uint8List bytes;
+
+  /// How it is to be read.
+  final ModelLoadRequest request;
+
+  /// Fetches a sibling file — a `.gltf`'s buffer, an `.obj`'s material
+  /// library — and is the only way to reach the file system from here: a
+  /// decode runs on a background isolate that has none.
+  final AssetUriResolver resolveUri;
 }
 
 /// Everything a decode needs, in one sendable object.
 final class ModelLoadRequest {
+  /// A request to read [source], its format found from the file and every
+  /// other choice at the loaders' defaults unless given.
   const ModelLoadRequest({
     required this.source,
     this.format = ModelFormat.auto,
@@ -67,13 +148,37 @@ final class ModelLoadRequest {
     this.objNormals = ObjNormals.smooth,
     this.stlNormals = StlNormals.fromFile,
     this.decoders = const <ModelDecoder>[],
+    this.lightingModels,
   });
 
+  /// Where the file is read from, and the key its decode is cached under.
   final AssetSource source;
+
+  /// The format to read the file as; [ModelFormat.auto] picks it from the
+  /// extension, then from the bytes.
   final ModelFormat format;
+
+  /// The vertex layout the meshes are decoded into.
   final VertexLayout layout;
+
+  /// What an OBJ with no `vn` records gets for normals.
   final ObjNormals objNormals;
+
+  /// Whether an STL's facet normals are read or recomputed.
   final StlNormals stlNormals;
+
+  /// The engine's lighting models, `Renderer.lightingModels`, that a
+  /// material naming its model by name is read against: a `.f3d` drawn
+  /// with a plugin's lit model reads as that model, and one naming a model
+  /// of a plugin this engine has not installed is refused, naming the
+  /// plugin. Null reads against the built-in models alone, as a tool with
+  /// no engine does.
+  ///
+  /// **Sent with the request**, for the reason [decoders] gives: the decode
+  /// runs on a background isolate. The engine's table holds descriptions
+  /// only, and crosses as a copy; a plugin's view of it does not, so hand
+  /// the renderer's own.
+  final LightingModels? lightingModels;
 
   /// An application's own decoders, tried in order before the built-in ones.
   ///
@@ -95,8 +200,14 @@ final class ModelLoadRequest {
 /// Exposed for tests and for callers that already run off the UI thread; an
 /// application drawing a frame should prefer `decodeModelInIsolate`, which is
 /// `flutter3d`'s and takes the read off the UI thread as well.
-Future<ModelDocument> decodeModel(ModelLoadRequest request) async {
-  final bytes = await request.source.read();
+///
+/// [read] is what the file is read with ([AssetRead]): a progress listener,
+/// a cancel signal.
+Future<ModelDocument> decodeModel(
+  ModelLoadRequest request, {
+  AssetRead read = AssetRead.whole,
+}) async {
+  final bytes = await read.readFrom(request.source);
   return decodeModelBytes(request, bytes, request.source.resolveUri);
 }
 
@@ -114,7 +225,9 @@ Future<ModelDocument> decodeModelBytes(
   // Asked before the format is resolved at all: a decoder that recognises its
   // own file is a better authority than a suffix table this package wrote.
   for (final decoder in request.decoders) {
-    if (!decoder.handles(request.source.fileName.toLowerCase(), bytes)) {
+    if (!decoder.handles(
+      ModelProbe(fileName: request.source.fileName.toLowerCase(), bytes: bytes),
+    )) {
       continue;
     }
     final task = developer.TimelineTask()
@@ -122,7 +235,15 @@ Future<ModelDocument> decodeModelBytes(
         'decode ${decoder.runtimeType}',
         arguments: <String, Object?>{'bytes': bytes.length},
       );
-    return decoder.decode(bytes, request, resolveUri).whenComplete(task.finish);
+    return decoder
+        .decode(
+          ModelDecodeContext(
+            bytes: bytes,
+            request: request,
+            resolveUri: resolveUri,
+          ),
+        )
+        .whenComplete(task.finish);
   }
 
   final format = _resolveFormat(request, bytes);
@@ -134,10 +255,15 @@ Future<ModelDocument> decodeModelBytes(
       arguments: <String, Object?>{'bytes': bytes.length},
     );
 
-  return builtInModelDecoder(
-    format,
-    request,
-  ).decode(bytes, request, resolveUri).whenComplete(task.finish);
+  return builtInModelDecoder(format, request)
+      .decode(
+        ModelDecodeContext(
+          bytes: bytes,
+          request: request,
+          resolveUri: resolveUri,
+        ),
+      )
+      .whenComplete(task.finish);
 }
 
 /// The decoder this package ships for [format], configured from [request].
@@ -164,7 +290,9 @@ ModelDecoder builtInModelDecoder(
     layout: request.layout,
     normals: request.stlNormals,
   ),
-  ModelFormat.gltf || ModelFormat.auto => GltfLoader(layout: request.layout),
+  // `gltf`, `auto` once nothing narrowed it, and a format a later release
+  // names that this one has no reader of its own for.
+  _ => GltfLoader(layout: request.layout),
 };
 
 /// Every file suffix a built-in reader answers to, and which reader.
@@ -195,7 +323,10 @@ bool canDecodeFileName(
   if (recognizedModelFormat(fileName) != null) return true;
   final name = fileName.toLowerCase();
   final nothing = Uint8List(0);
-  return decoders.any((ModelDecoder decoder) => decoder.handles(name, nothing));
+  return decoders.any(
+    (ModelDecoder decoder) =>
+        decoder.handles(ModelProbe(fileName: name, bytes: nothing)),
+  );
 }
 
 /// Chooses a decoder from the file name, then from the bytes.

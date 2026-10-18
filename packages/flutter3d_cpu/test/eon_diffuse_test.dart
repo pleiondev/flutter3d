@@ -10,8 +10,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 const int _size = 48;
 
@@ -34,22 +36,22 @@ Float32List _render({
   final camera = CameraNode()..setPosition(0.0, 0.0, 2.0);
   final sphere = MeshNode(
     DeviceMesh.upload(device, const SphereShape().build()),
-    Material(
+    RenderMaterial(
       lighting: lighting,
-      baseColor: Vector4(grey, grey, grey, 1.0),
+      baseColor: LinearColor.fromSrgb(grey, grey, grey, 1.0),
       roughness: roughness,
     ),
   );
   final scene = Scene()
     ..add(sphere)
     ..add(camera)
-    ..ambientIntensity = lit ? 0.0 : 1.0;
-  if (lit) scene.add(LightNode(intensity: 3.0));
+    ..ambientIntensity = lit ? 0.0 : LightNode.defaultIntensity;
+  if (lit) scene.add(LightNode(intensity: 3.0 * LightNode.defaultIntensity));
   final result = Renderer.create(device: device).render(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),
@@ -65,14 +67,14 @@ Float32List _render({
 double _ring(Float32List hdr, double from, double to) {
   var sum = 0.0;
   var count = 0;
-  const centre = _size / 2.0;
+  const center = _size / 2.0;
   // The sphere's radius on screen at this camera distance, a little inside.
   const radius = _size * 0.28;
   for (var y = 0; y < _size; y++) {
     for (var x = 0; x < _size; x++) {
       final d = math.sqrt(
-        (x + 0.5 - centre) * (x + 0.5 - centre) +
-            (y + 0.5 - centre) * (y + 0.5 - centre),
+        (x + 0.5 - center) * (x + 0.5 - center) +
+            (y + 0.5 - center) * (y + 0.5 - center),
       );
       if (d < radius * from || d > radius * to) continue;
       sum += hdr[(y * _size + x) * 4];

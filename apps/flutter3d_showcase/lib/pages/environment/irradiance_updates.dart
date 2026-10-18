@@ -6,17 +6,26 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `irradiance-updates` page: a room with one wall whose colour can be
+/// changed and a lamp, its irradiance field refreshed a few probes a frame.
+/// Its check is that the update pass ran and refreshed at least one probe.
 final class IrradianceUpdatesDemo extends ShowcaseDemo {
+  /// The painted wall's colour: 0 red, 1 green, 2 blue.
   int wallColour = 0;
+
+  /// How many probes the renderer refreshes each frame, 1 to 8 in whole
+  /// steps; rounded into the field's `gpuUpdates`.
   double probesPerFrame = 2;
+
+  /// How much of a probe's old value survives each refresh, 0 to 0.99: higher
+  /// is steadier and slower to follow the wall.
   double hysteresis = 0.9;
 
-  late final Material _paint;
+  late final RenderMaterial _paint;
   late final IrradianceField _field;
 
-  static final List<Vector4> _colours = <Vector4>[
+  static final List<Vector4> _colors = <Vector4>[
     Vector4(0.85, 0.08, 0.08, 1.0),
     Vector4(0.08, 0.7, 0.12, 1.0),
     Vector4(0.1, 0.2, 0.85, 1.0),
@@ -34,20 +43,20 @@ final class IrradianceUpdatesDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region room
-    final Material floor = Material(
+    final RenderMaterial floor = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.55, 0.55, 0.55, 1.0),
+      baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.55, 1.0),
       roughness: 0.95,
       doubleSided: true,
     );
-    _paint = Material(
+    _paint = RenderMaterial(
       name: 'painted wall',
-      baseColor: _colours[wallColour].clone(),
+      baseColor: _fromSrgb(_colors[wallColour].clone()),
       roughness: 0.95,
       doubleSided: true,
     );
     final Scene scene = Scene()
-      ..ambientIntensity = 1.0
+      ..ambientIntensity = 1.0 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -74,7 +83,7 @@ final class IrradianceUpdatesDemo extends ShowcaseDemo {
         LightNode(
           name: 'lamp',
           type: LightType.point,
-          intensity: 30.0,
+          intensity: 30.0 * LightNode.defaultIntensity,
           range: 12.0,
         )..setPosition(-0.8, 2.5, 0.0),
       );
@@ -99,7 +108,7 @@ final class IrradianceUpdatesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region live
-    _paint.baseColor.setFrom(_colours[wallColour]);
+    _paint.baseColor = _fromSrgb(_colors[wallColour]);
     _field
       ..gpuUpdates = probesPerFrame.round()
       ..hysteresis = hysteresis;
@@ -143,3 +152,6 @@ final class IrradianceUpdatesDemo extends ShowcaseDemo {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

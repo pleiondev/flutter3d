@@ -48,8 +48,8 @@ void main() {
     scene.add(
       LightNode(
         type: LightType.directional,
-        color: vm.Vector3(1.0, 0.96, 0.88),
-        intensity: 3.2,
+        color: LinearColor(1.0, 0.96, 0.88),
+        intensity: 3.2 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
@@ -61,9 +61,9 @@ void main() {
     final Building hall = staged.simulation.buildings.first;
     final camera = scene.add(CameraNode(name: 'camera'));
     camera
-      ..setPosition(hall.centre.x, hall.centre.y + 30.0, hall.centre.z + 22.0)
-      ..lookAt(vm.Vector3(hall.centre.x, hall.centre.y + 1.5, hall.centre.z));
-    final views = <RenderView>[RenderView(camera: camera)];
+      ..setPosition(hall.center.x, hall.center.y + 30.0, hall.center.z + 22.0)
+      ..lookAt(vm.Vector3(hall.center.x, hall.center.y + 1.5, hall.center.z));
+    final views = <CameraView>[CameraView(camera: camera)];
 
     // Two questions of one frame, which is what the pass is built to take: the
     // middle, where the hall is, and a corner, where it is not. One alone would

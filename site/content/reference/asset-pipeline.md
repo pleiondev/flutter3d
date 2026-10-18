@@ -68,6 +68,29 @@ rules:
 
 The **last** matching rule wins, not the first, so a broad rule and a narrower exception below it read the way a person writes them. A bad glob or an unknown key names the line it is on, in `flutter3d_assets.yaml:N: ...` form, because the manifest's own author reads that error, not a player of the finished game.
 
+## What a `.f3d` holds {#f3d}
+
+A `.f3d` is a header, a directory of sections and the sections themselves,
+little-endian throughout. A reader skips a section it does not know unless
+the directory marks it must-understand, and from version 2 a table's record
+size comes from its section, so records can grow at the end. Kinds from
+`0x80000000` up belong to tools, not to the engine.
+
+| Sections | What they hold | Read back as |
+|---|---|---|
+| 1–18, 21–28 | Geometry, materials and their layers, images, nodes, clips, skins, morph targets, levels of detail, impostors, clusters, variants, `extras` | `ModelDocument` |
+| 29–31 | Lights (lux or candela), cameras, the nodes that carry them | `lights`, `cameras`, `ModelNode.lightIndex`/`cameraIndex` |
+| 32 | Each material's lighting model, in the JSON `.fmat` uses | `SurfaceMaterial.lightingModel` |
+| 33 | Material language programs (`.f3dmat` source) by name | `F3dDocument.programs` |
+| 34 | Level and prefab documents (`"format": "f3d.level"`) by name | `F3dDocument.prefabs` |
+| 35 | Files carried whole (models, `.fmat`, textures) by path | `F3dDocument.files` |
+
+Sections 29–35 make a `.f3d` a whole asset, which is what `flutter3d convert`
+writes by default (see [Bringing assets in](/reference/bringing-assets-in/#bundle)).
+None of them is must-understand, and a model without them is the same bytes
+it always was. `F3dWriter` takes `programs`, `prefabs`, `files` and
+`extraSections` for a tool's own data.
+
 ## Levels of detail, impostors and chunks {#lods}
 
 Three things the converter can add to a model, each off until a rule or a flag asks for it. They are the same options on the command line and in the manifest:
@@ -90,7 +113,7 @@ rules:
 
 **`impostor`** ends the chain in a card that turns to face the eye. Every node that draws something is drawn by the software rasteriser from 8×8 directions laid out on an octahedral map, into an albedo atlas and a normal-depth atlas, and the bytes come out the same on every machine. At run time the node's `LodGroup` ends in an `ImpostorNode`: one draw, receiving shadows and casting none. At the default cell of 64 texels that is two 512×512 atlases per node. A texture the bake cannot decode is baked as its material's base colour, and the report names it. On five trees at the switch distance, 11% of the silhouette differs from the mesh and the mean colour error is under 13 steps a channel. `bakeImpostors` is the Dart entry.
 
-**`chunks`** is for scans and CAD exports, one mesh of hundreds of thousands of triangles where most of it is off screen or behind the rest. Every static mesh above the threshold (65536 triangles for `true` and a bare `--chunks`, `kDefaultChunkThreshold`) is split into runs of up to 4096 triangles, each with a box and a cone of normals, and the scene pass tests each run against the view, its facing and the occlusion test. No vertex moves, and a skinned or morphing mesh stays whole. The table goes in a `.f3d` section of its own, written only when a mesh has one, so a reader from before 0.8.0 loads the same file and draws the whole mesh. `splitLargeMeshes` is the Dart entry.
+**`chunks`** is for scans and CAD exports, one mesh of hundreds of thousands of triangles where most of it is off screen or behind the rest. Every static mesh above the threshold (65536 triangles for `true` and a bare `--chunks`, `defaultChunkThreshold`) is split into runs of up to 4096 triangles, each with a box and a cone of normals, and the scene pass tests each run against the view, its facing and the occlusion test. No vertex moves, and a skinned or morphing mesh stays whole. The table goes in a `.f3d` section of its own, written only when a mesh has one, so a reader from before 0.8.0 loads the same file and draws the whole mesh. `splitLargeMeshes` is the Dart entry.
 
 ## One file per device class {#classes}
 
@@ -121,7 +144,7 @@ classes:
   desktop:
 ```
 
-The keys a class takes are `lods`, `impostor`, `impostorCell`, `maxTextureSide` and `lightDifference`, the last of which is for [a level's lights](#lights) and not for models. An image larger than `maxTextureSide` on either axis is box-filtered down before the texture encoder sees it. `convert --classes phone,desktop` does the same from the command line, with the presets, and applies `--lods` and `--impostor` where a class names no chain of its own.
+The keys a class takes are `lods`, `impostor`, `impostorCell`, `maxTextureSide` and `lightDifference`, the last of which is for [a level's lights](#lights) and not for models. An image larger than `maxTextureSide` on either axis is box-filtered down before the texture encoder sees it. `flutter3d convert` has no class option: per-class files are the build's, read from this manifest. A build script that wants them by hand calls `runConvert` (`package:flutter3d_build`), the one-model converter, with `--classes phone,desktop`; it uses the presets, and applies `--lods` and `--impostor` where a class names no chain of its own.
 
 **Which files a build carries depends on its target.** A native build writes the phone and desktop files, because a native application may be given either: a slow laptop reads the phone's, a tablet that samples BC reads the desktop's. A web build writes the web files alone, because a browser reads nothing else. The Flutter tool asks for a web build with no code configuration, and the hook takes that to mean the web. A project that builds some other way names its classes itself, in the same place as the texture family:
 
@@ -148,13 +171,13 @@ assetDeviceClass = await picker.pick(
 );
 ```
 
-`DeviceClassSelector` makes the decision. A browser is `web`. Otherwise a GPU that samples a BC format is a `desktop` and one that does not is a `phone`, because BC support comes with the silicon and a power saver cannot switch it off. The measurement can only demote: a desktop part whose probe frame takes longer than `desktopMicros` (8000 µs, half a 60 Hz frame) is given the phone's files, and a phone that measures fast on a cool loading screen stays a phone. `measureFrameMicros` throws away two warm-up frames and takes the median of eight. What `pick` stores says whether it was measured or chosen, so `picker.override(DeviceClass.phone)` sticks and `override(null)` measures again on the next launch. An override the device cannot read, a phone class on the web, throws an `ArgumentError`.
+`DeviceClassSelector` makes the decision. A browser is `web`. Otherwise a GPU that samples a BC format is a `desktop` and one that does not is a `phone`, because BC support comes with the silicon and a power saver cannot switch it off. The measurement can only demote: a desktop part whose probe frame takes longer than `desktopLimit` (8 ms, half a 60 Hz frame) is given the phone's files, and a phone that measures fast on a cool loading screen stays a phone. `measureFrameMicros` throws away two warm-up frames and takes the median of eight. What `pick` stores says whether it was measured or chosen, so `picker.override(DeviceClass.phone)` sticks and `override(null)` measures again on the next launch. An override the device cannot read, a phone class on the web, throws an `ArgumentError`.
 
 `assetDeviceClass` is what every loader reads when its caller names no class. `loadModelAsset('assets_src/chair.glb', deviceClass: ...)` tries `chair.phone.f3d` first and falls back to `chair.f3d`, which costs one missed read, and `LevelLoader.load` reads `crypt.phone.json` before `crypt.json` in the same way. Null, the default, reads exactly what 0.7 read.
 
 ## Upgrading from 0.7: one full conversion
 
-`kAssetPipelineVersion` is 2. A rule can now ask for levels of detail, an impostor or chunks, and an output cached by 0.7 may be missing them, so the first build after the upgrade converts every source once. After that a source is skipped when its bytes, the pipeline version, the texture family and what its rule asks for are all unchanged, as before.
+`assetPipelineVersion` is 2. A rule can now ask for levels of detail, an impostor or chunks, and an output cached by 0.7 may be missing them, so the first build after the upgrade converts every source once. After that a source is skipped when its bytes, the pipeline version, the texture family and what its rule asks for are all unchanged, as before.
 
 ## Texture families {#texture-families}
 
@@ -175,6 +198,8 @@ hooks:
       textures: universal   # or bc, etc2, none
 ```
 
+A value that is not one of the choices fails the build, naming them, where it used to fall back to the platform's family; a key the hook does not read (`textures`, `deviceClasses` and `fullShaders` are the ones it does) is a warning in the build's log.
+
 **`universal` is the answer for a build that ships to more than one family**, the web above all. It is not a GPU format but a 4×4 block intermediate, cooked once; the upload turns it into BC, ASTC, ETC2 or RGBA8 against what the device says it samples, so one file serves a laptop and a phone from the same build, at twenty bytes a block.
 
 By hand, the converter takes the family by name, and `--no-mips` keeps the base level alone:
@@ -194,7 +219,7 @@ final document = await loadModelAsset('assets_src/models/chair.glb');
 Reads the converted `flutter3d_generated/models/chair.f3d`. Missing it means two different things on purpose:
 
 - **In debug**, decodes `assets_src/models/chair.glb` directly instead, and prints one warning the first time, not one per frame. A project with no build yet still draws something.
-- **Outside debug**, throws a `StateError` naming `flutter3d_build:init`. A release build that shipped without its own hook ever running is a real problem, and paying the decode cost on every load without a word would hide it.
+- **Outside debug**, throws an `AssetNotFoundException` whose `key` is the generated path, naming `flutter3d_build:init`. A release build that shipped without its own hook ever running is a real problem, and paying the decode cost on every load without a word would hide it.
 
 The debug fallback reads the source straight off disk, which only exists during `flutter run`/`flutter test` from a checkout: never in a shipped build, and never on the web, which has no `dart:io`. There, a missing generated file is the release error in every build mode.
 
@@ -205,8 +230,10 @@ A path somebody else wrote, such as a level document naming a coin's model, goes
 `convert` also takes a splat capture, a `.ply` of fitted Gaussians or its compressed `.spz` form, and writes a `.f3dsplat`: an octree whose inner nodes are merged, coarser versions of their children, stored coarse levels first so a viewer reads only the pages its cut needs.
 
 ```bash
-dart run flutter3d_build:convert captures/garden.spz -o web/garden.f3dsplat
+dart run flutter3d_build:convert captures/garden.spz -o web
 ```
+
+That writes `web/garden.f3dsplat`. `-o` names a directory: `dart run flutter3d_build:convert` is an alias of `flutter3d convert`, and every output takes its name from its input. Before 1.0 the same name ran the one-model converter, whose `-o` named the file; that converter is `runConvert` in `package:flutter3d_build`, for a build script.
 
 The converter reads the tree back and counts its leaves against the source before it reports success. Walking a directory, a `.ply` counts as a capture only when its header names `f_dc_0`, the fitted colour, so a folder that also holds a mesh saved as PLY still converts; a `.ply` named on its own is always tried, and refused with the reason. `convertSplat` is the Dart entry.
 
@@ -223,18 +250,73 @@ Finds a smaller set of lights that lights the level the way it is lit now. Every
 | Option | |
 |---|---|
 | `--poses <file.json>` | Where players stood, as the list a game's `Recorder` writes while it plays a run back. Repeatable. Without it, the views are four headings from every player spawn |
-| `--state <file.json>` | A lighting state the level must still look right under, such as the noon sun, or a night with no lights at all. Repeatable; the level is judged under each, so a lamp the sun drowns out is kept for the night |
+| `--state <file.json>` | A lighting state the level must still look right under, such as the noon sun, or a night with no lights at all. Repeatable; the level is judged under each, so a lamp the sun drowns out is kept for the night. Its lights are read as a level's are, at the `version` the file says: a state without `"version": 5` is read in the pre-1.0 light unit and lifted to candela and lux, so write `"version": 5` in a state whose numbers are already candela |
 | `-o`, `--out <path>` | Where to write. By default the input is overwritten |
 | `--preview <dir>` | `before.png` and `after.png` of the first view |
 | `--dry-run` | Prints the moves and the numbers and writes nothing |
 | `--classes phone,web,desktop` | One level per class beside the output (`crypt.phone.json`, ...), each held to its class's `lightDifference` from the nearest `flutter3d_assets.yaml`, or the preset's. The level itself is left alone |
 
-It refuses to overwrite a level that says it was generated; `--out` writes a copy that takes ownership of itself. The command lives under `bin/` only, so the build hook never compiles the optimizer, and a level is optimised only when somebody runs it.
+It refuses to overwrite a level that says it was generated; `--out` writes a copy that takes ownership of itself. The command is `flutter3d lights` (`dart run flutter3d_build:lights` is its alias), in `package:flutter3d_build/cli.dart`, which the build hook's library does not import, so the hook never compiles the optimizer, and a level is optimised only when somebody runs it.
+
+## The engine's shaders {#shaders}
+
+The same hook compiles the engine's shader stages for the project, with the `impellerc` of the Flutter SDK that builds it, into `flutter3d_generated/shaders/flutter3d.f3dshaders`. It holds the stages the project needs and no others. One bundle for every application was 8.5 MB in every binary, and two thirds of it was lighting models most games never draw with.
+
+A project needs:
+
+| | |
+|---|---|
+| The base | Always: the mesh, skinned, batched and lightmapped vertex stages, `Pbr` and `Unlit`, the shadow, sky, probe and post passes, and the x-ray, normals and mirror stages the renderer draws by itself when a setting or a node asks |
+| What its models light with | Read from the converted `.f3d` files: a glTF material with clear coat, sheen or anisotropy brings `pbrLayered` |
+| Impostors | When a rule in `flutter3d_assets.yaml` says `impostor: true` |
+| What its manifest lists | `shaders: [toon, lambert]` in `flutter3d_assets.yaml`, for lighting its code chooses (`RenderMaterial(lighting: LightingModel.toon)`), which a build cannot see |
+| What its plugins declare | `flutter3d_plugins: shaders: [toon]` in a plugin package's pubspec, or a map from a library to its needs so a library the application leaves out brings nothing |
+
+The engine's needs a project can name are `pbrLayered`, `blinnPhong`, `lambert`, `toon` and `impostor` (`ShaderStageNeed.engine`); a plugin names its own after its id, `acme.glow`, which is the plugin material compiled as the stage `acme__glow` (matched in any case), and a need no installed package compiles stops the build, naming the package or the manifest that declared it. `shaders: full` writes every stage, as does `fullShaders: true` under `hooks: user_defines:` and the project's own name in `pubspec.yaml`, or `flutter3d shaders --full-shaders` by hand. The editor and the modeller carry every stage: they draw whatever a user opens, and they load the bundle `flutter3d_impeller` ships, which has all of them.
+
+A stage left out and asked for is a `MissingShaderStageException` when the renderer first draws with it. It names the stage and the need that brings it, which is the word to add under `shaders:`:
+
+```text
+the shader stage "Toon" is not in the bundle on Impeller: it comes with the
+need "toon": list it under "shaders:" in flutter3d_assets.yaml, or build with
+--full-shaders.
+```
+
+On `flutter3d_app`'s example the native bundle is 3.7 MB with 95 of 105 stages, against 8.5 MB for all of them, measured on 2026-10-11 with Flutter 3.47.0. `flutter3d shaders` writes the bundle by hand and prints its size, and `--json` says which stages and needs it holds.
+
+**The bundle is compiled for the SDK it runs on.** Its header carries the Dart that built it and its `EngineBundleStamp` section the engine revision. Impeller loads the project's bundle first and refuses one from another SDK with `ShaderBundleException(stale: true)`, naming the file and saying to build again; it never loads one that parses and draws something else. A project without the hook gets the bundle `flutter3d_impeller` ships, held to the same check, and is told to add the hook when its SDK is not the one that bundle was published with. The bundle written before stays beside the new one as `flutter3d.previous.f3dshaders`, for an application that reloads across the rebuild; anything older is removed.
+
+`flutter3d_generated/shaders/` needs its own line under `flutter: assets:`, for the reason the warning above gives. `init` adds it to a project that draws.
+
+### Plugins' materials {#plugin-materials}
+
+A package that marks plugins and keeps `.f3dmat` sources under its own `assets_src/` has every one compiled into the project, as `flutter3d_generated/shaders/<material>.f3dshaders`, for the SDK that builds the application. **In the package's namespace:** the source writes the bare name, `material Hair`, and a package `acme_hair` from outside the engine compiles it as `acme_hair__Hair`, the stage of its lighting model `acme_hair.Hair`; the source the bundle carries is renamed to match, and a name in another package's namespace is refused. On Impeller a data plugin's material is found there by its name (`RuntimeShaders`' `prebuilt`); one the build did not write is off, with a `MissingShaderStageException` in `RuntimeShaders.refusals` that names it and the plugin.
+
+**`Flutter3dView` loads them itself.** For every lighting model a plugin registers with the engine, the view reads `flutter3d_generated/shaders/<stage>.f3dshaders` (`pluginMaterialAssetFor`) and hands it to the renderer, so a lit-model plugin draws by being installed, with no loader of its own. `PluginSettings.readBundle` stands in for the asset bundle in a test.
+
+A plugin may still ship a bundle it compiled itself, as `flutter3d_effects` does with its water. It is tied to the SDK its author built with: a device refuses it with `ShaderBundleException(stale: true)` on any other, by name. The view's copy, compiled for the application's SDK, is added in front of whatever the plugin loaded, so it wins wherever the hook ran.
+
+### A backend from outside {#backend-compilers}
+
+A graphics backend that is not one of the engine's names its material compiler in its pubspec, and the hook compiles the engine's bundle and every plugin material for it too:
+
+```yaml
+flutter3d_backend:
+  backend: acme_vk                 # the device's backendId
+  section: acme_vk                 # its compiler's bundleSection
+  compiler: bin/material_compiler.dart
+```
+
+The compiler file is one line, `exit(runMaterialCompiler(const AcmeVkMaterialCompiler(), arguments))` (`package:flutter3d_shaders/compile.dart`). The build finds the package among the project's dependencies, runs the file against the project's package config with each request, and writes what it answers under the section. `examples/flutter3d_backend_null` is the reference, and `flutter3d create plugin --kind backend` writes both.
+
+`flutter3d doctor`, run in a project that draws, says whether `hook/build.dart` runs `buildAssets`, whether `pubspec.yaml` ships `flutter3d_generated/shaders/`, whether the bundle there was compiled on the Dart and engine revision that build the project now, and which installed plugin materials are not compiled in yet.
 
 ## When the hook fails
 
 | Symptom | Cause |
 |---|---|
+| `MissingShaderStageException` names a stage and a need | The project's bundle leaves that stage out. List the need under `shaders:` in `flutter3d_assets.yaml`, or build with every stage |
+| `ShaderBundleException` with `stale` set names `flutter3d_generated/shaders/flutter3d.f3dshaders` | The bundle was compiled on another SDK, after `flutter upgrade` without a build since. Build again |
 | `flutter analyze` says an asset directory does not exist | Expected on a fresh checkout: hooks run during a real build, never during `analyze`, and the declared directory has nothing in it yet. Build once |
 | `flutter analyze` says `hook/build.dart`'s own imports are not a dependency | `hook/` sits outside `test/`, where the analyzer does not look for `dev_dependencies:`. Excluded from analysis in `analysis_options.yaml`, the way generated platform folders already are |
 | A model that used to load throws in release | The generated `.f3d` is missing from the shipped bundle. Check that every subdirectory under `flutter3d_generated/` has its own `pubspec.yaml` line, and that the build ran with `flutter3d_build` as a real dependency, not added after the last build with no `flutter clean` since |

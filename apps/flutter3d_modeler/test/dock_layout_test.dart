@@ -4,8 +4,8 @@
 ///     flutter test test/dock_layout_test.dart
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/settings.dart';
@@ -89,6 +89,19 @@ void main() {
       // A settings file is a text file somebody can edit, and a view of two
       // pixels is not a layout anybody asked for.
       expect(read.viewportSplit, closeTo(0.85, 1e-9));
+    });
+
+    test('a split is held in range however it is made', () {
+      // Mutation: clamp in `fromJson` only. A layout made in code or through
+      // `copyWith` kept a split of no pixels, and came back from its own
+      // settings file as a different layout.
+      const DockLayout made = DockLayout(viewportSplit: 0.99);
+      final DockLayout copied = const DockLayout().copyWith(viewportSplit: 0.0);
+
+      expect(made.viewportSplit, closeTo(0.85, 1e-9));
+      expect(copied.viewportSplit, closeTo(0.15, 1e-9));
+      expect(DockLayout.fromJson(made.toJson()), made);
+      expect(DockLayout.fromJson(copied.toJson()), copied);
     });
 
     test('an entry a newer build wrote is carried through, not dropped', () {

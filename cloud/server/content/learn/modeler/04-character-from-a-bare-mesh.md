@@ -38,7 +38,7 @@ knee) as midpoints, the same shape `buildSkeleton`'s own bone table already
 derives a phalanx or an extra spine segment from. **Create** runs the whole
 pipeline as one journal step:
 
-1. `buildSkeleton(humanoid, markers, options: RigBuildOptions())` — a
+1. `buildSkeleton(humanoid, markers, options: RigBuildSettings())` — a
    17-joint base rig (hips/spine/chest/neck/head, shoulder/elbow/wrist and
    hip/knee/ankle mirrored left/right).
 2. `bindWeightsJobRequestFor` over the body mesh's own bone segments, run as
@@ -157,7 +157,7 @@ already carrying its one clip.
 ![The export screen over the rigged, animated character.](/assets/learn/modeler/character-from-a-bare-mesh/09-export-rigged.png)
 
 Below is this exact project, rendered headlessly through `renderProject`
-(`packages/flutter3d_model_mcp/lib/src/render_tool.dart`'s own underlying
+(`packages/flutter3d_mcp/lib/src/model/render_tool.dart`'s own underlying
 function) — the real imported mesh, the real 17-joint rig, the real bound
 weights, the real "chestPuff" shape key and its driver, the real "wave"
 clip, all as they stand once every step above has run:
@@ -213,7 +213,7 @@ uses the corrected, CPU-side math rather than the live pipeline. See
 `tut-09` (bending a joint for an agent or a headless case is `select` +
 `RotateBy` on the joint's own object, not the live-only bend slider).
 
-**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+**Proving it.** `packages/flutter3d_mcp/test/model/fixtures/tutorial/
 case4_scenario.dart` builds exactly the project this page describes, against
 a live `ModelSession` seeded with `RobotExpressive.glb` imported the way
 `session.import` (or an agent over MCP) actually would — through the free

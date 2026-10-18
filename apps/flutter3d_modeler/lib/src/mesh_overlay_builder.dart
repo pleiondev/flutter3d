@@ -19,7 +19,8 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'overlay_ink.dart';
 
 /// Where the overlay is being looked at from, as [MeshOverlay.lookFrom] wants
 /// it.
@@ -37,6 +38,8 @@ import 'package:vector_math/vector_math.dart';
 /// compares equal to itself and a wireframe that stops following the view. Make
 /// a new one per frame; they cost three small objects.
 final class MeshOverlayView {
+  /// A view from [eye] with the camera's [right] and [up] axes; a new one per
+  /// frame, for the reason the class gives.
   MeshOverlayView({
     required this.eye,
     required this.right,
@@ -52,11 +55,16 @@ final class MeshOverlayView {
   /// handle is squared up against. A ribbon uses them only as a fallback, and
   /// takes its band from the eye instead.
   final Vector3 right;
+
+  /// The camera's screen-up axis, the partner of [right].
   final Vector3 up;
 
   /// The world size of one logical pixel, as [MeshOverlay.lookFrom] defines it.
   final double pixel;
 
+  /// Whether the camera is a perspective one. An orthographic camera nudges
+  /// every vertex the same way rather than towards a point, so the overlay
+  /// has to be told which.
   final bool perspective;
 
   /// Whether [other] points the same way. Compared exactly, and on purpose:
@@ -82,6 +90,8 @@ final class MeshOverlayView {
 /// sits on both. The selected colour is warm because everything the renderer
 /// puts under it — a lit grey model on a near-black background — is not.
 final class MeshOverlayColours {
+  /// The default greys, orange and blue, with any colour given replacing its
+  /// default. Linear RGBA, each channel 0 to 1.
   MeshOverlayColours({
     Vector4? wire,
     Vector4? vertex,
@@ -212,11 +222,13 @@ typedef MeshOverlayRebuild = ({bool lines, bool handles, bool fill});
 /// into the same overlay — a grid, a gizmo — would be wiped on some frames and
 /// not others. Give those their own overlay.
 final class MeshOverlayBuilder {
+  /// A builder thinning above [edgeBudget] edges and tolerating [biasDrift]
+  /// of drift; [edgeBudget] below one is refused.
   MeshOverlayBuilder({
-    MeshOverlayColours? colours,
+    MeshOverlayColours? colors,
     this.edgeBudget = 100000,
     this.biasDrift = 0.25,
-  }) : colours = colours ?? MeshOverlayColours() {
+  }) : colors = colors ?? MeshOverlayColours() {
     if (edgeBudget < 1) {
       throw ArgumentError.value(
         edgeBudget,
@@ -226,7 +238,8 @@ final class MeshOverlayBuilder {
     }
   }
 
-  final MeshOverlayColours colours;
+  /// What every batch is drawn in.
+  final MeshOverlayColours colors;
 
   /// How many edges — and, at vertex level, how many handles — are worth
   /// drawing. Everything above this is thinned down to it.
@@ -268,12 +281,6 @@ final class MeshOverlayBuilder {
   final FaceTriangulator _triangulator = FaceTriangulator();
   List<Vector3> _corners = <Vector3>[];
 
-  /// Refills whichever of the three batches is out of date, and says which.
-  ///
-  /// [meshVersion] and [selectionVersion] are the caller's own counters: any two
-  /// numbers that differ when the thing they name differs. The mesh's version
-  /// has to change for an edit *and* for an undo or a redo, which is the case a
-  /// counter that only counts edits gets wrong.
   /// What the pointer was resting on when the last build ran — `ux-28`.
   ///
   /// **Compared by its ids rather than driven by a version the caller keeps.**
@@ -284,6 +291,12 @@ final class MeshOverlayBuilder {
   /// happens to be the same.
   Selection? _hovered;
 
+  /// Refills whichever of the three batches is out of date, and says which.
+  ///
+  /// [meshVersion] and [selectionVersion] are the caller's own counters: any two
+  /// numbers that differ when the thing they name differs. The mesh's version
+  /// has to change for an edit *and* for an undo or a redo, which is the case a
+  /// counter that only counts edits gets wrong.
   MeshOverlayRebuild build(
     MeshOverlay overlay, {
     required EditMesh mesh,
@@ -321,7 +334,7 @@ final class MeshOverlayBuilder {
 
     if (rebuildLines) {
       overlay.lines.clear();
-      _centreOf(mesh, _pivot);
+      _centerOf(mesh, _pivot);
       _emitLines(overlay, mesh);
       _builtNudge = _nudgeAt(overlay, _pivot, view.eye);
     }
@@ -389,7 +402,7 @@ final class MeshOverlayBuilder {
   /// vertices — a sphere with a dense pole is not centred on its pole — and
   /// what this is for is "roughly where the model is, from the camera's point
   /// of view".
-  void _centreOf(EditMesh mesh, Vector3 out) {
+  void _centerOf(EditMesh mesh, Vector3 out) {
     final positions = mesh.positions;
     var lowX = double.infinity, lowY = double.infinity, lowZ = double.infinity;
     var highX = -double.infinity,
@@ -441,7 +454,7 @@ final class MeshOverlayBuilder {
         overlay.edge(
           _from,
           _to,
-          mesh.edgeHas(half, EdgeFlags.seam) ? colours.seam : colours.wire,
+          (mesh.edgeHas(half, EdgeFlags.seam) ? colors.seam : colors.wire).ink,
         );
       });
     }
@@ -464,14 +477,14 @@ final class MeshOverlayBuilder {
           final kept = thinning.take();
           if (!picked && !kept) continue;
           mesh.positionOf(vertex, _from);
-          overlay.point(_from, picked ? colours.selected : colours.vertex);
+          overlay.point(_from, (picked ? colors.selected : colors.vertex).ink);
         }
       case ElementLevel.edge:
         for (final half in selection.ids) {
           if (!_edgeIsAlive(mesh, half)) continue;
           mesh.positionOf(mesh.originOf(half), _from);
           mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-          overlay.ribbon(_from, _to, colours.selected);
+          overlay.ribbon(_from, _to, colors.selected.ink);
         }
       case ElementLevel.face:
         // Every edge of every selected face, each drawn once: two selected
@@ -484,9 +497,13 @@ final class MeshOverlayBuilder {
             if (!drawn.add(mesh.edgeOf(half))) return;
             mesh.positionOf(mesh.originOf(half), _from);
             mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-            overlay.ribbon(_from, _to, colours.selected);
+            overlay.ribbon(_from, _to, colors.selected.ink);
           });
         }
+      default:
+        throw UnsupportedError(
+          'a half-edge mesh has no ${selection.level} elements',
+        );
     }
   }
 
@@ -519,19 +536,23 @@ final class MeshOverlayBuilder {
         case ElementLevel.vertex:
           if (!mesh.isVertexAlive(id)) continue;
           mesh.positionOf(id, _from);
-          overlay.point(_from, colours.hovered);
+          overlay.point(_from, colors.hovered.ink);
         case ElementLevel.edge:
           if (!_edgeIsAlive(mesh, id)) continue;
           mesh.positionOf(mesh.originOf(id), _from);
           mesh.positionOf(mesh.originOf(mesh.nextOf(id)), _to);
-          overlay.ribbon(_from, _to, colours.hovered);
+          overlay.ribbon(_from, _to, colors.hovered.ink);
         case ElementLevel.face:
           if (!_faceIsAlive(mesh, id)) continue;
           mesh.forEachHalfEdge(id, (int half) {
             mesh.positionOf(mesh.originOf(half), _from);
             mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-            overlay.ribbon(_from, _to, colours.hovered);
+            overlay.ribbon(_from, _to, colors.hovered.ink);
           });
+        default:
+          throw UnsupportedError(
+            'a half-edge mesh has no ${hovered.level} elements',
+          );
       }
     }
   }
@@ -548,7 +569,7 @@ final class MeshOverlayBuilder {
       // person would be looking at a highlight that disagrees with what a
       // raycast, an area and an exporter all say the face is.
       _triangulator.triangulate(outline, (int a, int b, int c) {
-        overlay.wash(outline[a], outline[b], outline[c], colours.selected);
+        overlay.wash(outline[a], outline[b], outline[c], colors.selected.ink);
       });
     }
   }

@@ -15,10 +15,13 @@
 ///   defaults to looping, so a death clip restarted the instant it ended.
 library;
 
+import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart' show Issue;
+import 'package:flutter/services.dart' show StringCodec;
+import 'package:flutter3d/flutter3d.dart' as engine show AnimationPose;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -128,7 +131,7 @@ void main() {
       actor.body!.teleport(Vector3(2.0, 0.0, 0.0));
       visuals.recordStep();
 
-      visuals.sync(0.5);
+      visuals.sync(alpha: 0.5);
 
       expect(scene.meshes.single.readPosition().x, closeTo(1.0, 1e-6));
     });
@@ -162,15 +165,16 @@ void main() {
       //
       // Mutation: drop `..layerMask = layerMask` from `add`. The capsule stays
       // on the default layer alone, and the mask below reads as one.
+      const layerMask = 1 | (1 << 1);
       final scene = Scene();
       final visuals = ActorVisuals(
         scene,
         appearance: const _PlainLook(),
         device: FakeBackend(),
-        layerMask: 1 | (1 << 1),
+        layerMask: layerMask,
       )..add(_actor());
 
-      expect(scene.meshes.single.layerMask, 1 | (1 << 1));
+      expect(scene.meshes.single.layerMask, layerMask);
       visuals.dispose();
     });
 
@@ -185,6 +189,40 @@ void main() {
       )..add(_actor());
 
       expect(scene.meshes.single.layerMask, 1);
+      visuals.dispose();
+    });
+  });
+
+  group('the ring an actor wears — N9', () {
+    test('is the colour the game names, and goes when it names none', () {
+      // The high-contrast look rings what each mesh says, so the game's
+      // answer has to reach the mesh. Mutation: drop the call from `sync`,
+      // and the monster is grey among grey walls.
+      final scene = Scene();
+      final actor = _actor();
+      LinearColor? ring = LinearColor.fromSrgb(0.84, 0.37, 0.0);
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+      )..add(actor);
+      expect(
+        scene.meshes.single.outlineColor,
+        isNull,
+        reason: 'nothing is ringed before the game is asked',
+      );
+
+      visuals
+        ..outlineOf = ((Actor it) => ring)
+        ..sync();
+      // The ring is the linear colour the game named, as it named it.
+      expect(scene.meshes.single.outlineColor, ring);
+
+      // A monster that died, say: the game stops naming a colour and the
+      // ring comes off rather than staying on the corpse.
+      ring = null;
+      visuals.sync();
+      expect(scene.meshes.single.outlineColor, isNull);
       visuals.dispose();
     });
   });
@@ -244,6 +282,307 @@ void main() {
     });
   });
 
+  group('a corpse a game takes over', () {
+    test('is handed over once with the pose it died in, then left alone, '
+        'and let go with the level', () async {
+      // N1: a game that gives its monsters ragdolls takes a dead modelled
+      // actor's pose over through `ActorCorpses`.
+      //
+      // Mutations: drop the `_taken` check in `animate` (the player keeps
+      // playing: the clip time moves), in `sync` (the root moves), or the
+      // kept pose (`previous` arrives null).
+      // The bundle is asked first and must be able to say no; then, in a
+      // debug build, a source under `assets_src/` is read from the disk.
+      // This package ships none, so the hero is put there for the test.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final corpses = _Corpses();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        corpses: corpses,
+        onIssue: (Issue issue) => fail('$issue'),
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      await visuals.settled;
+      for (var i = 0; i < 3; i++) {
+        visuals
+          ..animate(1.0 / 60.0)
+          ..sync();
+      }
+      expect(corpses.begun, isEmpty, reason: 'alive');
+      expect(corpses.steps, 3);
+
+      actor.health!.damage(100.0);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.begun, <Actor>[actor]);
+      expect(corpses.previous, isNotNull);
+      expect(
+        corpses.previous,
+        hasLength(corpses.model!.skeletons.first.jointCount),
+      );
+
+      final player = corpses.model!.player!;
+      final clock = player.timeSeconds;
+      final root = corpses.model!.root.worldMatrix.getTranslation();
+      actor.body!.teleport(Vector3(5.0, 0.0, 5.0));
+      for (var i = 0; i < 5; i++) {
+        visuals
+          ..animate(1.0 / 60.0)
+          ..sync();
+      }
+      expect(corpses.begun, hasLength(1), reason: 'asked once');
+      expect(player.timeSeconds, clock, reason: 'its clip is not played on');
+      expect(corpses.model!.root.worldMatrix.getTranslation(), root);
+
+      visuals.remove(actor);
+      expect(corpses.ended, <Actor>[actor]);
+      visuals.dispose();
+      expect(corpses.disposed, isTrue);
+    });
+
+    test('is let go when a rewind brings the actor back, and taken over again '
+        'when it dies again', () async {
+      // A rewind to before a death (`RagdollCorpses.snapshotPart` lets the
+      // body go) leaves the actor standing; the visuals must stop treating
+      // it as a corpse, or its second death is drawn by nobody.
+      //
+      // Mutation: keep the actor in `_taken` once it was handed over, as it
+      // was — the second death is never handed over, and the standing actor
+      // stays frozen in the pose it first fell in.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final corpses = _Corpses();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        corpses: corpses,
+        onIssue: (Issue issue) => fail('$issue'),
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      await visuals.settled;
+      visuals.animate(1.0 / 60.0);
+      final beforeDeath = actor.health!.save();
+
+      actor.health!.damage(100.0);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.begun, <Actor>[actor]);
+
+      // The rewind: the actor stands again.
+      actor.health!.restore(beforeDeath);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.ended, <Actor>[
+        actor,
+      ], reason: 'a body is let go when its actor stands again');
+
+      actor.health!.damage(100.0);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.begun, <Actor>[actor, actor]);
+      visuals.dispose();
+    });
+  });
+
+  group('an actor animated from published state', () {
+    test('dies and picks its clips by what the step published, not by the '
+        'live actor', () async {
+      // Decision A: the view reads the simulation only through published
+      // state, so a simulation in another isolate animates the same.
+      //
+      // Mutations: read `actor.isAlive` in `animate` (the live actor is
+      // well, so no corpse is begun), or ask `clipsFor` with published state
+      // in hand (`clipsFrom` never hears of the row).
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final actor = _actor();
+      var current = 10.0;
+      PublishedState state() => PublishedState(
+        step: 1,
+        seconds: 1.0 / 60.0,
+        components: <String, Map<Entity, Object?>>{
+          ActorCodecs.body.id: <Entity, Object?>{
+            actor.entity: <String, Object?>{
+              'at': <double>[0, 1, 0],
+            },
+          },
+          ActorCodecs.vitality.id: <Entity, Object?>{
+            actor.entity: <String, Object?>{'current': current},
+          },
+          ActorCodecs.gait.id: <Entity, Object?>{
+            actor.entity: <String, Object?>{
+              'steppedUp': 0.25,
+              'grounded': true,
+            },
+          },
+        },
+      );
+      final corpses = _Corpses();
+      final look = _PublishedLook();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: look,
+        device: FakeBackend(),
+        corpses: corpses,
+        published: state,
+        onIssue: (Issue issue) => fail('$issue'),
+      );
+      visuals.add(actor);
+      await visuals.settled;
+      visuals.animate(1.0 / 60.0);
+      expect(look.asked.single.isAlive, isTrue);
+      expect(look.asked.single.steppedUp, 0.25);
+      expect(corpses.begun, isEmpty, reason: 'alive as published');
+
+      current = 0.0;
+      visuals.animate(1.0 / 60.0);
+      expect(actor.isAlive, isTrue, reason: 'the live actor never died');
+      expect(corpses.begun, <Actor>[actor], reason: 'dead as published');
+      visuals.dispose();
+    });
+  });
+
+  group('an actor a game animates by a graph', () {
+    test('gets one over its model, driven and written once a frame', () async {
+      // N1. Mutations: skip `drive` (the graph never leaves idle), or the
+      // `writeTo` (the joints never move).
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final graphs = _Graphs();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        graphs: graphs,
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      await visuals.settled;
+      final graph = visuals.graphOf(actor)!;
+      expect(graph.state, 'stand');
+      expect(graphs.dressed, 1);
+      final before = <Matrix4>[
+        for (final j in _skeletonOf(visuals, actor).joints)
+          j.localMatrix.clone(),
+      ];
+      graphs.running = true;
+      for (var i = 0; i < 30; i++) {
+        visuals.animate(1.0 / 60.0);
+      }
+      expect(graphs.driven, 30);
+      expect(graph.state, 'run');
+      final joints = _skeletonOf(visuals, actor).joints;
+      final moved = <int>[
+        for (var i = 0; i < joints.length; i++)
+          if (!_near(joints[i].localMatrix, before[i])) i,
+      ];
+      expect(moved, isNotEmpty, reason: 'the run is written into the joints');
+      // The run's markers are heard, whose and in which state.
+      final heard = <ActorMarkerPassed>[];
+      for (var i = 0; i < 60; i++) {
+        visuals.animate(1.0 / 60.0);
+        heard.addAll(visuals.markersPassed);
+      }
+      expect(heard, isNotEmpty);
+      expect(
+        heard.first,
+        ActorMarkerPassed(actor: actor, state: 'run', name: 'step'),
+      );
+    });
+  });
+
+  group('an actor the simulation animates', () {
+    test('is drawn in its graph\'s pose, between the last two steps as its '
+        'body is', () async {
+      // N1, the graph in the step. Mutations: evaluate the graph on the frame
+      // as well (it runs ahead of the step); draw `after` at every alpha (no
+      // interpolation); draw `before` at every alpha.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final doc = await decodeModel(
+        ModelLoadRequest(
+          source: const FileAssetSource('assets_src/models/hero.glb'),
+        ),
+      );
+      final actor = _actor();
+      final graph = AnimationGraph(
+        machine: _Graphs().machineFor(
+          ActorMachineContext(actor: actor, clips: doc.animations),
+        )!,
+        clips: doc.animations,
+        pose: engine.AnimationPose.fromNodes(doc.nodes),
+      )..parameters.setBool('running', true);
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        simulated: (a) => identical(a, actor) ? graph : null,
+      );
+      visuals.add(actor);
+      await visuals.settled;
+      expect(visuals.graphOf(actor), same(graph));
+      List<Matrix4> drawn(double alpha) {
+        visuals
+          ..sync(alpha: alpha)
+          ..animate(1.0 / 60.0);
+        return <Matrix4>[
+          for (final j in _skeletonOf(visuals, actor).joints)
+            j.localMatrix.clone(),
+        ];
+      }
+
+      bool alike(List<Matrix4> a, List<Matrix4> b) => <int>[
+        for (var i = 0; i < a.length; i++)
+          if (!_near(a[i], b[i])) i,
+      ].isEmpty;
+
+      // Two steps of the simulation, each recorded.
+      for (var i = 0; i < 20; i++) {
+        graph.evaluate(1.0 / 60.0);
+        visuals.recordStep(dt: 1.0 / 60.0);
+      }
+      final time = graph.stateSeconds;
+      final afterFirst = drawn(1.0);
+      expect(graph.stateSeconds, time, reason: 'the frame does not step it');
+      graph.evaluate(0.1);
+      visuals.recordStep(dt: 0.1);
+      final atStart = drawn(0.0);
+      final atEnd = drawn(1.0);
+      final between = drawn(0.5);
+      expect(alike(atStart, afterFirst), isTrue, reason: 'the step before');
+      expect(alike(atEnd, afterFirst), isFalse, reason: 'the step after');
+      expect(alike(between, atStart), isFalse);
+      expect(alike(between, atEnd), isFalse);
+    });
+  });
+
   group('a loading screen', () {
     test('settles once every model it asked for has been answered', () async {
       // `N3`: a warm-up run before the models arrive never sees their
@@ -268,17 +607,204 @@ void main() {
       expect(order, <String>['answered', 'settled']);
     });
   });
+
+  group('an actor is drawn through the scene binding of its body', () {
+    test('which the visuals add to the bindings they are given, and take '
+        'away again when they are let go', () {
+      // D37: the actors are a scene binding like any component a plugin
+      // binds — the body's codec bound to the kind of node `f3d.actor`.
+      // Mutation: make the node in `add` directly, not through the kind; the
+      // registry stays empty and the first expectation fails.
+      final bindings = SceneBindings();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        bindings: bindings,
+      );
+
+      final spec = bindings.bindingOf(ActorCodecs.body.id);
+      expect(spec?.nodeKind, ActorVisuals.nodeKind);
+      expect(bindings.resolve(ActorCodecs.body.id)?.kind.name, 'f3d.actor');
+
+      visuals.dispose();
+      expect(bindings.bindings, isEmpty);
+      expect(bindings.kinds, isEmpty);
+    });
+
+    test('and a game that binds the body to a kind of its own draws its '
+        'actors as that kind makes them, told the body every frame', () {
+      // The point of drawing through a binding: a game replaces the capsule
+      // with what its own kind makes, and nothing in the visuals changes.
+      // Mutation: ignore the binding the registry already has and add the
+      // capsule's; the node in the scene is then the capsule, not the
+      // kind's.
+      final bindings = SceneBindings();
+      final kind = _Totem();
+      bindings
+        ..addKind(kind)
+        ..add(
+          SceneBindingSpec(
+            component: ActorCodecs.body.id,
+            nodeKind: 'game.totem',
+          ),
+        );
+      final scene = Scene();
+      final actor = _actor();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        bindings: bindings,
+      )..add(actor);
+
+      expect(kind.made, hasLength(1));
+      expect(kind.made.single.entity, actor.entity.packed);
+      expect(scene.root.childrenView.single.name, 'totem');
+
+      actor.body!.teleport(Vector3(3.0, 0.0, 0.0));
+      visuals.sync();
+      // Placed where the body is, and told its fields as its codec writes
+      // them.
+      expect(scene.root.childrenView.single.readPosition().x, closeTo(3, 1e-6));
+      expect(kind.updated, isNotEmpty);
+      expect(kind.updated.last['at'], <double>[3.0, 0.0, 0.0]);
+
+      visuals.dispose();
+      // The game's binding is the game's: left where it was.
+      expect(bindings.bindingOf(ActorCodecs.body.id), isNotNull);
+      expect(scene.root.childrenView, isEmpty);
+    });
+
+    test('and two visuals given one registry with no binding of the body is '
+        'refused, rather than one drawing through the other\'s capsules', () {
+      final bindings = SceneBindings();
+      ActorVisuals(
+        Scene(),
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        bindings: bindings,
+      );
+      expect(
+        () => ActorVisuals(
+          Scene(),
+          appearance: const _PlainLook(),
+          device: FakeBackend(),
+          bindings: bindings,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  test('actors are dressed in the order they were added, whichever file is '
+      'decoded first', () async {
+    // Each model is decoded on an isolate of its own, so two finish in
+    // either order, and the scene's order is part of the picture — see the
+    // same test in `fixture_visuals_test.dart`.
+    //
+    // Mutation: in `_dress`, drop `await previous` — the second file is
+    // served at once and the first held back, so the second actor's model
+    // goes into the scene first.
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final hero = File('../flutter3d/test/fixtures/hero.glb').readAsBytesSync();
+    final first = Completer<void>();
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMessageHandler('flutter/assets', (
+      ByteData? message,
+    ) async {
+      final key = Uri.decodeFull(
+        const StringCodec().decodeMessage(message) ?? '',
+      );
+      if (key == 'models/first.glb') await first.future;
+      return key.startsWith('models/') ? ByteData.sublistView(hero) : null;
+    });
+    addTearDown(() => messenger.setMockMessageHandler('flutter/assets', null));
+
+    final firstActor = _actor();
+    final secondActor = _actor();
+    final scene = Scene();
+    final visuals =
+        ActorVisuals(
+            scene,
+            appearance: _PathLook(<Actor, String>{
+              firstActor: 'models/first.glb',
+              secondActor: 'models/second.glb',
+            }),
+            device: FakeBackend(),
+            onIssue: (issue) => fail('$issue'),
+          )
+          ..add(firstActor)
+          ..add(secondActor);
+
+    // Long enough for the second to be read, decoded and worn when nothing
+    // holds it back; with the fix it waits for the first.
+    final waited = Stopwatch()..start();
+    while (visuals.modelOf(secondActor) == null &&
+        waited.elapsed < const Duration(seconds: 1)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    first.complete();
+    // Bounded, so a load that never lands fails here rather than hanging.
+    await visuals.settled.timeout(const Duration(seconds: 30));
+
+    final children = scene.root.childrenView;
+    final firstAt = children.indexOf(visuals.modelOf(firstActor)!.root);
+    final secondAt = children.indexOf(visuals.modelOf(secondActor)!.root);
+    expect(firstAt, greaterThanOrEqualTo(0));
+    expect(secondAt, greaterThan(firstAt));
+    visuals.dispose();
+  });
+}
+
+/// A game's own kind of node for an actor: an empty node called `totem`,
+/// remembering what it was asked to make and what it was told.
+final class _Totem extends SceneNodeKind {
+  final List<SceneBindingContext> made = <SceneBindingContext>[];
+  final List<Map<String, Object?>> updated = <Map<String, Object?>>[];
+
+  @override
+  String get name => 'game.totem';
+
+  @override
+  SceneNode create(SceneBindingContext context) {
+    made.add(context);
+    return SceneNode(name: 'totem');
+  }
+
+  @override
+  void update(SceneBindingContext context) => updated.add(context.fields);
+}
+
+/// Each actor in the model this table names for it.
+final class _PathLook with ActorAppearance {
+  _PathLook(this.paths);
+
+  final Map<Actor, String> paths;
+
+  @override
+  String meshKeyFor(Actor actor) => 'hero';
+
+  @override
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
+
+  @override
+  String? modelFor(Actor actor) => paths[actor];
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
 }
 
 /// Asks for a model nobody packaged.
-final class _ModelLook implements ActorAppearance {
+final class _ModelLook with ActorAppearance {
   const _ModelLook();
 
   @override
   String meshKeyFor(Actor actor) => 'modelled';
 
   @override
-  Material materialFor(Actor actor) => Material();
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
 
   @override
   String? modelFor(Actor actor) => 'assets_src/models/nobody_packaged_this.glb';
@@ -288,18 +814,145 @@ final class _ModelLook implements ActorAppearance {
 }
 
 /// One capsule, one material, no models — the least a bridge needs to draw.
-final class _PlainLook implements ActorAppearance {
+final class _PlainLook with ActorAppearance {
   const _PlainLook();
 
   @override
   String meshKeyFor(Actor actor) => 'plain';
 
   @override
-  Material materialFor(Actor actor) => Material();
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
 
   @override
   String? modelFor(Actor actor) => null;
 
   @override
   List<String> clipsFor(Actor actor) => const <String>[];
+}
+
+/// The hero from flutter3d's fixtures: a rigged model with clips.
+final class _HeroLook with ActorAppearance {
+  const _HeroLook();
+
+  @override
+  String meshKeyFor(Actor actor) => 'hero';
+
+  @override
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
+
+  @override
+  String? modelFor(Actor actor) => 'assets_src/models/hero.glb';
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[
+    'CharacterArmature|Idle',
+  ];
+}
+
+/// The hero, whose clips are asked with what the step published.
+final class _PublishedLook with ActorAppearance {
+  /// Every published row it was asked with, in order.
+  final List<PublishedActor> asked = <PublishedActor>[];
+
+  @override
+  String meshKeyFor(Actor actor) => 'hero';
+
+  @override
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
+
+  @override
+  String? modelFor(Actor actor) => 'assets_src/models/hero.glb';
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
+
+  @override
+  List<String> clipsFrom(ActorClipsContext context) {
+    final published = context.published;
+    asked.add(published);
+    return const <String>['CharacterArmature|Idle'];
+  }
+}
+
+/// Takes every corpse, and remembers what it was told.
+final class _Corpses with ActorCorpses {
+  final List<Actor> begun = <Actor>[];
+  final List<Actor> ended = <Actor>[];
+  ModelInstance? model;
+  List<Matrix4>? previous;
+  int steps = 0;
+  bool disposed = false;
+
+  @override
+  bool begin(ActorDeathContext context) {
+    final actor = context.actor;
+    final model = context.model;
+    final previous = context.previous;
+    begun.add(actor);
+    this.model = model;
+    this.previous = previous;
+    return true;
+  }
+
+  @override
+  void step(double dt) => steps++;
+
+  @override
+  void end(Actor actor) => ended.add(actor);
+
+  @override
+  void dispose() => disposed = true;
+}
+
+/// The hero's first skeleton, as [visuals] dressed [actor] in it.
+Skeleton _skeletonOf(ActorVisuals visuals, Actor actor) =>
+    visuals.modelOf(actor)!.skeletons.first;
+
+bool _near(Matrix4 a, Matrix4 b) {
+  for (var i = 0; i < 16; i++) {
+    if ((a.storage[i] - b.storage[i]).abs() > 1e-5) return false;
+  }
+  return true;
+}
+
+/// Stands, and runs when told to.
+final class _Graphs with ActorGraphs {
+  bool running = false;
+  int driven = 0;
+  int dressed = 0;
+
+  @override
+  AnimationStateMachine? machineFor(ActorMachineContext context) =>
+      AnimationStateMachine(
+        parameters: AnimationParameterSchema(<AnimationParameter>[
+          const AnimationParameter.boolean('running'),
+        ]),
+        entry: 'stand',
+        states: const <AnimationState>[
+          AnimationState(name: 'stand', clip: 'CharacterArmature|Idle'),
+          AnimationState(
+            name: 'run',
+            clip: 'CharacterArmature|Run',
+            markers: <AnimationMarker>[AnimationMarker(0.0, 'step')],
+          ),
+        ],
+        transitions: <AnimationTransition>[
+          AnimationTransition(
+            from: 'stand',
+            to: 'run',
+            conditions: const <AnimationCondition>[BoolCondition('running')],
+            durationSeconds: 0.1,
+          ),
+        ],
+      );
+
+  @override
+  void dress(ActorDressContext context) => dressed++;
+
+  @override
+  void drive(ActorDriveContext context) {
+    final graph = context.graph;
+    driven++;
+    graph.parameters.setBool('running', running);
+  }
 }

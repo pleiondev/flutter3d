@@ -1,6 +1,5 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
-import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
 
 import 'scene_source.dart';
 
@@ -11,7 +10,7 @@ import 'scene_source.dart';
 /// package says that prefix itself rather than every caller spelling it out.
 /// The engine's tests read the same files straight off disk through the other
 /// constant beside this one.
-const String _samples = kSamplesAsset;
+const String _samples = samplesAsset;
 
 /// Everything the demo can display.
 ///
@@ -88,10 +87,12 @@ final List<SceneSource> kSources = <SceneSource>[
   const ModelFileSource('f3d: Animated', '$_samples/f3d/BoxAnimated.f3d'),
   const ModelFileSource('f3d: Rigged', '$_samples/f3d/RiggedFigure.f3d'),
 
-  // Not a conformance asset: a generated model with a base colour, a
+  // Not a conformance asset: a scanned model with a base colour, a
   // metallic-roughness map, a normal map and no tangents of its own, which is
   // the combination the material pipeline is least often exercised against.
-  const ModelFileSource('maps: Chest', 'assets/models/fantasy_chest.glb'),
+  // Khronos' Avocado (Microsoft, CC0) with its tangents taken out and its
+  // maps at 512 px; `assets/models/LICENSES.md` has the steps.
+  const ModelFileSource('maps: Avocado', 'assets/models/avocado.glb'),
 ];
 
 /// Surface of revolution from an arbitrary profile: a vase silhouette.

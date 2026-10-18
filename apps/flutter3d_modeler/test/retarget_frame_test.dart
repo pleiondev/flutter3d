@@ -25,7 +25,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A two-joint rig — `root`/`tip`, the same names on both sides so
 /// `autoMap` matches them exactly — with a skinned cube over it when
@@ -179,7 +178,7 @@ void main() {
           project: posedProject,
         );
         stage.frameSubject();
-        return (scene: stage.scene, camera: stage.camera);
+        return FrameSubject(scene: stage.scene, camera: stage.camera);
       },
     );
 

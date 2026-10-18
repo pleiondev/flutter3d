@@ -30,6 +30,7 @@ double triangleAspectRatio(Vector3 p0, Vector3 p1, Vector3 p2) {
 /// value rather than four so the two ends of that comparison cannot
 /// accidentally be measured two different ways.
 final class MeshQualityStats {
+  /// Stats as already measured; [MeshQualityStats.of] measures a mesh.
   const MeshQualityStats({
     required this.edgeCount,
     required this.triangleCount,
@@ -38,18 +39,6 @@ final class MeshQualityStats {
     required this.meanAspectRatio,
     required this.maxAspectRatio,
   });
-
-  final int edgeCount;
-  final int triangleCount;
-  final double meanEdgeLength;
-  final double edgeLengthStdDev;
-  final double meanAspectRatio;
-  final double maxAspectRatio;
-
-  /// Standard deviation over the mean — scale-free, so a sphere of radius one
-  /// and the same sphere at radius ten read the same number.
-  double get edgeLengthCv =>
-      meanEdgeLength == 0 ? 0 : edgeLengthStdDev / meanEdgeLength;
 
   /// Reads every live triangle of [mesh] once. Refuses a mesh that is not
   /// already pure triangles — an n-gon has no aspect ratio this metric
@@ -108,6 +97,29 @@ final class MeshQualityStats {
     );
   }
 
+  /// Distinct edges measured, a count; a twin pair counts once.
+  final int edgeCount;
+
+  /// Live triangles measured, a count.
+  final int triangleCount;
+
+  /// The mean length of [edgeCount] edges, in metres.
+  final double meanEdgeLength;
+
+  /// The standard deviation of the edge lengths, in metres.
+  final double edgeLengthStdDev;
+
+  /// The mean [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
+  final double meanAspectRatio;
+
+  /// The largest [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
+  final double maxAspectRatio;
+
+  /// Standard deviation over the mean — scale-free, so a sphere of radius one
+  /// and the same sphere at radius ten read the same number.
+  double get edgeLengthCv =>
+      meanEdgeLength == 0 ? 0 : edgeLengthStdDev / meanEdgeLength;
+
   @override
   String toString() =>
       'MeshQualityStats($triangleCount triangles, $edgeCount edges, '
@@ -120,6 +132,7 @@ final class MeshQualityStats {
 
 /// What [isotropicRemesh] did, and how the mesh measured before and after.
 final class RemeshReport {
+  /// A report of a remesh run; [isotropicRemesh] is what makes one.
   const RemeshReport({
     required this.iterations,
     required this.targetEdgeLength,
@@ -130,12 +143,27 @@ final class RemeshReport {
     required this.after,
   });
 
+  /// How many split, collapse, flip and smooth passes ran, a count of at
+  /// least one.
   final int iterations;
+
+  /// The edge length the passes aimed at, in metres.
   final double targetEdgeLength;
+
+  /// Edges split for being too long, a count over every iteration.
   final int edgeSplits;
+
+  /// Edges collapsed for being too short, a count over every iteration.
   final int edgeCollapses;
+
+  /// Edges flipped to even out vertex valence, a count over every
+  /// iteration.
   final int edgeFlips;
+
+  /// The mesh as it measured before the first pass.
   final MeshQualityStats before;
+
+  /// The mesh as it measured after the last pass.
   final MeshQualityStats after;
 
   @override
@@ -144,6 +172,28 @@ final class RemeshReport {
       '${targetEdgeLength.toStringAsFixed(4)}: $edgeSplits splits, '
       '$edgeCollapses collapses, $edgeFlips flips; before $before; '
       'after $after)';
+}
+
+/// The mesh [isotropicRemesh] produced and what the pass measured.
+final class RemeshedMesh {
+  /// The remeshed [mesh] with its [report].
+  const RemeshedMesh({required this.mesh, required this.report});
+
+  /// The remeshed mesh, which is not the input once an edge has collapsed.
+  final EditMesh mesh;
+
+  /// What the pass did, and the quality before and after.
+  final RemeshReport report;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RemeshedMesh && other.mesh == mesh && other.report == report;
+
+  @override
+  int get hashCode => Object.hash(mesh, report);
+
+  @override
+  String toString() => 'RemeshedMesh($report)';
 }
 
 /// Remeshes [mesh] toward uniform triangles of edge length [targetEdgeLength],
@@ -230,10 +280,12 @@ final class RemeshReport {
 /// to `mergeAt`'s own general-purpose behaviour rather than a boundary-aware
 /// target valence of four. Both are exactly the kind of thing a spike is for
 /// finding before the real row pays to discover them.
-(EditMesh, RemeshReport) isotropicRemesh(
+RemeshedMesh isotropicRemesh(
   EditMesh mesh, {
   required double targetEdgeLength,
   int iterations = 5,
+
+  /// The 0..1 fraction of the way each smoothing step moves a vertex.
   double tangentialLambda = 1.0,
 }) {
   if (targetEdgeLength <= 0) {
@@ -271,9 +323,9 @@ final class RemeshReport {
     current.endStep();
   }
 
-  return (
-    current,
-    RemeshReport(
+  return RemeshedMesh(
+    mesh: current,
+    report: RemeshReport(
       iterations: iterations,
       targetEdgeLength: targetEdgeLength,
       edgeSplits: splits,
@@ -389,7 +441,7 @@ int _splitEdgeKeepingTriangles(EditMesh mesh, int halfEdge) {
     final midpoint = (current.positionOf(a) + current.positionOf(b)).scaled(
       0.5,
     );
-    final (merged, report) = mergeAt(
+    final MergedMesh(mesh: merged, :report) = mergeAt(
       current,
       Selection.of(ElementLevel.vertex, <int>[a, b]),
       midpoint,

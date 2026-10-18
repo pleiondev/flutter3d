@@ -12,11 +12,15 @@
 /// anything to send.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
+
+import 'lesson_theme.dart';
 
 /// A `check` object, read once from a step's own properties.
 final class CheckSpec {
+  /// A check asking [question], accepting any of [answers], over
+  /// [attempts] tries; [fromStep] is how a lesson builds one.
   const CheckSpec({
     required this.question,
     required this.answers,
@@ -47,8 +51,16 @@ final class CheckSpec {
     );
   }
 
+  /// What the student is asked, as the lesson wrote it.
   final String question;
+
+  /// Every spelling the check takes as right; never empty. The first is the
+  /// one shown when the attempts run out.
   final List<String> answers;
+
+  /// How many tries the student gets; the answer is revealed once this many
+  /// have been wrong. At least one, which is also what a check that names
+  /// none gets.
   final int attempts;
 
   /// Case- and surrounding-whitespace-insensitive, the comparison `edu-00`
@@ -64,7 +76,17 @@ final class CheckSpec {
 
 /// Where a [CheckPrompt] stands: asking, answered correctly, or out of
 /// attempts and shown the answer.
-enum CheckOutcome { asking, correct, revealed }
+enum CheckOutcome {
+  /// Still waiting for a right answer, with attempts left.
+  asking,
+
+  /// Answered with one of [CheckSpec.answers].
+  correct,
+
+  /// Every attempt answered wrong; the text field is gone and the first of
+  /// [CheckSpec.answers] is shown in its place.
+  revealed,
+}
 
 /// A `check` widget: the question, a text field, and the attempts
 /// `edu-00` §10 allows before revealing an accepted answer.
@@ -77,8 +99,10 @@ enum CheckOutcome { asking, correct, revealed }
 /// state when something outside it changes" rather than a second field here
 /// to keep in step with the step index.
 class CheckPrompt extends StatefulWidget {
+  /// A prompt for [spec], starting with all of its attempts.
   const CheckPrompt({super.key, required this.spec});
 
+  /// The question, its answers and how many tries it allows.
   final CheckSpec spec;
 
   @override
@@ -112,7 +136,7 @@ class _CheckPromptState extends State<CheckPrompt> {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC0E1013),
+        color: LessonTheme.scrim,
         borderRadius: BorderRadius.circular(6.0),
       ),
       child: Padding(
@@ -124,7 +148,7 @@ class _CheckPromptState extends State<CheckPrompt> {
             Text(
               widget.spec.question,
               style: const TextStyle(
-                color: Colors.white,
+                color: LessonTheme.text,
                 fontSize: 16.0,
                 fontWeight: FontWeight.w600,
               ),
@@ -136,37 +160,45 @@ class _CheckPromptState extends State<CheckPrompt> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: LessonTheme.text),
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         isDense: true,
                         hintText:
                             'Ответ ($_remaining ${_attemptsWord(_remaining)})',
-                        hintStyle: const TextStyle(color: Colors.white54),
+                        hintStyle: const TextStyle(color: LessonTheme.hint),
                         enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white54),
+                          borderSide: BorderSide(color: LessonTheme.hint),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8.0),
                   IconButton(
-                    icon: const Icon(Icons.check, color: Colors.white),
+                    icon: const Icon(Icons.check, color: LessonTheme.text),
                     tooltip: 'Submit answer',
                     onPressed: _submit,
                   ),
                 ],
               ),
-              CheckOutcome.correct => const Text(
-                'Верно.',
-                style: TextStyle(
-                  color: Colors.greenAccent,
-                  fontWeight: FontWeight.w600,
+              // Live regions: the field a screen reader was in has gone, and
+              // what took its place is the answer to what was just typed.
+              CheckOutcome.correct => Semantics(
+                liveRegion: true,
+                child: const Text(
+                  'Верно.',
+                  style: TextStyle(
+                    color: LessonTheme.correct,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              CheckOutcome.revealed => Text(
-                'Попытки кончились. Ответ: ${widget.spec.answers.first}',
-                style: const TextStyle(color: Colors.orangeAccent),
+              CheckOutcome.revealed => Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Попытки кончились. Ответ: ${widget.spec.answers.first}',
+                  style: const TextStyle(color: LessonTheme.revealed),
+                ),
               ),
             },
           ],

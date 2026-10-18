@@ -1,0 +1,3360 @@
+{
+ "meta": {
+  "slice": "fuels and oils",
+  "schema": "matter_data/SCHEMA.txt",
+  "note": "Reference values for simulation, not for design or safety calculations."
+ },
+ "entries": [
+  {
+   "id": "gasoline",
+   "catalogId": null,
+   "name": "gasoline (petrol), automotive",
+   "phase": "liquid",
+   "cas": "86290-81-5",
+   "casNote": "UVCB CAS 'Gasoline' (ICSC 1400); NIOSH lists 8006-61-9 (natural gasoline). A blend; numbers vary with grade and season",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 730.8,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.20, interpolated at 68 °F; specific gravity 0.7321 at 20 °C (9.7), via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "Grade spread: ICSC 1400 gives 700-800 kg/m3, NIOSH 0.72-0.76 at 60 °F, Babrauskas (via NBSIR 85-3195) 740, Engineering ToolBox 751 at 20 °C.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1000.95,
+        -0.9233
+       ],
+       "validRange": [
+        280.37,
+        319.26
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.20 saturated liquid density, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 15 points; max deviation 0.13 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.000451,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.23 liquid viscosity, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "Engineering ToolBox's gasoline table gives 5.29e-4 Pa*s at 20 °C (unsourced); the spread between grades is of this order.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         280.93,
+         0.000521
+        ],
+        [
+         282.04,
+         0.000514
+        ],
+        [
+         283.15,
+         0.000507
+        ],
+        [
+         284.26,
+         0.0005
+        ],
+        [
+         285.37,
+         0.000494
+        ],
+        [
+         286.48,
+         0.000487
+        ],
+        [
+         287.59,
+         0.000481
+        ],
+        [
+         288.71,
+         0.000475
+        ],
+        [
+         289.82,
+         0.00046899999999999996
+        ],
+        [
+         290.93,
+         0.00046300000000000003
+        ],
+        [
+         292.04,
+         0.00045700000000000005
+        ],
+        [
+         293.15,
+         0.000451
+        ],
+        [
+         294.26,
+         0.000446
+        ],
+        [
+         295.37,
+         0.00044
+        ],
+        [
+         296.48,
+         0.000435
+        ],
+        [
+         297.59,
+         0.00043
+        ],
+        [
+         298.71,
+         0.000424
+        ],
+        [
+         299.82,
+         0.000419
+        ],
+        [
+         300.93,
+         0.000414
+        ],
+        [
+         302.04,
+         0.00041
+        ],
+        [
+         303.15,
+         0.00040500000000000003
+        ],
+        [
+         304.26,
+         0.0004
+        ],
+        [
+         305.37,
+         0.00039600000000000003
+        ],
+        [
+         306.48,
+         0.000391
+        ],
+        [
+         307.59,
+         0.00038700000000000003
+        ],
+        [
+         308.71,
+         0.000382
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.23, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -10.9986,
+       "B": 966.0,
+       "validRange": [
+        280.93,
+        308.71
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.23, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 26 points; max deviation 0.1 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.021,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), item 9.8, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "CHRIS gives 0.019-0.023 N/m at 20 °C; the value is the middle of that range."
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found for gasoline in the sources read",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2051.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.21 liquid heat capacity, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "Cross-checks: Engineering ToolBox 2060 J/(kg*K) at 20 °C; Cragoe's correlation (NBS MP 97) gives 2031 at d = 0.745 (just below its 0.75 range).",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "J/(kg*K)",
+       "points": [
+        [
+         260.93,
+         1921.7
+        ],
+        [
+         263.71,
+         1934.3
+        ],
+        [
+         266.48,
+         1942.7
+        ],
+        [
+         269.26,
+         1955.2
+        ],
+        [
+         272.04,
+         1967.8
+        ],
+        [
+         274.82,
+         1976.2
+        ],
+        [
+         277.59,
+         1988.7
+        ],
+        [
+         280.37,
+         2001.3
+        ],
+        [
+         283.15,
+         2009.7
+        ],
+        [
+         285.93,
+         2022.2
+        ],
+        [
+         288.71,
+         2034.8
+        ],
+        [
+         291.48,
+         2043.2
+        ],
+        [
+         294.26,
+         2055.7
+        ],
+        [
+         297.04,
+         2068.3
+        ],
+        [
+         299.82,
+         2076.7
+        ],
+        [
+         302.59,
+         2089.2
+        ],
+        [
+         305.37,
+         2101.8
+        ],
+        [
+         308.15,
+         2110.1
+        ],
+        [
+         310.93,
+         2122.7
+        ],
+        [
+         313.71,
+         2135.3
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent"
+      }
+     },
+     "conductivity": {
+      "value": 0.1276,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.22 liquid thermal conductivity, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "Engineering ToolBox gives 0.1164 W/(m*K) at 20 °C; the two differ by 9 %. Cragoe's correlation is outside its density range here.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "W/(m*K)",
+       "points": [
+        [
+         277.59,
+         0.1311
+        ],
+        [
+         283.15,
+         0.1298
+        ],
+        [
+         288.71,
+         0.1285
+        ],
+        [
+         294.26,
+         0.1274
+        ],
+        [
+         299.82,
+         0.1261
+        ],
+        [
+         305.37,
+         0.1248
+        ],
+        [
+         310.93,
+         0.1235
+        ],
+        [
+         316.48,
+         0.1222
+        ],
+        [
+         322.04,
+         0.1209
+        ],
+        [
+         327.59,
+         0.1196
+        ],
+        [
+         333.15,
+         0.1184
+        ],
+        [
+         338.71,
+         0.1171
+        ],
+        [
+         344.26,
+         0.1158
+        ],
+        [
+         349.82,
+         0.1145
+        ],
+        [
+         355.37,
+         0.1132
+        ],
+        [
+         360.93,
+         0.1119
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.00126,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "-(1/rho) d(rho)/dT from the linear fit of the CHRIS density table over 280-319 K, at 20 °C (derived by this agent)"
+     },
+     "boilingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "A mixture: no single boiling point. Distillation range in extra.boilingRange."
+     },
+     "latentHeatOfVaporization": {
+      "value": 326000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), item 9.12, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent",
+      "note": "CHRIS gives 130-150 Btu/lb (302-349 kJ/kg); the middle. Babrauskas' heat of gasification (vaporisation plus heating to the boiling range) is 330 kJ/kg (NBSIR 85-3195 Table 6)."
+     },
+     "autoignitionTemperature": {
+      "value": 523.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1400 (gasoline), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1400&p_version=2&p_lang=en",
+      "note": "ICSC: ~250 °C. Engineering ToolBox: 246-280 °C. CHRIS GAT says 853 °F (456 °C), an outlier."
+     },
+     "heatOfCombustion": {
+      "value": 43700000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "Net (lower) heat of complete combustion, as the pool-fire table uses it. CHRIS GAT: 43.51 MJ/kg; Engineering ToolBox: LHV 43.4, HHV (gross) 46.4 MJ/kg.",
+      "basis": "net"
+     },
+     "radiantFraction": {
+      "value": 0.13,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "NBSIR 85-3195 (1985) Table 7 'Radiation fraction of combustion energy for hydrocarbon pool fires', after Mudan, Prog. Energy Combust. Sci. 10 (1984)",
+      "note": "0.13 for 1.22-3.05 m pools; 0.10 quoted for 1-10 m pools (smaller pools radiate a larger share)."
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 230.37,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "NIOSH Pocket Guide to Chemical Hazards, gasoline (npgd0299): Fl.P -45 °F",
+      "note": "CHRIS GAT: -36 °F c.c. (-38 °C). ICSC 1400 gives no number."
+     },
+     "boilingRange": {
+      "value": [
+       293.15,
+       473.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1400 (gasoline), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1400&p_version=2&p_lang=en",
+      "note": "ICSC 20-200 °C; CHRIS GAT 60-199 °C; NIOSH initial boiling point 102 °F."
+     },
+     "flammabilityLimits": {
+      "value": [
+       1.3,
+       7.1
+      ],
+      "unit": "vol% in air",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1400 (gasoline), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1400&p_version=2&p_lang=en"
+     },
+     "poolFireMassBurningRate": {
+      "value": 0.055,
+      "unit": "kg/(m2*s)",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "asymptotic large-pool value m''_inf (+-0.002)"
+     },
+     "poolFireKBeta": {
+      "value": 2.1,
+      "unit": "1/m",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "k*beta in m'' = m''_inf (1 - exp(-k*beta*D)), (+-0.3)"
+     },
+     "poolFireFlameTemperature": {
+      "value": 1450.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf"
+     },
+     "heatOfGasification": {
+      "value": 330000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf"
+     }
+    }
+   }
+  },
+  {
+   "id": "diesel",
+   "catalogId": null,
+   "name": "diesel fuel (automotive, EN 590 / No. 2-D)",
+   "phase": "liquid",
+   "cas": "68476-34-6",
+   "casNote": "UVCB CAS for 'Fuels, diesel, No. 2'; diesel is a mixture and the number names the substance class",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 830.8,
+      "unit": "kg/m3",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C",
+      "note": "Automotive diesel from a Spanish petrol station (EN 590 grade); EN 590 allows 820-845 kg/m3 at 15 °C and 2.0-4.5 mm2/s at 40 °C.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1027.23,
+        -0.6702
+       ],
+       "validRange": [
+        283.15,
+        413.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+       "fit": "least-squares fit by this agent to the source's 14 points; max deviation 0.20 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.003448,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 (4.15 mm2/s) times the Table 3 density",
+      "note": "Automotive diesel from a Spanish petrol station (EN 590 grade); EN 590 allows 820-845 kg/m3 at 15 °C and 2.0-4.5 mm2/s at 40 °C. Dynamic viscosity = kinematic x density, computed by this agent. A two-parameter Andrade fit is poor over the whole 283-413 K range, so the law is the measured table; the Andrade alternative over 283-353 K is in altLaw.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         283.15,
+         0.004515
+        ],
+        [
+         293.15,
+         0.003448
+        ],
+        [
+         303.15,
+         0.00272
+        ],
+        [
+         313.15,
+         0.002209
+        ],
+        [
+         323.15,
+         0.001834
+        ],
+        [
+         333.15,
+         0.001544
+        ],
+        [
+         343.15,
+         0.001307
+        ],
+        [
+         353.15,
+         0.001128
+        ],
+        [
+         363.15,
+         0.000994
+        ],
+        [
+         373.15,
+         0.000885
+        ],
+        [
+         383.15,
+         0.000794
+        ],
+        [
+         393.15,
+         0.00071
+        ],
+        [
+         403.15,
+         0.000644
+        ],
+        [
+         413.15,
+         0.000586
+        ]
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 kinematic viscosity times Table 3 density"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -12.3789,
+       "B": 1967.7,
+       "validRange": [
+        283.15,
+        353.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423)",
+       "fit": "least-squares fit by this agent to the source's 8 points; max deviation 2.9 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.025,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), item 9.8, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent",
+      "note": "CHRIS marks its own value '(est.)'. No measured diesel surface tension was found in the sources read."
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in the sources read",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "volumetricExpansion": {
+      "value": 0.000807,
+      "unit": "1/K",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+      "note": "-(1/rho) d(rho)/dT from the linear fit of the measured density over 283-413 K, at 20 °C (derived by this agent)"
+     },
+     "specificHeat": {
+      "value": 1914.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.21, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent",
+      "note": "Cragoe's correlation at this sample's specific gravity (0.835 at 60 °F, from the Esteban density table) gives 1918 J/(kg*K); CHRIS OTD (No. 2-D) 1871.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "J/(kg*K)",
+       "points": [
+        [
+         260.93,
+         1796.1
+        ],
+        [
+         263.71,
+         1804.5
+        ],
+        [
+         266.48,
+         1817.1
+        ],
+        [
+         269.26,
+         1825.4
+        ],
+        [
+         272.04,
+         1838.0
+        ],
+        [
+         274.82,
+         1846.4
+        ],
+        [
+         277.59,
+         1858.9
+        ],
+        [
+         280.37,
+         1867.3
+        ],
+        [
+         283.15,
+         1875.7
+        ],
+        [
+         285.93,
+         1888.2
+        ],
+        [
+         288.71,
+         1896.6
+        ],
+        [
+         291.48,
+         1909.2
+        ],
+        [
+         294.26,
+         1917.6
+        ],
+        [
+         297.04,
+         1930.1
+        ],
+        [
+         299.82,
+         1938.5
+        ],
+        [
+         302.59,
+         1951.0
+        ],
+        [
+         305.37,
+         1959.4
+        ],
+        [
+         308.15,
+         1972.0
+        ],
+        [
+         310.93,
+         1980.4
+        ],
+        [
+         313.71,
+         1988.7
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent"
+      }
+     },
+     "conductivity": {
+      "value": 0.1381,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent",
+      "note": "Cragoe's correlation at the sample's gravity: 0.139 W/(m*K), within 1 %.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "W/(m*K)",
+       "points": [
+        [
+         272.04,
+         0.1396
+        ],
+        [
+         274.82,
+         0.1393
+        ],
+        [
+         277.59,
+         0.1392
+        ],
+        [
+         280.37,
+         0.1389
+        ],
+        [
+         283.15,
+         0.1387
+        ],
+        [
+         285.93,
+         0.1386
+        ],
+        [
+         288.71,
+         0.1383
+        ],
+        [
+         291.48,
+         0.1382
+        ],
+        [
+         294.26,
+         0.138
+        ],
+        [
+         297.04,
+         0.1377
+        ],
+        [
+         299.82,
+         0.1376
+        ],
+        [
+         302.59,
+         0.1373
+        ],
+        [
+         305.37,
+         0.1372
+        ],
+        [
+         308.15,
+         0.137
+        ],
+        [
+         310.93,
+         0.1367
+        ],
+        [
+         313.71,
+         0.1366
+        ],
+        [
+         316.48,
+         0.1364
+        ],
+        [
+         319.26,
+         0.1362
+        ],
+        [
+         322.04,
+         0.136
+        ],
+        [
+         324.82,
+         0.1357
+        ],
+        [
+         327.59,
+         0.1356
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent"
+      }
+     },
+     "boilingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "A mixture: distillation range in extra.boilingRange."
+     },
+     "meltingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "No melting point; ICSC 1561 gives -30 to -18 °C (pour/cloud behaviour), in extra.freezingRange."
+     },
+     "autoignitionTemperature": {
+      "value": 542.65,
+      "unit": "K",
+      "confidence": "estimate",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1561 (diesel fuel No. 2), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1561&p_version=2&p_lang=en",
+      "note": "ICSC 254-285 °C; the middle. CHRIS ODS (2-D) 490-545 °F, the same range."
+     },
+     "heatOfCombustion": {
+      "value": 42600000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Engineering ToolBox, 'Fuels - Higher and Lower Calorific Values', https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html",
+      "note": "LHV 42.6 MJ/kg; gross (HHV) 45.6 MJ/kg. CHRIS ODS: 42.9 MJ/kg.",
+      "basis": "net"
+     },
+     "radiantFraction": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no pool-fire radiant fraction for diesel in the sources read (NBSIR 85-3195 Table 7 has none)"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 325.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1561 (diesel fuel No. 2), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1561&p_version=2&p_lang=en",
+      "note": "ICSC 52 °C c.c.; CHRIS 2-D 125 °F (51.7 °C); EN 590 requires above 55 °C."
+     },
+     "boilingRange": {
+      "value": [
+       555.15,
+       611.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1561 (diesel fuel No. 2), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1561&p_version=2&p_lang=en",
+      "note": "CHRIS ODS 288-338 °C"
+     },
+     "freezingRange": {
+      "value": [
+       243.15,
+       255.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1561 (diesel fuel No. 2), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1561&p_version=2&p_lang=en"
+     },
+     "flammabilityLimits": {
+      "value": [
+       0.6,
+       6.5
+      ],
+      "unit": "vol% in air",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1561 (diesel fuel No. 2), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1561&p_version=2&p_lang=en"
+     },
+     "liquidRegressionRate": {
+      "value": 6.666666666666667e-05,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), item 4.9 burning rate 4 mm/min, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent"
+     }
+    }
+   }
+  },
+  {
+   "id": "kerosene",
+   "catalogId": null,
+   "name": "kerosene / jet fuel (Jet A-1 type)",
+   "phase": "liquid",
+   "cas": "8008-20-6",
+   "casNote": "UVCB CAS 'Kerosine (petroleum)' (ICSC 0663, CHRIS KRS); Jet A-1 is also registered as 64742-81-0 (hydrodesulfurized kerosine)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 795.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.20, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "Jet A-1: DEF STAN 91-091 allows 775-840 kg/m3 at 15 °C; typical 804 at 15 °C (Air BP Handbook of Products); Babrauskas uses 820.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1088.53,
+        -1.0015
+       ],
+       "validRange": [
+        274.26,
+        297.59
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 22 points; max deviation 0.01 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001184,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.23, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "A light kerosene (fuel oil No. 1 / JP-1). CHRIS JPV (JP-5, heavier) gives 2.06e-3 Pa*s at 20 °C; Jet A-1 is limited to 8.0 mm2/s at -20 °C.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         235.93,
+         0.006727
+        ],
+        [
+         238.71,
+         0.006065000000000001
+        ],
+        [
+         241.48,
+         0.005482
+        ],
+        [
+         244.26,
+         0.004965
+        ],
+        [
+         247.04,
+         0.004508
+        ],
+        [
+         249.82,
+         0.0041010000000000005
+        ],
+        [
+         252.59,
+         0.003739
+        ],
+        [
+         255.37,
+         0.003416
+        ],
+        [
+         258.15,
+         0.003127
+        ],
+        [
+         260.93,
+         0.002867
+        ],
+        [
+         263.71,
+         0.002634
+        ],
+        [
+         266.48,
+         0.002424
+        ],
+        [
+         269.26,
+         0.002235
+        ],
+        [
+         272.04,
+         0.0020640000000000003
+        ],
+        [
+         274.82,
+         0.001909
+        ],
+        [
+         277.59,
+         0.001768
+        ],
+        [
+         280.37,
+         0.001641
+        ],
+        [
+         283.15,
+         0.0015249999999999999
+        ],
+        [
+         285.93,
+         0.0014190000000000001
+        ],
+        [
+         288.71,
+         0.001322
+        ],
+        [
+         291.48,
+         0.0012330000000000002
+        ],
+        [
+         294.26,
+         0.001152
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.23, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -13.9026,
+       "B": 2100.0,
+       "validRange": [
+        235.93,
+        294.26
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.23, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 22 points; max deviation 0.0 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0275,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), item 9.8, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "CHRIS: 0.023-0.032 N/m at 20 °C; the middle. CHRIS JPV (JP-5) estimates 0.025."
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in the sources read",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1959.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.21, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "Cragoe's correlation at d = 0.805 gives 1954 J/(kg*K).",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "J/(kg*K)",
+       "points": [
+        [
+         255.37,
+         1817.1
+        ],
+        [
+         260.93,
+         1838.0
+        ],
+        [
+         266.48,
+         1858.9
+        ],
+        [
+         272.04,
+         1879.9
+        ],
+        [
+         277.59,
+         1900.8
+        ],
+        [
+         283.15,
+         1921.7
+        ],
+        [
+         288.71,
+         1942.7
+        ],
+        [
+         294.26,
+         1963.6
+        ],
+        [
+         299.82,
+         1984.5
+        ],
+        [
+         305.37,
+         2005.5
+        ],
+        [
+         310.93,
+         2026.4
+        ],
+        [
+         316.48,
+         2047.3
+        ],
+        [
+         322.04,
+         2068.3
+        ],
+        [
+         327.59,
+         2089.2
+        ],
+        [
+         333.15,
+         2110.1
+        ],
+        [
+         338.71,
+         2131.1
+        ],
+        [
+         344.26,
+         2152.0
+        ],
+        [
+         349.82,
+         2172.9
+        ],
+        [
+         355.37,
+         2193.9
+        ],
+        [
+         360.93,
+         2214.8
+        ],
+        [
+         366.48,
+         2235.8
+        ],
+        [
+         372.04,
+         2256.7
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent"
+      }
+     },
+     "conductivity": {
+      "value": 0.1315,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "Cragoe's correlation at d = 0.805 gives 0.144 W/(m*K) (its stated accuracy is about 10 %).",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "W/(m*K)",
+       "points": [
+        [
+         255.37,
+         0.1336
+        ],
+        [
+         260.93,
+         0.1333
+        ],
+        [
+         266.48,
+         0.1328
+        ],
+        [
+         272.04,
+         0.1325
+        ],
+        [
+         277.59,
+         0.1323
+        ],
+        [
+         283.15,
+         0.132
+        ],
+        [
+         288.71,
+         0.1317
+        ],
+        [
+         294.26,
+         0.1314
+        ],
+        [
+         299.82,
+         0.1311
+        ],
+        [
+         305.37,
+         0.1308
+        ],
+        [
+         310.93,
+         0.1305
+        ],
+        [
+         316.48,
+         0.1302
+        ],
+        [
+         322.04,
+         0.1299
+        ],
+        [
+         327.59,
+         0.1297
+        ],
+        [
+         333.15,
+         0.1294
+        ],
+        [
+         338.71,
+         0.1291
+        ],
+        [
+         344.26,
+         0.1288
+        ],
+        [
+         349.82,
+         0.1285
+        ],
+        [
+         355.37,
+         0.1282
+        ],
+        [
+         360.93,
+         0.1279
+        ],
+        [
+         366.48,
+         0.1276
+        ],
+        [
+         372.04,
+         0.1274
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.00126,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "-(1/rho) d(rho)/dT from the CHRIS density table, 274-298 K (derived by this agent)"
+     },
+     "boilingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "A mixture: distillation range in extra.boilingRange."
+     },
+     "latentHeatOfVaporization": {
+      "value": 250000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), item 9.12, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "110 Btu/lb, at the boiling range. Babrauskas' heat of gasification is 670 kJ/kg (includes heating)."
+     },
+     "autoignitionTemperature": {
+      "value": 483.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 0663 (kerosene), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=0663&p_version=2&p_lang=en",
+      "note": "ICSC and Engineering ToolBox: 210 °C; CHRIS KRS: 444 °F (229 °C)."
+     },
+     "heatOfCombustion": {
+      "value": 43200000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "CHRIS KRS: 43.12 MJ/kg; Jet A-1 typical 43.15 MJ/kg (Air BP); DEF STAN 91-091 minimum 42.80 MJ/kg; gross (HHV) 46.2 MJ/kg (Engineering ToolBox).",
+      "basis": "net"
+     },
+     "radiantFraction": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no kerosene radiant fraction in NBSIR 85-3195 Table 7"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 311.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 0663 (kerosene), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=0663&p_version=2&p_lang=en",
+      "note": "ICSC 38-52 °C c.c.; CHRIS 100 °F min. c.c.; Jet A-1 specification minimum 38 °C. The value is the minimum."
+     },
+     "boilingRange": {
+      "value": [
+       448.15,
+       598.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 0663 (kerosene), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=0663&p_version=2&p_lang=en",
+      "note": "CHRIS KRS: 200-260 °C"
+     },
+     "freezingPoint": {
+      "value": 227.6,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), item 9.4: -50 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "note": "ICSC: -48 to -26 °C; Jet A-1 specification maximum -47 °C."
+     },
+     "vaporPressure": {
+      "value": 282.7,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.25, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+      "conditions": "294.26 K (70 °F)",
+      "note": "ICSC 0663 gives 1-3.7 kPa at 37.8 °C, CHRIS 0.68 kPa there: kerosenes differ widely.",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.4448,
+       "B": 2025.83,
+       "C": -4.5,
+       "validRange": [
+        294.26,
+        422.04
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.25, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent",
+       "fit": "fitted by this agent to the source's 24 points; max deviation 0.5 %"
+      }
+     },
+     "flammabilityLimits": {
+      "value": [
+       0.7,
+       5.0
+      ],
+      "unit": "vol% in air",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 0663 (kerosene), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=0663&p_version=2&p_lang=en"
+     },
+     "poolFireMassBurningRate": {
+      "value": 0.039,
+      "unit": "kg/(m2*s)",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "+-0.003"
+     },
+     "poolFireKBeta": {
+      "value": 3.5,
+      "unit": "1/m",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "+-0.8"
+     },
+     "poolFireFlameTemperature": {
+      "value": 1480.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf"
+     },
+     "heatOfGasification": {
+      "value": 670000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf"
+     }
+    }
+   }
+  },
+  {
+   "id": "biodiesel",
+   "catalogId": null,
+   "name": "biodiesel (FAME, B100)",
+   "phase": "liquid",
+   "cas": "67784-80-9",
+   "casNote": "UVCB CAS for 'Soybean oil, Me ester'; rapeseed methyl ester is 73891-99-3. The fuel is a mixture of fatty acid methyl esters; the CAS depends on the feedstock",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 879.8,
+      "unit": "kg/m3",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C",
+      "note": "Commercial pure biodiesel BD100 (FAME, EN 14214 grade: 860-900 kg/m3 at 15 °C, 3.5-5.0 mm2/s at 40 °C).",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1090.7,
+        -0.7207
+       ],
+       "validRange": [
+        283.15,
+        413.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+       "fit": "least-squares fit by this agent to the source's 14 points; max deviation 0.22 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.005965,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 (6.78 mm2/s) times the Table 3 density",
+      "note": "Commercial pure biodiesel BD100 (FAME, EN 14214 grade: 860-900 kg/m3 at 15 °C, 3.5-5.0 mm2/s at 40 °C). Dynamic viscosity = kinematic x density, computed by this agent. A two-parameter Andrade fit is poor over the whole 283-413 K range, so the law is the measured table; the Andrade alternative over 283-353 K is in altLaw.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         283.15,
+         0.007973
+        ],
+        [
+         293.15,
+         0.005965
+        ],
+        [
+         303.15,
+         0.00462
+        ],
+        [
+         313.15,
+         0.003681
+        ],
+        [
+         323.15,
+         0.003013
+        ],
+        [
+         333.15,
+         0.002503
+        ],
+        [
+         343.15,
+         0.002117
+        ],
+        [
+         353.15,
+         0.001808
+        ],
+        [
+         363.15,
+         0.001575
+        ],
+        [
+         373.15,
+         0.001391
+        ],
+        [
+         383.15,
+         0.001231
+        ],
+        [
+         393.15,
+         0.001098
+        ],
+        [
+         403.15,
+         0.000984
+        ],
+        [
+         413.15,
+         0.000894
+        ]
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 kinematic viscosity times Table 3 density"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -12.3096,
+       "B": 2107.6,
+       "validRange": [
+        283.15,
+        353.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423)",
+       "fit": "least-squares fit by this agent to the source's 8 points; max deviation 3.4 %"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in the sources read",
+      "unit": "N/m"
+     }
+    },
+    "thermal": {
+     "volumetricExpansion": {
+      "value": 0.000819,
+      "unit": "1/K",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+      "note": "-(1/rho) d(rho)/dT from the linear fit of the measured density over 283-413 K, at 20 °C (derived by this agent)"
+     },
+     "heatOfCombustion": {
+      "value": 37500000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Engineering ToolBox, 'Fuels - Higher and Lower Calorific Values', https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html",
+      "note": "Methyl ester (biodiesel): LHV 37.5, HHV (gross) 40.2 MJ/kg.",
+      "basis": "net"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 366.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ASTM D6751-09 specification table (minimum 93 °C, ASTM D93), as tabulated in https://cdn.intechopen.com/pdfs/23666/intech-biodiesel_quality_standards_and_properties.pdf",
+      "note": "A specification minimum, not a measurement. EN 14214 minimum 101 °C (current) or 120 °C (2003 edition): the sources read disagree."
+     }
+    }
+   }
+  },
+  {
+   "id": "rapeseedOil",
+   "catalogId": null,
+   "name": "rapeseed (canola) oil",
+   "phase": "liquid",
+   "cas": "8002-13-9",
+   "casNote": "CAS for rapeseed oil (canola oil is listed under 120962-03-0)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 914.5,
+      "unit": "kg/m3",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C",
+      "note": "Refined rapeseed oil bought retail.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1096.09,
+        -0.6179
+       ],
+       "validRange": [
+        283.15,
+        413.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+       "fit": "least-squares fit by this agent to the source's 14 points; max deviation 0.16 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.067847,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 (74.19 mm2/s) times the Table 3 density",
+      "note": "Refined rapeseed oil bought retail. Dynamic viscosity = kinematic x density, computed by this agent. A two-parameter Andrade fit is poor over the whole 283-413 K range, so the law is the measured table; the Andrade alternative over 283-353 K is in altLaw.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         283.15,
+         0.110041
+        ],
+        [
+         293.15,
+         0.067847
+        ],
+        [
+         303.15,
+         0.044383
+        ],
+        [
+         313.15,
+         0.030746
+        ],
+        [
+         323.15,
+         0.022121
+        ],
+        [
+         333.15,
+         0.016592
+        ],
+        [
+         343.15,
+         0.012812
+        ],
+        [
+         353.15,
+         0.010164
+        ],
+        [
+         363.15,
+         0.008244
+        ],
+        [
+         373.15,
+         0.006831
+        ],
+        [
+         383.15,
+         0.005757
+        ],
+        [
+         393.15,
+         0.005003
+        ],
+        [
+         403.15,
+         0.004311
+        ],
+        [
+         413.15,
+         0.003753
+        ]
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 kinematic viscosity times Table 3 density"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -14.2567,
+       "B": 3390.6,
+       "validRange": [
+        283.15,
+        353.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423)",
+       "fit": "least-squares fit by this agent to the source's 8 points; max deviation 7.3 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.03337,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "Melo-Espinosa et al., 'Surface tension prediction of vegetable oils using artificial neural networks and multiple linear regression', Energy Procedia 57 (2014) 886-895, Table 1 (literature values at 20 °C); https://upcommons.upc.edu/bitstreams/cf65b3e2-49b7-4d61-9ce4-86b08ecd4dc1/download",
+      "note": "Literature 32.90-33.83 mN/m at 20 °C; the middle."
+     }
+    },
+    "thermal": {
+     "volumetricExpansion": {
+      "value": 0.000676,
+      "unit": "1/K",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+      "note": "-(1/rho) d(rho)/dT from the linear fit of the measured density over 283-413 K, at 20 °C (derived by this agent)"
+     },
+     "heatOfCombustion": {
+      "value": 37800000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "Engineering ToolBox, 'Fuels - Higher and Lower Calorific Values', https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html",
+      "note": "Engineering ToolBox's generic 'vegetable oils' row: LHV 37.8, HHV 40.5 MJ/kg; not rapeseed-specific.",
+      "basis": "net"
+     }
+    }
+   }
+  },
+  {
+   "id": "sunflowerOil",
+   "catalogId": null,
+   "name": "sunflower oil",
+   "phase": "liquid",
+   "cas": "8001-21-6",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 916.9,
+      "unit": "kg/m3",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C",
+      "note": "Refined sunflower oil bought retail.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1106.02,
+        -0.6409
+       ],
+       "validRange": [
+        283.15,
+        413.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+       "fit": "least-squares fit by this agent to the source's 14 points; max deviation 0.18 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.067346,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 (73.45 mm2/s) times the Table 3 density",
+      "note": "Refined sunflower oil bought retail. Dynamic viscosity = kinematic x density, computed by this agent. A two-parameter Andrade fit is poor over the whole 283-413 K range, so the law is the measured table; the Andrade alternative over 283-353 K is in altLaw.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         283.15,
+         0.109828
+        ],
+        [
+         293.15,
+         0.067346
+        ],
+        [
+         303.15,
+         0.044166
+        ],
+        [
+         313.15,
+         0.030547
+        ],
+        [
+         323.15,
+         0.022017
+        ],
+        [
+         333.15,
+         0.016531
+        ],
+        [
+         343.15,
+         0.012818
+        ],
+        [
+         353.15,
+         0.010144
+        ],
+        [
+         363.15,
+         0.008253
+        ],
+        [
+         373.15,
+         0.006745
+        ],
+        [
+         383.15,
+         0.005591
+        ],
+        [
+         393.15,
+         0.004797
+        ],
+        [
+         403.15,
+         0.00416
+        ],
+        [
+         413.15,
+         0.003674
+        ]
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 5 kinematic viscosity times Table 3 density"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -14.245,
+       "B": 3385.6,
+       "validRange": [
+        283.15,
+        353.15
+       ],
+       "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423)",
+       "fit": "least-squares fit by this agent to the source's 8 points; max deviation 7.6 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.03375,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "Melo-Espinosa et al., 'Surface tension prediction of vegetable oils using artificial neural networks and multiple linear regression', Energy Procedia 57 (2014) 886-895, Table 1 (literature values at 20 °C); https://upcommons.upc.edu/bitstreams/cf65b3e2-49b7-4d61-9ce4-86b08ecd4dc1/download",
+      "note": "Literature 33.50-34.00 mN/m at 20 °C; the middle."
+     }
+    },
+    "thermal": {
+     "volumetricExpansion": {
+      "value": 0.000699,
+      "unit": "1/K",
+      "confidence": "measured",
+      "source": "Esteban, Riba, Baquero, Rius and Puig, \"Temperature dependence of density and viscosity of vegetable oils\", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3",
+      "note": "-(1/rho) d(rho)/dT from the linear fit of the measured density over 283-413 K, at 20 °C (derived by this agent)"
+     },
+     "heatOfCombustion": {
+      "value": 37800000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "Engineering ToolBox, 'Fuels - Higher and Lower Calorific Values', https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html",
+      "note": "Engineering ToolBox's generic 'vegetable oils' row: LHV 37.8, HHV 40.5 MJ/kg; not sunflower-specific.",
+      "basis": "net"
+     }
+    }
+   }
+  },
+  {
+   "id": "castorOil",
+   "catalogId": null,
+   "name": "castor oil",
+   "phase": "liquid",
+   "cas": "8001-79-4",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 965.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.20, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "ICSC 1452: relative density 0.96; CHRIS 9.7: 0.96 at 25 °C; Engineering ToolBox 952 at 25 °C.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1255.88,
+        -0.9925
+       ],
+       "validRange": [
+        283.15,
+        296.48
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 13 points; max deviation 0.01 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.984,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., section 2.2.3 'Viscosities', table (ii) (NPL archive https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html); 20 °C value from the Andrade fit over 25-50 °C (5 K extrapolation)",
+      "note": "Kaye and Laby: 0.700 Pa*s at 25 °C, 0.451 at 30 °C, 0.125 at 50 °C. CHRIS OCA's table gives 1.60 Pa*s at 20 °C, 1.5x higher; Kaye and Laby kept as the handbook of record.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         298.15,
+         0.7
+        ],
+        [
+         303.15,
+         0.451
+        ],
+        [
+         323.15,
+         0.125
+        ],
+        [
+         348.15,
+         0.042
+        ],
+        [
+         373.15,
+         0.0169
+        ]
+       ],
+       "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., section 2.2.3 'Viscosities', table (ii) (NPL archive https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html)"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -22.3372,
+       "B": 6543.3,
+       "validRange": [
+        298.15,
+        323.15
+       ],
+       "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., section 2.2.3 'Viscosities', table (ii) (NPL archive https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html)",
+       "fit": "least-squares fit by this agent to the source's 3 points; max deviation 4.4 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.039,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), item 9.8, at 20 °C, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "Melo-Espinosa et al. (2014) Table 1 also lists 39.00 mN/m at 20 °C."
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in the sources read",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2001.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "CHRIS tabulates a constant 0.478 Btu/(lb*F) over 35-100 °F: a typical value without temperature dependence."
+     },
+     "conductivity": {
+      "value": 0.1739,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "CHRIS tabulates a constant 1.206 Btu*in/(h*ft2*F) over 70-260 °F."
+     },
+     "volumetricExpansion": {
+      "value": 0.00103,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "from the CHRIS density table, 283-296 K (derived by this agent)"
+     },
+     "meltingPoint": {
+      "value": 261.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), item 9.4: 10 °F = -12 °C, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "ICSC 1452: -10 to -18 °C."
+     },
+     "autoignitionTemperature": {
+      "value": 721.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1452 (castor oil), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1452&p_version=2&p_lang=en",
+      "note": "CHRIS: 840 °F (449 °C)."
+     },
+     "heatOfCombustion": {
+      "value": 37100000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), item 9.13: -15,950 Btu/lb, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent",
+      "note": "CHRIS does not say gross or net; for the petroleum sheets its figures match net values.",
+      "basis": "unstated"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1505.5,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, 16th ed., section 2.4.1 'The speed and attenuation of sound', liquids table (NPL archive .../general_physics/2_4/2_4_1.html)",
+      "note": "1490 m/s at 25 °C with dc/dT = -3.1 m/(s*K); the 20 °C value by that slope (derived by this agent).",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2414.26,
+        -3.1
+       ],
+       "validRange": null,
+       "source": "Kaye and Laby, 16th ed., section 2.4.1 'The speed and attenuation of sound', liquids table (NPL archive .../general_physics/2_4/2_4_1.html)",
+       "fit": "the handbook's value and temperature coefficient at 25 °C; range not stated"
+      }
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 502.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1452 (castor oil), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1452&p_version=2&p_lang=en",
+      "note": "c.c.; CHRIS 445 °F c.c."
+     },
+     "boilingPoint": {
+      "value": 586.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1452 (castor oil), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1452&p_version=2&p_lang=en",
+      "note": "ICSC's figure; CHRIS: 'varies, depending on reaction' (it decomposes)."
+     }
+    }
+   }
+  },
+  {
+   "id": "oliveOil",
+   "catalogId": "f3d.oliveOil",
+   "name": "olive oil",
+   "phase": "liquid",
+   "cas": "8001-25-0",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 911.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Engineering ToolBox, 'Liquids - Densities', olive oil at 20 °C, https://www.engineeringtoolbox.com/liquids-densities-d_743.html",
+      "note": "Re-verification of the catalog's 911: Engineering ToolBox 911 at 20 °C agrees; CHRIS OOL 915 at 20 °C (0.4 % higher). Kaye and Laby's online density table gives oils only to one figure, so the catalog's Kaye and Laby attribution could not be confirmed there.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T",
+       "coefficients": [
+        1207.87,
+        -0.9994
+       ],
+       "validRange": [
+        283.15,
+        310.93
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 26 points; max deviation 0.01 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0863,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., section 2.2.3 'Viscosities', table (ii) (NPL archive https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html); 20 °C from the Andrade fit over 25-75 °C (5 K extrapolation)",
+      "note": "Re-verification of the catalog's 0.084: Kaye and Laby's table has no 20 °C column (67.0 mPa*s at 25 °C, 54.0 at 30 °C); its Andrade extrapolation gives this value and CHRIS OOL gives 0.079 at 20 °C. The catalog's 0.084 lies inside that 0.079-0.086 spread; its source sentence should cite the 25 °C point or an extrapolation.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         298.15,
+         0.067
+        ],
+        [
+         303.15,
+         0.054
+        ],
+        [
+         323.15,
+         0.0258
+        ],
+        [
+         348.15,
+         0.0094
+        ],
+        [
+         373.15,
+         0.007
+        ]
+       ],
+       "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., section 2.2.3 'Viscosities', table (ii) (NPL archive https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html)"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -16.2437,
+       "B": 4043.6,
+       "validRange": [
+        298.15,
+        348.15
+       ],
+       "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., section 2.2.3 'Viscosities', table (ii) (NPL archive https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html)",
+       "fit": "least-squares fit by this agent to the source's 4 points; max deviation 7.1 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.033,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Melo-Espinosa et al., 'Surface tension prediction of vegetable oils using artificial neural networks and multiple linear regression', Energy Procedia 57 (2014) 886-895, Table 1 (literature values at 20 °C); https://upcommons.upc.edu/bitstreams/cf65b3e2-49b7-4d61-9ce4-86b08ecd4dc1/download",
+      "note": "Literature 33.00-33.06 mN/m at 20 °C. Re-verification: the catalog's 0.032 is 3 % below; CHRIS OOL gives 0.036. Kaye and Laby 2.2.5 lists only olive oil against water (20 mN/m), not against air."
+     },
+     "bulkModulus": {
+      "value": 1600000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, 16th ed., section 2.2.2, 'Bulk moduli of liquids' (static, isothermal) (NPL archive .../general_physics/2_2/2_2_2.html)",
+      "conditions": "20.5 °C; isothermal (static), not adiabatic"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2001.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent",
+      "note": "CHRIS tabulates a constant 0.478 Btu/(lb*F) over 35-100 °F."
+     },
+     "conductivity": {
+      "value": 0.1655,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "W/(m*K)",
+       "points": [
+        [
+         291.48,
+         0.1657
+        ],
+        [
+         294.26,
+         0.1653
+        ],
+        [
+         297.04,
+         0.165
+        ],
+        [
+         299.82,
+         0.1646
+        ],
+        [
+         302.59,
+         0.1643
+        ],
+        [
+         305.37,
+         0.1638
+        ],
+        [
+         308.15,
+         0.1634
+        ],
+        [
+         310.93,
+         0.1631
+        ],
+        [
+         313.71,
+         0.1627
+        ],
+        [
+         316.48,
+         0.1624
+        ],
+        [
+         319.26,
+         0.162
+        ],
+        [
+         322.04,
+         0.1617
+        ],
+        [
+         324.82,
+         0.1612
+        ],
+        [
+         327.59,
+         0.1608
+        ],
+        [
+         330.37,
+         0.1605
+        ],
+        [
+         333.15,
+         0.1601
+        ],
+        [
+         335.93,
+         0.1598
+        ],
+        [
+         338.71,
+         0.1594
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.00109,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.20, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent",
+      "note": "from the CHRIS density table, 283-311 K (derived by this agent)"
+     },
+     "autoignitionTemperature": {
+      "value": 616.48,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), item 4.7: 650 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent"
+     },
+     "heatOfCombustion": {
+      "value": 37100000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), item 9.13: (est.) -16,000 Btu/lb, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent",
+      "note": "CHRIS marks it an estimate.",
+      "basis": "unstated"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 498.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), item 4.1: 437 °F c.c., via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent"
+     },
+     "interfacialTensionWater": {
+      "value": 0.02,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, 16th ed., 2.2.5 'Surface tensions', interfacial tensions at 20 °C"
+     }
+    }
+   }
+  },
+  {
+   "id": "turpentine",
+   "catalogId": null,
+   "name": "turpentine (oil of turpentine)",
+   "phase": "liquid",
+   "cas": "8006-64-2",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 860.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), item 9.7: specific gravity 0.86 at 15 °C, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+      "conditions": "15 °C",
+      "note": "ICSC 1063: relative density 0.9; Engineering ToolBox: 870 at 20 °C, 860 at 25 °C. Composition (pinenes) varies with source."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001491,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), table 9.23, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "Pa*s",
+       "points": [
+        [
+         280.93,
+         0.0018380000000000002
+        ],
+        [
+         282.04,
+         0.001802
+        ],
+        [
+         283.15,
+         0.001767
+        ],
+        [
+         284.26,
+         0.0017330000000000002
+        ],
+        [
+         285.37,
+         0.0017
+        ],
+        [
+         286.48,
+         0.001668
+        ],
+        [
+         287.59,
+         0.0016359999999999999
+        ],
+        [
+         288.71,
+         0.0016060000000000002
+        ],
+        [
+         289.82,
+         0.0015760000000000001
+        ],
+        [
+         290.93,
+         0.001547
+        ],
+        [
+         292.04,
+         0.001519
+        ],
+        [
+         293.15,
+         0.0014910000000000001
+        ],
+        [
+         294.26,
+         0.001464
+        ],
+        [
+         295.37,
+         0.001438
+        ],
+        [
+         296.48,
+         0.001413
+        ],
+        [
+         297.59,
+         0.001388
+        ],
+        [
+         298.71,
+         0.0013640000000000002
+        ],
+        [
+         299.82,
+         0.00134
+        ],
+        [
+         300.93,
+         0.001317
+        ],
+        [
+         302.04,
+         0.001294
+        ],
+        [
+         303.15,
+         0.0012720000000000001
+        ],
+        [
+         304.26,
+         0.001251
+        ],
+        [
+         305.37,
+         0.00123
+        ],
+        [
+         306.48,
+         0.00121
+        ],
+        [
+         307.59,
+         0.0011899999999999999
+        ],
+        [
+         308.71,
+         0.00117
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), table 9.23, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent"
+      },
+      "altLaw": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.3167,
+       "B": 1409.6,
+       "validRange": [
+        280.93,
+        308.71
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), table 9.23, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+       "fit": "least-squares fit by this agent to the source's 26 points; max deviation 0.0 %"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "CHRIS: 'currently not available'; not found elsewhere in the sources read",
+      "unit": "N/m"
+     },
+     "bulkModulus": {
+      "value": 1280000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, 16th ed., section 2.2.2, 'Bulk moduli of liquids' (static, isothermal) (NPL archive .../general_physics/2_2/2_2_2.html)",
+      "conditions": "19.7 °C; isothermal (static), not adiabatic"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1721.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+      "note": "CHRIS tabulates a constant 0.411 Btu/(lb*F) over 28-66 °F."
+     },
+     "conductivity": {
+      "value": 0.15,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+      "note": "CHRIS tabulates a constant 1.040 Btu*in/(h*ft2*F)."
+     },
+     "boilingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "Distillation range in extra.boilingRange."
+     },
+     "meltingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "ICSC 1063: -50 to -60 °C, in extra.freezingRange."
+     },
+     "autoignitionTemperature": {
+      "value": 526.48,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), item 4.7: 488 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+      "note": "ICSC 1063: 220-255 °C."
+     },
+     "heatOfCombustion": {
+      "value": 41400000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "Engineering ToolBox, 'Fuels - Higher and Lower Calorific Values', https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html",
+      "note": "Engineering ToolBox gives only the gross value, 44.0 MJ/kg; net computed by this agent for C10H16 (11.84 % H): 44.0 - 9 x 0.1184 x 2.442 = 41.4 MJ/kg.",
+      "basis": "net"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 308.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), item 4.1: 95 °F c.c., via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent",
+      "note": "ICSC 1063: 30-46 °C c.c."
+     },
+     "boilingRange": {
+      "value": [
+       422.15,
+       453.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1063 (turpentine), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1063&p_version=2&p_lang=en",
+      "note": "CHRIS: 150-160 °C"
+     },
+     "freezingRange": {
+      "value": [
+       213.15,
+       223.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1063 (turpentine), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1063&p_version=2&p_lang=en"
+     },
+     "vaporPressure": {
+      "value": [
+       250.0,
+       670.0
+      ],
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1063 (turpentine), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1063&p_version=2&p_lang=en",
+      "note": "0.25-0.67 kPa at 20 °C. The CHRIS TPT vapour-pressure table (3.6 kPa at 13 °C) contradicts this and was not used."
+     },
+     "flammabilityLimits": {
+      "value": [
+       0.8,
+       6.0
+      ],
+      "unit": "vol% in air",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1063 (turpentine), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1063&p_version=2&p_lang=en"
+     },
+     "liquidRegressionRate": {
+      "value": 3.9999999999999996e-05,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), item 4.9 burning rate 2.4 mm/min, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent"
+     }
+    }
+   }
+  },
+  {
+   "id": "mineralOil",
+   "catalogId": null,
+   "name": "light mineral oil (light liquid paraffin)",
+   "phase": "liquid",
+   "cas": "8042-47-5",
+   "casNote": "white mineral oil (petroleum), ICSC 1597",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 822.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), item 9.7: 0.822 at 20 °C, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent",
+      "note": "Ph. Eur. 'light liquid paraffin' (monograph 0240) allows 810-875 kg/m3 at 20 °C; heavier 'liquid paraffin' (0239) 827-890."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0525,
+      "unit": "Pa*s",
+      "confidence": "estimate",
+      "source": "Ph. Eur. monograph 0240 'Paraffin, light liquid' limits as quoted by the BP 2013 mirror (https://www.drugfuture.com/Pharmacopoeia/BP2013/data/7112.html, for the 0239 sibling) and supplier specifications (ITW Reagents 146257)",
+      "note": "Light liquid paraffin: 25-80 mPa*s at 20 °C; the middle. Grades differ by 3x; pick a grade's datasheet for anything quantitative."
+     },
+     "surfaceTension": {
+      "value": 0.027,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), item 9.8, at 20 °C, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent"
+     },
+     "bulkModulus": {
+      "value": 1620000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Kaye and Laby, 16th ed., section 2.2.2, 'Bulk moduli of liquids' (static, isothermal) (NPL archive .../general_physics/2_2/2_2_2.html)",
+      "conditions": "14.8 °C; 'paraffin oil'; isothermal (static)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2039.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), table 9.21, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent",
+      "note": "Cragoe's correlation at d = 0.824 gives 1931 J/(kg*K).",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "J/(kg*K)",
+       "points": [
+        [
+         291.48,
+         2039.0
+        ],
+        [
+         294.26,
+         2039.0
+        ],
+        [
+         297.04,
+         2039.0
+        ],
+        [
+         299.82,
+         2039.0
+        ],
+        [
+         302.59,
+         2039.0
+        ],
+        [
+         305.37,
+         2039.0
+        ],
+        [
+         308.15,
+         2039.0
+        ],
+        [
+         310.93,
+         2039.0
+        ],
+        [
+         313.71,
+         2039.0
+        ],
+        [
+         316.48,
+         2039.0
+        ],
+        [
+         319.26,
+         2039.0
+        ],
+        [
+         322.04,
+         2039.0
+        ],
+        [
+         324.82,
+         2039.0
+        ],
+        [
+         327.59,
+         2039.0
+        ],
+        [
+         330.37,
+         2039.0
+        ],
+        [
+         333.15,
+         2039.0
+        ],
+        [
+         335.93,
+         2039.0
+        ],
+        [
+         338.71,
+         2039.0
+        ],
+        [
+         341.48,
+         2039.0
+        ],
+        [
+         344.26,
+         2039.0
+        ],
+        [
+         347.04,
+         2039.0
+        ],
+        [
+         349.82,
+         2039.0
+        ],
+        [
+         352.59,
+         2039.0
+        ],
+        [
+         355.37,
+         2039.0
+        ],
+        [
+         358.15,
+         2039.0
+        ],
+        [
+         360.93,
+         2039.0
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), table 9.21, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent"
+      }
+     },
+     "conductivity": {
+      "value": 0.1306,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "valueUnit": "W/(m*K)",
+       "points": [
+        [
+         291.48,
+         0.1308
+        ],
+        [
+         294.26,
+         0.1305
+        ],
+        [
+         297.04,
+         0.1302
+        ],
+        [
+         299.82,
+         0.1299
+        ],
+        [
+         302.59,
+         0.1295
+        ],
+        [
+         305.37,
+         0.1292
+        ],
+        [
+         308.15,
+         0.1289
+        ],
+        [
+         310.93,
+         0.1287
+        ],
+        [
+         313.71,
+         0.1282
+        ],
+        [
+         316.48,
+         0.1279
+        ],
+        [
+         319.26,
+         0.1276
+        ],
+        [
+         322.04,
+         0.1274
+        ],
+        [
+         324.82,
+         0.1269
+        ],
+        [
+         327.59,
+         0.1266
+        ],
+        [
+         330.37,
+         0.1263
+        ],
+        [
+         333.15,
+         0.1261
+        ],
+        [
+         335.93,
+         0.1256
+        ],
+        [
+         338.71,
+         0.1253
+        ],
+        [
+         341.48,
+         0.125
+        ],
+        [
+         344.26,
+         0.1248
+        ],
+        [
+         347.04,
+         0.1243
+        ],
+        [
+         349.82,
+         0.124
+        ],
+        [
+         352.59,
+         0.1237
+        ],
+        [
+         355.37,
+         0.1235
+        ],
+        [
+         358.15,
+         0.123
+        ]
+       ],
+       "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), table 9.22, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent"
+      }
+     },
+     "autoignitionTemperature": {
+      "value": 588.65,
+      "unit": "K",
+      "confidence": "estimate",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1597 (white mineral oil), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1597&p_version=2&p_lang=en",
+      "note": "ICSC: 260-371 °C; the middle. CHRIS: 500-700 °F, the same range."
+     },
+     "heatOfCombustion": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "CHRIS: 'currently not available'; not found elsewhere in the sources read"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 466.48,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), item 4.1: 380 °F o.c., via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent",
+      "note": "ICSC 1597: above 115 °C o.c."
+     },
+     "boilingRange": {
+      "value": [
+       491.15,
+       916.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "ILO/WHO International Chemical Safety Card ICSC 1597 (white mineral oil), physical properties; https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=1597&p_version=2&p_lang=en"
+     }
+    }
+   }
+  },
+  {
+   "id": "siliconeOil",
+   "catalogId": null,
+   "name": "silicone oil, PDMS 100 cSt",
+   "phase": "liquid",
+   "cas": "63148-62-9",
+   "molarMass": 5.97,
+   "molarMassNote": "number-average, 5970 g/mol (Gelest)",
+   "referenceState": {
+    "temperature": 298.15,
+    "pressure": 101325.0,
+    "note": "the datasheet's viscosity grade is at 25 °C"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 966.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)",
+      "note": "Dow XIAMETER PMX-200 100 cSt: specific gravity 0.964 at 25 °C (Ellsworth listing)."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0966,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)",
+      "note": "100 mm2/s at 25 °C times 966 kg/m3.",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(nu/(mm2/s)) = ln(100) + B*(1/T - 1/298.15); mu = nu*rho",
+       "A": -1.2287,
+       "B": 1739.4,
+       "validRange": [
+        311.15,
+        372.15
+       ],
+       "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values) (viscosity-temperature coefficient 0.6 = 1 - nu(99 °C)/nu(38 °C))",
+       "fit": "estimate: an Andrade form assumed by this agent and pinned to the datasheet's VTC and 25 °C viscosity; gives 110 mm2/s at 20 °C"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0209,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)"
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in the sources read",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "conductivity": {
+      "value": 0.155,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)",
+      "note": "Gelest prints '3.7' under 'W/m C'; the Ellsworth listing of PMX-200 100 cSt gives 0.00037 without unit. Read as 3.7e-4 cal/(cm*s*K) = 0.155 W/(m*K); the unit is this agent's reading."
+     },
+     "specificHeat": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not on the Gelest page; not found elsewhere in the sources read",
+      "unit": "J/(kg*K)"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4025,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)",
+      "conditions": "20 °C"
+     }
+    },
+    "electrical": {
+     "relativePermittivity": {
+      "value": 2.75,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 588.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)"
+     },
+     "pourPoint": {
+      "value": 208.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)"
+     },
+     "dielectricStrength": {
+      "value": 400.0,
+      "unit": "as printed (V/m)",
+      "confidence": "handbook",
+      "source": "Gelest product data, DMS-T21 'Polydimethylsiloxane, trimethylsiloxy terminated, 100 cSt', https://www.gelest.com/?p=3580 (typical values)",
+      "note": "Gelest's unit label; likely V/mil, not verified"
+     }
+    }
+   }
+  },
+  {
+   "id": "hydraulicOil",
+   "catalogId": null,
+   "name": "hydraulic oil, ISO VG 46 (mineral)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "a formulated product; base oils are e.g. 64742-54-7 (heavy paraffinic, hydrotreated)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 856.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Shell Tellus S2 MX 46 (ISO VG 46, HM/HLP, mineral) technical data sheet, typical values, version 4.1 (2016), https://perma-tec.com/_Resources/Lubricants/Shell/Shell_Tellus_S2_M_46_TDS_de.pdf",
+      "conditions": "15 °C (ISO 12185)"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.1132,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Shell Tellus S2 MX 46 (ISO VG 46, HM/HLP, mineral) technical data sheet, typical values, version 4.1 (2016), https://perma-tec.com/_Resources/Lubricants/Shell/Shell_Tellus_S2_M_46_TDS_de.pdf",
+      "note": "132 mm2/s at 20 °C from the ASTM D341 line through 46 mm2/s (40 °C) and 6.9 (100 °C), times the 15 °C density; the datasheet also gives 580 mm2/s at 0 °C.",
+      "law": {
+       "kind": "walther",
+       "form": "log10(log10(nu/(mm2/s) + 0.7)) = A - B*log10(T/K)  (ASTM D341); mu = nu*rho",
+       "A": 9.32471,
+       "B": 3.64706,
+       "validRange": [
+        313.15,
+        373.15
+       ],
+       "source": "Shell Tellus S2 MX 46 (ISO VG 46, HM/HLP, mineral) technical data sheet, typical values, version 4.1 (2016), https://perma-tec.com/_Resources/Lubricants/Shell/Shell_Tellus_S2_M_46_TDS_de.pdf",
+       "fit": "two-point ASTM D341 line through the datasheet's 40 °C and 100 °C viscosities, computed by this agent",
+       "check": "predicts 559 mm2/s at 273.15 K against the datasheet's 580"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not on the datasheet",
+      "unit": "N/m"
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not on the datasheet",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1893.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Cragoe, 'Thermal Properties of Petroleum Products', NBS Miscellaneous Publication 97 (1929), eq. 4 k = (0.813/d)[1 - 0.0003(t - 32)] Btu*in/(h*ft2*F) (about 10 %, d 0.78-0.95) and eq. 5 c = (0.388 + 0.00045 t)/sqrt(d) Btu/(lb*F) (2-4 %, d 0.75-0.96), d = specific gravity 60/60 F; https://nvlpubs.nist.gov/nistpubs/Legacy/MP/nbsmiscellaneouspub97.pdf",
+      "note": "Cragoe's correlation at d = 0.857, 20 °C (computed by this agent)."
+     },
+     "conductivity": {
+      "value": 0.1354,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Cragoe, 'Thermal Properties of Petroleum Products', NBS Miscellaneous Publication 97 (1929), eq. 4 k = (0.813/d)[1 - 0.0003(t - 32)] Btu*in/(h*ft2*F) (about 10 %, d 0.78-0.95) and eq. 5 c = (0.388 + 0.00045 t)/sqrt(d) Btu/(lb*F) (2-4 %, d 0.75-0.96), d = specific gravity 60/60 F; https://nvlpubs.nist.gov/nistpubs/Legacy/MP/nbsmiscellaneouspub97.pdf",
+      "note": "Cragoe's correlation at d = 0.857, 20 °C (computed by this agent); about 10 %."
+     },
+     "heatOfCombustion": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not on the datasheet"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 503.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Shell Tellus S2 MX 46 (ISO VG 46, HM/HLP, mineral) technical data sheet, typical values, version 4.1 (2016), https://perma-tec.com/_Resources/Lubricants/Shell/Shell_Tellus_S2_M_46_TDS_de.pdf",
+      "note": "Cleveland open cup, ISO 2592"
+     },
+     "pourPoint": {
+      "value": 243.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Shell Tellus S2 MX 46 (ISO VG 46, HM/HLP, mineral) technical data sheet, typical values, version 4.1 (2016), https://perma-tec.com/_Resources/Lubricants/Shell/Shell_Tellus_S2_M_46_TDS_de.pdf"
+     },
+     "viscosityIndex": {
+      "value": 105,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Shell Tellus S2 MX 46 (ISO VG 46, HM/HLP, mineral) technical data sheet, typical values, version 4.1 (2016), https://perma-tec.com/_Resources/Lubricants/Shell/Shell_Tellus_S2_M_46_TDS_de.pdf"
+     }
+    }
+   }
+  },
+  {
+   "id": "motorOil",
+   "catalogId": null,
+   "name": "motor oil, SAE 10W-30 (mineral)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "a formulated product (base oil plus additives); no single CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 864.0,
+      "unit": "kg/m3",
+      "confidence": "estimate",
+      "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30",
+      "conditions": "15 °C",
+      "note": "The sheet gives 0.870 g/ml at 15 °C and 0.858 at 15.6 °C, which contradict each other; the middle. CHRIS OMT: 0.84-0.96 for motor oils."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.146,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30",
+      "note": "169 mm2/s at 20 °C from the ASTM D341 line through 64 mm2/s (40 °C) and 10.3 (100 °C), extrapolated 20 K below the 40 °C point; times 864 kg/m3. HTHS at 150 °C: 3.0 mPa*s. A multigrade's VI improver makes it shear-thinning at high shear.",
+      "law": {
+       "kind": "walther",
+       "form": "log10(log10(nu/(mm2/s) + 0.7)) = A - B*log10(T/K)  (ASTM D341); mu = nu*rho",
+       "A": 8.13487,
+       "B": 3.15615,
+       "validRange": [
+        313.15,
+        373.15
+       ],
+       "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30",
+       "fit": "two-point ASTM D341 line through the datasheet's 40 °C and 100 °C viscosities, computed by this agent"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.03675,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMT (oils, miscellaneous: motor), item 9.8, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMT.pdf; English units converted by this agent",
+      "note": "CHRIS: 36-37.5 dynes/cm at 20 °C for motor oils; the middle."
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in the sources read",
+      "unit": "Pa"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1885.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Cragoe, 'Thermal Properties of Petroleum Products', NBS Miscellaneous Publication 97 (1929), eq. 4 k = (0.813/d)[1 - 0.0003(t - 32)] Btu*in/(h*ft2*F) (about 10 %, d 0.78-0.95) and eq. 5 c = (0.388 + 0.00045 t)/sqrt(d) Btu/(lb*F) (2-4 %, d 0.75-0.96), d = specific gravity 60/60 F; https://nvlpubs.nist.gov/nistpubs/Legacy/MP/nbsmiscellaneouspub97.pdf",
+      "note": "Cragoe's correlation at d = 0.865, 20 °C (computed by this agent). CHRIS OMT: 1964 J/(kg*K)."
+     },
+     "conductivity": {
+      "value": 0.1341,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Cragoe, 'Thermal Properties of Petroleum Products', NBS Miscellaneous Publication 97 (1929), eq. 4 k = (0.813/d)[1 - 0.0003(t - 32)] Btu*in/(h*ft2*F) (about 10 %, d 0.78-0.95) and eq. 5 c = (0.388 + 0.00045 t)/sqrt(d) Btu/(lb*F) (2-4 %, d 0.75-0.96), d = specific gravity 60/60 F; https://nvlpubs.nist.gov/nistpubs/Legacy/MP/nbsmiscellaneouspub97.pdf",
+      "note": "Cragoe's correlation, about 10 %. CHRIS OMT: 0.132 W/(m*K)."
+     },
+     "autoignitionTemperature": {
+      "value": 519.26,
+      "unit": "K",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMT (oils, miscellaneous: motor), item 4.7: 325-625 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMT.pdf; English units converted by this agent",
+      "note": "the middle of CHRIS's range for motor oils"
+     },
+     "heatOfCombustion": {
+      "value": 42998000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMT (oils, miscellaneous: motor), item 9.13: -18,486 Btu/lb, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMT.pdf; English units converted by this agent",
+      "note": "CHRIS does not say gross or net; for fuels its figures match net values.",
+      "basis": "unstated"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1478.0,
+      "unit": "m/s",
+      "confidence": "estimate",
+      "source": "Kaye and Laby, 16th ed., section 2.4.1 'The speed and attenuation of sound', liquids table (NPL archive .../general_physics/2_4/2_4_1.html)",
+      "note": "Kaye and Laby's 'oil (lubricating)': 1461 m/s at 25 °C, dc/dT = -3.4 m/(s*K); shifted to 20 °C by this agent. Not this product."
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 499.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30",
+      "note": "Cleveland open cup, ASTM D92"
+     },
+     "pourPoint": {
+      "value": 242.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30"
+     },
+     "viscosityIndex": {
+      "value": 139,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30"
+     },
+     "hthsViscosity150C": {
+      "value": 0.003,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Mobil Super 1000 10W-30 (mineral) product data sheet, Japan, 06-2022, typical properties, https://mobil.com/en-jp/passenger-vehicle-lube/pds/ap-jp-mobil-super-1000-10w-30"
+     }
+    }
+   }
+  },
+  {
+   "id": "crudeOil",
+   "catalogId": null,
+   "name": "crude oil, light (Troll Blend, API 35.4)",
+   "phase": "liquid",
+   "cas": "8002-05-9",
+   "casNote": "UVCB CAS 'Petroleum'",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 847.0,
+      "unit": "kg/m3",
+      "confidence": "measured",
+      "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html",
+      "conditions": "15 °C",
+      "note": "One crude; crudes span 700-980 kg/m3 (CHRIS OIL). Babrauskas' pool-fire crude: 830-880."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.00467,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html",
+      "note": "5.51 mm2/s at 20 °C times the 15 °C density (0.4 % high at most).",
+      "law": {
+       "kind": "walther",
+       "form": "log10(log10(nu/(mm2/s) + 0.7)) = A - B*log10(T/K)  (ASTM D341); mu = nu*rho",
+       "A": 9.60571,
+       "B": 3.93435,
+       "validRange": [
+        293.15,
+        313.15
+       ],
+       "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html",
+       "fit": "two-point ASTM D341 line through the datasheet's 40 °C and 100 °C viscosities, computed by this agent"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.031,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OIL (oils: crude), item 9.8, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OIL.pdf; English units converted by this agent",
+      "note": "CHRIS: 0.024-0.038 N/m at 20 °C across crudes; the middle."
+     },
+     "bulkModulus": {
+      "value": 1460000000.0,
+      "unit": "Pa",
+      "confidence": "estimate",
+      "source": "Kaye and Laby, 16th ed., section 2.2.2, 'Bulk moduli of liquids' (static, isothermal) (NPL archive .../general_physics/2_2/2_2_2.html)",
+      "conditions": "16.5 °C; 'petroleum'; isothermal (static)",
+      "note": "Kaye and Laby's generic 'petroleum', not this crude."
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1903.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Cragoe, 'Thermal Properties of Petroleum Products', NBS Miscellaneous Publication 97 (1929), eq. 4 k = (0.813/d)[1 - 0.0003(t - 32)] Btu*in/(h*ft2*F) (about 10 %, d 0.78-0.95) and eq. 5 c = (0.388 + 0.00045 t)/sqrt(d) Btu/(lb*F) (2-4 %, d 0.75-0.96), d = specific gravity 60/60 F; https://nvlpubs.nist.gov/nistpubs/Legacy/MP/nbsmiscellaneouspub97.pdf",
+      "note": "Cragoe's correlation at d = 0.848, 20 °C (computed by this agent)."
+     },
+     "conductivity": {
+      "value": 0.1368,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Cragoe, 'Thermal Properties of Petroleum Products', NBS Miscellaneous Publication 97 (1929), eq. 4 k = (0.813/d)[1 - 0.0003(t - 32)] Btu*in/(h*ft2*F) (about 10 %, d 0.78-0.95) and eq. 5 c = (0.388 + 0.00045 t)/sqrt(d) Btu/(lb*F) (2-4 %, d 0.75-0.96), d = specific gravity 60/60 F; https://nvlpubs.nist.gov/nistpubs/Legacy/MP/nbsmiscellaneouspub97.pdf",
+      "note": "Cragoe's correlation, about 10 %."
+     },
+     "heatOfCombustion": {
+      "value": 42600000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "Babrauskas' 42.5-42.7 MJ/kg for crude oil pools; the middle. CHRIS OIL: 42.45 MJ/kg.",
+      "basis": "net"
+     },
+     "boilingPoint": {
+      "value": null,
+      "unit": "K",
+      "confidence": null,
+      "source": null,
+      "note": "Wide range: CHRIS 32 to above 400 °C."
+     },
+     "radiantFraction": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not in NBSIR 85-3195 Table 7"
+     }
+    },
+    "extra": {
+     "pourPoint": {
+      "value": 243.15,
+      "unit": "K",
+      "confidence": "measured",
+      "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html"
+     },
+     "reidVaporPressure": {
+      "value": 39300.0,
+      "unit": "Pa",
+      "confidence": "measured",
+      "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html",
+      "note": "5.7 psi"
+     },
+     "sulfur": {
+      "value": 0.176,
+      "unit": "wt%",
+      "confidence": "measured",
+      "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html"
+     },
+     "apiGravity": {
+      "value": 35.4,
+      "unit": "deg API",
+      "confidence": "measured",
+      "source": "Equinor Troll Blend crude assay (sample 2 Mar 2018), as published in Oil & Gas Journal, 13 Aug 2018, 'Equinor updates Troll Blend crude assay', https://www.ogj.com/articles/print/volume-116/issue-8/processing/equinor-updates-troll-blend-crude-assay.html"
+     },
+     "flashPoint": {
+      "value": [
+       266.15,
+       305.15
+      ],
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OIL (oils: crude), item 4.1: 20-90 °F c.c., via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OIL.pdf; English units converted by this agent",
+      "note": "a range across crudes, not this one"
+     },
+     "poolFireMassBurningRate": {
+      "value": [
+       0.022,
+       0.045
+      ],
+      "unit": "kg/(m2*s)",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf"
+     },
+     "poolFireKBeta": {
+      "value": 2.8,
+      "unit": "1/m",
+      "confidence": "handbook",
+      "source": "B. T. Lee, \"Heat Release Rate Characteristics of Some Combustible Fuel Sources in Nuclear Power Plants\", NBSIR 85-3195 (NBS, 1985), Table 6 'Data for Large Pool Burning Rate Estimates', reproducing Babrauskas, \"Estimating large pool fire burning rates\", Fire Technology 19 (1983); https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir85-3195.pdf",
+      "note": "+-0.4"
+     }
+    }
+   }
+  }
+ ]
+}

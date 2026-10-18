@@ -1,0 +1,150 @@
+# **The level editor as a download, on every tag** (D55): a notarised macOS
+# disk image, a Windows zip and a Linux tarball, with `SHA256SUMS` over the
+# three, attached to the tag's GitHub Release. The web build is the other
+# half and is deployed with the site as one of the demos (`site/tool/demos.sh`,
+# at /demo/editor/), because the download page offers it first.
+#
+# The building and the packing are `tool/editor_release.sh`, one desktop per
+# runner, so a developer makes the same file with the same command.
+#
+# **Secrets**, named here and filled in the repository's settings, never in
+# this file. macOS signing and notarisation:
+#
+#   MACOS_CERTIFICATE_P12        the "Developer ID Application" certificate
+#                                and its key, exported as .p12, base64
+#   MACOS_CERTIFICATE_PASSWORD   the password the .p12 was exported with
+#   MACOS_SIGNING_IDENTITY       "Developer ID Application: <name> (<team>)"
+#   APPLE_ID                     the Apple ID notarisation is submitted as
+#   APPLE_TEAM_ID                the ten-character team id
+#   APPLE_APP_PASSWORD           an app-specific password for that Apple ID
+#
+# Without them the macOS job still builds, and the image is named
+# `-unsigned`; the release job then refuses to attach it to a release that
+# is not a draft, so an unsigned editor is never the one a stranger gets.
+# Windows and Linux are not signed.
+name: editor release
+
+on:
+  push:
+    tags: ['v*']
+  # By hand, for a tag that exists: a failed notarisation retried without a
+  # second tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to build, e.g. v1.0.0-rc.1'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: editor-release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - desktop: macos
+            os: macos-latest
+          - desktop: windows
+            os: windows-latest
+          - desktop: linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      # libasound2-dev for flutter_soloud's ALSA backend, which the editor
+      # reaches through `flutter3d_game` (the reason ci.yml's desktop job
+      # gives).
+      - name: linux desktop toolchain
+        if: matrix.desktop == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev libasound2-dev
+
+      - run: flutter precache --${{ matrix.desktop }}
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+
+      - name: build and pack
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: tool/editor_release.sh ${{ matrix.desktop }} "${TAG#v}" dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: editor-${{ matrix.desktop }}
+          path: dist/
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: editor-*
+          path: dist
+          merge-multiple: true
+
+      - name: SHA256SUMS
+        run: tool/editor_release.sh sums dist
+
+      # Attached to the tag's release, made as a draft when there is none
+      # yet, so the notes are written by a person before anybody sees it. An
+      # unsigned image is attached only to a draft: published, it would be
+      # what a stranger downloads.
+      - name: attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --verify-tag \
+              --title "$TAG" --notes "The level editor for $TAG; notes to follow."
+          fi
+          draft="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+          if ls dist/*-unsigned.dmg >/dev/null 2>&1 && [ "$draft" != true ]; then
+            echo "the macOS image is unsigned and $TAG's release is published:"
+            echo "fill the signing secrets and run this workflow again for $TAG"
+            exit 1
+          fi
+          gh release upload "$TAG" dist/flutter3d-editor-* dist/SHA256SUMS --clobber
+          {
+            echo "### The editor for $TAG"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

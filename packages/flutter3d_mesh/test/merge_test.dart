@@ -115,7 +115,7 @@ void main() {
     });
 
     test('a triangulated box goes back to being six quads', () {
-      final (mesh, _, _) = importMeshData(CuboidShape().build());
+      final ImportedMesh(:mesh) = importMeshData(CuboidShape().build());
       expect(mesh.faceCount, 12);
 
       expect(dissolveFlatEdges(mesh), 6);
@@ -238,7 +238,7 @@ void main() {
       expect(mesh.vertexCount, 16);
       expect(mesh.faceCount, 12);
 
-      final (merged, report) = mergeByDistance(mesh);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(mesh);
 
       // Twelve points, ten faces: the wall between them is gone, and so are the
       // four pairs of coincident corners. Mutation: keep the coincident faces
@@ -252,17 +252,17 @@ void main() {
 
       expect(report.merged, 4);
       expect(report.droppedCoincident, 2);
-      expect(report.worthReporting, isTrue);
+      expect(report.isWorthReporting, isTrue);
     });
 
     test('a mesh with nothing to weld comes back unchanged', () {
       final mesh = EditMesh.cuboid();
 
-      final (merged, report) = mergeByDistance(mesh);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(mesh);
 
       expect(merged.vertexCount, 8);
       expect(merged.faceCount, 6);
-      expect(report.worthReporting, isFalse);
+      expect(report.isWorthReporting, isFalse);
       expect(report.merged, 0);
       merged.validate();
     });
@@ -287,7 +287,7 @@ void main() {
       }
       final mesh = EditMesh.fromFaces(points, faces);
 
-      final (merged, report) = mergeByDistance(mesh);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(mesh);
 
       // Mutation: hand the third flap to the builder without splitting and it
       // throws — "the edge is used twice the same way round" — so a merge
@@ -302,7 +302,10 @@ void main() {
       // One of the four pairs standing in the same place along the wall.
       final one = Selection.of(ElementLevel.vertex, <int>[1, 8]);
 
-      final (merged, report) = mergeByDistance(mesh, within: one);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(
+        mesh,
+        within: one,
+      );
 
       // Mutation: ignore `within` and this welds all four pairs and takes the
       // wall out with them — a person closing one seam would find the rest of
@@ -317,7 +320,10 @@ void main() {
       final mesh = gluedBoxes();
       final apart = Selection.of(ElementLevel.vertex, <int>[8, 9]);
 
-      final (merged, report) = mergeByDistance(mesh, within: apart);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(
+        mesh,
+        within: apart,
+      );
 
       expect(report.merged, 0);
       expect(merged.vertexCount, 16);
@@ -332,7 +338,7 @@ void main() {
         });
       });
 
-      final (merged, report) = mergeByDistance(mesh);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(mesh);
       final face = report.remap.faces[0];
 
       // Mutation: build the mesh and stop, and every material assignment, UV
@@ -348,7 +354,7 @@ void main() {
     test('the remap says where every vertex went', () {
       final mesh = gluedBoxes();
 
-      final (merged, report) = mergeByDistance(mesh);
+      final MergedMesh(mesh: merged, :report) = mergeByDistance(mesh);
 
       // The two boxes' copies of a shared corner land on the same new vertex,
       // which is what makes them one solid.
@@ -366,7 +372,11 @@ void main() {
       final mesh = grid(2);
       final corner = Selection.of(ElementLevel.vertex, <int>[0, 1]);
 
-      final (merged, report) = mergeAt(mesh, corner, Vector3(9, 9, 0));
+      final MergedMesh(mesh: merged, :report) = mergeAt(
+        mesh,
+        corner,
+        Vector3(9, 9, 0),
+      );
 
       expect(merged.vertexCount, 8);
       expect(report.merged, 1);
@@ -389,7 +399,7 @@ void main() {
         ],
       );
 
-      final (merged, report) = mergeAt(
+      final MergedMesh(mesh: merged, :report) = mergeAt(
         mesh,
         Selection.of(ElementLevel.vertex, <int>[0, 1]),
         Vector3.zero(),
@@ -409,7 +419,7 @@ void main() {
       // tell whether it was cleared.
       edit(mesh, () => mesh.setMaterialSlot(0, 1));
 
-      final (merged, _) = mergeAt(
+      final MergedMesh(mesh: merged) = mergeAt(
         mesh,
         Selection.of(ElementLevel.vertex, <int>[0, 1]),
         Vector3.zero(),

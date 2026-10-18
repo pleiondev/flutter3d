@@ -24,27 +24,34 @@ sealed class StartChoice {
 
 /// "Open file" was pressed — the caller's own file picker decides the rest.
 final class OpenFileChoice extends StartChoice {
+  /// The choice to open a file through the caller's picker.
   const OpenFileChoice();
 }
 
 /// A row in the recent list was tapped.
 final class OpenRecentChoice extends StartChoice {
+  /// The choice to open the recent file at [path].
   const OpenRecentChoice(this.path);
 
+  /// Where the file is, exactly as the recent list stored it.
   final String path;
 }
 
 /// "New project" was pressed, with the profile the person picked.
 final class NewProjectChoice extends StartChoice {
+  /// The choice to start a new project under [profile].
   const NewProjectChoice(this.profile);
 
+  /// The profile the new project starts under — one of [kStartProfiles].
   final ProjectProfile profile;
 }
 
 /// One of the four scenario cards was tapped — `ux-42`.
 final class ScenarioChoice extends StartChoice {
+  /// The choice to start the way [scenario] does.
   const ScenarioChoice(this.scenario);
 
+  /// Which of the four ways to start was picked.
   final StartScenario scenario;
 }
 
@@ -54,8 +61,11 @@ final class ScenarioChoice extends StartChoice {
 /// different kind of answer: the rest of this screen says what to do now, and
 /// this says what to do next time.
 final class ShowAtLaunchChoice extends StartChoice {
+  /// The answer to the launch checkbox: [show] true means open this screen
+  /// at launch from now on.
   const ShowAtLaunchChoice(this.show);
 
+  /// Whether this screen should open at launch next time.
   final bool show;
 }
 
@@ -99,8 +109,13 @@ enum StartScenario {
 
   const StartScenario(this.label, this.about, this.icon);
 
+  /// The card's title.
   final String label;
+
+  /// The card's one sentence under the title, saying where it lands.
   final String about;
+
+  /// The card's icon.
   final IconData icon;
 }
 
@@ -136,6 +151,7 @@ Future<StartChoice?> showStartScreen(
 /// than through a dialog route, which is the only way to ask what a card does
 /// without a window behind it.
 class StartScreen extends StatelessWidget {
+  /// The screen over [recentPaths]; it answers by popping a [StartChoice].
   const StartScreen({
     super.key,
     required this.recentPaths,
@@ -143,6 +159,8 @@ class StartScreen extends StatelessWidget {
     this.offerLaunchChoice = false,
   });
 
+  /// The recent files, most recent first, already filtered to those that
+  /// still exist.
   final List<String> recentPaths;
 
   /// Whether this screen opens itself at launch — `ux-42`. The checkbox shows
@@ -150,6 +168,9 @@ class StartScreen extends StatelessWidget {
   /// the Home button rather than at launch does not offer a setting about a
   /// moment that has already passed.
   final bool showAtLaunch;
+
+  /// Whether to show the "show at launch" checkbox at all — set when the
+  /// screen opened by itself at launch, not from the Home button.
   final bool offerLaunchChoice;
 
   @override

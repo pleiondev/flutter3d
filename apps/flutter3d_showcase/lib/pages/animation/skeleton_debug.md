@@ -1,7 +1,7 @@
 # The skeleton drawn
 
 A skinned mesh hides its own rig: the joints that move it are never drawn,
-only the surface they carry. `DebugDrawOptions.skeletons` draws them anyway,
+only the surface they carry. `DebugDrawSettings.skeletons` draws them anyway,
 one octahedron a bone and one cross at any joint with no child, over every
 skinned mesh in the scene.
 

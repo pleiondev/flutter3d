@@ -21,9 +21,12 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 /// surfaces than the others: the ground, the crowd on it, and the fog drawn on
 /// top of both.
 ///
-/// Read only when [kFixedResolution]; a desktop build draws at whatever size the
+/// Read only when [fixedResolution]; a desktop build draws at whatever size the
 /// widget was laid out at.
 const int kRenderWidth = 960;
+
+/// The height of the frame a browser build draws, in pixels. See
+/// [kRenderWidth].
 const int kRenderHeight = 540;
 
 /// The shadow atlas this build can afford.
@@ -44,10 +47,13 @@ const int kRenderHeight = 540;
 /// 2048, and it covers the ground the camera is over, which from above is the
 /// only ground that reads.
 ///
-/// **Branched on [kFixedResolution] rather than on `kIsWeb`.** They are true
+/// **Branched on [fixedResolution] rather than on `kIsWeb`.** They are true
 /// together, and the question being asked is the one the backend already
 /// answers: a build that renders to a fixed internal target is the build whose
 /// fill rate is worth economising. Asking `kIsWeb` would be asking a second
 /// question that has to keep agreeing with the first.
-const int kShadowCascades = kFixedResolution ? 2 : 3;
-const int kShadowResolution = kFixedResolution ? 1024 : 2048;
+const int kShadowCascades = fixedResolution ? 2 : 3;
+
+/// The side of each shadow tile, in texels: 1024 in a browser and 2048 on a
+/// desktop. See [kShadowCascades].
+const int kShadowResolution = fixedResolution ? 1024 : 2048;

@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -16,6 +18,8 @@ import 'platformer_entities.dart';
 /// stays square. That is a decision recorded in ARCHITECTURE.md §10, not an oversight,
 /// and it is why a crate is a crate here rather than a barrel.
 final class Crate {
+  /// A crate standing at [at] in [world], [size] metres to a side
+  /// ([defaultSize] when null) and weighing [mass] kilograms.
   Crate({
     required CollisionWorld world,
     required Vector3 at,
@@ -36,11 +40,14 @@ final class Crate {
   /// scenery.
   static Vector3 get defaultSize => Vector3(1.2, 1.2, 1.2);
 
+  /// The rigid body that falls, rests and is shoved; it never rotates.
   final RigidBody body;
 
+  /// The box the body collides as, on the world layer.
   Collider get collider => body.collider;
 
-  Vector3 get position => body.position;
+  /// Where the crate's middle is, in world metres; a copy.
+  Vector3 get position => body.collider.position.clone();
 }
 
 /// A crate in a level document.
@@ -54,18 +61,23 @@ final class CrateKind extends EntityKind {
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override
   bool get mustBeReachable => true;
+
+  /// The kind, spawning into [dynamics] once there is one.
   CrateKind({this.dynamics}) : super(PlatformerEntities.crate);
 
   /// Where a crate goes once there is a world. Null while validating.
-  Dynamics? dynamics;
+  RigidDynamics? dynamics;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final mass = entity.number('mass');
     if (mass != null && mass <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has a mass of $mass, and a crate with no mass is a wall',
           where: scope.describe(entity),
         ),
@@ -74,7 +86,9 @@ final class CrateKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final world = dynamics;
     if (world == null) return;
     final size = entity.vector('size') ?? Crate.defaultSize;

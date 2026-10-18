@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show WorldPosition;
+import 'package:vector_math/vector_math.dart';
 
 import 'bvh.dart';
 import 'camera_node.dart';
@@ -13,41 +15,86 @@ import 'scene_spheres.dart';
 
 part 'raycaster_hit_tests.dart';
 
-/// What a ray hit.
+/// What a ray hit: the mesh, how far along the ray, and where.
 ///
-/// Mutable and reused by [Raycaster]: picking runs on pointer events, and a
-/// fresh result object per candidate mesh is the allocation pattern this engine
-/// avoids everywhere else.
+/// **One per hit, and the caller's.** [Raycaster.intersectScene] fills a
+/// scratch of its own while it tests candidates, which is where the hot
+/// loop allocates nothing, and hands back a new result only for the one it
+/// found, so a result kept, or handed to several listeners, never changes
+/// underneath them. Its fields are final; the vectors are its own copies.
 final class HitResult {
-  MeshNode? node;
+  HitResult._({
+    required this.node,
+    required this.distance,
+    required this.point,
+    required this.normal,
+    required this.uv,
+    required this.triangleIndex,
+    required this.approximate,
+    required this._origin,
+  });
 
-  /// Distance along the ray, in world units.
-  double distance = 0.0;
+  /// The mesh hit.
+  final MeshNode? node;
+
+  /// Distance along the ray, in meters.
+  final double distance;
 
   /// Where the ray met the surface, in world space.
-  final Vector3 point = Vector3.zero();
+  final Vector3 point;
 
   /// Surface normal at the hit, in world space, unit length.
   ///
   /// Interpolated from the triangle's vertex normals when the mesh has them, so
   /// a smooth-shaded sphere reports a smoothly varying normal rather than the
   /// facet's. Falls back to the geometric normal otherwise.
-  final Vector3 normal = Vector3.zero();
+  final Vector3 normal;
 
   /// Texture coordinate at the hit, zero when the mesh carries none.
-  final Vector2 uv = Vector2.zero();
+  final Vector2 uv;
 
   /// Index of the triangle that was hit, or `-1` for an approximate hit.
-  int triangleIndex = -1;
+  final int triangleIndex;
 
   /// True when the mesh had no CPU-side geometry and the hit is against its
   /// bounding box instead.
   ///
   /// Worth surfacing rather than hiding: a caller placing a decal at the hit
   /// point needs to know the point is on a box, not on the surface.
-  bool approximate = false;
+  final bool approximate;
 
+  /// The mesh hit; throws when there is none.
   MeshNode get requireNode => node!;
+
+  /// Where [point] is in the world: the scene's origin when it was hit plus
+  /// [point], in doubles.
+  WorldPosition get position => WorldPosition(
+    _origin.x + point.x,
+    _origin.y + point.y,
+    _origin.z + point.z,
+  );
+  final WorldPosition _origin;
+
+  @override
+  String toString() =>
+      'HitResult(${node?.name ?? 'none'} at $distance, '
+      'triangle $triangleIndex${approximate ? ', approximate' : ''})';
+}
+
+/// What [Raycaster] writes while it tests candidates, reused from cast to
+/// cast: picking runs on pointer moves, and a result object per candidate
+/// mesh is the allocation this engine avoids everywhere else. Only the
+/// nearest becomes a [HitResult].
+final class _HitScratch {
+  MeshNode? node;
+
+  /// Along the ray, in meters.
+  double distance = 0.0;
+  final Vector3 point = Vector3.zero();
+  final Vector3 normal = Vector3.zero();
+  final Vector2 uv = Vector2.zero();
+  int triangleIndex = -1;
+  bool approximate = false;
 
   void _reset() {
     node = null;
@@ -59,10 +106,16 @@ final class HitResult {
     uv.setZero();
   }
 
-  @override
-  String toString() =>
-      'HitResult(${node?.name ?? 'none'} at $distance, '
-      'triangle $triangleIndex${approximate ? ', approximate' : ''})';
+  HitResult _result(WorldPosition origin) => HitResult._(
+    node: node,
+    distance: distance,
+    point: point.clone(),
+    normal: normal.clone(),
+    uv: uv.clone(),
+    triangleIndex: triangleIndex,
+    approximate: approximate,
+    origin: origin,
+  );
 }
 
 /// Casts rays against a [Scene] on the CPU.
@@ -99,12 +152,29 @@ final class HitResult {
 /// `MorphState.growth` — so a deformed model is found as a candidate and
 /// culled correctly either way.
 final class Raycaster {
+  /// A raycaster with no ray set yet.
   Raycaster();
 
-  /// The ray being cast, in world space.
-  final Ray ray = Ray.zero();
+  /// The ray being cast, in the scene's own space: float32, relative to
+  /// `Scene.origin`. [setFromWorld] aims it from a [WorldRay].
+  final LocalRay ray = LocalRay.zero();
+
+  /// [ray] in the world, given the [scene] whose space it is in — for a game
+  /// handing a pick on to a simulation that works in world positions.
+  WorldRay worldRayIn(Scene scene) =>
+      WorldRay(scene.toWorld(ray.origin), ray.direction);
+
+  /// Aims [ray] along [worldRay], in [scene]'s space — for a caller whose
+  /// ray starts at a simulation's world position: the origin's
+  /// difference from the scene's is narrowed to float32 once.
+  Raycaster setFromWorld(WorldRay worldRay, Scene scene) {
+    ray.setFrom(scene.toScene(worldRay.origin), worldRay.direction);
+    ray.normalizeDirection();
+    return this;
+  }
 
   /// Maximum distance to consider. Anything further away is a miss.
+  /// In metres.
   double maxDistance = double.infinity;
 
   /// Whether to ignore triangles facing away from the ray.
@@ -146,8 +216,8 @@ final class Raycaster {
 
   Float32List _spheres = Float32List(0);
 
-  final HitResult _hit = HitResult();
-  final Ray _localRay = Ray.zero();
+  final _HitScratch _hit = _HitScratch();
+  final LocalRay _localRay = LocalRay.zero();
   final Vector3 _a = Vector3.zero();
   final Vector3 _b = Vector3.zero();
   final Vector3 _c = Vector3.zero();
@@ -214,8 +284,9 @@ final class Raycaster {
 
   /// The nearest mesh the ray hits, or null.
   ///
-  /// The returned object is reused by the next call; copy anything that has to
-  /// outlive it.
+  /// The result is a new object, the caller's to keep: the candidates are
+  /// tested in a scratch of this caster's, and only the nearest is copied
+  /// out.
   HitResult? intersectScene(
     Scene scene, {
     int layerMask = ~0,
@@ -232,17 +303,17 @@ final class Raycaster {
     /// does produce runs the same tests the linear pass would — which is what
     /// keeps the two paths returning the same hit.
     void consider(MeshNode node) {
-      if (visibleOnly && !node.visibleInHierarchy) return;
+      if (visibleOnly && !node.isVisibleInHierarchy) return;
       if ((node.layerMask & layerMask) == 0) return;
       if (node.mesh.indexCount == 0) return;
 
       // The same cheap rejection culling uses, against the same cached sphere.
       final sphereDistance = raySphere(
         ray,
-        node.worldBoundsCentre,
+        node.worldBoundsCenter,
         node.worldBoundsRadius,
       );
-      if (sphereDistance == kNoHit || sphereDistance > best) return;
+      if (sphereDistance == noHit || sphereDistance > best) return;
 
       if (_intersectNode(node, best)) best = _hit.distance;
     }
@@ -265,6 +336,54 @@ final class Raycaster {
       }
     }
 
-    return _hit.node == null ? null : _hit;
+    return _hit.node == null ? null : _hit._result(scene.origin);
   }
+}
+
+/// A ray in the world: an origin in double precision and a unit direction —
+/// decision 2 and 3 of the API review (`Ray` collided with vector_math's;
+/// the float32 ray of the geometry library is `LocalRay`).
+///
+/// What a pick, a line of sight or a projectile is described in when it may
+/// start kilometres from the origin. A [Raycaster] works in its scene's own
+/// space; [Raycaster.setFromWorld] and [Raycaster.worldRayIn] cross over.
+final class WorldRay {
+  /// A ray from [origin] along [direction], which is normalised (a zero
+  /// direction stays zero).
+  WorldRay(this.origin, Vector3 direction)
+    : direction = direction.length2 > 0.0
+          ? direction.normalized()
+          : direction.clone();
+
+  /// Where the ray starts.
+  final WorldPosition origin;
+
+  /// Which way it goes: unit length, float32.
+  final Vector3 direction;
+
+  /// The point [distance] metres along the ray.
+  WorldPosition at(double distance) => origin.translated(
+    direction.x * distance,
+    direction.y * distance,
+    direction.z * distance,
+  );
+
+  /// This ray relative to [from], as the geometry library's float32 ray.
+  LocalRay relativeTo(WorldPosition from) {
+    final d = origin.relativeTo(from);
+    return LocalRay(Vector3(d.x, d.y, d.z), direction);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorldRay &&
+      other.origin == origin &&
+      other.direction == direction;
+
+  @override
+  int get hashCode =>
+      Object.hash(origin, direction.x, direction.y, direction.z);
+
+  @override
+  String toString() => 'WorldRay($origin -> $direction)';
 }

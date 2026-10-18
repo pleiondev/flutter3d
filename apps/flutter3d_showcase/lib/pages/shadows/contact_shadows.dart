@@ -6,14 +6,28 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `contact-shadows` page: a crate and a ball on the ground, darkened
+/// where they touch it. Its check is that the contact shadow pass ran and
+/// drew.
 final class ContactShadowsDemo extends ShowcaseDemo {
+  /// Whether the contact shadow pass runs.
   bool contact = true;
+
+  /// Whether the sun casts its shadow map as well.
   bool shadowMap = false;
+
+  /// How far each march toward the sun goes, in metres, 0.05 to 1.5.
   double length = 0.4;
+
+  /// How many steps the march takes, 1 to 16, rounded.
   double steps = 12.0;
+
+  /// How thick a surface is assumed to be behind the depth it shows, in
+  /// metres, 0.02 to 0.6.
   double thickness = 0.15;
+
+  /// How dark the contact shadow is, 0 to 1.
   double strength = 1.0;
 
   late final LightNode _sun;
@@ -29,15 +43,15 @@ final class ContactShadowsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region props
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
+      baseColor: LinearColor.fromSrgb(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
-    final Material clay = Material(
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
     final Scene scene = Scene()
@@ -74,7 +88,7 @@ final class ContactShadowsDemo extends ShowcaseDemo {
     // #endregion props
 
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0)
+    _sun = LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
       ..setLocalForward(Vector3(-0.6, -0.55, -0.4));
     // #endregion sun
     return scene..add(_sun);

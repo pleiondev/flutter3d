@@ -25,6 +25,8 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart' show BrushFalloff;
 
 import 'ui/sculpt_panel.dart' show kSculptCursorDiameter;
 
+/// The sculpting brush as the panel shows it and a stroke reads it: how
+/// wide, how hard, how it tapers, and whether it is mirrored.
 final class SculptBrush {
   /// The cursor's width in logical pixels — `view-21`'s own ⌀140 is where it
   /// starts.

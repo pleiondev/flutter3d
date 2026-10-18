@@ -107,13 +107,13 @@ void main() {
     ) async {
       await _pumpPanel(tester, _log());
 
-      Color colourOf(String said) =>
+      Color colorOf(String said) =>
           tester.widget<Text>(find.textContaining(said)).style!.color!;
 
       // Mutation: one colour for every line. The console is then a wall of
       // grey that a person scans instead of reads — which is exactly what
       // `ux-17` found the status line had become.
-      expect(colourOf('nothing is selected'), isNot(colourOf('opened')));
+      expect(colorOf('nothing is selected'), isNot(colorOf('opened')));
     });
 
     testWidgets('an empty log says so rather than showing nothing', (

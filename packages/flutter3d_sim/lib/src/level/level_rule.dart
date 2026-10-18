@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import 'level.dart';
 import 'level_issue.dart';
 
@@ -14,9 +16,28 @@ import 'level_issue.dart';
 /// degenerate, something to stand on, something to see by. Anything about
 /// *which entities* a level ought to contain arrives here.
 abstract base class LevelRule {
+  /// Lets a subclass be const.
   const LevelRule();
 
-  void check(Level level, List<LevelIssue> out);
+  /// Adds what is wrong with the check's level to its [LevelCheck.out].
+  void check(LevelCheck check);
+}
+
+/// What [LevelRule.check] is handed: the level, and the list its problems go
+/// in.
+///
+/// **One object, so a minor can hand a rule more** — the registry of entity
+/// kinds, the document's version — without breaking a rule written against
+/// 1.0.
+final class LevelCheck {
+  /// A check of [level], adding problems to [out].
+  const LevelCheck({required this.level, required this.out});
+
+  /// The level being checked.
+  final Level level;
+
+  /// Where its problems go.
+  final List<LevelIssue> out;
 }
 
 /// There must be exactly this many of a type, no more and no fewer.
@@ -24,8 +45,11 @@ abstract base class LevelRule {
 /// The rule a player spawn wants: none and the player starts at the origin,
 /// which is usually inside the floor; two and nothing decides which is used.
 final class ExactlyOne extends LevelRule {
+  /// A rule that a level has exactly one entity of [type], saying
+  /// [because] when it has none.
   const ExactlyOne(this.type, {this.because});
 
+  /// The entity type counted.
   final String type;
 
   /// What goes wrong when the count is not one. Worth saying, because "there
@@ -33,12 +57,14 @@ final class ExactlyOne extends LevelRule {
   final String? because;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     final count = level.ofType(type).length;
     if (count == 1) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         count == 0
             ? 'no $type${because == null ? '' : ': $because'}'
             : 'there are $count $type entities and nothing decides which is '
@@ -50,18 +76,24 @@ final class ExactlyOne extends LevelRule {
 
 /// There should be at least one of a type, or the level is missing something.
 final class AtLeastOne extends LevelRule {
-  const AtLeastOne(
-    this.type, {
-    this.because,
-    this.severity = LevelIssueSeverity.warning,
-  });
+  /// A rule that a level has an entity of [type], reported at [severity]
+  /// (a warning by default) with [because] when it has none.
+  const AtLeastOne(this.type, {this.because, this.severity = Severity.warning});
 
+  /// The entity type looked for.
   final String type;
+
+  /// What goes wrong without one, added to the issue; null says nothing
+  /// more.
   final String? because;
-  final LevelIssueSeverity severity;
+
+  /// How bad a level with none is.
+  final Severity severity;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     if (level.ofType(type).isNotEmpty) return;
     out.add(
       LevelIssue(severity, 'no $type${because == null ? '' : ': $because'}'),

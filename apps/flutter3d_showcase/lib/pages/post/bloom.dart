@@ -6,12 +6,22 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `bloom` page: the post stage and a lamp brighter than the display.
+/// Its check is that the bloom pass ran.
 final class BloomDemo extends ShowcaseDemo {
+  /// The brightness above which light blooms, 0 to 4.
   double threshold = 1.0;
+
+  /// How much of the bloom is added back to the frame, 0 to 1.5.
   double intensity = 0.35;
+
+  /// How warm the wide part of the bloom is made, as film's halation makes it,
+  /// 0 to 1; the core around a highlight keeps its colour.
   double halation = 0.0;
+
+  /// How many halving levels the bloom spreads over, 1 to 7: more levels
+  /// reach further.
   int levels = 5;
 
   @override
@@ -29,11 +39,11 @@ final class BloomDemo extends ShowcaseDemo {
         context.device,
         const SphereShape(radius: 0.25, segments: 24, rings: 12).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'lamp',
-        baseColor: Vector4(0.1, 0.1, 0.1, 1.0),
-        emissive: Vector3(1.0, 0.85, 0.6),
-        emissiveStrength: 9.0,
+        baseColor: LinearColor.fromSrgb(0.1, 0.1, 0.1, 1.0),
+        emissive: LinearColor(1.0, 0.85, 0.6),
+        emissiveStrength: 9.0 * RenderMaterial.defaultEmissiveStrength,
       ),
       name: 'lamp',
     )..setPosition(1.0, 2.3, 0.7);

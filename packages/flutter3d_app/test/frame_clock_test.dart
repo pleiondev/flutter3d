@@ -67,9 +67,9 @@ void main() {
       sum += clock.secondsSince(_ms(frame * 16));
     }
 
-    expect(clock.elapsed, closeTo(sum, 1e-12));
+    expect(clock.elapsedSeconds, closeTo(sum, 1e-12));
     expect(
-      clock.elapsed,
+      clock.elapsedSeconds,
       closeTo(9 * 0.016, 1e-9),
       reason: 'the first frame contributed time nobody lived through',
     );
@@ -116,7 +116,7 @@ void main() {
       for (var frame = 0; frame < 5; frame++) {
         final scheduled = _ms(((frame + 1) ~/ 2) * 33);
         staggered.add(byTimestamp.secondsSince(scheduled));
-        lived.add(byWall.tick());
+        lived.add(byWall.nextFrameSeconds());
         async.elapse(_ms(16));
       }
 
@@ -142,10 +142,10 @@ void main() {
       wallClock: Clock(() => DateTime.fromMicrosecondsSinceEpoch(micros)),
     );
 
-    clock.tick();
+    clock.nextFrameSeconds();
     micros += 20000;
 
-    expect(clock.tick(), closeTo(0.020, 1e-9));
+    expect(clock.nextFrameSeconds(), closeTo(0.020, 1e-9));
   });
 
   test('and starting again makes the next frame a first frame', () {
@@ -154,13 +154,13 @@ void main() {
     final clock = FrameClock()
       ..secondsSince(_ms(0))
       ..secondsSince(_ms(16));
-    final elapsed = clock.elapsed;
+    final elapsed = clock.elapsedSeconds;
 
     clock.reset();
 
     expect(clock.secondsSince(_ms(9000)), 0.0);
     expect(
-      clock.elapsed,
+      clock.elapsedSeconds,
       elapsed,
       reason: 'the time it was away was counted as time that passed',
     );

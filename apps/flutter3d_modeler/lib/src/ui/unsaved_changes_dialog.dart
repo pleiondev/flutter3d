@@ -12,7 +12,10 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../close_guard.dart';
 
+/// Asks what to do with unsaved changes on the way out: keep editing,
+/// discard them, or save and close.
 class UnsavedChangesDialog extends StatelessWidget {
+  /// The dialog; [show] is the way to put it on screen and get the answer.
   const UnsavedChangesDialog({super.key});
 
   /// Shows the dialog and answers which of the three choices was made, or

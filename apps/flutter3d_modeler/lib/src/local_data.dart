@@ -31,7 +31,9 @@ import 'settings.dart';
 /// first is true is a dialog nobody believes the next time.
 typedef ClearedLocalData = ({bool settings, bool recentFiles, bool autosave});
 
+/// Sums a [ClearedLocalData] up for the sentence a person is shown.
 extension ClearedLocalDataCount on ClearedLocalData {
+  /// How many of the three kinds were found and removed, 0 to 3.
   int get count =>
       (settings ? 1 : 0) + (recentFiles ? 1 : 0) + (autosave ? 1 : 0);
 
@@ -65,11 +67,11 @@ Future<ClearedLocalData> clearLocalData({
   required BinaryStorage documents,
   required String autosaveSessionId,
 }) async {
-  final bool hadSettings = storage.read(SettingsStore.name) != null;
-  if (hadSettings) storage.remove(SettingsStore.name);
+  final bool hadSettings = await storage.read(SettingsStore.name) != null;
+  if (hadSettings) await storage.remove(SettingsStore.name);
 
-  final bool hadRecent = storage.read(RecentModels.name) != null;
-  if (hadRecent) storage.remove(RecentModels.name);
+  final bool hadRecent = await storage.read(RecentModels.name) != null;
+  if (hadRecent) await storage.remove(RecentModels.name);
 
   final String autosave = recoveryPathFor(null, sessionId: autosaveSessionId);
   final bool hadAutosave = await documents.read(autosave) != null;

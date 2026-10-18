@@ -29,7 +29,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'sculpt_mesh.dart';
 
-/// Which of the eight sculpting behaviours a [Brush] applies.
+/// Which of the eight sculpting behaviours a [MeshBrush] applies.
 ///
 /// **A final class with named instances, not an enum.** This package is
 /// published, and a ninth brush — this list has grown before, from six to
@@ -49,14 +49,58 @@ final class BrushKind {
   /// `BrushKind.draw` is one nothing can read back.
   final String name;
 
+  /// Pushes every touched vertex along the touched set's average normal,
+  /// raising a flat-topped bump.
   static const BrushKind draw = BrushKind._('draw');
+
+  /// Builds up toward a level above the centre along the average normal,
+  /// and pulls back down what is already above it.
   static const BrushKind clay = BrushKind._('clay');
+
+  /// Moves each vertex toward the average of its neighbours as they stood
+  /// before the stroke.
   static const BrushKind smooth = BrushKind._('smooth');
+
+  /// Moves each vertex toward the plane through the centre facing the
+  /// average normal.
   static const BrushKind flatten = BrushKind._('flatten');
+
+  /// Pushes each vertex along its own normal, puffing a rounded patch up.
   static const BrushKind inflate = BrushKind._('inflate');
+
+  /// Drags the touched vertices by the centre's motion since the last
+  /// stroke; does nothing without a previous centre.
   static const BrushKind grab = BrushKind._('grab');
+
+  /// Draws each vertex toward the centre across the surface, along its own
+  /// tangent plane.
   static const BrushKind pinch = BrushKind._('pinch');
+
+  /// Pinches as [pinch] does and sinks the vertices inward, cutting a
+  /// fold.
   static const BrushKind crease = BrushKind._('crease');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<BrushKind> values = <BrushKind>[
+    draw,
+    clay,
+    smooth,
+    flatten,
+    inflate,
+    grab,
+    pinch,
+    crease,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static BrushKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'BrushKind.$name';
@@ -73,9 +117,33 @@ final class BrushFalloff {
   /// See [BrushKind.name].
   final String name;
 
+  /// Influence falls in a straight line from the centre to the edge.
   static const BrushFalloff linear = BrushFalloff._('linear');
+
+  /// Influence follows a smoothstep: flat at the centre and at the edge,
+  /// steepest half way.
   static const BrushFalloff smooth = BrushFalloff._('smooth');
+
+  /// Influence follows the square of the linear falloff, concentrated at
+  /// the centre and thinning fast toward the edge.
   static const BrushFalloff sharp = BrushFalloff._('sharp');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<BrushFalloff> values = <BrushFalloff>[
+    linear,
+    smooth,
+    sharp,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static BrushFalloff? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'BrushFalloff.$name';
@@ -100,17 +168,27 @@ double shapeFalloff(BrushFalloff falloff, double t) {
 /// A sculpting brush: what it does ([kind]), how far it reaches ([radius]),
 /// how hard it pushes ([strength]) and how its influence tapers to the edge
 /// ([falloff]).
-class Brush {
-  const Brush({
+final class MeshBrush {
+  /// A brush of [kind] reaching [radius] metres with [strength], tapered by
+  /// [falloff].
+  const MeshBrush({
     required this.kind,
     required this.radius,
     required this.strength,
     this.falloff = BrushFalloff.smooth,
   });
 
+  /// Which behaviour the stroke applies.
   final BrushKind kind;
+
+  /// In metres.
   final double radius;
+
+  /// Metres of push for draw and inflate, the clay level as a fraction of
+  /// [radius], and the 0..1 fraction of the way for smooth and flatten.
   final double strength;
+
+  /// The curve the influence tapers by toward the edge; smooth by default.
   final BrushFalloff falloff;
 }
 
@@ -182,7 +260,7 @@ Vector3 mirrorAcrossX(Vector3 point) => Vector3(-point.x, point.y, point.z);
 /// a displacement vector (as opposed to a point) across `x = 0` does.
 BrushResult applyBrushStroke(
   SculptMesh mesh,
-  Brush brush, {
+  MeshBrush brush, {
   required Vector3 center,
   Vector3? previousCenter,
   bool symmetryX = false,
@@ -206,21 +284,25 @@ BrushResult applyBrushStroke(
     previousCenter: mirroredPrevious,
   );
 
+  // Near the plane the two discs overlap and both passes reach the same
+  // vertices; the result names each once. A set literal keeps insertion
+  // order, so the vertices stay in visiting order, primary side first, and
+  // the chunks are sorted again to keep the promise [BrushResult] makes.
   return BrushResult(
-    touchedVertices: <int>[
+    touchedVertices: <int>{
       ...primary.touchedVertices,
       ...mirrored.touchedVertices,
-    ],
+    }.toList(),
     touchedChunks: <int>{
       ...primary.touchedChunks,
       ...mirrored.touchedChunks,
-    }.toList(),
+    }.toList()..sort(),
   );
 }
 
 BrushResult _applyOneSide(
   SculptMesh mesh,
-  Brush brush, {
+  MeshBrush brush, {
   required Vector3 center,
   required Vector3? previousCenter,
 }) {

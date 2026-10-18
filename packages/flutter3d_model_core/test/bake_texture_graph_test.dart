@@ -6,9 +6,10 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One material, unpainted, no objects — everything these tests need to
 /// address is `materials[0]`.
@@ -20,7 +21,7 @@ ModelHistory painted() => ModelHistory(
 
 /// A graph baking a flat colour straight to [slot] — the smallest graph
 /// `BakeTextureGraph` has anything to do with.
-TextureGraph flatGraph(Vector4 color, String slot) => TextureGraph(
+TextureGraph flatGraph(LinearColor color, String slot) => TextureGraph(
   nodes: <TextureNode>[
     ColorTextureNode(id: 1, value: color),
     OutputTextureNode(id: 2, result: 1, slot: slot),
@@ -31,7 +32,7 @@ void main() {
   group('SetMaterialGraph', () {
     test('sets a graph and moves the material on one version', () {
       final history = painted();
-      final graph = flatGraph(Vector4(1, 0, 0, 1), 'albedo');
+      final graph = flatGraph(LinearColor(1, 0, 0, 1), 'albedo');
       final before = history.project.materials.single.version;
 
       expect(
@@ -49,7 +50,7 @@ void main() {
       history.run(
         SetMaterialGraph(
           materialIndex: 0,
-          graph: flatGraph(Vector4(1, 0, 0, 1), 'albedo'),
+          graph: flatGraph(LinearColor(1, 0, 0, 1), 'albedo'),
         ),
       );
 
@@ -111,7 +112,7 @@ void main() {
           materialIndex: 0,
           graph: TextureGraph(
             nodes: <TextureNode>[
-              ColorTextureNode(id: 1, value: Vector4(1, 1, 1, 1)),
+              ColorTextureNode(id: 1, value: LinearColor(1, 1, 1, 1)),
               const OutputTextureNode(id: 2, result: 1), // no slot
             ],
           ),
@@ -128,7 +129,7 @@ void main() {
       history.run(
         SetMaterialGraph(
           materialIndex: 0,
-          graph: flatGraph(Vector4(1, 0, 0, 1), 'albedo'),
+          graph: flatGraph(LinearColor(1, 0, 0, 1), 'albedo'),
         ),
       );
 
@@ -143,7 +144,7 @@ void main() {
 
       final decoded = decodePng(
         history.project.images[binding!.imageIndex].bytes,
-      )!;
+      );
       expect(decoded.width, 8);
       expect(decoded.height, 8);
       // Linear 1/0/0/1 round-trips through the sRGB transfer function exactly
@@ -161,7 +162,7 @@ void main() {
       history.run(
         SetMaterialGraph(
           materialIndex: 0,
-          graph: flatGraph(Vector4(1, 1, 1, 1), 'albedo'),
+          graph: flatGraph(LinearColor(1, 1, 1, 1), 'albedo'),
         ),
       );
       history.run(const BakeTextureGraph(materialIndex: 0, size: 4));
@@ -182,8 +183,8 @@ void main() {
           materialIndex: 0,
           graph: TextureGraph(
             nodes: <TextureNode>[
-              ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
-              ColorTextureNode(id: 2, value: Vector4(0, 1, 0, 1)),
+              ColorTextureNode(id: 1, value: LinearColor(1, 0, 0, 1)),
+              ColorTextureNode(id: 2, value: LinearColor(0, 1, 0, 1)),
               const OutputTextureNode(id: 3, result: 1, slot: 'albedo'),
               const OutputTextureNode(id: 4, result: 2, slot: 'emissive'),
             ],
@@ -214,7 +215,7 @@ void main() {
       history.run(
         SetMaterialGraph(
           materialIndex: 0,
-          graph: flatGraph(Vector4(0.2, 0.4, 0.6, 1), 'albedo'),
+          graph: flatGraph(LinearColor(0.2, 0.4, 0.6, 1), 'albedo'),
         ),
       );
 
@@ -247,7 +248,7 @@ void main() {
           materialIndex: 0,
           graph: TextureGraph(
             nodes: <TextureNode>[
-              ColorTextureNode(id: 1, value: Vector4(1, 1, 1, 1)),
+              ColorTextureNode(id: 1, value: LinearColor(1, 1, 1, 1)),
               const OutputTextureNode(id: 2, result: 1, slot: 'chrome'),
               const OutputTextureNode(id: 3, result: 1, slot: 'albedo'),
             ],
@@ -271,7 +272,7 @@ void main() {
       history.run(
         SetMaterialGraph(
           materialIndex: 0,
-          graph: flatGraph(Vector4(0, 0, 1, 1), 'albedo'),
+          graph: flatGraph(LinearColor(0, 0, 1, 1), 'albedo'),
         ),
       );
       history.run(const BakeTextureGraph(materialIndex: 0, size: 4));

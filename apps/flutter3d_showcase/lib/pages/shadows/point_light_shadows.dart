@@ -5,12 +5,21 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `point-light-shadows` page: a column and a ball between a lamp and a
+/// spot, both casting into cube maps. Its check is that a cube shadow pass
+/// ran and no light was refused its shadow.
 final class PointLightShadowsDemo extends ShowcaseDemo {
+  /// How soft the cube shadows' edges are, in texels, 0 to 16.
   double softness = 4.0;
+
+  /// How far the cube shadows are pushed back, in metres, 0 to 0.5.
   double bias = 0.08;
+
+  /// The size of each cube face: 0 for 128, 1 for 256, 2 for 512 texels.
   int sizeChoice = 1;
+
+  /// Which faces of a caster draw into the cube: 0 front, 1 back, 2 both.
   int facesChoice = 1;
 
   static const List<int> _sizes = <int>[128, 256, 512];
@@ -30,15 +39,15 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
+      baseColor: LinearColor.fromSrgb(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
     );
-    final Material floorStone = stone.copy()..doubleSided = true;
-    final Material clay = Material(
+    final RenderMaterial floorStone = stone.copy()..doubleSided = true;
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
     final Scene scene = Scene()
@@ -88,7 +97,7 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
       LightNode(
         name: 'lamp',
         type: LightType.point,
-        intensity: 50.0,
+        intensity: 50.0 * LightNode.defaultIntensity,
         range: 16.0,
         castsShadow: true,
       )..setPosition(1.5, 3.2, 1.0),
@@ -100,7 +109,7 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
       LightNode(
           name: 'spot',
           type: LightType.spot,
-          intensity: 90.0,
+          intensity: 90.0 * LightNode.defaultIntensity,
           range: 16.0,
           innerConeAngle: 0.2,
           outerConeAngle: 0.5,

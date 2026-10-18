@@ -1,10 +1,9 @@
-/// The commands over one object's own [LodSpec] list — `pro-lod-03`'s own
+/// The commands over one object's own [LodSettings] list — `pro-lod-03`'s own
 /// row.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **What is not here.** The actual simplified meshes these specs describe
 /// are `LodMeshCache`'s own job (`lod_cache.dart`), not this file's: a
@@ -33,14 +32,23 @@ part of 'command.dart';
 /// order `package:flutter3d`'s own `LodGroup` sorts into regardless, can
 /// simply add them that way; nothing here re-sorts on its behalf.
 final class AddLod extends ModelCommand {
+  /// A step appending a level at [ratio], used below [maxScreenFraction], to
+  /// object [id].
   const AddLod({
     required this.id,
     required this.ratio,
     required this.maxScreenFraction,
   });
 
+  /// The object the level is added to. [apply] refuses when the project has no
+  /// such object, a [ratio] outside `(0, 1]` and a [maxScreenFraction] that is
+  /// not positive.
   final int id;
+
+  /// Target triangle count as a fraction of the base mesh's, in (0, 1].
   final double ratio;
+
+  /// The fraction of the viewport's height below which this level is used.
   final double maxScreenFraction;
 
   @override
@@ -74,9 +82,9 @@ final class AddLod extends ModelCommand {
     return Outcome.done(
       project.withObject(
         object.copyWith(
-          lods: <LodSpec>[
+          lods: <LodSettings>[
             ...object.lods,
-            LodSpec(ratio: ratio, maxScreenFraction: maxScreenFraction),
+            LodSettings(ratio: ratio, maxScreenFraction: maxScreenFraction),
           ],
         ),
       ),
@@ -95,14 +103,22 @@ final class AddLod extends ModelCommand {
 /// the same way [Rename] does not have to tell `ModifierEvaluationCache`
 /// that nothing it holds went stale.
 final class SetLodRatio extends ModelCommand {
+  /// A step setting level [lodIndex] of object [id] to [ratio].
   const SetLodRatio({
     required this.id,
     required this.lodIndex,
     required this.ratio,
   });
 
+  /// The object whose level changes. [apply] refuses when the project has no
+  /// such object.
   final int id;
+
+  /// Index of the level in [ModelObject.lods]. [apply] refuses an index the
+  /// object has no level at, and a [ratio] outside `(0, 1]`.
   final int lodIndex;
+
+  /// Target triangle count as a fraction of the base mesh's, in (0, 1].
   final double ratio;
 
   @override
@@ -133,7 +149,7 @@ final class SetLodRatio extends ModelCommand {
         'a level of detail\'s ratio has to be between 0 and 1; $ratio is not',
       );
     }
-    final lods = List<LodSpec>.of(object.lods);
+    final lods = List<LodSettings>.of(object.lods);
     lods[lodIndex] = lods[lodIndex].copyWith(ratio: ratio);
     return Outcome.done(project.withObject(object.copyWith(lods: lods)));
   }
@@ -152,8 +168,11 @@ final class SetLodRatio extends ModelCommand {
 /// same separation `ReadinessCache` and `ModifierEvaluationCache` already
 /// keep from the commands that might make their own answers stale.
 final class RegenerateLods extends ModelCommand {
+  /// A step regenerating every level of object [id].
   const RegenerateLods(this.id);
 
+  /// The object whose levels regenerate. [apply] refuses when the project has
+  /// no such object or the object has no level of detail.
   final int id;
 
   @override
@@ -175,7 +194,9 @@ final class RegenerateLods extends ModelCommand {
       );
     }
     return Outcome.done(
-      project.withObject(object.copyWith(lods: List<LodSpec>.of(object.lods))),
+      project.withObject(
+        object.copyWith(lods: List<LodSettings>.of(object.lods)),
+      ),
     );
   }
 }

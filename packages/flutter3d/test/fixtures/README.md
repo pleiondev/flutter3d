@@ -20,3 +20,9 @@ reads it off the disk with `File`, and a player never downloads it.
 <https://poly.pizza/m/kKtL4zvS3n>. It is public domain, so no attribution is
 owed. It is recorded here because a file with no provenance is how this
 repository got its one release blocker.
+
+`materials/` holds one material in the material language at version 2
+(`hatch.f3dmat`, whose `updates` rename `ink` and halve `spacing`) and two
+instances of it, written at version 1 and at version 2.
+`test/material_loader_test.dart` loads both and holds the loader to carrying
+the first to the program's version and reading the second as written.

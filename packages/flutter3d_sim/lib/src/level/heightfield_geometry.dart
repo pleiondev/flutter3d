@@ -36,13 +36,13 @@ final class HeightfieldGeometry {
 
   /// One surface for the whole field.
   ///
-  /// [metresPerTexture] is how far the ground goes before its material repeats,
+  /// [metersPerTexture] is how far the ground goes before its material repeats,
   /// so a map's texture density is a number in metres rather than a guess about
   /// how many samples a field happens to have.
   BrushSurface build(
     Heightfield field, {
     required String material,
-    double metresPerTexture = 8.0,
+    double metersPerTexture = 8.0,
     ShadowCasting shadowCasting = ShadowCasting.on,
   }) {
     final int columns = field.columns;
@@ -92,8 +92,8 @@ final class HeightfieldGeometry {
         normals[v * 3 + 1] = ny;
         normals[v * 3 + 2] = nz;
 
-        texcoords[v * 2] = x / metresPerTexture;
-        texcoords[v * 2 + 1] = z / metresPerTexture;
+        texcoords[v * 2] = x / metersPerTexture;
+        texcoords[v * 2 + 1] = z / metersPerTexture;
 
         // Along +X, laid on the surface: the slope of the ground under the
         // texture's u axis. Handedness is constant because the mapping is.

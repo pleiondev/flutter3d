@@ -4,10 +4,10 @@
 /// frame-accurate scrubber, reading exactly what the sensor showed at each
 /// named moment on the same panel `wg-02` already proved.
 ///
-/// **Its own application, not a mode of `flutter3d_template_app`**, the same
-/// reasoning `flutter3d_lab_twin`'s own `main.dart` already gives for
-/// `ls-i-00`: the incident's own moments are this scenario's feature, not
-/// something every new project starting from the seed needs baked in.
+/// **Its own application, not a mode of `flutter3d_template_app`**: the
+/// incident's own moments are this scenario's feature, not something every
+/// new project starting from the seed needs baked in. A live twin, fed by a
+/// real source, is `packages/flutter3d_app/example/lib/twin_main.dart`.
 ///
 ///     flutter run -d chrome
 ///     flutter run -d chrome --dart-define=FLUTTER_WEB_USE_SKIA=true
@@ -18,38 +18,37 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/incident_panel.dart';
 import 'src/incident_scenario.dart';
 
 void main() {
-  runApp(const IncidentReplayApp());
+  runApp(const _IncidentReplayApp());
 }
 
-class IncidentReplayApp extends StatelessWidget {
-  const IncidentReplayApp({super.key});
+class _IncidentReplayApp extends StatelessWidget {
+  const _IncidentReplayApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'ls-i-02: incident replay',
     debugShowCheckedModeBanner: false,
-    home: IncidentScreen(),
+    home: _IncidentScreen(),
   );
 }
 
-class IncidentScreen extends StatefulWidget {
-  const IncidentScreen({super.key});
+class _IncidentScreen extends StatefulWidget {
+  const _IncidentScreen();
 
   @override
-  State<IncidentScreen> createState() => _IncidentScreenState();
+  State<_IncidentScreen> createState() => _IncidentScreenState();
 }
 
-class _IncidentScreenState extends State<IncidentScreen>
+class _IncidentScreenState extends State<_IncidentScreen>
     with SingleTickerProviderStateMixin {
   static Vector3 get _machineAt => Vector3(0.0, 0.5, 0.0);
 
@@ -91,8 +90,11 @@ class _IncidentScreenState extends State<IncidentScreen>
     scene.add(camera);
 
     scene.add(
-      LightNode(type: LightType.point, intensity: 8.0, name: 'sun')
-        ..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
+      LightNode(
+        type: LightType.point,
+        intensity: 8.0 * LightNode.defaultIntensity,
+        name: 'sun',
+      )..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
     );
 
     final floor = MeshNode(
@@ -100,9 +102,9 @@ class _IncidentScreenState extends State<IncidentScreen>
         device,
         CuboidShape(size: Vector3(6.0, 0.1, 6.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.32, 0.32, 0.34, 1.0),
+        baseColor: LinearColor.fromSrgb(0.32, 0.32, 0.34, 1.0),
         roughness: 0.9,
       ),
       name: 'floor',
@@ -114,18 +116,17 @@ class _IncidentScreenState extends State<IncidentScreen>
         device,
         CuboidShape(size: Vector3(1.2, 1.0, 1.2)).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.3, 0.32, 0.36, 1.0),
+        baseColor: LinearColor.fromSrgb(0.3, 0.32, 0.36, 1.0),
         roughness: 0.55,
       ),
       name: 'machine',
     )..setPositionFrom(_machineAt);
     scene.add(machine);
 
-    // Same fix `flutter3d_lab_twin`'s own `main.dart` already documents in
-    // full: `WidgetSurface` content renders rotated a half turn from what
-    // its geometry says, root cause open, worked around here the same way.
+    // `WidgetSurface` content renders rotated a half turn from what its
+    // geometry says, root cause open; the panel's widget is flipped back.
     final panel = WidgetSurface(
       device: device,
       width: 1.6,
@@ -146,7 +147,7 @@ class _IncidentScreenState extends State<IncidentScreen>
     final moment = int.tryParse(Uri.base.queryParameters['moment'] ?? '');
     if (moment != null) _incident.jumpTo(moment);
 
-    _ticker = createTicker((_) => unawaited(_panel.tick()))..start();
+    _ticker = createTicker((_) => unawaited(_panel.update()))..start();
     if (mounted) setState(() => _renderer = Renderer.create(device: device));
   }
 
@@ -183,7 +184,7 @@ class _IncidentScreenState extends State<IncidentScreen>
           SceneSurface(
             renderer: renderer,
             scene: _scene,
-            view: RenderView(camera: _camera),
+            view: CameraView(camera: _camera),
             settings: () => const RenderSettings(),
             onBeforeFrame: () {},
             // Required since the package merge: what hands a finished frame

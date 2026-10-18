@@ -4,6 +4,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../scene/skeleton.dart';
+import 'animation_layer.dart';
 import 'animation_target.dart';
 
 /// A flat, scene-graph-free pose: one hierarchy's local TRS, sampled from a
@@ -29,8 +30,14 @@ import 'animation_target.dart';
 /// `test/pose_test.dart` holds them to it on `RiggedSimple.glb` and
 /// `BoxAnimated.glb`, sampled through the ordinary scene-graph pipeline and
 /// through this one, at several times across the clip.
-final class Pose {
-  Pose({
+final class AnimationPose {
+  /// A pose of the nodes whose parents are [parents], starting at the rest
+  /// transforms given: three floats a node for translations and scales, four
+  /// for rotations.
+  ///
+  /// Throws an [ArgumentError] when a rest list's length does not match the
+  /// node count.
+  AnimationPose({
     required List<int> parents,
     required Float32List restTranslations,
     required Float32List restRotations,
@@ -47,35 +54,12 @@ final class Pose {
         restScales.length != n * 3 ||
         restRotations.length != n * 4) {
       throw ArgumentError(
-        'Pose has $n nodes but ${restTranslations.length ~/ 3} translations, '
+        'AnimationPose has $n nodes but ${restTranslations.length ~/ 3} translations, '
         '${restRotations.length ~/ 4} rotations and '
         '${restScales.length ~/ 3} scales.',
       );
     }
   }
-
-  /// One node's parent index into this same pose, or -1 for a root.
-  ///
-  /// Not required to precede its child in array order — glTF's own `nodes`
-  /// array makes no such promise, and [worldMatrices] does not rely on one.
-  final List<int> parents;
-
-  /// The bind/rest pose every [sampleClip] call starts back from, so a track
-  /// that says nothing about a node leaves it exactly where the file put it.
-  final Float32List _restTranslations;
-  final Float32List _restRotations;
-  final Float32List _restScales;
-
-  /// Current local translation, 3 floats per node.
-  final Float32List translations;
-
-  /// Current local rotation, 4 floats per node, glTF's own xyzw order.
-  final Float32List rotations;
-
-  /// Current local scale, 3 floats per node.
-  final Float32List scales;
-
-  int get nodeCount => parents.length;
 
   /// Builds a pose from a document's own node list.
   ///
@@ -84,7 +68,7 @@ final class Pose {
   /// ordinarily walked top-down. Rest TRS is read straight off
   /// [ModelNode.translation]/[ModelNode.rotation]/[ModelNode.scale], which is
   /// the pose the file loads into before any clip has touched it.
-  factory Pose.fromNodes(List<ModelNode> nodes) {
+  factory AnimationPose.fromNodes(List<ModelNode> nodes) {
     final parents = List<int>.filled(nodes.length, -1);
     for (var i = 0; i < nodes.length; i++) {
       for (final child in nodes[i].children) {
@@ -109,13 +93,44 @@ final class Pose {
       s[i * 3 + 2] = node.scale.z;
     }
 
-    return Pose(
+    return AnimationPose(
       parents: parents,
       restTranslations: t,
       restRotations: r,
       restScales: s,
     );
   }
+
+  /// One node's parent index into this same pose, or -1 for a root.
+  ///
+  /// Not required to precede its child in array order — glTF's own `nodes`
+  /// array makes no such promise, and [worldMatrices] does not rely on one.
+  final List<int> parents;
+
+  /// The bind/rest pose every [sampleClip] call starts back from, so a track
+  /// that says nothing about a node leaves it exactly where the file put it.
+  final Float32List _restTranslations;
+  final Float32List _restRotations;
+
+  final Float32List _restScales;
+
+  /// Current local translation, 3 floats per node.
+  final Float32List translations;
+
+  /// Current local rotation, 4 floats per node, glTF's own xyzw order.
+  final Float32List rotations;
+
+  /// Current local scale, 3 floats per node.
+  final Float32List scales;
+
+  final Float32List _sample3 = Float32List(3);
+
+  final Float32List _sample4 = Float32List(4);
+
+  final List<int> _chain = <int>[];
+
+  /// How many nodes the pose holds, a count.
+  int get nodeCount => parents.length;
 
   /// Puts every node back at its rest transform.
   void resetToRest() {
@@ -124,8 +139,69 @@ final class Pose {
     scales.setAll(0, _restScales);
   }
 
-  final Float32List _sample3 = Float32List(3);
-  final Float32List _sample4 = Float32List(4);
+  /// This pose made [other]'s, joint for joint: the same hierarchy.
+  void setFrom(AnimationPose other) {
+    translations.setAll(0, other.translations);
+    rotations.setAll(0, other.rotations);
+    scales.setAll(0, other.scales);
+  }
+
+  /// A second pose over the same hierarchy and rest, at rest.
+  ///
+  /// What a crossfade needs: somewhere to sample the clip being left while
+  /// this pose holds the one being entered. The rest arrays are shared, not
+  /// copied — nothing writes to them after construction.
+  AnimationPose restCopy() => AnimationPose(
+    parents: parents,
+    restTranslations: _restTranslations,
+    restRotations: _restRotations,
+    restScales: _restScales,
+  );
+
+  /// Mixes [from] into this pose by [weight]: 0 leaves [from], 1 leaves this
+  /// pose as it is.
+  ///
+  /// **The player's crossfade, on whole poses.** Rotation goes through
+  /// [shortestArcSlerp] and translation and scale through a straight line —
+  /// `AnimationPlayer`'s own `_blendInto`, with the same argument order, so a
+  /// graph fading between two clips and a player fading between the same two
+  /// agree joint for joint.
+  void blendFrom(AnimationPose from, double weight) {
+    if (from.nodeCount != nodeCount) {
+      throw ArgumentError(
+        'Cannot blend a pose of ${from.nodeCount} nodes into one of '
+        '$nodeCount.',
+      );
+    }
+    for (var i = 0; i < translations.length; i++) {
+      final t = from.translations[i];
+      final s = from.scales[i];
+      translations[i] = t + (translations[i] - t) * weight;
+      scales[i] = s + (scales[i] - s) * weight;
+    }
+    for (var node = 0; node < nodeCount; node++) {
+      final at = node * 4;
+      final mixed = shortestArcSlerp(
+        Quaternion(
+          from.rotations[at],
+          from.rotations[at + 1],
+          from.rotations[at + 2],
+          from.rotations[at + 3],
+        ),
+        Quaternion(
+          rotations[at],
+          rotations[at + 1],
+          rotations[at + 2],
+          rotations[at + 3],
+        ),
+        weight,
+      );
+      rotations[at] = mixed.x;
+      rotations[at + 1] = mixed.y;
+      rotations[at + 2] = mixed.z;
+      rotations[at + 3] = mixed.w;
+    }
+  }
 
   /// Resets to rest, then samples every track of [clip] at [time] onto the
   /// nodes it names.
@@ -163,6 +239,8 @@ final class Pose {
 
         case AnimationPath.weights:
         case AnimationPath.pointer:
+        default:
+          // Not a joint's TRS, and nor is a path a later release adds.
           break;
       }
     }
@@ -213,6 +291,33 @@ final class Pose {
     ),
   );
 
+  /// [index]'s world matrix alone, into [into] when given: its ancestors'
+  /// local matrices composed down to it, and nothing else of the pose — what
+  /// a goal or a solver asking about three joints of sixty wants, rather
+  /// than [worldMatrices]' every node, allocated afresh each time.
+  ///
+  /// A cyclic hierarchy — a malformed rig — is cut where this walk comes
+  /// back round, which keeps it from hanging; not always where
+  /// [worldMatrices] cuts it, whose cut depends on which node it reached
+  /// first.
+  Matrix4 worldMatrixOf(int index, [Matrix4? into]) {
+    final out = into ?? Matrix4.identity();
+    _chain.clear();
+    for (
+      var at = index;
+      at >= 0 && at < nodeCount && _chain.length <= nodeCount;
+      at = parents[at]
+    ) {
+      if (_chain.contains(at)) break;
+      _chain.add(at);
+    }
+    out.setFrom(localMatrix(_chain.last));
+    for (var i = _chain.length - 2; i >= 0; i--) {
+      out.multiply(localMatrix(_chain[i]));
+    }
+    return out;
+  }
+
   /// World matrices for every node, index-aligned with [parents].
   ///
   /// Composed parent before child regardless of array order: [parents] may
@@ -261,8 +366,8 @@ final class Pose {
 
   /// Joint matrices for a skin, laid out the way [Skeleton.matrices] is:
   /// `joints.length * 16` used floats followed by identity padding out to
-  /// [maxJoints], so a caller comparing the two need not special-case the
-  /// tail.
+  /// [maxJoints] ([Skeleton.maxJoints] when not given), so a caller comparing
+  /// the two need not special-case the tail.
   ///
   /// [meshWorld] means what it means in [Skeleton.update]: the world
   /// transform of the node the skinned mesh hangs from. The formula —
@@ -272,24 +377,25 @@ final class Pose {
     required List<int> joints,
     required List<Matrix4> inverseBindMatrices,
     required Matrix4 meshWorld,
-    int maxJoints = Skeleton.maxJoints,
+    int? maxJoints,
   }) {
+    final slots = maxJoints ?? Skeleton.maxJoints;
     if (joints.length != inverseBindMatrices.length) {
       throw ArgumentError(
         '${joints.length} joints but ${inverseBindMatrices.length} inverse '
         'bind matrices.',
       );
     }
-    if (joints.length > maxJoints) {
+    if (joints.length > slots) {
       throw ArgumentError(
-        '${joints.length} joints exceed the $maxJoints this pose was asked '
+        '${joints.length} joints exceed the $slots this pose was asked '
         'to fill.',
       );
     }
 
     final world = worldMatrices();
     final inverseMeshWorld = Matrix4.copy(meshWorld)..invert();
-    final out = Float32List(maxJoints * 16);
+    final out = Float32List(slots * 16);
 
     for (var i = 0; i < joints.length; i++) {
       final nodeIndex = joints[i];
@@ -309,7 +415,7 @@ final class Pose {
     // Past the joint count, identity — the same padding `Skeleton.matrices`
     // carries, so a shader (or a test) reading a stale slot leaves the
     // vertex alone rather than sending it to the origin.
-    for (var i = joints.length; i < maxJoints; i++) {
+    for (var i = joints.length; i < slots; i++) {
       final base = i * 16;
       for (var e = 0; e < 16; e++) {
         out[base + e] = e % 5 == 0 ? 1.0 : 0.0;
@@ -320,7 +426,7 @@ final class Pose {
 
   /// Writes this pose's current local TRS onto [targets], index-aligned
   /// with [parents] — `anim-14`'s own row, the bridge back from a solver
-  /// that works on [Pose] alone (inverse kinematics, a mocap importer) onto
+  /// that works on [AnimationPose] alone (inverse kinematics, a mocap importer) onto
   /// whatever a renderer actually reads.
   ///
   /// A null entry in [targets] — the ordinary case for a node this caller
@@ -350,5 +456,5 @@ final class Pose {
   }
 
   @override
-  String toString() => 'Pose($nodeCount nodes)';
+  String toString() => 'AnimationPose($nodeCount nodes)';
 }

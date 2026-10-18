@@ -7,6 +7,9 @@
 /// else.
 library;
 
+import 'dart:ui' as ui;
+
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
@@ -15,10 +18,11 @@ import 'gpu_formats.dart';
 /// Creates a flutter_gpu texture together with the single handle that will ever
 /// stand for it.
 ///
-/// **The only place in `lib/` that constructs a [TextureHandle].** That is what
-/// makes the identity contract hold rather than merely be documented: this
-/// returns the handle, the `gpu.Texture` never escapes as a value, and so no
-/// call site is in a position to wrap one a second time. `identical()` on two
+/// **One of the two places in `lib/` that construct a [TextureHandle]**,
+/// both in this file, [wrapPlatformImage] the other. That is what makes the
+/// identity contract hold rather than merely be documented: each returns the
+/// handle, the `gpu.Texture` never escapes as a value, and so no call site
+/// is in a position to wrap one a second time. `identical()` on two
 /// handles therefore answers the question callers actually mean.
 ///
 /// The argument list mirrors `gpuContext.createTexture` — including its
@@ -41,6 +45,8 @@ TextureHandle createGpuTexture(
   bool enableShaderReadUsage = true,
   int mipLevelCount = 1,
   TextureType type = TextureType.texture2D,
+  TextureDimension? dimension,
+  TextureUsage usage = TextureUsage.standard,
 }) {
   final texture = gpu.gpuContext.createTexture(
     storageMode.toGpu(),
@@ -69,7 +75,7 @@ TextureHandle createGpuTexture(
     enableRenderTargetUsage: enableRenderTargetUsage,
     enableShaderReadUsage: enableShaderReadUsage,
   );
-  return TextureHandle(
+  return wrapTexture(
     backend: texture,
     width: width,
     height: height,
@@ -77,6 +83,35 @@ TextureHandle createGpuTexture(
     sampleCount: sampleCount,
     storageMode: storageMode,
     type: type,
+    // What was allocated, which after the trim above can be fewer levels
+    // than were asked for — the handle says what the texture has.
+    dimension: dimension,
+    mipLevelCount: texture.mipLevelCount,
+    usage: usage,
+  );
+}
+
+/// [image]'s own GPU texture as a [TextureHandle], with no pixel copied —
+/// flutter_gpu's `Texture.fromImage`, which this backend's
+/// `PlatformTextures<ui.Image>` is.
+///
+/// The handle shares its storage with [image] and stays valid while either
+/// is alive, so the caller may dispose [image] afterwards. Sampled, and
+/// usable as an attachment only when the image's texture says so. Throws
+/// what `Texture.fromImage` throws for an image with no texture of its own.
+TextureHandle wrapPlatformImage(ui.Image image) {
+  final texture = gpu.Texture.fromImage(gpu.gpuContext, image);
+  return wrapTexture(
+    backend: texture,
+    width: texture.width,
+    height: texture.height,
+    format: texture.format.toEngine(),
+    sampleCount: texture.sampleCount,
+    storageMode: texture.storageMode.toEngine(),
+    mipLevelCount: texture.mipLevelCount,
+    usage: texture.enableRenderTargetUsage
+        ? TextureUsage.sampled | TextureUsage.renderTarget
+        : TextureUsage.sampled,
   );
 }
 

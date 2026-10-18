@@ -3,9 +3,12 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `scene-graph` page: a star, a planet and a moon on nested pivots. Its
+/// check is that the children's transforms follow their parents'.
 final class SceneGraphDemo extends ShowcaseDemo {
+  /// How fast the system pivot turns, in radians a second, 0 to 2; the planet's
+  /// pivot turns 2.7 times as fast.
   double speed = 0.7;
 
   late final SceneNode _systemPivot;
@@ -39,18 +42,18 @@ final class SceneGraphDemo extends ShowcaseDemo {
 
     final MeshNode planet = MeshNode(
       sphere,
-      Material(
+      RenderMaterial(
         name: 'blue planet',
-        baseColor: Vector4(0.18, 0.48, 0.88, 1.0),
+        baseColor: LinearColor.fromSrgb(0.18, 0.48, 0.88, 1.0),
         roughness: 0.62,
       ),
       name: 'planet',
     )..setUniformScale(0.72);
     _moon = MeshNode(
       sphere,
-      Material(
+      RenderMaterial(
         name: 'moon rock',
-        baseColor: Vector4(0.72, 0.7, 0.66, 1.0),
+        baseColor: LinearColor.fromSrgb(0.72, 0.7, 0.66, 1.0),
         roughness: 0.92,
       ),
       name: 'moon',
@@ -66,24 +69,24 @@ final class SceneGraphDemo extends ShowcaseDemo {
     // #region root
     final MeshNode star = MeshNode(
       sphere,
-      Material(
+      RenderMaterial(
         name: 'star',
-        baseColor: Vector4(1.0, 0.56, 0.12, 1.0),
-        emissive: Vector3(1.0, 0.28, 0.04),
-        emissiveStrength: 1.8,
+        baseColor: LinearColor.fromSrgb(1.0, 0.56, 0.12, 1.0),
+        emissive: LinearColor(1.0, 0.28, 0.04),
+        emissiveStrength: 1.8 * RenderMaterial.defaultEmissiveStrength,
         roughness: 0.5,
       ),
       name: 'star',
     )..setUniformScale(1.15);
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.2, 0.26, 0.42)
-      ..ambientIntensity = 0.12
+      ..ambientColor = LinearColor(0.2, 0.26, 0.42)
+      ..ambientIntensity = 0.12 * LightNode.defaultIntensity
       ..add(star)
       ..add(_systemPivot)
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 24.0,
+          intensity: 24.0 * LightNode.defaultIntensity,
           range: 12.0,
           name: 'starlight',
         ),

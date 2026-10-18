@@ -8,16 +8,18 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `audio-rolloff` page: a speaker and the three rolloff curves plotted
+/// against distance. Its check is that every curve falls with distance and
+/// is silent past its maximum.
 final class AudioRolloffDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // The printed answer, for the second step of the guide.
     _run();
-    final material = Material(
+    final material = RenderMaterial(
       name: 'speaker',
-      baseColor: Vector4(0.4, 0.6, 0.9, 1.0),
+      baseColor: LinearColor.fromSrgb(0.4, 0.6, 0.9, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -26,12 +28,13 @@ final class AudioRolloffDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
 
   // #region curves
+  /// The three curves, by the name the plot and the readout give them.
   static const curves = <String, Attenuation>{
     'inverse': InverseRolloff(),
     'linear': LinearRolloff(),
@@ -50,6 +53,7 @@ final class AudioRolloffDemo extends ShowcaseDemo {
     return 'gain at ${distances.join(', ')} metres\n${lines.join('\n')}';
   }
 
+  /// The distance the plot marks, in metres, 0 to 30.
   double distance = 6.0;
 
   static const List<Color> _inks = <Color>[
@@ -129,11 +133,11 @@ final class _CurvePainter extends CustomPainter {
       plot.left + d / _reach * plot.width,
       plot.bottom - gain.clamp(0.0, 1.0) * plot.height,
     );
-    void label(String text, Offset where, Color colour) {
+    void label(String text, Offset where, Color color) {
       final TextPainter painter = TextPainter(
         text: TextSpan(
           text: text,
-          style: TextStyle(color: colour, fontSize: 13),
+          style: TextStyle(color: color, fontSize: 13),
         ),
         textDirection: TextDirection.ltr,
       )..layout();

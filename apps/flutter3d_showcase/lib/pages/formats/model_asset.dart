@@ -6,8 +6,10 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
+/// The `model-asset` page: a decoded document uploaded as a `ModelAsset` and
+/// placed with `instantiate`. Its check is that the upload carried vertices
+/// and the instance added a mesh that is drawn.
 final class ModelAssetDemo extends ShowcaseDemo {
   late final ModelAsset _asset;
   ModelInstance? _instance;
@@ -25,7 +27,7 @@ final class ModelAssetDemo extends ShowcaseDemo {
     materials: <SurfaceMaterial>[
       SurfaceMaterial(
         name: 'shell',
-        baseColor: Vector4(0.75, 0.4, 0.6, 1.0),
+        baseColor: LinearColor.fromSrgb(0.75, 0.4, 0.6, 1.0),
         metallic: 0.2,
         roughness: 0.4,
       ),
@@ -40,7 +42,7 @@ final class ModelAssetDemo extends ShowcaseDemo {
   Future<void> prepare(DemoContext context) async {
     // #region upload
     // Meshes and images are uploaded once, deduplicated by identity; a
-    // document's materials become the engine's own `Material`, ready to be
+    // document's materials become the engine's own `RenderMaterial`, ready to be
     // placed as many times as a scene wants.
     _asset = await ModelAsset.fromDocument(_document, device: context.device);
     // #endregion upload
@@ -58,7 +60,7 @@ final class ModelAssetDemo extends ShowcaseDemo {
     // #endregion instantiate
 
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
     return scene;

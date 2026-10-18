@@ -23,17 +23,57 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'layout_plan.dart';
 import 'selection.dart';
 
 /// Where a ray met the mesh.
-typedef MeshHit = ({int face, int triangle, double distance, Vector3 point});
+///
+/// A class rather than a record, so a hit can later carry more (the normal,
+/// the barycentric weights) without breaking a reader.
+final class MeshHit {
+  /// A hit on [triangle] of [face], [distance] along the ray, at [point].
+  const MeshHit({
+    required this.face,
+    required this.triangle,
+    required this.distance,
+    required this.point,
+  });
+
+  /// The face the ray met.
+  final int face;
+
+  /// The triangle of that face it met.
+  final int triangle;
+
+  /// How far along the ray, in world units.
+  final double distance;
+
+  /// Where, in the mesh's space.
+  final Vector3 point;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MeshHit &&
+      other.face == face &&
+      other.triangle == triangle &&
+      other.distance == distance &&
+      other.point == point;
+
+  @override
+  int get hashCode => Object.hash(face, triangle, distance, point);
+
+  @override
+  String toString() =>
+      'MeshHit(face: $face, triangle: $triangle, distance: $distance)';
+}
 
 /// A bounding-volume hierarchy over an [EditMesh], through a [MeshLayoutPlan].
 final class MeshBvh {
+  /// A hierarchy over the triangles [plan] cut [mesh] into, built now; see
+  /// [rebuild] for after an edit.
   MeshBvh(EditMesh mesh, MeshLayoutPlan plan) {
     rebuild(mesh, plan);
   }
@@ -87,10 +127,10 @@ final class MeshBvh {
   }
 
   /// The nearest face [ray] hits.
-  MeshHit? raycast(Ray ray, {double maxDistance = double.infinity}) {
+  MeshHit? raycast(LocalRay ray, {double maxDistance = double.infinity}) {
     final hit = _tree.raycast(ray, maxDistance: maxDistance);
     if (hit == null) return null;
-    return (
+    return MeshHit(
       face: _faceOfTriangle[hit.triangle],
       triangle: hit.triangle,
       distance: hit.distance,

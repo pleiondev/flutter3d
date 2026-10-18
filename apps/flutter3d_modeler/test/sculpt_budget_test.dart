@@ -149,7 +149,7 @@ void main() {
       final Vector3 last = mesh.positionOf(mesh.vertexCount - 1);
       expect(into[(mesh.vertexCount - 1) * 3], closeTo(last.x, 1e-6));
       expect(into[(mesh.vertexCount - 1) * 3 + 2], closeTo(last.z, 1e-6));
-      expect(into.every((double v) => v != -1 || v == 0), isTrue);
+      expect(into, isNot(contains(-1)));
     });
   });
 }

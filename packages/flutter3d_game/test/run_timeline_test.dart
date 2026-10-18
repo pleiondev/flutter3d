@@ -54,6 +54,25 @@ final class _Toy {
   String get state => '$x/$shots/$rolls/${dice.state}';
 }
 
+/// [toy] as one part of a fresh loop's snapshots and a system in its step,
+/// reading [input]; [rewind], when given, attached to it.
+EngineLoop _loopOf(_Toy toy, InputState input, [RewindBuffer? rewind]) {
+  final loop = EngineLoop(input: input)
+    ..snapshots.add(
+      SnapshotPart.of(
+        id: 'toy',
+        capture: () => toy.save().data,
+        restore: (context) {
+          final data = context.data;
+          if (data is Map) toy.restore(Snapshot(data.cast<String, Object?>()));
+        },
+      ),
+    )
+    ..addSystem('toy', LoopPhase.rules, (_) => toy.step(input));
+  rewind?.attach(loop);
+  return loop;
+}
+
 void _play(InputState input, int step) {
   input.setStickAxis(step % 3 == 0 ? 1.0 : -0.5, 0.0);
   if (step % 11 == 0) input.press(_fire);
@@ -67,9 +86,7 @@ void main() {
       final input = InputState();
       final timeline = RunTimeline(
         rewind: RewindBuffer(stepsPerSecond: 60),
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
+        loop: _loopOf(toy, input),
       );
 
       expect(timeline.isPaused, isFalse);
@@ -81,9 +98,7 @@ void main() {
       final input = InputState();
       final timeline = RunTimeline(
         rewind: RewindBuffer(stepsPerSecond: 60),
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
+        loop: _loopOf(toy, input),
       );
 
       timeline.pause();
@@ -106,9 +121,7 @@ void main() {
       final input = InputState();
       final timeline = RunTimeline(
         rewind: RewindBuffer(stepsPerSecond: 60),
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
+        loop: _loopOf(toy, input),
       )..resume();
       expect(timeline.history, isEmpty);
 
@@ -126,20 +139,14 @@ void main() {
       final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
       final timeline = RunTimeline(
         rewind: rewind,
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
+        loop: _loopOf(toy, input, rewind),
       );
 
-      // Play five seconds, keyframing and recording exactly the way a game
-      // loop does — see `GameLoop` for why both happen at this moment.
+      // Play five seconds through the loop, which records each step's input
+      // into the attached buffer and keyframes its own capture.
       for (var step = 0; step < 300; step++) {
         _play(input, step);
-        rewind.recorder.record(input);
-        input.beginStep();
-        if (rewind.keyframeDue) rewind.keyframe(toy.save());
-        toy.step(input);
-        input.endStep();
+        timeline.loop.runSteps(1);
       }
       final atFiveSeconds = toy.state;
 
@@ -175,18 +182,12 @@ void main() {
       final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
       final timeline = RunTimeline(
         rewind: rewind,
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
+        loop: _loopOf(toy, input, rewind),
       );
 
       for (var step = 0; step < 300; step++) {
         _play(input, step);
-        rewind.recorder.record(input);
-        input.beginStep();
-        if (rewind.keyframeDue) rewind.keyframe(toy.save());
-        toy.step(input);
-        input.endStep();
+        timeline.loop.runSteps(1);
       }
 
       final point = timeline.preview(3.0)!;
@@ -204,18 +205,12 @@ void main() {
       final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
       final timeline = RunTimeline(
         rewind: rewind,
-        input: input,
-        stepSim: (dt) => toy.step(input),
-        restore: toy.restore,
+        loop: _loopOf(toy, input, rewind),
       );
 
       for (var step = 0; step < 120; step++) {
         _play(input, step);
-        rewind.recorder.record(input);
-        input.beginStep();
-        if (rewind.keyframeDue) rewind.keyframe(toy.save());
-        toy.step(input);
-        input.endStep();
+        timeline.loop.runSteps(1);
       }
 
       final point = timeline.preview(1.0)!;
@@ -225,6 +220,118 @@ void main() {
         isFalse,
         reason: 'the mute is scoped to the fast-forward, not left behind',
       );
+    });
+  });
+
+  group('a demo across a branch', () {
+    /// Plays [steps] through [timeline]'s loop from [from], each step's
+    /// input from [play].
+    void playOn(
+      RunTimeline timeline,
+      InputState input,
+      int from,
+      int steps, [
+      void Function(InputState input, int step) play = _play,
+    ]) {
+      for (var step = from; step < from + steps; step++) {
+        play(input, step);
+        timeline.loop.runSteps(1);
+      }
+    }
+
+    /// The state [demo]'s tape reaches from its start, played on a fresh toy.
+    String replayed(DemoRecording demo, int seed) {
+      final toy = _Toy(seed)..restore(demo.start);
+      final input = InputState();
+      final playback = InputTapePlayback.tape(demo.recorder.tape);
+      while (!playback.isFinished) {
+        playback.applyTo(input);
+        input.beginStep();
+        toy.step(input);
+        input.endStep();
+      }
+      return toy.state;
+    }
+
+    test('a release cuts the demo there, so its tape replays the branch '
+        'that was played', () {
+      // Mutation: leave `onBranched` uncalled in `releaseAt`, and the demo
+      // keeps the old future's steps ahead of the branch's: its replay goes
+      // where neither run went.
+      final toy = _Toy(9);
+      final input = InputState();
+      final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+      DemoRecording? demo;
+      final timeline = RunTimeline(
+        rewind: rewind,
+        loop: _loopOf(toy, input, rewind),
+        onBranched: (branch) =>
+            expect(demo!.branched(stepsAgo: branch.stepsAgo), isTrue),
+      );
+      playOn(timeline, input, 0, 60);
+      demo = DemoRecording(
+        level: 'toy',
+        levelHash: '0',
+        start: toy.save(),
+        seed: 9,
+      )..attach(timeline.loop);
+      playOn(timeline, input, 60, 240);
+
+      final point = timeline.preview(2.0)!;
+      timeline.releaseAt(point);
+      expect(demo.steps, point.step - 60);
+      // Another future: the stick held the other way.
+      playOn(timeline, input, 1000, 90, (input, step) {
+        input.setStickAxis(0.25, 0.0);
+        if (step % 7 == 0) input.press(_fire);
+        if (step % 7 == 2) input.release(_fire);
+      });
+
+      expect(demo.steps, point.step - 60 + 90);
+      expect(replayed(demo, 9), toy.state);
+    });
+
+    test('a branch from a scrub cuts the demo as a release does', () {
+      // Mutation: leave `onBranched` uncalled in `branchHere`.
+      final toy = _Toy(4);
+      final input = InputState();
+      final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+      final heard = <TimelineBranch>[];
+      final timeline = RunTimeline(
+        rewind: rewind,
+        loop: _loopOf(toy, input, rewind),
+        onBranched: heard.add,
+      );
+      playOn(timeline, input, 0, 200);
+      timeline
+        ..pause()
+        ..scrubTo(150)
+        ..branchHere();
+      expect(heard, const <TimelineBranch>[
+        TimelineBranch(step: 150, stepsAgo: 50),
+      ]);
+    });
+
+    test("a branch back past the demo's start says so and changes nothing", () {
+      final toy = _Toy(2);
+      final input = InputState();
+      final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+      final timeline = RunTimeline(
+        rewind: rewind,
+        loop: _loopOf(toy, input, rewind),
+      );
+      playOn(timeline, input, 0, 200);
+      final demo = DemoRecording(
+        level: 'toy',
+        levelHash: '0',
+        start: toy.save(),
+        seed: 2,
+      )..attach(timeline.loop);
+      playOn(timeline, input, 200, 30);
+
+      expect(demo.branched(stepsAgo: 31), isFalse);
+      expect(demo.steps, 30);
+      expect(() => demo.branched(stepsAgo: -1), throwsRangeError);
     });
   });
 }

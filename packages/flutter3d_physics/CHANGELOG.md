@@ -1,3 +1,502 @@
+## 1.0.0-rc.1
+
+- **Breaking: a time in a `double` says seconds in its name.**
+  `BodyForceContext.time` is `BodyForceContext.timeSeconds`,
+  `FluidWorld.time` is `FluidWorld.timeSeconds`, `LiquidBody.place(… time:)`
+  takes `timeSeconds:`, `MovementSettings.copyWith(… coyoteTime:)` takes
+  `coyoteSeconds:`, `MovementSettings.copyWith(… jumpBufferTime:)` takes
+  `jumpBufferSeconds:`, `MovementSettings.coyoteTime` is
+  `MovementSettings.coyoteSeconds`, `MovementSettings.jumpBufferTime` is
+  `MovementSettings.jumpBufferSeconds`, `ParticleFluid.capillaryTime` is
+  `ParticleFluid.capillarySeconds`, `ParticleFluid.retire(… elapsed:)` takes
+  `elapsedSeconds:` and `Puddle.age` is `Puddle.ageSeconds`; the value and
+  its unit are what they were. `dart fix` carries each rename out.
+- **Breaking: no public `late final` setter.**
+  `CharacterController.collider`, `RigidBody.collider`,
+  `TubeMeniscus.apexCurvature` and `TubeMeniscus.wallRise` are getters over
+  a private field: the setter they had worked once and threw the second
+  time, and every read compiles as it did.
+- **The liquids have air.** A `FluidWorld` reads its `FluidAir` from the
+  world's properties (temperature, pressure, the new humidity, wind):
+  drops fall against a sphere's drag at their own size, streams bend in a
+  crosswind, and open liquid evaporates — a vessel up its column and out
+  of its mouth (Stefan's tube), a puddle off its surface (Hu and Larson),
+  a drop off its sphere (Ranz and Marshall). Only the solvent leaves, and
+  `FluidWorld.evaporated` keeps the count, so `volume` still finds every
+  cubic metre. Only water has a vapour curve so far.
+- **Laminar or turbulent by the Reynolds number.** A `Pipe` loses to
+  Darcy's friction (`Pipe.frictionFactor`: 64/Re, Haaland for its
+  `roughness`, a straight line through the transition), handed to the
+  column's solver as an effective viscosity, so the core and the reference
+  agree; a stream leaving above Re 2300 parts at Grant and Middleman's
+  turbulent length (`Jet.intactLength`).
+- **A drop's edge holds it, by the surface it is on.** `SolidSurface` reads
+  a liquid's angle and its hysteresis from the catalogue's pairs, a wall
+  says what it is made of (`JetObstacle.surface`, `PlaneObstacle(surface:)`,
+  glass for a vessel's), and a drop stays put while its weight along the
+  wall is under Furmidge's σ·w·(cos θr − cos θa).
+- **A drop flies as one body.** Liquid under the capillary length, and
+  particles that leave every wall, are a `LiquidDrop` (`ParticleFluid.drops`,
+  drawn among `positions`): a sphere's drag and evaporation, held or
+  sliding on a wall, run together with the drops it meets, particles again
+  where it lands wider than the capillary length. `inject(asParticles:)`
+  lays liquid straight onto a wall; what is short of a particle is let go
+  as a droplet instead of waiting in the bank for ever; `retire` takes
+  drops at rest too (`RetiredParticles.drops`). `ParticleFluid.concentrations`
+  says what the particles and drops carry between them, to draw them the
+  colour of it.
+- **Puddles.** `PuddleSurface` on a `FluidWorld`'s `puddles` takes what
+  lands as `Puddle`s, one body each: a cap at the surface's angle or a
+  puddle 2ℓc·sin(θ/2) deep, spreading as Huppert's gravity current,
+  running together, evaporating.
+- **A liquid's shapes solved once, for every vessel alike, and faster.**
+  A cross-section's modes and a meniscus depend on their request alone
+  (`SurfaceModesRequest`, `MeniscusRequest`) and are kept in
+  `LiquidShapeCache.shared`, so a bench's tubes solve them once between
+  them. The modes factor the Laplacian once as a band instead of conjugate
+  gradients for every Lanczos step; the meniscus finds its curvature by
+  Illinois false position and shoots two Runge–Kutta steps a sample. Where
+  they are worked out is a `LiquidShapeSolver`'s (`FluidWorld.shapes`): at
+  once by default, or elsewhere by one that answers later, which a world
+  under a bit-exact profile refuses.
+- **Stokes's torque.** A body turning in a liquid is slowed by 8πμR³ω on
+  the sphere of its volume, implicitly about its own axes.
+- **Gravity from place to place.** `FluidWorld(field:)` takes a
+  `GravityField`: `AttractorGravity` (a uniform part and `Attractor`s,
+  μ/r² outside and a uniform ball inside) or `SampledGravity`, a field of
+  `f3d.gravity` of the shared field contract, which `writeField` also
+  writes. Each vessel levels across its own gravity and each drop falls by
+  the gravity where it is.
+- **Breaking: `CollisionBox.boundsHalfExtents` and
+  `CollisionWedge.boundsHalfExtents` are public `final` fields**, the same
+  vector as `halfExtents`, where a getter answered it. A box and a wedge
+  are their own bounds, so the broadphase reads the live vector and a read
+  compiles as before.
+- **Breaking: results that were records are final classes.** `MeshVessel`,
+  `RevolvedVessel`, `VesselShape`, `VesselVolumes`, `circularWeir`,
+  `orificeFlow` and `overCircularLip` answered or held a record, which can
+  never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+- **Breaking: what a component mixes in is a base mixin class.**
+  `CollisionListener` changed: a type an outside author writes against is
+  mixed in (`with`) rather than implemented, so a member a minor adds
+  arrives with a body and breaks nobody. Write `with` where a class wrote
+  `implements`; a class that mixes one in is `base` or `final`.
+- **Spilt particles can be retired.** `ParticleFluid.retire` takes out the
+  particles a caller's test has held true of for a given time, a puddle
+  lying on a bench, say, and hands back where they were and what they
+  carried as `RetiredParticles` (new). A solve that only ever gained
+  particles only ever got slower: spilt again and again, a chemistry bench
+  went from sixty frames a second to one. `ParticleFluid.retired` counts
+  what was taken out, and `FluidWorld.volume` still includes it. Additive:
+  nothing that worked against 1.0.0-rc.1 changes.
+- **A contact's ids read back.** `CollisionWorld.colliderOf(id)` is
+  `idOf` the other way, null once the collider has left, and
+  `RigidDynamics.bodyOfId(id)` (a member with a default body, so every
+  backend has it) is the body, so a game gets from a `ContactEvent` to the
+  collider, its `userData` and its body on either core.
+- **Breaking: a collision listener is told one `CollisionContext`.**
+  `CollisionListener.onCollisionStart`, `onCollision` and `onCollisionEnd`
+  take a `CollisionContext` (new) with `self` and `other`, where they took
+  the two colliders; the world reuses one, so a step's contacts allocate
+  nothing for it. `flutter3d migrate` rewrites an override to read `self`
+  and `other` from it.
+- **Breaking: every hook a backend implements takes one context.**
+  `PhysicsBackend.dynamics` takes a `DynamicsRequest`,
+  `RigidDynamics.push` a `CharacterPush`, `CharacterMover.move` a
+  `CharacterMove`, `WorldRays.raycast` a `RayQuery`, `WorldSweeps.sweep` a
+  `SweepQuery`, `ClothSimulation.step` a `ClothStep`,
+  `JointPhysics.join` and `unjoin` a `JointRequest` and a `JointRelease`,
+  `ConstraintPhysics.constrain` a `ConstraintRequest`,
+  `PhysicsConstraint.forceOn` a `ConstraintForce` and
+  `JetReceiver.receive` a `JetLanding`, all new. A parameter added to any
+  of them later would have broken every backend written against 1.0; a
+  member added to a context breaks none. The ones asked per character,
+  per query, per body or per parcel are reused by their caller, so a step
+  allocates nothing for them.
+- **`JetObstacle.touch` answers an `ObstacleTouch`**, a class with the
+  record's `normal` and `depth`, so an obstacle somebody mixes in can say
+  more in a minor.
+- **A material's loss factor is impact damping.** In a world whose profile
+  is not bit-exact (`WorldProperties.profile`), `Dynamics` bounces a
+  contact with no more than `restitutionOfLossFactor` of the lossier
+  side's `InelasticProperties.lossFactor`: η = 2ζ, and a spring and
+  dashpot of damping ratio ζ gives back exp(−πζ/√(1 − ζ²)) of its
+  approach. It only takes from a restitution, never adds to one. Under the
+  deterministic profile the loss factor is not read and every step is the
+  bits it was.
+- **The accurate profile, in the Dart engine.** `Dynamics`, `ClothSettings`
+  and `FluidWorld` take a `SimulationProfile` (deterministic by default, its
+  steps and saves unchanged), and `RigidDynamics.profile` says which one a
+  backend steps under. Under `SimulationProfile.accurate`, a body nothing
+  pushes on flies the step on its laws in doubles (`Dynamics.exactStateOf`,
+  saved with the dynamics' state). A sheet is integrated by an adaptive
+  Dormand–Prince integrator: rigid edges are held by Lagrange multipliers
+  and compliant ones are springs. A floating body's push is its velocity's
+  equation integrated through the step. `pendulum_period_test.dart`,
+  `projectile_test.dart` and `orbit_test.dart` hold it to analytic answers.
+  The README says what it covers and what it does not.
+- **`BodyForce`**, a force that is a law of a body's state (a planet's
+  pull, a spring, a field), in `Dynamics.forces`. It is read once a step
+  under the deterministic profile and at every integrator stage under the
+  accurate one, through one `BodyForceContext`.
+- **A sheet hangs in its world's air and its material.**
+  `WindSettings.airDensity` (standard air by default) scales the wind's drag
+  (`effectiveDrag`), and `ClothSettings.inWorld` sets it from the world. It
+  also takes a `material:` and a `state:` and gives the sheet that material's
+  friction. `ClothMesh.particleMassOf` weighs a grid's particles by a
+  material's density.
+- **A liquid at its temperature.** `LiquidBody.state` and
+  `mediumInState`, `FluidMedium.material` and `FluidMedium.at(state)`: what
+  floats in a liquid is lifted and dragged by its density and viscosity at
+  the liquid's state. With no state, or at the reference state, the numbers
+  are the catalogue's to the bit.
+- **`Dynamics` catches a contact the step the native core does.** A pair
+  is looked for as far as its bodies move in the step (the core's
+  speculative reach, held to ten metres), the solver lets the gap close
+  and no more, and a pair it stopped short that was closing fast enough
+  bounces as it would have. A body nothing pushed on falls as the core's
+  four substeps have it fall, three eighths of a step of gravity times the
+  step less than added whole, and once it has moved a pair still apart
+  that would cross in a quarter step is slowed to close it then, as the
+  core's last substep does. The two report a contact's beginning on the
+  same step. Every run on the reference moves: recorded digests of it are
+  recorded again.
+- **A step says what it touched.** `RigidDynamics.contacts` (empty by
+  default) lists the last step's contacts as `StepContact`s: the two
+  colliders and their world ids, the face, where they met, the normal, the
+  impulse over the step, the velocity they met at before gravity or a
+  contact acted, and a `ContactPhase` (`begin`, `persist`, `end`, an open
+  class). `Dynamics` fills it, sorted by the world's ids so every backend
+  reports the same order; a sleeping pair persists and a removed body ends
+  its contacts. A contact is a value: its vectors are handed out new on
+  every read. Its point is the middle of the two's manifold, as the native
+  core reports it, and in contact means within `contactSlop` (five
+  millimetres, a constant the native core's header is written from) or
+  pushed on by the solver, whatever `Dynamics.slop` a game tunes the
+  correction to. Nothing the solver computes moves.
+- **Breaking, against the earlier rc.1 snapshot only:** `StepContact.point`,
+  `.normal` and `.relativeVelocity` are getters that hand out a new vector,
+  and `ContactLedger` is no longer exported: only the reference's own
+  dynamics tells phases with it. Neither existed in 0.8.5.
+- **`Dynamics.saveState` keeps the last step's contacts**, so a run
+  restored and stepped tells the phases the run it was saved from would; a
+  save from before it begins every contact of the next step, as it did.
+- **Breaking: `CollisionShape` is an `abstract base class`, no longer
+  `sealed`.** A shape of a game's own extends it directly and says its
+  bounds, its planes and its support; every pair method defaults to the GJK
+  walk (`convexOverlap`), ground to the field's prisms, a ray to the
+  bounding box and `inertia` to the solid bounding box. A `switch` over the
+  shapes needs a default case. `CustomShape` stays as the one-function way
+  in, and `ShapePhysics` says which backends run such a shape in their own
+  core.
+- **Breaking: `Collider.world` is read-only**, set by `CollisionWorld.add`
+  and cleared by `remove`. `Collider.material` is final, given at
+  construction.
+- **`CharacterMoved` and `JetDrop` are final classes**, not record
+  typedefs, so a field added in a minor breaks no `CharacterMover` written
+  outside and no code reading a drop. A mover builds
+  `CharacterMoved(position:, grounded:, velocity:, …)`; what it leaves out
+  is nothing met.
+
+- **`FluidMedium.oil` is gone**; it was `oliveOil` under the name it had
+  on the way to 1.0.
+
+- **A face too steep to stand on is a wall.** `CharacterController`
+  strips a move into such a face along its horizontal normal when the body
+  is not falling, so walking or jumping into a steep slope no longer
+  carries the body up it; falling onto one, it still slides down.
+- **A platform closing on a body no longer flips it through the floor.**
+  `CollisionWorld.depenetrate` lets a static's push win over a mover's on
+  the same axis, and checks a push that only a mover made against the
+  statics where it would leave the body. Pushes between two statics, or
+  between two movers, still both apply.
+
+- **Breaking: what a world is made of moved to `flutter3d_matter`**, which
+  this package does not re-export; a file that names it imports that
+  package: `WorldProperties`, the material catalogue
+  (`PhysicalMaterial`, its groups, `MaterialPair`, `MaterialCatalog`,
+  `Materials`), the standard world and the constants of nature. The audio
+  core and the particles read them from there without the collision world.
+  `WorldProperties` no longer carries a step rate, which nothing read: the
+  rate is the loop's `WorldTiming`, and `standardStepRate` is
+  `flutter3d_sim`'s.
+- **`Portable` and the crossings into `vector_math`** (`toVector3Relative`,
+  `toWorldPosition`, `toLinearColor`, `toVector3`, `toVector4`) are
+  `flutter3d_foundation`'s, beside `WorldPosition` and `LinearColor`; this
+  package no longer exports them, nor `WorldPosition`. `flutter3d_sim` and
+  `flutter3d_core` still hand them out.
+
+- **New: one catalogue of physical materials, the single source of every
+  substance's numbers.** `PhysicalMaterial` (an id, a name, a
+  `MaterialPhase`, the temperature and pressure its numbers are quoted at)
+  carries optional groups — `MechanicalProperties`, `FluidProperties`,
+  `ThermalProperties`, `AcousticProperties`, `OpticalProperties`,
+  `ElectricalProperties` — each in SI and each naming its `source`.
+  `Materials` holds the engine's own under `f3d.*`: water at 20 °C (998.2
+  kg/m³, 1.002 mPa·s, 72.8 mN/m, 4182 J/(kg·K)), seawater, glycerol,
+  ethanol, olive oil, honey, mercury at 20 °C (13 546 kg/m³, 1.55 mPa·s),
+  molten basalt, air, steel, aluminum, copper, gold, glass, concrete,
+  brick, granite, marble, ice, the woods and the fuels of the core's heat
+  presets, rubber, ABS, polyethylene, sand, soil and cotton.
+  `MaterialCatalog` is a `PluginRegistry`: one per engine, a plugin's
+  materials under `<pluginId>.<name>`, `MaterialPair` for a measured pair
+  (friction, restitution, rolling resistance, a liquid's contact angle),
+  `contact(a, b)` for the rule two materials meet by, and
+  `UnknownMaterialException` naming the plugin an unknown id needs. A
+  material has a versioned JSON codec, `f3d.physicalMaterial` version 1,
+  unknown keys kept.
+- **New: `WorldProperties`, what a world is made of** — gravity, the air's
+  temperature and pressure (its density derived by the ideal gas unless
+  set), wind and the medium (a material's id) — held by
+  `CollisionWorld.properties` and read there by everything in the world.
+  `speedOfSoundAt` and `airDensityAt` join the standard world, and `physical_constants.dart` has `stefanBoltzmann`,
+  `molarGasConstant` and their kin, written once.
+- **New: one reference body.** `referenceBodyMass` (73 kg, ICRP 89) and
+  `SegmentMassShares` (de Leva, 1996).
+- **New: `ClothSettings.inWorld`**, a cloth that falls by its world and
+  flaps in its wind.
+- **Breaking: `Dynamics.gravity` is the world's.** It was a field the
+  dynamics defaulted to 22 m/s² beside characters at 24; it is a getter on
+  `world.properties`, and `Dynamics(gravity:)` sets the world's. A game sets
+  its world's gravity where it stages. The saved state carries the world,
+  so a rewind restores the gravity it was saved under.
+- **Breaking: `MovementSettings.gravity` is `double?`**, null for the
+  world's gravity; it defaulted to 24. `CharacterController.gravity` is what
+  a character falls by.
+- **Breaking: `FluidMedium.water`, `glycerol`, `ethanol` and `mercury` are
+  `static final` views of the catalogue**, and `FluidMedium.oil` is
+  `oliveOil` (the old name deprecated). Mercury's numbers are its 20 °C ones.
+  `FluidMedium.of` makes one of any material.
+- **`Collider.material` and `RigidBody(material:)`**: a body made with a
+  material takes its friction and restitution unless it gives its own, and
+  two materials meet as the catalogue says in `Dynamics`. The constructor
+  of `Collider` and of `RigidBody` gained the parameter (`friction` and
+  `restitution` are now `double?`, defaulting as before).
+- **One origin call per world.** `CollisionWorld.origin` and
+  `moveOriginTo(WorldPosition)` replace `shiftOrigin(dx, dy, dz)`, the same
+  two the native core's world has, and `originPart` makes the origin a part
+  of the loop's snapshots, put back before the bodies written in it.
+- **`ConstraintPhysics.constrain` returns a `Registration`**, the engine's
+  one shape for "until taken back". `ShapePhysics` is documented as the
+  marker it is, and a joint's anchor as origin-local.
+
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `MovementTuning` is `MovementSettings`. Every settings class is
+  `final` with a `const` constructor and a `copyWith` over every field; a
+  nullable field is reset with `copyWith(clearX: true)`. `dart fix` carries
+  the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `FreeSurface.quiet` is `isQuiet`; `FreeSurface.settled` is `isSettled`;
+  `Jet.flowing` is `isFlowing`; `RayHit.hit` is `didHit`; `SweepHit.hit` is
+  `didHit`; `Contact.touching` is `isTouching`. `dart fix` carries the
+  renames.
+- **Breaking: `LiquidLayer.take` is `withdraw`.**
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centre` is `center`. Only the Dart names changed: a file keeps
+  the keys it was written with, and `dart fix` carries the renames.
+- **Breaking: there is no `PhysicsBackend.current`.** The backend belongs to
+  the world: `CollisionWorld(backend:)`, read as `world.backend`; a
+  `FluidWorld` takes `backend:` for its solver.
+- **Breaking: `PhysicsBackend`, `RigidDynamics`, `CharacterMover`,
+  `WorldRays`, `WorldSweeps`, `ClothSimulation` and `FluidSolver` are
+  `abstract base class`es with defaults, and `WorldMirror` a base mixin.**
+  `PhysicsBackend` has `cloth` and `fluid` with the reference as default, so
+  `ClothPhysics`, `FluidPhysics` and their extensions are gone; a solver
+  overrides only what it does on its own.
+- **Capabilities a backend mixes in: `JointPhysics`, `ConstraintPhysics`,
+  `ShapePhysics`**, with an open `JointType`.
+- **Breaking: `CustomShape`, a shape of a game's own.** `CollisionShape`
+  stays sealed and gains this sixth case: a convex shape given by its support
+  function, overlapping every other shape through the GJK walk
+  (`convexOverlap`). A `switch` over the shapes names it.
+- **Breaking: `ColliderKind` is a class with constants** (`static`,
+  `kinematic`, `trigger`, and `blocks`); a `switch` over it needs a default.
+- **The origin can move.** `CollisionWorld.shiftOrigin` moves every collider
+  and every point registered with `shiftsWithOrigin` (a character's) the
+  other way.
+- **`WorldPosition` and `LinearColor` meet `vector_math`** in
+  `flutter3d_foundation`, beside the two types. `position.toVector3Relative(origin)` subtracts in
+  doubles before narrowing to float32, and `vector.toWorldPosition(origin: …)`
+  widens back; `LinearColor` converts to and from `Vector3` and `Vector4`.
+  Each crossing names its origin, because a silent narrowing would undo what
+  the double type is for.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The world's speed of sound has a home.** `standardSpeedOfSound`, 343 m/s
+  in dry air at `standardAirTemperature`, joins gravity and the air in
+  `standard_world.dart`. Audio reads it for doppler instead of writing the
+  number again.
+
+- **`Dynamics`' 22 m/s² is no longer said to be the character
+  controller's.** It never was: a `MovementSettings` falls at 24, and the
+  platformer demo's crates fell at 22 beside a runner falling at 24. The
+  demo now hands its dynamics the run's gravity, the level's or
+  `Runner.runGravity`, so crates and runner fall alike, **which moves the
+  platformer's tapes (`test/tapes/ascent.f3drun`, the site's
+  `platformer.f3drun`) and its goldens: they are re-recorded before the
+  release.** The default itself stays for the games that rely on it.
+
+- **Breaking: `JetObstacle` and `JetReceiver` can no longer be implemented
+  outside their own library: each is an `abstract base mixin class` now, so a
+  game or a test mixes it in (`with`) and its class is `final` or `base`. A
+  member added to one in a 1.x release arrives with a body, which an
+  `implements` could not have taken without breaking somebody. `VesselShape`
+  is an `abstract base class`. The backend interfaces (`PhysicsBackend`,
+  `RigidDynamics`, `CharacterMover`, `ClothPhysics`, `ClothSimulation`,
+  `FluidPhysics`, `FluidSolver`, `WorldRays`, `WorldSweeps`, `WorldMirror`)
+  stay implementable, and say so.
+
+- **A world's numbers are written once.** `standardGravity` (9.81 m/s²),
+  `standardGravityVector`, `standardAirTemperature` (293.15 K),
+  `standardAirDensity` (1.204 kg/m³) and `standardAtmosphere` (101 325 Pa)
+  are what a world is when nobody says otherwise, each with its source,
+  and the same numbers the C core's new world starts with. `ClothSettings`,
+  `LiquidBody` and `fallTime` default to `standardGravity` rather than a
+  9.81 of their own; a game hands them its world's. 9.81 rather than
+  9.806 65 because 9.81 is what every recorded run was made under, so
+  nothing recorded moves.
+
+- **Pipes and floating bodies are on the run's backend too.** `FluidSolver`
+  gains `flowPipes(PipeFlow)`, the column in each pipe driven by the
+  pressure across it and held back by its friction, and
+  `pushBodies(FloatPush)`, a floating body lifted by what it displaces and
+  slowed by drag; `FluidWorld` steps both through its solver, and
+  `Pipe.step` and `FloatingBody.push` take a `solver` like the rest. The
+  pressures at a pipe's ends and how much of a body is under the surface
+  are worked out in Dart on both backends; on the reference everything
+  steps exactly as before. A `FluidSolver` written outside this package
+  needs the two new methods.
+
+- **Liquids come from the run's backend.** A `FluidWorld` steps its waves,
+  streams and spilt particles on a `FluidSolver`, which is
+  `PhysicsBackend.current.fluid` when the world is made unless it is given
+  one: the core's on a run that is on it, `DartFluid` otherwise. The
+  solver moves one step's state in place, as `ParticleMotion`,
+  `ParcelFlight` and `ModeRinging` records; how much liquid is where, what
+  is dissolved in it, and what a vessel catches stay in Dart on both. A
+  backend with a fluid of its own implements `FluidPhysics`, and `fluid` is
+  an extension, as `cloth` is. `Jet`, `ParticleFluid`, `LiquidBody.step`
+  and `FreeSurface.step` take a `solver` too, the reference by default, and
+  on it they step exactly as before.
+
+- **Cloth comes from the run's backend.** `PhysicsBackend.current
+  .cloth(mesh)` makes a `ClothSimulation`, which steps the `ClothMesh` in
+  place as `stepCloth` does, so a page that draws from `mesh.positions`
+  reads the same arrays on either backend. `DartCloth` is the reference's,
+  `stepCloth` and nothing else. A backend with a cloth of its own says so by
+  implementing `ClothPhysics`; `cloth` is an extension rather than a member
+  of `PhysicsBackend`, so a backend a test writes needs nothing new.
+
+- **Sweeps can be cast elsewhere.** `WorldSweeps`, set as
+  `CollisionWorld.sweeps`, handles every `sweep` that has no
+  `ContactFilter`. A filter is a Dart function that has to be asked about
+  each contact, which the core cannot do, so filtered sweeps stay on the
+  world's own walk.
+
+- **`PhysicsBackend`, one for the whole run.** It produces a world's
+  dynamics and can attach its character moves and rays to a world.
+  `PhysicsBackend.current` is set once by the game and read by everything
+  that makes a world. `DartPhysics`, the reference, is the default until a
+  game sets something else.
+
+- **One rule for a jump that does not clear a platform solid from above:
+  it falls back through.** The controller no longer pushes the body out of
+  such a platform when it overlaps one, as the physics core does not.
+  `CollisionWorld.mirrors` keeps a world's copies, such as the physics
+  core's, up to date at the end of every `update`.
+
+- **One-way platforms as a rule, rays elsewhere.**
+  `CharacterController.fromAboveLayers` and `dropThrough` say one-way
+  platforms as a rule the body keeps on either backend. They are a floor
+  from above and nothing from below or the side. `CollisionWorld.rays`
+  takes a `WorldRays` that answers every `raycast` not asking for
+  triggers. `CollisionWorld.revision` counts colliders joining and leaving.
+  A character moved by a mover is not pushed out of overlaps by its box:
+  its volume is the mover's.
+
+- **A world can say who moves its characters.**
+  `CollisionWorld.characterMover` takes a `CharacterMover`. When one is
+  set, `CharacterController` keeps everything its step decides: speed,
+  friction, gravity, the jump, coyote time, being carried. It hands the
+  mover only the geometry: sliding, the step, the slope, keeping to the
+  ground. A body whose `solidFilter` asks about each contact keeps its own
+  sweeps. Null, the default, is the controller as it was.
+
+- **A character can be walked by its animation.**
+  `CharacterController.step(drivenBy:)` takes a displacement along the
+  floor in place of a wish to accelerate towards, such as root motion
+  handed over by an animation graph. The body moves at that speed, swept
+  as any move is: it stops at a wall, climbs a step, falls off an edge and
+  jumps as before. Without it, nothing changes.
+
+- **Bodies are stepped through `RigidDynamics`.** `WorldStep`, the games,
+  the crates and the Flame bridge hold the interface, and `Dynamics`
+  implements it unchanged. `flutter3d_physics_native`'s `NativeDynamics`
+  is the other implementation. A character's push is `Pusher`, the same
+  code `Dynamics.push` ran, now shared, so a crate is shoved the same
+  whichever steps it. `CollisionWorld.movers` lists the moving colliders,
+  as `statics` lists the still ones. `saveState()` and `restoreState()`
+  carry what a backend holds beyond its bodies through a save: nothing
+  for `Dynamics`.
+
+- **Drops let go on top of each other spread instead of flying apart.**
+  A stream lets go of its drops at one point step after step, so
+  `ParticleFluid` laid each lump exactly on the last. A coincident pair
+  counts whole in each other's density, but the kernel has no gradient at
+  nought, so the constraint read heavily compressed with nothing to part
+  along and λ = −C / |∇C|² ran away: the chemistry bench's overflowing flask
+  threw thirty thousand particles eleven metres up. Coincident particles now
+  part along a direction set by the pair, and each substep first takes the
+  compression it starts with out of the positions alone (pre-stabilisation),
+  so overlap is never turned into speed. `velocities` reads each particle's.
+
+- **No wave stands steeper than Stokes' limit.** `FreeSurface` breaks a
+  mode higher than a fourteenth of its wavelength: the linear modes knew no
+  bound, and a vessel turned sixty-seven degrees in a step laid its old
+  level out as a thirty-four millimetre wave that threw most of it over the
+  lip.
+
+- **An upright, overfull vessel runs over its edge, outwards.** Over every
+  part of a level lip at once, the outward pulls cancelled: the spill left
+  from the middle of the mouth with no speed and fell back in, round and
+  round. It leaves over the stretch passing most, no wider than the mouth.
+
+- **A body can turn, if it is built to.** `RigidBody` has an `orientation`,
+  an `angularVelocity`, an inertia tensor in its own axes
+  (`inertiaLocal`, `inverseInertiaLocal`) and one in the world's
+  (`inverseInertiaWorld`), plus `applyImpulseAt` and `applyTorqueImpulse`.
+  `inertiaFor(shape, mass)` gives the principal moments of a box, a sphere
+  and a capsule; a wedge and a heightfield are taken as their bounding box.
+  Only a body built with `canRotate: true` turns, because every shipped
+  level was tuned against crates that do not tip. The others have an
+  inverse inertia of zero and step exactly as before. A turning body
+  keeps its angular momentum rather than its angular velocity, which is
+  the gyroscopic term taken implicitly: a box spun off its principal axes
+  for ten seconds holds L to within 1e-4. `angularDamping` is zero by
+  default. No contact turns a body yet, and the collider stays
+  axis-aligned. `save()` writes the orientation and spin only for a body
+  that can turn, so saved levels and their digests do not change.
+  `readQuaternion` reads one back.
+- **The step has trigonometry it may call.** `src/portable_math.dart`
+  holds `sin`, `cos`, `sinCos`, `atan`, `atan2`, `asin` and `acos` built
+  from fdlibm's kernels out of IEEE arithmetic alone, for the hinge
+  angles and cone limits that come next. It is not exported: `Portable`
+  is `flutter3d_foundation`'s, and a step imports it from there.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

@@ -23,8 +23,10 @@ const double kLegalMeasure = 680;
 
 /// [document], rendered as a scrolling page.
 class LegalView extends StatefulWidget {
+  /// A page showing [document]; links go to [onOpenLink] when given.
   const LegalView({super.key, required this.document, this.onOpenLink});
 
+  /// The document drawn, already parsed.
   final LegalDocument document;
 
   /// What a link does. Null means the ordinary thing — hand it to the
@@ -162,25 +164,23 @@ class _LegalViewState extends State<LegalView> {
           ),
         );
       case LegalCode(:final text):
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            // Horizontally scrollable rather than wrapped: the one code block
-            // in these documents is the MIT licence, and re-wrapping a licence
-            // text is not this application's business.
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SelectableText(
-                text,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                ),
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          // Horizontally scrollable rather than wrapped: the one code block
+          // in these documents is the MIT licence, and re-wrapping a licence
+          // text is not this application's business.
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SelectableText(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
               ),
             ),
           ),

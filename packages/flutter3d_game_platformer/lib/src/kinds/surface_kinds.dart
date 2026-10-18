@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -14,18 +16,22 @@ import '../surfaces.dart';
 /// words. What makes it work is [PlatformerLayers.oneWay] and the runner's
 /// filter; this only puts the box on the right layer.
 final class OneWayKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.oneWay`.
   const OneWayKind() : super(PlatformerEntities.oneWay);
 
   /// Thin, because thickness is what a player misjudges when jumping through.
   static Vector3 get defaultSize => Vector3(4.0, 0.3, 4.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final size = entity.vector('size');
     if (size != null && size.y > 0.6) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'is ${size.y} m thick, and a one-way platform that thick is one a '
           'player lands inside of before they are through it',
           where: scope.describe(entity),
@@ -35,7 +41,9 @@ final class OneWayKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -57,17 +65,23 @@ final class OneWayKind extends EntityKind {
 /// `Collider.surfaceVelocity` says, and why a conveyor needed no mover, no
 /// schedule and no mechanism at all. It is a static box with a number on it.
 final class ConveyorKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.conveyor`.
   const ConveyorKind() : super(PlatformerEntities.conveyor);
 
+  /// The belt's size in metres when the entity gives none: four wide, eight
+  /// long and 0.4 thick.
   static Vector3 get defaultSize => Vector3(4.0, 0.4, 8.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final flow = entity.vector('flow');
     if (flow == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "flow", so it is a floor that carries nobody anywhere',
           where: scope.describe(entity),
         ),
@@ -77,7 +91,7 @@ final class ConveyorKind extends EntityKind {
     if (flow.length < 1e-6) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'flows nowhere',
           where: scope.describe(entity),
         ),
@@ -86,7 +100,9 @@ final class ConveyorKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final flow = entity.vector('flow');
     if (flow == null) return;
     final collider = place(
@@ -106,17 +122,23 @@ final class ConveyorKind extends EntityKind {
 
 /// A platform that gives way. See [Crumbling].
 final class CrumblingKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.crumbling`.
   const CrumblingKind() : super(PlatformerEntities.crumbling);
 
+  /// The platform's size in metres when the entity gives none: three
+  /// across and 0.4 thick.
   static Vector3 get defaultSize => Vector3(3.0, 0.4, 3.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final delay = entity.number('delay');
     if (delay != null && delay <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'gives way after $delay seconds, which is a platform nobody can '
           'stand on for long enough to notice',
           where: scope.describe(entity),
@@ -126,7 +148,9 @@ final class CrumblingKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -137,7 +161,7 @@ final class CrumblingKind extends EntityKind {
       Crumbling(
         name: entity.name,
         collider: collider,
-        delay: entity.number('delay') ?? 0.5,
+        delaySeconds: entity.number('delay') ?? 0.5,
         gone: entity.number('gone') ?? 2.5,
       ),
     );

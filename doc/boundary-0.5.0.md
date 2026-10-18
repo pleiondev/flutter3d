@@ -23,6 +23,14 @@ package touched, because opening these breaks the published
 | `ActivationOutcome` | `flutter3d_game` | drop `sealed` | a game with its own outcome cannot add it |
 | `PadStickUse` | `pad_input` | open it | which way a stick routes is the game's own call |
 
+**`AssetSource`, later (1.0.0, the plugin plan's step 6).** It was opened as
+an `abstract base class` without a registry, for the isolate reason its own
+doc gives. What stayed closed was how a path string becomes a source, and
+that is now opened additively: `AssetSources` in `flutter3d_core` maps a
+path scheme (`pak:`) to a factory, run on the calling isolate, and
+`ModelDecoders.addSource` lets a plugin register one. A path without a
+known scheme goes where it always went.
+
 ## Leave closed
 
 | Type | Why it is machinery |

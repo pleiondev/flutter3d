@@ -1,0 +1,58 @@
+#version 460 core
+
+// The first of a splat sort's three stages — `H11`: how many of each tile's
+// keys carry each value of the digit being sorted on.
+//
+// One workgroup a tile of 256 keys, one invocation a key. Each invocation
+// writes its key's digit into workgroup memory, and then invocation `d`
+// counts the tile's keys whose digit is `d`. That is 256 reads an invocation
+// where a shared atomic would be one, and it is chosen anyway: the count has
+// no order to get wrong, and there is no atomic for the translator to carry.
+//
+// The counts go out digit-major — every tile's count of digit 0, then every
+// tile's count of digit 1 — so that one scan over them is each (digit, tile)
+// pair's first slot in the output: the sort's whole stability rests on that
+// layout. A key past the end of the cloud carries digit 256, which nothing
+// counts.
+//
+// `sort` is (count, shift, tiles, mode) as floats, which the engine's uniform
+// blocks are made of; every one of them is exact below 2^24.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer SortKeys {
+  uint keys[];
+}
+keys_buffer;
+
+layout(std430, set = 0, binding = 1) buffer SortCounts {
+  uint counts[];
+}
+counts_buffer;
+
+layout(std140, set = 0, binding = 2) uniform SortInfo {
+  vec4 sort;
+}
+sort_info;
+
+shared uint digits[256];
+
+void main() {
+  uint count = uint(sort_info.sort.x);
+  uint shift = uint(sort_info.sort.y);
+  uint tiles = uint(sort_info.sort.z);
+  uint tile = gl_WorkGroupID.x;
+  uint t = gl_LocalInvocationID.x;
+  uint i = tile * 256u + t;
+
+  digits[t] = i < count ? (keys_buffer.keys[i] >> shift) & 255u : 256u;
+  barrier();
+
+  uint n = 0u;
+  for (uint j = 0u; j < 256u; j++) {
+    if (digits[j] == t) {
+      n++;
+    }
+  }
+  counts_buffer.counts[t * tiles + tile] = n;
+}

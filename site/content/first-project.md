@@ -61,17 +61,16 @@ flutter run -d macos
 
 | | |
 |---|---|
-| `lib/main.dart` | The application. A device, a renderer, a ticker, a camera, and a cubit that turns the level document into a scene |
-| `lib/src/backend.dart` | Which backend this build draws through. One `export`, and the only line to change to run somewhere else |
+| `lib/main.dart` | The application. One `Flutter3dView`, which opens the device, makes the renderer and runs the loop, and a small genre of the seed's own that walks a body through the level |
 | `assets/levels/first.json` | The level: brushes, materials, lights, entities. Data, not code |
 | `assets/editor.json` | What this game's words look like *to the editor*. Not in the asset list, so no player downloads it |
 | `assets/models/*.glb` | One model per kind of thing the level names |
 | `test/widget_test.dart` | It loads the level through a software device, with no window |
 
-The imports at the top of `main.dart` say where the halves are: `flutter3d` draws, `flutter3d_sim` simulates, `flutter3d_app` loads a level into a scene, and `flutter3d_game` holds the input and the run. [Assembling an application](/core/session/) is that seam in detail.
+The imports at the top of `main.dart` say where the halves are: `flutter3d_game` brings the view, the input and the run, with `flutter3d` and what of `flutter3d_app` a game opens a window with, and `flutter3d_sim` brings the loop, the genre's shape and the event bus. [Assembling an application](/core/session/) is that seam in detail.
 
 <div class="note">
-<p><strong><code>main.dart</code> is a seed, not a game.</strong> It reads the level, builds it, and puts a body in it that walks, looks and jumps. It leaves out, on purpose, everything a <em>genre</em> is: weapons, monsters, coins, doors that open, a score, a menu and saving. Those live in <code>flutter3d_game_shooter</code> and <code>flutter3d_game_platformer</code>, and adding one is the last step below.</p>
+<p><strong><code>main.dart</code> is a seed, not a game.</strong> It reads the level, builds it, and installs a genre of its own that walks a body through it, looking and jumping, steered by an <code>ActionMap</code> and saying on the event bus when it lands. It leaves out, on purpose, everything a <em>genre</em> is: weapons, monsters, coins, doors that open, a score, a menu and saving. Those live in <code>flutter3d_game_shooter</code> and <code>flutter3d_game_platformer</code>, and adding one is the last step below.</p>
 </div>
 
 ## Change the level {.step}
@@ -100,8 +99,8 @@ Every number that decides how it feels is in the tuning beside it, in metres and
 CharacterController(
   world: world,
   position: at,
-  tuning: const MovementTuning(
-    jumpSpeed: 9.5,     // 8.0 by default: metres per second, straight up
+  tuning: const MovementSettings(
+    jumpSpeed: 9.5,     // 8.0 by default: meters per second, straight up
     gravity: 22.0,      // 24.0: lower is floatier
     coyoteTime: 0.15,   // 0.1: how long after a ledge a jump still counts
   ),

@@ -8,7 +8,7 @@
 /// camera to preview it against. [screenFractionForSize] and
 /// [sizeForScreenFraction] below are that same perspective-divide, applied
 /// to a size handed in directly rather than read off a node, so a project
-/// file's `LodSpec.maxScreenFraction` means exactly what
+/// file's `LodSettings.maxScreenFraction` means exactly what
 /// `package:flutter3d`'s own `LodLevel.maxScreenFraction` already means —
 /// there is one true conversion between the two units, not an editor's
 /// approximation of the engine's.
@@ -41,12 +41,12 @@ double screenFractionForSize({
     return diameterMeters / projection.height;
   }
 
-  final double fov = projection.verticalFieldOfView ?? math.pi / 4;
+  final double fovY = projection.verticalFieldOfView ?? math.pi / 4;
   // Inside the sphere the object fills the frame — see `LodGroup`'s own
   // comment for why the formula below would otherwise divide by a distance
   // smaller than the radius and blow up.
   if (distanceMeters <= radius) return 1.0;
-  final double halfHeight = math.tan(fov * 0.5) * distanceMeters;
+  final double halfHeight = math.tan(fovY * 0.5) * distanceMeters;
   if (halfHeight <= 0.0) return 1.0;
   return math.min(1.0, radius / halfHeight);
 }
@@ -83,7 +83,7 @@ int? lodLevelAt(List<double> thresholds, double screenFraction) {
 /// meters, that would cover [screenFraction] of the viewport's height at
 /// [distanceMeters] through [projection] — what the editor solves for when
 /// someone drags a preview distance instead of typing a screen-fraction
-/// number directly, or previews what a `LodSpec.maxScreenFraction` a file
+/// number directly, or previews what a `LodSettings.maxScreenFraction` a file
 /// already holds means in the units a person actually thinks in.
 double sizeForScreenFraction({
   required double screenFraction,
@@ -96,7 +96,7 @@ double sizeForScreenFraction({
     return screenFraction * projection.height;
   }
 
-  final double fov = projection.verticalFieldOfView ?? math.pi / 4;
-  final double halfHeight = math.tan(fov * 0.5) * distanceMeters;
+  final double fovY = projection.verticalFieldOfView ?? math.pi / 4;
+  final double halfHeight = math.tan(fovY * 0.5) * distanceMeters;
   return screenFraction * halfHeight * 2.0;
 }

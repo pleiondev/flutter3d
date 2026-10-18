@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,7 +22,8 @@ Level _shipped() => Level.fromJson(
       as Map<String, Object?>,
 );
 
-({PlatformerSimulation sim, InputState input}) _stage() {
+({PlatformerSimulation sim, void Function(double dt) step, InputState input})
+_stage() {
   final level = _shipped();
   final world = CollisionWorld();
   level.addTo(world);
@@ -33,7 +35,7 @@ Level _shipped() => Level.fromJson(
     registry: platformerRegistry(),
   );
   world.update();
-  return (sim: staged.sim, input: input);
+  return (sim: staged.sim, step: staged.step, input: input);
 }
 
 void _play(InputState input, int step) {
@@ -53,14 +55,14 @@ void main() {
     final live = _stage();
     for (var step = 0; step < 300; step++) {
       _play(live.input, step);
-      live.sim.step(_dt);
+      live.step(_dt);
       live.input.endStep();
     }
     final snapshot = live.sim.save();
 
     live.sim.restore(snapshot);
     for (var i = 0; i < 10; i++) {
-      live.sim.step(_dt);
+      live.step(_dt);
       live.input.endStep();
     }
 
@@ -72,7 +74,7 @@ void main() {
         live.sim.restore(snapshot);
         watch.start();
         for (var step = 0; step < k; step++) {
-          live.sim.step(_dt);
+          live.step(_dt);
           live.input.endStep();
         }
         watch.stop();

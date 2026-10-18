@@ -4,28 +4,32 @@ import 'package:vector_math/vector_math.dart';
 import '../physics/layers.dart';
 import '../world/exit.dart';
 import '../world/signals.dart';
-import 'entity_def.dart';
 import 'entity_kind.dart';
-import 'level_issue.dart';
-import 'spawn_context.dart';
 
 /// Kinds built on a trigger collider: a button, a trigger volume and an exit.
 /// Grouped because all three place a [ColliderKind.trigger] and drive a
 /// [Signal] or [Exit] from it, rather than a kinematic body.
 final class ButtonKind extends EntityKind {
+  /// The `button` kind: a panel with a `target`, locked by an optional
+  /// `key`.
   const ButtonKind() : super(EntityTypes.button);
 
   /// A panel, not a block: a button is something on a wall.
   static Vector3 get defaultSize => Vector3(0.6, 0.6, 0.15);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     requireKeyExists(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final target = entity.string('target');
     if (target == null) return;
     final collider = place(
@@ -54,17 +58,25 @@ final class ButtonKind extends EntityKind {
   }
 }
 
+/// An invisible volume that fires its `target` when the player, or with
+/// `anyone` any body, walks in; once only unless `once` is false.
 final class TriggerKind extends EntityKind {
+  /// The `trigger` kind: a sized volume with a `target`.
   const TriggerKind() : super(EntityTypes.trigger);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     requireSize(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final target = entity.string('target');
     if (target == null) return;
     // Monsters can be allowed to set a trigger off, which is how an ambush
@@ -92,16 +104,24 @@ final class TriggerKind extends EntityKind {
   }
 }
 
+/// The way out: a volume only the player sets off, 1.5 by 2.5 by 1.5
+/// metres unless sized, leading to `next` and locked by an optional `key`.
 final class ExitKind extends EntityKind {
+  /// The `exit` kind.
   const ExitKind() : super(EntityTypes.exit);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireKeyExists(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     // The player alone, and not because monsters would mind: a monster
     // wandering across the finish line would end the level from the far side
     // of the map with nobody watching.

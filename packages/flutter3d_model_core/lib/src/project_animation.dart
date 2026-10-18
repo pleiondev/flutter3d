@@ -19,6 +19,11 @@ import 'package:vector_math/vector_math.dart';
 /// bind pose — the project-side [ModelSkin], addressed by object id where
 /// that one is addressed by node index.
 final class ProjectSkeleton {
+  /// A skeleton of [joints], each undone by the matching entry of
+  /// [inverseBindMatrices], with no IK constraint unless [constraints] is
+  /// given. Both lists are copied unmodifiable.
+  ///
+  /// Throws an [ArgumentError] when the two lists differ in length.
   ProjectSkeleton({
     required List<int> joints,
     required this.inverseBindMatrices,
@@ -35,6 +40,8 @@ final class ProjectSkeleton {
     }
   }
 
+  /// The skeleton's name as the source file or the rig builder gave it, or null
+  /// when it has none.
   final String? name;
 
   /// [ModelObject.id]s, in the order the vertex attribute addresses them.
@@ -53,6 +60,7 @@ final class ProjectSkeleton {
   /// one.
   final List<IkConstraint> constraints;
 
+  /// Number of joints in the skeleton.
   int get jointCount => joints.length;
 
   /// [this], with named fields replaced.
@@ -92,6 +100,8 @@ final class ProjectSkeleton {
 /// [rootJointId]'s own child and [effectorJointId] [midJointId]'s, the
 /// ordinary shape of an upper-arm/forearm or thigh/shin pair.
 final class IkConstraint {
+  /// A two-bone constraint from [rootJointId] through [midJointId] to
+  /// [effectorJointId], reaching for [target] and bending toward [pole].
   const IkConstraint({
     required this.rootJointId,
     required this.midJointId,
@@ -100,8 +110,16 @@ final class IkConstraint {
     required this.pole,
   });
 
+  /// [ModelObject.id] of the joint the chain starts at, an upper arm or a
+  /// thigh.
   final int rootJointId;
+
+  /// [ModelObject.id] of the joint that bends, a forearm or a shin; expected to
+  /// be [rootJointId]'s child.
   final int midJointId;
+
+  /// [ModelObject.id] of the joint placed on [target], a wrist or an ankle;
+  /// expected to be [midJointId]'s child.
   final int effectorJointId;
 
   /// Where [effectorJointId] should land, in the space [rootJointId]'s own
@@ -142,6 +160,9 @@ final class IkConstraint {
 /// who has not decided what a joint may do should get the unconstrained
 /// look-at they asked for rather than a limit somebody invented.
 final class LookAtConstraint {
+  /// A constraint turning [jointId] to look at [target], with [forward] and
+  /// [up] naming its face; turns are unlimited unless [maxYaw] or [maxPitch] is
+  /// given.
   const LookAtConstraint({
     required this.jointId,
     required this.target,
@@ -189,26 +210,33 @@ final class LookAtConstraint {
 /// whatever the source document happened to carry it as and is not read
 /// here — [objectId] is the only addressing this class honours.
 final class ProjectTrack {
+  /// The [track] driving object [objectId].
   const ProjectTrack({required this.objectId, required this.track});
 
   /// [ModelObject.id] this track drives.
   final int objectId;
 
+  /// The keyframes, sampled as they are; their own `nodeIndex` is not read.
   final AnimationTrack track;
 }
 
 /// A named set of [ProjectTrack]s that play together — the project-side
 /// [AnimationClip].
 final class ProjectClip {
+  /// A clip called [name] playing [tracks], carrying the source's [extras].
   const ProjectClip({this.name, required this.tracks, this.extras});
 
+  /// The clip's name, or null when the source gave none.
   final String? name;
+
+  /// The tracks that play together, one per object and property.
   final List<ProjectTrack> tracks;
 
   /// glTF's own `extras` on this animation, carried opaquely — see
   /// [ModelNode.extras] for what that means and why.
   final Map<String, Object?>? extras;
 
+  /// Whether the clip has no track, so playing it moves nothing.
   bool get isEmpty => tracks.isEmpty;
 
   @override

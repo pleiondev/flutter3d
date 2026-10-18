@@ -5,7 +5,7 @@
 /// through here — the name a refusal carries, the SDK token the compiled
 /// backends compare, the stage list the software backend answers from, and
 /// the sections — and every way the bytes can be wrong comes back as a
-/// `ShaderBundleRefused` that names the bundle when the name was readable.
+/// `ShaderBundleException` that names the bundle when the name was readable.
 library;
 
 import 'dart:typed_data';
@@ -81,10 +81,11 @@ void main() {
     );
 
     final bytes = bundle.encode();
-    // The header still says version 1: a fourth section is not a fourth
-    // format, and a bump here would refuse this bundle to Impeller and WebGL.
+    // The header says version 2, which the stage kind byte moved it to, and
+    // no section ever has: a fourth section is not a fourth format, and a
+    // bump for one would refuse this bundle to Impeller and WebGL.
     expect(bytes.getUint32(4, Endian.little), ShaderBundle.formatVersion);
-    expect(ShaderBundle.formatVersion, 1);
+    expect(ShaderBundle.formatVersion, 2);
 
     final back = ShaderBundle.decode(bytes);
     expect(back.sections.keys.toSet(), <String>{
@@ -101,6 +102,32 @@ void main() {
     // And round-tripping the decoded bundle writes the same bytes back: a
     // section the reader could not name is not a section it has degraded.
     expect(back.encode().buffer.asUint8List(), bytes.buffer.asUint8List());
+  });
+
+  test('the d3d12 section name is reserved and distinct, and rides along', () {
+    // Nothing writes it yet. Mutation: spell it as another section's id,
+    // and a Direct3D backend would read a different backend's bytes.
+    expect(ShaderBundle.d3d12Section, 'd3d12');
+    expect(<String>{
+      ShaderBundle.impellerSection,
+      ShaderBundle.webglSection,
+      ShaderBundle.webgpuSection,
+      ShaderBundle.materialSection,
+      ShaderBundle.kernelSection,
+    }, isNot(contains(ShaderBundle.d3d12Section)));
+    final bundle = ShaderBundle(
+      name: 'reserved',
+      sdk: '',
+      stages: const <ShaderBundleStage>[],
+      sections: <String, ByteData>{
+        ShaderBundle.d3d12Section: _payload(<int>[0x44, 0x58]),
+      },
+    );
+    final back = ShaderBundle.decode(bundle.encode());
+    expect(back.section(ShaderBundle.d3d12Section)!.buffer.asUint8List(), <int>[
+      0x44,
+      0x58,
+    ]);
   });
 
   test('a decoded section is a copy that starts at zero', () {
@@ -126,7 +153,7 @@ void main() {
       expect(
         () => ShaderBundle.decode(bytes),
         throwsA(
-          isA<ShaderBundleRefused>()
+          isA<ShaderBundleException>()
               .having((r) => r.name, 'name', isEmpty)
               .having((r) => r.reason, 'reason', contains('F3SB')),
         ),
@@ -144,7 +171,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(cut),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'effects')
             .having((r) => r.reason, 'reason', contains('ends before')),
       ),
@@ -168,7 +195,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(badName),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', isEmpty)
             .having((r) => r.reason, 'reason', contains('UTF-8')),
       ),
@@ -182,7 +209,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(badSdk),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'effects')
             .having((r) => r.reason, 'reason', contains('UTF-8')),
       ),
@@ -195,7 +222,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(bytes),
       throwsA(
-        isA<ShaderBundleRefused>().having(
+        isA<ShaderBundleException>().having(
           (r) => r.reason,
           'reason',
           contains('format version 99'),
@@ -228,14 +255,14 @@ void main() {
 
   test('a refusal reads as a sentence, with the name when there is one', () {
     expect(
-      const ShaderBundleRefused(
+      const ShaderBundleException(
         name: 'effects',
         reason: 'no such SDK',
       ).toString(),
       'the shader bundle "effects" was refused: no such SDK',
     );
     expect(
-      const ShaderBundleRefused(name: '', reason: 'not a bundle').toString(),
+      const ShaderBundleException(name: '', reason: 'not a bundle').toString(),
       'a shader bundle was refused: not a bundle',
     );
   });
@@ -269,7 +296,7 @@ void main() {
           ).encode(),
         ),
         throwsA(
-          isA<ShaderBundleRefused>()
+          isA<ShaderBundleException>()
               .having((r) => r.name, 'name', 'v2')
               .having((r) => r.reason, 'reason', contains('"Stripes"')),
         ),
@@ -279,7 +306,7 @@ void main() {
 
       expect(
         () => device.loadShaders(ByteData(16)),
-        throwsA(isA<ShaderBundleRefused>()),
+        throwsA(isA<ShaderBundleException>()),
       );
     },
   );
