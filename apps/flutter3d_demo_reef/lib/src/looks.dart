@@ -18,6 +18,8 @@ import 'package:flutter3d_effects/flutter3d_effects.dart';
 /// One piece of a model: geometry, where it sits in the model, and the
 /// colour and picture its file gave it.
 final class ModelPiece {
+  /// A piece called [name], drawn as [mesh] from [data], placed by [place],
+  /// coloured [color] and painted with [picture].
   ModelPiece(
     this.name,
     this.mesh,
@@ -29,21 +31,32 @@ final class ModelPiece {
 
   /// The material's name in the file: what a caller recolours by.
   final String name;
+
+  /// The piece's geometry, uploaded.
   final DeviceMesh mesh;
 
   /// The vertices as they were read, for a caller that merges copies of a
   /// small model into one mesh rather than drawing each.
   final MeshData data;
+
+  /// Where the piece sits in the model.
   final Matrix4 place;
+
+  /// The colour its file gave it, sRGB with alpha.
   final Vector4 color;
+
+  /// The picture its file gave it, or null when it has none.
   final TextureHandle? picture;
 }
 
 /// A model read and uploaded, ready to be dressed in the sea's material as
 /// often as it is wanted.
 final class ReefModel {
+  /// A model of [pieces], with the empty nodes the file carries as
+  /// [anchors].
   ReefModel(this.pieces, this.anchors);
 
+  /// Every piece of the model, as the file lists them.
   final List<ModelPiece> pieces;
 
   /// The empty nodes the file carries, by name: where the diver's head,
@@ -214,6 +227,8 @@ final class ReefLooks {
   /// The head, cast in bronze — modelled in marble, which the colour sees
   /// to — and the chest.
   final ReefModel bust;
+
+  /// The chest, one of the finds. See [bust].
   final ReefModel chest;
 
   /// Two boulders, each a metre high, to scatter at any size.
@@ -223,9 +238,16 @@ final class ReefLooks {
   /// rock's alpha is its height, crevice to crest, and [reefRelief] the
   /// same rock's normal map, texel for texel over its picture.
   final TextureHandle sand;
+
+  /// The reef's rock, repeating; its alpha is its height, crevice to crest.
+  /// See [sand].
   final TextureHandle reefRock;
+
+  /// The same rock's normal map, texel for texel over [reefRock].
   final TextureHandle reefRelief;
 
+  /// Reads every model and picture the dive uses and uploads them onto
+  /// [device].
   static Future<ReefLooks> load(GraphicsDevice device) async {
     Future<ReefModel> model(String file) =>
         _read(device, 'assets/models/$file');

@@ -6,11 +6,15 @@ library;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 
+/// Plays what the dive hears: a splash for each one the physics reports,
+/// and the diver's breath while under.
 final class ReefSound {
+  /// Sound for the dive, played in [_scene] as [_hearing] hears the sea.
   ReefSound(this._scene, this._hearing);
 
   static const String _from = 'packages/flutter3d_effects/assets';
 
+  /// Something landing in the sea, played once for each splash heard.
   static const SoundDef splash = SoundDef(
     name: 'splash',
     asset: '$_from/splash.wav',
@@ -28,6 +32,7 @@ final class ReefSound {
     maxInstances: 2,
   );
 
+  /// Every sound the dive plays, the bank they are loaded from.
   static final SoundBank bank = SoundBank(<SoundDef>[splash, exhale]);
 
   final AudioScene _scene;
@@ -68,5 +73,6 @@ final class ReefSound {
     _scene.update(listener);
   }
 
+  /// Stops every sound playing.
   void stop() => _scene.stopAll();
 }

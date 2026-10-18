@@ -40,6 +40,8 @@ double squeezeAt(NativeWorld world, double depth) {
 
 /// The diver and their gear.
 final class Diver {
+  /// A diver at [at] in the world, drawn into [scene] as [figure] with the
+  /// gear hung on it, in [floor]'s light, its meshes uploaded to [device].
   Diver(
     this._world,
     GraphicsDevice device,
@@ -376,13 +378,20 @@ final class Diver {
   static const double jacketMost = 15.0, inflates = 1.2, dumps = 2.0;
 
   final NativeWorld _world;
+
+  /// The diver and their gear as one body in the world.
   late final NativeBody body;
+
+  /// What draws the diver, placed where [body] is each frame.
   late final SceneNode look;
 
   /// Air left in the tank, and in the jacket, litres as at the surface.
   double air = tankLitres, jacket = 0.0;
 
+  /// Where the diver is, in the world.
   Vector3 get position => _world.localPositionOf(body);
+
+  /// How fast the diver is moving, in metres a second.
   Vector3 get velocity => _world.velocityOf(body);
 
   /// Metres under the sea's [level].

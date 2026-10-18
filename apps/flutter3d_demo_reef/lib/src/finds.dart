@@ -18,10 +18,16 @@ import 'wreck.dart' show wreckFloor;
 
 /// A thing on the bottom worth bringing up.
 final class Find {
+  /// A find called [name], held as [body] and drawn by [look].
   Find(this.name, this.body, this.look);
 
+  /// What the panel calls it.
   final String name;
+
+  /// The find as the world holds it.
   final NativeBody body;
+
+  /// What draws the find, placed where [body] is each frame.
   final SceneNode look;
 
   /// Whether it has been lifted into the boat.
@@ -31,6 +37,8 @@ final class Find {
   /// boat to come round for it.
   double surfaced = 0.0;
 
+  /// Whether it is aboard and how long it has hung at the surface, for a
+  /// snapshot; [restore] reads it back.
   Map<String, Object?> save() => <String, Object?>{
     'aboard': aboard,
     'surfaced': surfaced,
@@ -48,6 +56,8 @@ final class Find {
 
 /// The finds, laid where they lie.
 final class Finds {
+  /// The finds laid on the bottom of the world, drawn into [scene] with
+  /// [looks]' models in [floor]'s light, their meshes uploaded to [device].
   Finds(
     this._world,
     GraphicsDevice device,
@@ -208,6 +218,8 @@ final class Finds {
   ]);
 
   final NativeWorld _world;
+
+  /// Every find, in the order it was laid.
   final List<Find> finds = <Find>[];
 
   /// [lift] metres over the floor at (x, z).
@@ -232,6 +244,7 @@ final class Finds {
 
 /// A lift bag: a body as big as the air in it, on a rope to what it lifts.
 final class LiftBag {
+  /// A folded bag in the world, drawn by its node.
   LiftBag(this._world, this._node);
 
   /// What it holds at most, litres, and how long its rope is, m.
@@ -245,13 +258,18 @@ final class LiftBag {
 
   NativeBody? _body;
   NativeJoint? _rope;
+
+  /// The find the bag is tied to, or null while it is folded.
   Find? lifting;
 
   /// The air in it, litres as at the surface.
   double air = 0.0;
   double _radius = _folded;
 
+  /// Whether the bag is tied to a find.
   bool get inUse => lifting != null;
+
+  /// Where the bag is in the world, or null while it is folded.
   Vector3? get position =>
       _body == null ? null : _world.localPositionOf(_body!);
 

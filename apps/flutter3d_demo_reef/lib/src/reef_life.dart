@@ -50,6 +50,9 @@ const List<(double, double, double)> _clear = <(double, double, double)>[
 /// The reef's growth and its boulders, added to [scene]; nothing of either
 /// inside the [hull].
 final class ReefLife {
+  /// The reef's growth and [rocks] scattered over the floor, drawn into
+  /// [scene] in [floor]'s light, none of it inside [hull]; [light] is the
+  /// phone's lighter detail.
   ReefLife(
     GraphicsDevice device,
     Scene scene,

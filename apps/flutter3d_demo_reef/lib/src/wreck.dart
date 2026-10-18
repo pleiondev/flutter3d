@@ -22,6 +22,8 @@ double get wreckFloor => floorAt(wreckX, wreckZ);
 /// mast fallen beside her — solid as boxes, drawn as [look], a ship's hull
 /// the sea has had for a long time.
 final class Wreck {
+  /// The ship lying on the floor of [world], drawn into [scene] as [look] in
+  /// [floor]'s light, its meshes uploaded to [device].
   Wreck(
     NativeWorld world,
     GraphicsDevice device,
@@ -264,6 +266,8 @@ final class HullRoom {
 
 /// The dive boat: afloat, anchored over the reef flat.
 final class Boat {
+  /// The boat afloat on the sea's [level] over the reef flat, drawn into
+  /// [scene], its mesh uploaded to [device].
   Boat(this._world, GraphicsDevice device, Scene scene, double level) {
     body = _world.addBody(
       position: Vector3(boatX, level + 0.2, boatZ),
@@ -282,7 +286,11 @@ final class Boat {
   }
 
   final NativeWorld _world;
+
+  /// The boat's hull as the world holds it.
   late final NativeBody body;
+
+  /// What draws the boat, placed where [body] is each frame.
   late final SceneNode look;
 
   /// What the launch's engine pulls with at a standstill, N: a small
@@ -342,6 +350,7 @@ final class Boat {
     if (_rope == null) _drop();
   }
 
+  /// Where the boat is, in the world.
   Vector3 get position => _world.localPositionOf(body);
 
   /// Her anchor and its rope, by their handles, or nulls while she motors.
@@ -363,6 +372,7 @@ final class Boat {
       Vector2(at.x - position.x, at.z - position.z).length < 4.0 &&
       at.y > position.y - 1.5;
 
+  /// Moves the boat's drawing to where the world has it.
   void update() {
     final p = position;
     look.setPosition(p.x, p.y, p.z);

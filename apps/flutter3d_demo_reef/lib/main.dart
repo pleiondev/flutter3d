@@ -94,30 +94,30 @@ ActionMap reefControls() {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await preparePhysics();
-  runApp(const ReefApp());
+  runApp(const _ReefApp());
 }
 
 /// The application: one screen.
-class ReefApp extends StatelessWidget {
-  const ReefApp({super.key});
+class _ReefApp extends StatelessWidget {
+  const _ReefApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'Wreck Reef',
     debugShowCheckedModeBanner: false,
-    home: ReefScreen(),
+    home: _ReefScreen(),
   );
 }
 
 /// Opens the device and runs the dive.
-class ReefScreen extends StatefulWidget {
-  const ReefScreen({super.key});
+class _ReefScreen extends StatefulWidget {
+  const _ReefScreen();
 
   @override
-  State<ReefScreen> createState() => _ReefScreenState();
+  State<_ReefScreen> createState() => _ReefScreenState();
 }
 
-class _ReefScreenState extends State<ReefScreen>
+class _ReefScreenState extends State<_ReefScreen>
     with SingleTickerProviderStateMixin {
   /// The sun: high, from the south-west, a late morning.
   static Vector3 get _sunAlong => Vector3(0.3, -0.85, -0.42);

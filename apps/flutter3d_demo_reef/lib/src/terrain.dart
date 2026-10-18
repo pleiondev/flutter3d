@@ -13,11 +13,17 @@ import 'package:vector_math/vector_math.dart';
 
 /// The sea's side, m, and how many cells of its grid a side.
 const double reefSize = 64.0;
+
+/// How many cells of the sea's grid a side.
 const int seaCells = 64;
+
+/// How wide each of the sea's cells is, in metres: one.
 const double seaCell = reefSize / seaCells;
 
 /// How many vertices a side the solid floor has.
 const int floorCells = 128;
+
+/// How far apart the solid floor's vertices are, in metres: half a metre.
 const double floorCell = reefSize / floorCells;
 
 /// How many vertices a side the floor that is drawn has: a quarter of a
@@ -30,6 +36,9 @@ const int drawnCells = 256;
 /// The reef flat's depth, where its wall begins and ends, and the sand
 /// plain's depth below it, m.
 const double flatDepth = 4.0, wallTop = 18.0, wallFoot = 27.0;
+
+/// The sand plain's depth under the sea's level, in metres. See
+/// [flatDepth].
 const double plainDepth = 14.5;
 
 /// Where the boat rides, over the flat.
@@ -38,6 +47,8 @@ const double boatX = 12.0, boatZ = 32.0;
 /// The ship: where its middle lies, which way its bow points, radians from
 /// +x, and half its length and beam.
 const double wreckX = 43.0, wreckZ = 34.0, wreckHeading = 0.55;
+
+/// Half the ship's length and half her beam, in metres.
 const double wreckHalfLength = 9.0, wreckHalfBeam = 2.6;
 
 /// [wreckHeading] as a direction, worked out once and the same on every

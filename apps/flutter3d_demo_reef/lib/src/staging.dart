@@ -50,10 +50,20 @@ const SimulationVersion reefSimulation = SimulationVersion(genre: 'reef');
 /// [GameAction.moveForward] and its kin: up and down, the jacket filled and
 /// dumped, all held; and [act], a bag tied or air blown into one, pressed.
 abstract final class ReefActions {
+  /// Up through the water, as a dive recorded before [ascend] was an axis has
+  /// it.
   static const GameAction rise = GameAction('rise');
+
+  /// Down through the water, as an older dive has it. See [rise].
   static const GameAction sink = GameAction('sink');
+
+  /// Air from the tank into the jacket, held; R.
   static const GameAction fill = GameAction('fill');
+
+  /// Air out of the jacket, held; Q.
   static const GameAction dump = GameAction('dump');
+
+  /// Tie a bag to the find within reach, or blow air into the bag tied; E.
   static const GameAction act = GameAction('act');
 
   /// Up through the water, positive: what [rise] less [sink] was.
@@ -118,6 +128,9 @@ final Liquid _seawater = Liquid(
 
 /// A dive, stepped and drawn.
 final class ReefRun {
+  /// The dive in [scene] and [elements], built on [device] with [looks]
+  /// under [surface] and over [floor]. [input] is what the diver swims with;
+  /// a fresh one when it is null.
   ReefRun({
     required GraphicsDevice device,
     required this.scene,
@@ -211,6 +224,8 @@ final class ReefRun {
   final Map<Find, TrackedBody> _tracked = <Find, TrackedBody>{};
 
   final GraphicsDevice _device;
+
+  /// What the sea floor, the reef, the wreck and the diver are drawn in.
   final Scene scene;
 
   /// The sea, the finds and the bags as the core has them, drawn and heard;
@@ -222,16 +237,25 @@ final class ReefRun {
 
   /// The sea's surface, and everything under it.
   final LiquidLook surface;
+
+  /// How the sea floor and everything on it is lit under the water.
   final SeabedLook floor;
 
   /// The models and pictures read before the dive.
   final ReefLooks looks;
 
+  /// The physics world the dive moves in: [elements]' own.
   NativeWorld get world => elements.world;
   late final List<double> _floor;
   late final WaterBody _sea;
+
+  /// The sea as the core has it.
   NativeShallowLiquid get sea => _sea.native;
+
+  /// The ship lying on the sand plain.
   late final Wreck wreck;
+
+  /// The dive boat over the reef flat.
   late final Boat boat;
 
   /// The solid floor, which the eye is kept out of with the ship.
@@ -250,9 +274,17 @@ final class ReefRun {
         .firstOrNull
         ?.at,
   );
+
+  /// What lies on the bottom to be brought up.
   late final Finds finds;
+
+  /// The diver the player swims.
   late final Diver diver;
+
+  /// The diver's lift bags, folded or tied.
   final List<LiftBag> bags = <LiftBag>[];
+
+  /// What the sea sounds like this frame: [elements]' hearing.
   PhysicsHearing get hearing => elements.hearing!;
 
   /// What the last action did, for the panel.
@@ -755,6 +787,7 @@ final class ReefRun {
     }
   }
 
+  /// Lets go of [elements] and then the world.
   void dispose() {
     elements.dispose();
     world.dispose();
