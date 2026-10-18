@@ -28,14 +28,22 @@ typedef Capturer = Future<void> Function(String outputPath);
 /// `bin/shoot.dart`'s own summary print) to check against what the
 /// scenario asked for.
 final class ExecutedStep {
+  /// A step [runScenario] has finished, with where its capture went if it
+  /// took one.
   const ExecutedStep({
     required this.tool,
     required this.args,
     this.screenshotPath,
   });
 
+  /// The tool that was called, as the scenario's step named it.
   final String tool;
+
+  /// The arguments it was called with, the step's own.
   final Map<String, Object?> args;
+
+  /// The full path the screenshot was saved to, `<outDir>/<case>/<file>`;
+  /// null for a step that named no screenshot.
   final String? screenshotPath;
 }
 

@@ -15,8 +15,11 @@ import 'mcp_session.dart';
 /// before the first [callTool] — the same handshake every MCP client owes
 /// a server before it answers anything else.
 final class McpClient {
+  /// A client for [session], with its own [HttpClient]; nothing is sent
+  /// until [initialize].
   McpClient(this.session) : _http = HttpClient();
 
+  /// Where every request goes and the token it carries.
   final McpSession session;
   final HttpClient _http;
   int _nextId = 1;

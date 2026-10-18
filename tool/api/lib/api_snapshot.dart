@@ -85,6 +85,8 @@ String snapshotPathOf(String package) => 'api/$package.api';
 /// parsed between them: `flutter3d` re-exports `flutter3d_core`, and the core
 /// is read once for both.
 final class ApiSnapshotter {
+  /// A snapshotter over [packages], with nothing parsed yet: each library is
+  /// read the first time a snapshot needs it, and kept for the next.
   ApiSnapshotter(this.packages);
 
   /// Every package of the repository, by name — to resolve `package:` URIs.
@@ -330,6 +332,7 @@ bool Function(String) _combinators(List<Combinator> combinators) {
         case ShowCombinator(:final shownNames)
             when !shownNames.any((SimpleIdentifier n) => n.name == name):
           return false;
+        // ignore: no-equal-switch-case, each arm has its own guard, and a guard cannot be shared.
         case HideCombinator(:final hiddenNames)
             when hiddenNames.any((SimpleIdentifier n) => n.name == name):
           return false;

@@ -5,6 +5,8 @@ library;
 
 /// One parsed invocation of `convert_asset`.
 final class ConvertAssetOptions {
+  /// An invocation as [parse] reads it; [name] already defaulted to the
+  /// input's base name when `-o` was not given.
   const ConvertAssetOptions({
     required this.input,
     required this.format,
@@ -76,6 +78,8 @@ String _baseNameOf(String path) {
   return dot <= 0 ? base : base.substring(0, dot);
 }
 
+/// What the tool prints to stderr when [ConvertAssetOptions.parse] refuses a
+/// command line, and after an unknown format: the arguments it takes.
 const String usage = '''
 Usage: convert_asset <input> -f <format> [--textures keep] [-o <name>]
 

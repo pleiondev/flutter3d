@@ -25,6 +25,8 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 
 /// One fenced Dart block of a page.
 final class DocBlock {
+  /// One block of a page: [docBlocksOf] makes them, and the checker remakes
+  /// one with the imports every snippet is read with added.
   DocBlock({
     required this.line,
     required this.source,
@@ -54,11 +56,20 @@ typedef DocSnippet = ({DocBlock block, String doc, int offset});
 
 /// One name that resolves wrong, at its page's line.
 final class DocFinding {
+  /// A finding at [line] of [doc], as the analyzer reported it.
   DocFinding(this.doc, this.line, this.code, this.message);
 
+  /// The page the block is on, as a path from the repository root.
   final String doc;
+
+  /// The page's line the wrong name is on, 1-based: the analyzer's line in
+  /// the written-out file, moved back to where the block sits in the page.
   final int line;
+
+  /// The analyzer's diagnostic code, `UNDEFINED_METHOD` and the like.
   final String code;
+
+  /// The analyzer's message, naming what did not resolve.
   final String message;
 
   @override

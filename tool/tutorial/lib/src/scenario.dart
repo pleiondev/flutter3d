@@ -16,22 +16,12 @@ import 'dart:convert';
 /// tools (`ui.setMode`, `ui.say`, …) — [ShootRunner] does not tell the two
 /// apart, and neither does this parser.
 final class TutorialStep {
+  /// A step calling [tool] with [args], caught under [screenshot] if given.
   const TutorialStep({required this.tool, required this.args, this.screenshot});
 
-  /// The MCP tool name — `tools/call`'s own `name`.
-  final String tool;
-
-  /// `tools/call`'s own `arguments`, JSON-shaped.
-  final Map<String, Object?> args;
-
-  /// The PNG filename this step is caught under, joined to the scenario's
-  /// own output directory by [TutorialScenario.screenshotPath] —
-  /// `NN-<step>.png`, the convention T6's plan fixes for
-  /// `cloud/server/web/assets/learn/modeler/<case>/`. Null for a step with
-  /// nothing of its own worth catching — a setup step a later screenshot
-  /// depends on, say.
-  final String? screenshot;
-
+  /// Reads one entry of a scenario's `steps` list. Throws a
+  /// [FormatException] naming the step when `tool` is missing or empty, or
+  /// when `args` is not an object or `screenshot` not a string.
   factory TutorialStep.fromJson(Map<String, Object?> json) {
     final tool = json['tool'];
     if (tool is! String || tool.isEmpty) {
@@ -56,6 +46,22 @@ final class TutorialStep {
     );
   }
 
+  /// The MCP tool name — `tools/call`'s own `name`.
+  final String tool;
+
+  /// `tools/call`'s own `arguments`, JSON-shaped.
+  final Map<String, Object?> args;
+
+  /// The PNG filename this step is caught under, joined to the scenario's
+  /// own output directory by [TutorialScenario.screenshotPath] —
+  /// `NN-<step>.png`, the convention T6's plan fixes for
+  /// `cloud/server/web/assets/learn/modeler/<case>/`. Null for a step with
+  /// nothing of its own worth catching — a setup step a later screenshot
+  /// depends on, say.
+  final String? screenshot;
+
+  /// The step as the scenario file writes it: `args` and `screenshot` are
+  /// left out when empty, so [TutorialStep.fromJson] reads it back the same.
   Map<String, Object?> toJson() => <String, Object?>{
     'tool': tool,
     if (args.isNotEmpty) 'args': args,
@@ -67,16 +73,12 @@ final class TutorialStep {
 /// placeholder scenario `tool/tutorial/test/fixtures` carries until a real
 /// one exists.
 final class TutorialScenario {
+  /// A case called [name] that runs [steps] in order.
   const TutorialScenario({required this.name, required this.steps});
 
-  /// The case's own slug — `a-prop-from-a-scan`, say — used both as this
-  /// scenario's own name and as the subdirectory its screenshots land in
-  /// (see [screenshotPath]), matching
-  /// `cloud/server/web/assets/learn/modeler/<case>/`.
-  final String name;
-
-  final List<TutorialStep> steps;
-
+  /// Reads a scenario file's decoded object. Throws a [FormatException]
+  /// when `name` is missing or empty or `steps` is not a list, and passes on
+  /// whatever [TutorialStep.fromJson] throws for a bad step.
   factory TutorialScenario.fromJson(Map<String, Object?> json) {
     final name = json['name'];
     if (name is! String || name.isEmpty) {
@@ -100,6 +102,17 @@ final class TutorialScenario {
   factory TutorialScenario.parse(String source) =>
       TutorialScenario.fromJson(json.decode(source) as Map<String, Object?>);
 
+  /// The case's own slug — `a-prop-from-a-scan`, say — used both as this
+  /// scenario's own name and as the subdirectory its screenshots land in
+  /// (see [screenshotPath]), matching
+  /// `cloud/server/web/assets/learn/modeler/<case>/`.
+  final String name;
+
+  /// What the case does, in the order `bin/shoot.dart` calls it.
+  final List<TutorialStep> steps;
+
+  /// The scenario as its JSON file holds it, each step through
+  /// [TutorialStep.toJson].
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'steps': <Object?>[for (final step in steps) step.toJson()],

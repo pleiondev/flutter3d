@@ -18,8 +18,11 @@ import 'reading.dart';
 /// running and reading something different from us, which is a finding rather
 /// than a failure to have one.
 final class GodotRefused implements Exception {
+  /// A refusal carrying what to tell the person who ran the check.
   GodotRefused(this.said);
 
+  /// The reason, with what Godot printed when it printed anything: the whole
+  /// of its import output, not only the lines that matched a complaint.
   final String said;
 
   @override
