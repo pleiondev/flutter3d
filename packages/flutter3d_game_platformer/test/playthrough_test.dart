@@ -331,6 +331,22 @@ void main() {
       expect(run.taken, isEmpty);
     });
 
+    test('and a coin a level names, with no worth written, scores', () {
+      // Mutation: drop the worth from `CollectibleKind.spawn`. The kind built
+      // every collectible at the class's default of nought, so a level's
+      // coins went into the purse and never into the score.
+      final run = _Run()
+        ..run(
+          180,
+          until: (_Run r) => r.lastStep.any((e) => e is CollectibleTaken),
+        );
+
+      final taken = run.lastStep.whereType<CollectibleTaken>().single;
+      expect(taken.collectible.worth, 1.0, reason: 'one point a coin');
+      expect(taken.scored, 1.0, reason: 'the first in a chain is not raised');
+      expect(run.sim.scoring.total, 1.0);
+    });
+
     test('a revived runner stands on the floor rather than inside it', () {
       // **The bug a player found in four seconds.** A level says where a
       // checkpoint is the way a person points at the floor; a body is a box

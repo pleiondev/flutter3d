@@ -10,7 +10,9 @@ import '../platformer_entities.dart';
 ///
 /// Needs a `what`, the purse kind it counts as; one without it spawns
 /// nothing. `count` is how many it gives, one if absent, and a count of
-/// nought or less is warned about. `key` makes it open a door too.
+/// nought or less is warned about. `key` makes it open a door too. `worth` is
+/// the points taking it scores before the chain: one a thing counted if
+/// absent, and nought for one that carries a key.
 final class CollectibleKind extends EntityKind {
   /// A player has to be able to get to one of these. See
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
@@ -56,12 +58,18 @@ final class CollectibleKind extends EntityKind {
       mask: CollisionLayers.player,
       fallbackSize: defaultSize,
     );
+    final howMany = entity.integer('count') ?? 1;
+    final key = entity.string('key');
     final collectible = context.mechanisms.add(
       Collectible(
         name: entity.name,
         what: what,
-        howMany: entity.integer('count') ?? 1,
-        key: entity.string('key'),
+        howMany: howMany,
+        // Read here or nowhere: left to the class's default of nought, every
+        // coin a level placed went into the purse and scored nothing.
+        worth:
+            entity.number('worth') ?? (key == null ? howMany.toDouble() : 0.0),
+        key: key,
         collider: collider,
       ),
     );
