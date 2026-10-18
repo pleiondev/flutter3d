@@ -81,6 +81,7 @@
     "4.3/4.3R": "done",
     "4.3/4.3B": "todo",
     "4.3/4.3N": "todo",
+    "4.3/4.3U": "todo",
     "4.3/4.3.6": "todo",
     "4.3/4.3Z": "todo"
   },
@@ -91,6 +92,7 @@
     "4.3/4.3Q": "orthographic cascades, the timeline's tapes, migrate --data pipeline; the platformer replay_test blocks P1",
     "4.3/4.3S": "Direct3D 12 as a reference standard: reserved names, the sidecar's backend, WARP in CI, the HLSL lint, the feature mask",
     "4.3/4.3R": "from the engines comparison: system reads and writes, the frame graph snapshot, typed uniform blocks, the device-loss registry; WebGL's shader library still answers its cached stages after a restore, so recoverFromLoss gets live stages there only once the backend drops them on webglcontextrestored; Wasm systems do not declare reads/writes yet",
+    "4.3/4.3U": "testing a game without mocks: fakes for every edge seam, the scan, a rule and a guide",
     "4.3/4.3.6": "the third recheck; rc.1's scope freezes after it",
     "goal/P2": "tool/soak.sh exists; the run on the A55 is to do",
     "goal/P3": "VM, dart2js and dart2wasm equal on macOS; Linux and MSVC from GitHub-hosted runners, Android and iOS with P1",
