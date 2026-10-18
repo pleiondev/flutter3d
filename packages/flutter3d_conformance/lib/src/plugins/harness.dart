@@ -19,6 +19,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// events alone, the outcome says the world was not compared, and the badge
 /// waits for a world (`earnsBadge`).
 final class PluginHarness {
+  /// A harness running [steps] steps a run, 600 by default, under [profile];
+  /// [steps] must be above nought.
   const PluginHarness({
     this.registries,
     this.setUp,
@@ -54,6 +56,8 @@ final class PluginHarness {
 
 /// What one check found, on one backend where the check is per backend.
 final class PluginCheckOutcome {
+  /// What [check] found: [passed] or not, or [declined], with [says] to read
+  /// beside it.
   const PluginCheckOutcome({
     required this.check,
     required this.passed,
@@ -136,6 +140,7 @@ final class PluginCheckOutcome {
 /// not know and a later minor of the plugin API may give the budget a field
 /// of its own without moving where a plugin wrote it.
 final class PluginBudget {
+  /// A budget with either limit left null when the plugin does not promise it.
   const PluginBudget({this.stepMicroseconds, this.eventsPerStep});
 
   /// The most the plugin may add to one step, in microseconds, measured as

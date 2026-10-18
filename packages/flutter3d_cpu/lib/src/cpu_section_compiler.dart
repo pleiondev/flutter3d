@@ -15,6 +15,7 @@ import 'package:flutter3d_shaders/backend.dart';
 ///
 /// Registered by `registerCpuBackend(materialCompilers:)` beside the device.
 final class CpuSectionCompiler extends MaterialCompiler {
+  /// Holds no state; `registerCpuBackend` registers one beside the device.
   const CpuSectionCompiler();
 
   @override

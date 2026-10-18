@@ -29,6 +29,7 @@ typedef _Timed = ({String label, web.WebGLQuery query});
 
 /// The frame timer behind `WebGlDevice.onGpuTimings`.
 final class WebGlFrameTimer {
+  /// A timer over the context's elapsed-time queries, with none open yet.
   WebGlFrameTimer(this._gl);
 
   final web.WebGL2RenderingContext _gl;

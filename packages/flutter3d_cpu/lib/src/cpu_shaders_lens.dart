@@ -11,6 +11,8 @@ import 'cpu_shader.dart';
 
 /// `lens_flare.frag`.
 final class LensFlareShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `LensFlare`.
   const LensFlareShader();
 
   /// `Falloff`: all of a reflection in the middle, nothing at the corners.

@@ -18,6 +18,9 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 
 /// What `StorageBuffer.backend` carries for a buffer this backend made.
 final class GpuBuffer {
+  /// A buffer of [lengthInBytes] bytes on both sides, zeroed on the host. A
+  /// length of nought allocates four device bytes, since flutter_gpu refuses an
+  /// empty allocation.
   GpuBuffer(int lengthInBytes)
     : host = Uint8List(lengthInBytes),
       // flutter_gpu refuses an empty allocation; a zero-length buffer is a

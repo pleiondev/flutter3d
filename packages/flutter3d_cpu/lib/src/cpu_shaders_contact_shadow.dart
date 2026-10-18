@@ -20,6 +20,8 @@ import 'cpu_shaders_reflections.dart' show pixelNoise;
 /// `contact_shadow.frag`: whether the sun reaches this point over the first few
 /// centimetres, which is the stretch a shadow map cannot answer for.
 final class ContactShadowShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ContactShadow`.
   const ContactShadowShader();
 
   @override
@@ -122,6 +124,8 @@ final class ContactShadowShader extends CpuFragmentShader {
 /// the comb this pass removes is exactly the kind of thing a backend
 /// disagreement would hide behind.
 final class ContactShadowResolveShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ContactShadowResolve`.
   const ContactShadowResolveShader();
 
   @override

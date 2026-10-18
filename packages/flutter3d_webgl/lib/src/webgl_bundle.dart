@@ -26,15 +26,21 @@ import 'webgl_shaders.dart';
 
 /// What a [RenderBundle] carries on this backend: the recorded calls.
 final class WebGlBundle {
+  /// A bundle of [calls], copied into an unmodifiable list.
   WebGlBundle(List<void Function(PassEncoder pass)> calls)
     : calls = List<void Function(PassEncoder pass)>.unmodifiable(calls);
 
+  /// The recorded calls, in order; replaying the bundle runs each against the
+  /// pass.
   final List<void Function(PassEncoder pass)> calls;
 }
 
 /// Records a [WebGlBundle]. See the library note.
 final class WebGlRenderBundleEncoder extends PassEncoder
     with RenderBundleEncoder {
+  /// Records a bundle the descriptor describes, for the device's context. A
+  /// call made after the bundle is finished, or one that belongs to a pass,
+  /// throws a [StateError].
   WebGlRenderBundleEncoder(this._device, this._gl, this._descriptor);
 
   final WebGlDevice _device;

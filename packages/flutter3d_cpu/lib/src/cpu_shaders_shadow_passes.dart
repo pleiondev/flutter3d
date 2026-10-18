@@ -21,6 +21,8 @@ import 'cpu_shaders_surface.dart' show hashedAlphaNoise, uvFootprint;
 /// all its precision near the near plane, and comparing two of them would mean
 /// nothing.
 final class ShadowDepthShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowDepth`.
   const ShadowDepthShader();
 
   @override
@@ -34,6 +36,8 @@ final class ShadowDepthShader extends CpuFragmentShader {
 /// same distance reads differently depending which face a direction lands on
 /// and every face boundary shows a seam.
 final class ShadowDistanceShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowDistance`.
   const ShadowDistanceShader();
 
   @override
@@ -73,6 +77,8 @@ bool _maskPasses(ShaderBindings bindings, Float32List v) {
 /// its quad, which is a stack of dark slabs where the eye expects dappled
 /// light.
 final class ShadowDepthMaskedShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowDepthMasked`.
   const ShadowDepthMaskedShader();
 
   @override
@@ -82,6 +88,8 @@ final class ShadowDepthMaskedShader extends CpuFragmentShader {
 
 /// `shadow_distance_masked.frag`: the point-light twin of the above.
 final class ShadowDistanceMaskedShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowDistanceMasked`.
   const ShadowDistanceMaskedShader();
 
   @override
@@ -102,6 +110,8 @@ final class ShadowDistanceMaskedShader extends CpuFragmentShader {
 /// of blue, red nought so the depth beneath survives the blend; the GLSL
 /// stage has the reasons, and this is the same arithmetic.
 final class ShadowTransmittanceShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowTransmittance`.
   const ShadowTransmittanceShader();
 
   @override
@@ -145,6 +155,8 @@ final class ShadowTransmittanceShader extends CpuFragmentShader {
 /// `shadow_copy.frag`: one cascade's tile of the static atlas, into colour
 /// and depth — `S1`.
 final class ShadowCopyShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowCopy`.
   const ShadowCopyShader();
 
   @override
@@ -187,6 +199,8 @@ final class ShadowCopyShader extends CpuFragmentShader {
 /// gradient noise at the pixel. Null is the discard; anything else is drawn
 /// under a blend that keeps what is there.
 final class DepthPredrawShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `DepthPredraw`.
   const DepthPredrawShader();
 
   @override
@@ -240,6 +254,8 @@ final class DepthPredrawShader extends CpuFragmentShader {
 /// A texel no caster covers means "nothing between the light and its range",
 /// which is the right answer for a direction with nothing in it.
 final class ShadowTileResetShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowTileReset`.
   const ShadowTileResetShader();
 
   @override
@@ -255,6 +271,8 @@ final class ShadowTileResetShader extends CpuFragmentShader {
 /// beyond it fail and vanish. In the engine's history that was a shadow that
 /// was present before the tile reset existed and missing after.
 final class ShadowTileResetVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ShadowTileResetVertex`.
   const ShadowTileResetVertexShader();
 
   @override
@@ -271,6 +289,8 @@ final class ShadowTileResetVertexShader extends CpuVertexShader {
 /// `caustic_surface.frag`: a refracting caster's normal and depth, as the sun
 /// sees it — `ShadowSettings.caustics`.
 final class CausticSurfaceShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `CausticSurface`.
   const CausticSurfaceShader();
 
   @override
@@ -285,6 +305,8 @@ final class CausticSurfaceShader extends CpuFragmentShader {
 /// lands, sized by where its neighbours land — the same arithmetic, with the
 /// instance index as the texel.
 final class CausticPhotonVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `CausticPhotonVertex`.
   const CausticPhotonVertexShader();
 
   @override
@@ -470,6 +492,8 @@ final class CausticPhotonVertexShader extends CpuVertexShaderByIndex {
 
 /// `caustic_photon.frag`: a photon's quad, given back into the atlas.
 final class CausticPhotonShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `CausticPhoton`.
   const CausticPhotonShader();
 
   @override

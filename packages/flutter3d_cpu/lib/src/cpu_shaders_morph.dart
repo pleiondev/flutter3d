@@ -183,8 +183,14 @@ bool morphs(ShaderBindings bindings) {
 /// one made hundreds of thousands of times a frame — which is the allocation
 /// pattern every hot loop in this repository is written to avoid.
 final class MorphScratch {
+  /// The morphed position in model space, valid after [load] returns true.
   final Vector3 position = Vector3.zero();
+
+  /// The morphed normal in model space, valid after [load] returns true.
   final Vector3 normal = Vector3.zero();
+
+  /// The morphed tangent with its bitangent sign in w, valid after [load]
+  /// returns true.
   final Vector4 tangent = Vector4.zero();
 
   /// Loads the attributes at [offsets] and morphs them, returning whether

@@ -55,6 +55,8 @@ uniformBytesRefusal() => UnsupportedCapabilityException(
 /// A query set's results, as `QuerySet.backend` holds them: one integer per
 /// query, five per pipeline-statistics query.
 final class CpuQueryResults {
+  /// Zeroed results for [count] queries of [type]: one slot each, or one per
+  /// `PipelineStatistic` for a pipeline-statistics set.
   CpuQueryResults(QueryType type, int count)
     : values = List<int>.filled(
         type == QueryType.pipelineStatistics
@@ -63,6 +65,8 @@ final class CpuQueryResults {
         0,
       );
 
+  /// The results by slot: nanoseconds for a timestamp, a sample count for
+  /// occlusion, and the counters in `PipelineStatistic` order for statistics.
   final List<int> values;
 }
 
@@ -93,6 +97,7 @@ CpuQueryResults queryResultsOf(QuerySet querySet, QueryType type, int index) {
 final class CpuClock {
   final Stopwatch _watch = Stopwatch()..start();
 
+  /// Nanoseconds since the clock was made.
   int get nanoseconds => (_watch.elapsedTicks / _watch.frequency * 1e9).round();
 }
 
@@ -274,21 +279,34 @@ ByteData storageRangeOf(
 /// What a pipeline-statistics query counts, kept running by a pass so that
 /// a query is the difference between its end and its start.
 final class CpuStatistics {
+  /// The running count of each statistic, indexed by `PipelineStatistic.index`,
+  /// from nought when the pass began.
   final List<int> counts = List<int>.filled(PipelineStatistic.values.length, 0);
 
+  /// Adds [n] to the running count of [statistic].
   void add(PipelineStatistic statistic, int n) => counts[statistic.index] += n;
 }
 
 /// An open pipeline-statistics query: where its five results go and what
 /// the counters said when it began.
 final class CpuOpenStatisticsQuery {
+  /// Opens query [index] of [results], taking a copy of what [statistics] says
+  /// now as its [start].
   CpuOpenStatisticsQuery(this.results, this.index, CpuStatistics statistics)
     : start = List<int>.of(statistics.counts);
 
+  /// The set the query's counters are written into at [end].
   final CpuQueryResults results;
+
+  /// Which query of [results] this is; its counters start at `index *
+  /// PipelineStatistic.values.length`.
   final int index;
+
+  /// The pass's counters when the query began, one per `PipelineStatistic`.
   final List<int> start;
 
+  /// Closes the query, writing to [results] how far each of [statistics]'
+  /// counters moved since [start].
   void end(CpuStatistics statistics) {
     final base = index * PipelineStatistic.values.length;
     for (var i = 0; i < start.length; i++) {

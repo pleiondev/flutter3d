@@ -85,6 +85,8 @@ Vector3 towardsEyeFrom(ShaderBindings b, double x, double y, double z) {
 
 /// `particle.vert`: a billboard corner, and the world position for the fog.
 final class ParticleVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ParticleVertex`.
   const ParticleVertexShader();
 
   @override
@@ -113,6 +115,9 @@ final class ParticleVertexShader extends CpuVertexShader {
 /// but this stage could know that, which is why the derivative is passed in
 /// rather than read off the texture.
 final class ParticleTexturedShader extends CpuFragmentShader {
+  /// True [soft] fades the sprite where it nears the depth behind it;
+  /// `builtinCpuShaders` files the hard stage under `ParticleTextured` and the
+  /// soft one under `ParticleTexturedSoft`.
   const ParticleTexturedShader({this.soft = false});
 
   /// `particle_textured_soft.frag`: the same, faded by [softParticleFade].
@@ -162,6 +167,9 @@ final class ParticleTexturedShader extends CpuFragmentShader {
 /// The same varyings as the sprite stage: colour in 0..3, the cell's texture
 /// coordinate in 4..5, the world position in 6..8.
 final class ParticleSixWayShader extends CpuFragmentShader {
+  /// True [soft] fades the sprite where it nears the depth behind it;
+  /// `builtinCpuShaders` files the hard stage under `ParticleSixWay` and the
+  /// soft one under `ParticleSixWaySoft`.
   const ParticleSixWayShader({this.soft = false});
 
   /// `particle_six_way_soft.frag`: the same, its coverage faded by
@@ -257,6 +265,8 @@ final class ParticleSixWayShader extends CpuFragmentShader {
 /// buffer — see `MeshParticleContributor.layout`, which is the one place that
 /// order is decided.
 final class ParticleMeshVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ParticleMeshVertex`.
   const ParticleMeshVertexShader();
 
   @override
@@ -288,6 +298,8 @@ final class ParticleMeshVertexShader extends CpuVertexShader {
 
 /// `particle_mesh.frag`: additive, fogged, shaded by which way a face points.
 final class ParticleMeshShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ParticleMesh`.
   const ParticleMeshShader();
 
   @override
@@ -319,6 +331,9 @@ final class ParticleMeshShader extends CpuFragmentShader {
 
 /// `particle.frag`: a radial falloff, premultiplied, fogged.
 final class ParticleShader extends CpuFragmentShader {
+  /// True [soft] fades the sprite where it nears the depth behind it;
+  /// `builtinCpuShaders` files the hard stage under `Particle` and the soft one
+  /// under `ParticleSoft`.
   const ParticleShader({this.soft = false});
 
   /// `particle_soft.frag`: the same, faded by [softParticleFade].
@@ -352,6 +367,8 @@ final class ParticleShader extends CpuFragmentShader {
 /// coordinate but the fragment's position in the Gaussian's own frame, in
 /// standard deviations, already centred — so there is no `* 2 - 1`.
 final class SplatShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Splat`.
   const SplatShader();
 
   @override
@@ -391,6 +408,8 @@ final class SplatShader extends CpuFragmentShader {
 /// and in a GPU's floats alike, so a splat reads the same cell of the noise
 /// here as on a GPU — see [splatNoiseOffset].
 final class SplatHashedShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SplatHashed`.
   const SplatHashedShader();
 
   @override

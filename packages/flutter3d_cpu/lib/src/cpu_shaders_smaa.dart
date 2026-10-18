@@ -33,6 +33,8 @@ double _step(double edge, double x) => x < edge ? 0.0 : 1.0;
 
 /// `smaa_edges.frag`.
 final class SmaaEdgesShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SmaaEdges`.
   const SmaaEdgesShader();
 
   @override
@@ -71,6 +73,8 @@ final class SmaaEdgesShader extends CpuFragmentShader {
 
 /// `smaa_weights.frag`.
 final class SmaaWeightsShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SmaaWeights`.
   const SmaaWeightsShader();
 
   @override
@@ -169,6 +173,8 @@ final class SmaaWeightsShader extends CpuFragmentShader {
 
 /// `smaa_blend.frag`.
 final class SmaaBlendShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SmaaBlend`.
   const SmaaBlendShader();
 
   @override

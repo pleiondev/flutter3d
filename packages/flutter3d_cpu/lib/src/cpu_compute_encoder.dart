@@ -18,6 +18,12 @@ import 'cpu_shader.dart';
 /// lands before its dispatches, as WebGPU's queue puts it. [submit] then
 /// writes the pass's end timestamp.
 final class CpuComputeEncoder extends ComputeEncoder {
+  /// Opens a compute pass over the device's [_features], format support, clock
+  /// and limits, and writes the beginning timestamp when [timestampWrites]
+  /// names one.
+  ///
+  /// Throws when [timestampWrites] is given and the device lacks
+  /// `DeviceFeature.timestampQuery`.
   CpuComputeEncoder({
     required this._features,
     required this._support,

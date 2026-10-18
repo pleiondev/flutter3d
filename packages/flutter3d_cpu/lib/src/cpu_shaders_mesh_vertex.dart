@@ -26,6 +26,8 @@ final MorphScratch _morphScratch = MorphScratch();
 
 /// The mesh vertex stage — `mesh.vert`.
 final class MeshVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `MeshVertex`.
   const MeshVertexShader();
 
   @override
@@ -131,6 +133,8 @@ final class MeshVertexShader extends CpuVertexShaderByIndex {
 /// reusing the plain stage keeps the two from drifting on the arithmetic
 /// they share.
 final class MeshLightmappedVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `MeshLightmappedVertex`.
   const MeshLightmappedVertexShader();
 
   static const MeshVertexShader _plain = MeshVertexShader();
@@ -163,11 +167,6 @@ final class MeshLightmappedVertexShader extends CpuVertexShaderByIndex {
   }
 }
 
-/// `mesh_skinned.vert`: the mesh stage with a joint blend in front of it.
-///
-/// The skinned layout is the standard one with joints and weights appended, so
-/// the first sixteen floats are read at the same offsets as `mesh.vert` reads
-/// them.
 /// `mesh_instanced.vert`: the standard mesh, placed by a per-instance affine
 /// transform and tinted by a per-instance colour.
 ///
@@ -176,6 +175,8 @@ final class MeshLightmappedVertexShader extends CpuVertexShaderByIndex {
 /// `cpu_vertex_fetch.dart` says: every attribute of slot 0, then every
 /// attribute of slot 1.
 final class MeshInstancedVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `MeshInstancedVertex`.
   const MeshInstancedVertexShader();
 
   static const int _row0 = 16;
@@ -299,7 +300,15 @@ final class MeshInstancedVertexShader extends CpuVertexShaderByIndex {
   }
 }
 
+/// `mesh_skinned.vert`: the mesh stage with a joint blend in front of it.
+///
+/// The skinned layout is the standard one with joints and weights appended, so
+/// the first sixteen floats are read at the same offsets as `mesh.vert` reads
+/// them. The weights are renormalised, and a vertex is morphed in the rest pose
+/// before it is skinned.
 final class MeshSkinnedVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `MeshSkinnedVertex`.
   const MeshSkinnedVertexShader();
 
   /// The palette size, `kMaxJoints` in the skinned shaders.

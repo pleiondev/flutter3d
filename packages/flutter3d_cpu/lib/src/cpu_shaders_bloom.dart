@@ -64,6 +64,8 @@ final class BloomSource {
 
 /// `bloom_threshold.frag`: what is bright enough to glow.
 final class BloomThresholdShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BloomThreshold`.
   const BloomThresholdShader();
 
   static double _luminance(Vector3 c) =>
@@ -114,6 +116,8 @@ final class BloomThresholdShader extends CpuFragmentShader {
 
 /// `bloom_downsample.frag`: the thirteen-tap filter, four boxes plus five.
 final class BloomDownsampleShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BloomDownsample`.
   const BloomDownsampleShader();
 
   @override
@@ -146,6 +150,8 @@ final class BloomDownsampleShader extends CpuFragmentShader {
 
 /// `bloom_upsample.frag`: a 1-2-1 tent over sixteen.
 final class BloomUpsampleShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BloomUpsample`.
   const BloomUpsampleShader();
 
   @override

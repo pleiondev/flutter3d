@@ -136,6 +136,7 @@ typedef DeviceFactory =
 
 /// Raised by a check the backend did not satisfy.
 final class ConformanceFailureException extends CapabilityException {
+  /// A failure saying, in [message], what the backend did wrong.
   const ConformanceFailureException(this.message);
   @override
   final String message;
@@ -156,7 +157,12 @@ final class ConformanceFailureException extends CapabilityException {
 /// [decline] builds one, and stamps the backend's name (`backendName`) on the
 /// front so the line says who declined as well as why.
 final class ConformanceDeclinedException extends CapabilityException {
+  /// A skip for [reason]; [decline] builds one with the backend's name in
+  /// front.
   const ConformanceDeclinedException(this.reason);
+
+  /// Why the check could not be asked, as a sentence naming the backend and the
+  /// capability it lacks.
   final String reason;
   @override
   String get message => reason;
@@ -211,6 +217,7 @@ bool refusesResource(Object? Function() call) {
 /// same [name] and the same [run], so a list of checks can be filtered by
 /// another (`shaderChecks.contains`).
 final class ConformanceCheck {
+  /// A check called [name] that [run] performs.
   const ConformanceCheck({required this.name, required this.run});
 
   /// What the check holds, as a sentence: the test's description.

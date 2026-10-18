@@ -134,6 +134,11 @@ List<(DeviceFeature, TextureFormat, Uint8List)> get _families =>
       ),
     ];
 
+/// Checks that each compressed family [device] samples (BC1, ETC2, ASTC 4x4 and
+/// ASTC 4x4 HDR) reads a solid block back within eight steps a channel.
+///
+/// Declines when [device] samples none of them; fails when one samples to
+/// another colour.
 Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
   // Not a failure: the interface says to ask, and a backend that answers
   // false is entitled to. A backend with none of the families — the software

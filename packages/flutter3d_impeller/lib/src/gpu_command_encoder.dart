@@ -27,6 +27,10 @@ import 'gpu_vertex_index.dart' show pipelineIndexStreams;
 /// end of both: it hands the buffer to the queue and moves the frame's
 /// accounting from "encoding" to "outstanding".
 final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
+  /// Encodes into the open render pass of a command buffer for the frame being
+  /// accounted. A depth-read-only pass has depth writes turned off from the
+  /// start, and a stencil-read-only one clears the write mask of every stencil
+  /// state it sets.
   GpuCommandEncoder(
     this._buffer,
     this._pass,

@@ -32,6 +32,7 @@ import 'webgl_device.dart';
 /// text comes from is not this package's business, and a package that reached
 /// for `rootBundle` would be untestable off a Flutter binding.
 final class ShaderSources {
+  /// Sources for the [vertex] and [fragment] stages, by entry point name.
   const ShaderSources(this.vertex, this.fragment);
 
   /// Name to source, for vertex stages.
@@ -46,6 +47,7 @@ final class ShaderSources {
 
 /// What a [ShaderHandle] carries here: a compiled stage and which kind it is.
 final class WebGlShader {
+  /// A handle's stage over a compiled shader object.
   WebGlShader(this._shader, this.isVertex);
 
   /// The compiled object this stage currently is.
@@ -63,6 +65,8 @@ final class WebGlShader {
   }
 
   web.WebGLShader _shader;
+
+  /// True for a vertex stage, false for a fragment stage.
   final bool isVertex;
 
   /// The uniform blocks and samplers this stage's own source declares.
@@ -199,6 +203,9 @@ web.WebGLShader compileWebGlShader(
 /// stages and compiling all of them at startup would cost a visible pause for
 /// shaders the frame never binds.
 final class WebGlShaderLibrary with ShaderLibrary {
+  /// A library compiling the stages of the given sources on the context as they
+  /// are first asked for; true [highpMaterials] compiles the material stages at
+  /// highp throughout.
   WebGlShaderLibrary(this._gl, this._sources, {this.highpMaterials = false});
 
   final web.WebGL2RenderingContext _gl;

@@ -15,9 +15,12 @@ import 'cpu_shader.dart';
 
 /// A library of Dart stages, by the names the engine asks for.
 final class CpuShaderLibrary with ShaderLibrary {
+  /// A library of [stages], copied into an unmodifiable map.
   CpuShaderLibrary(Map<String, CpuStage> stages)
     : stages = Map<String, CpuStage>.unmodifiable(stages);
 
+  /// Every stage by the name the engine asks for; a name missing here is a
+  /// stage the library does not have.
   final Map<String, CpuStage> stages;
 
   /// Cached per name so that a handle keeps its identity — the promise a
@@ -321,8 +324,13 @@ final class _MaterialVertexStage extends CpuVertexShaderByIndex {
 
 /// A vertex and a fragment stage, paired.
 final class CpuPipeline {
+  /// Pairs [vertex] with [fragment], reading inputs as [layout] says.
   const CpuPipeline(this.vertex, this.fragment, this.layout);
+
+  /// The stage run once per vertex, whose varyings the rasteriser interpolates.
   final CpuVertexShader vertex;
+
+  /// The stage run once per covered pixel on the interpolated varyings.
   final CpuFragmentShader fragment;
 
   /// Where the vertex stage's inputs come from, or null to read one

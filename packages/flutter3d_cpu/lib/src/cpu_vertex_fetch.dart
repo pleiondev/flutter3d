@@ -12,6 +12,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_resources.dart' show cpuBackendName;
 
+/// Where one vertex's floats come from: [PackedFetch] for one interleaved
+/// buffer, [LayoutFetch] for several stepping per vertex or per instance.
 abstract final class VertexFetch {
   /// How many floats one vertex amounts to.
   int get floatsPerVertex;
@@ -31,6 +33,7 @@ abstract final class VertexFetch {
 /// except the instanced ones. The layout is not described anywhere: it is the
 /// shader's `in` order, which is the same contract flutter_gpu works from.
 final class PackedFetch implements VertexFetch {
+  /// Reads [bytes] as floats, [floatsPerVertex] to a vertex.
   PackedFetch(ByteData bytes, this.floatsPerVertex)
     : _floats = bytes.buffer.asFloat32List(
         bytes.offsetInBytes,

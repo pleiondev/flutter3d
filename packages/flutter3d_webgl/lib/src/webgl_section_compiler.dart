@@ -26,6 +26,7 @@ import 'package:flutter3d_shaders/translate.dart'
 ///
 /// Registered by `registerWebGlBackend(compilers:)` beside the device.
 final class WebGlSectionCompiler extends MaterialCompiler {
+  /// Holds no state; `registerWebGlBackend` registers one beside the device.
   const WebGlSectionCompiler();
 
   @override

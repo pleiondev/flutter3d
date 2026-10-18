@@ -50,6 +50,8 @@ Vector3 _right(Vector3 d) {
 
 /// The impostor card's vertex stage — `impostor.vert`.
 final class ImpostorVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ImpostorVertex`.
   const ImpostorVertexShader();
 
   @override
@@ -146,6 +148,8 @@ final class ImpostorVertexShader extends CpuVertexShaderByIndex {
 
 /// The impostor's lit stage — `lighting/impostor.frag`.
 final class ImpostorShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Impostor`.
   const ImpostorShader();
 
   @override

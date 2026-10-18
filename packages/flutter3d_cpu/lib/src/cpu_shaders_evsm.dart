@@ -15,6 +15,9 @@ import 'cpu_shader.dart';
 
 /// `kEvsmPositive` and `kEvsmNegative`.
 const double kEvsmPositive = 40.0;
+
+/// The exponent [evsmWarp] scales the negative warp by, unitless, as
+/// `kEvsmNegative` in the shaders.
 const double kEvsmNegative = 5.0;
 
 /// `EvsmWarp`: [depth] on both exponentials, positive then negative.
@@ -71,8 +74,6 @@ double evsmVisibility(Vector4 moments, double depth, double bleed) {
   );
 }
 
-/// `evsm_filter.frag`: one axis of the separable blur over the directional
-/// atlas, warping depth into moments on the first of the two.
 /// `ShadowStored` from `lib/shadow_storage.glsl` — `A2.8`: the depth along
 /// the light that [stored] stands for in the sun's map, kept in [mode].
 ///
@@ -95,7 +96,14 @@ double shadowStoredStep(double depth) {
       .toDouble();
 }
 
+/// `evsm_filter.frag`: one axis of the separable blur over the directional
+/// atlas, warping depth into moments on the first of the two.
+///
+/// A Gaussian of up to eight taps a side, held inside the cascade's own tile.
+/// Null when nothing is bound as `evsm_source`.
 final class EvsmFilterShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `EvsmFilter`.
   const EvsmFilterShader();
 
   @override

@@ -13,6 +13,8 @@ import 'dart:typed_data';
 /// The default is eight, which is what `tool/golden.sh` uses, so a comparison
 /// that says nothing about its threshold means the same thing the goldens do.
 final class FrameDifference {
+  /// A comparison's answer: [differing] of [pixels] past the threshold, the
+  /// largest channel distance [worstChannel].
   const FrameDifference({
     required this.differing,
     required this.pixels,

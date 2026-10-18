@@ -41,6 +41,8 @@ const List<List<double>> ssaoKernel = <List<double>>[
 /// sample a depth attachment and the whole engine is built around that one
 /// fact.
 final class SsaoShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Ssao`.
   const SsaoShader();
 
   /// `PixelRadius` from `ssao.frag`: how many pixels of this target
@@ -448,6 +450,8 @@ final class SsaoShader extends CpuFragmentShader {
 /// this package keeps: the two are compared by golden images, and a shortcut
 /// here would read as a backend disagreeing about the picture.
 final class SsaoBlurShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SsaoBlur`.
   const SsaoBlurShader();
 
   @override

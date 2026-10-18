@@ -35,6 +35,8 @@ DeviceResourceException webglRefusal(String operation, String reason) =>
 /// becomes an ordinary renderbuffer, which is the closest honest thing: not
 /// sampleable, attachment only.
 final class WebGlTexture {
+  /// A texture over [texture] or, for a target that cannot be sampled,
+  /// [renderbuffer], bound as [target].
   WebGlTexture({
     this.texture,
     this.renderbuffer,
@@ -42,7 +44,11 @@ final class WebGlTexture {
     this.rendered = false,
   });
 
+  /// The texture object, or null when this is a renderbuffer.
   final web.WebGLTexture? texture;
+
+  /// The renderbuffer of a multisampled or transient target, resolved by a
+  /// blit; null for a sampleable texture.
   final web.WebGLRenderbuffer? renderbuffer;
 
   /// Whether this texture's contents were drawn rather than handed over.
@@ -68,6 +74,7 @@ final class WebGlTexture {
   /// different texture object, so the draw samples nothing and shows black.
   final int target;
 
+  /// Whether a stage can sample this: false for a renderbuffer.
   bool get isSampleable => texture != null;
 
   /// Whether the last bind set a comparison or a level-of-detail clamp on
@@ -95,9 +102,14 @@ typedef WebGlSampler = ({int unit, int target});
 /// usage when it was made, so every later binding can be checked before the
 /// driver refuses it with an `INVALID_OPERATION` nobody reads.
 final class WebGlBuffer {
+  /// A buffer over [buffer], typed for life by [elementArray].
   WebGlBuffer(this.buffer, {required this.elementArray});
 
+  /// The GL buffer object.
   final web.WebGLBuffer buffer;
+
+  /// True when the buffer holds indices: it is bound to `ELEMENT_ARRAY_BUFFER`
+  /// and the copy targets and nowhere else.
   final bool elementArray;
 
   /// Whether a `mapBuffer` mapping of it is outstanding. State: every copy
@@ -110,9 +122,13 @@ final class WebGlBuffer {
 /// query reads zero, and asking GL for the result of one that never began
 /// is `INVALID_OPERATION`.
 final class WebGlQuerySet {
+  /// A set over [queries], none of them written yet.
   WebGlQuerySet(this.queries);
 
+  /// One GL query per index; null once the set is released.
   final List<web.WebGLQuery?> queries;
+
+  /// The indices a pass has begun a query on; the rest read zero.
   final Set<int> written = <int>{};
 }
 
@@ -125,10 +141,18 @@ final class WebGlQuerySet {
 /// the encoder's bind links it again until the record says it is left
 /// refused.
 final class WebGlUnlinkedPipeline {
+  /// The refused pair [vertex] and [fragment], with the [layout] the pipeline
+  /// was asked for.
   WebGlUnlinkedPipeline(this.vertex, this.fragment, this.layout);
 
+  /// The vertex stage the link refused.
   final ShaderHandle vertex;
+
+  /// The fragment stage the link refused.
   final ShaderHandle fragment;
+
+  /// The vertex layout the pipeline was made with, or null to take it from the
+  /// shader.
   final VertexLayoutDescriptor? layout;
 
   /// The handle a later link made, kept so the next bind does not link
@@ -142,6 +166,8 @@ final class WebGlUnlinkedPipeline {
 
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
+  /// A linked [program] with its reflection; the lists and maps are copied
+  /// unmodifiable.
   WebGlProgram(
     this.program,
     List<WebGlAttribute> attributes,
@@ -153,6 +179,7 @@ final class WebGlProgram {
        blocks = Map<String, WebGlBlock>.unmodifiable(blocks),
        samplers = Map<String, WebGlSampler>.unmodifiable(samplers);
 
+  /// The linked GL program object.
   final web.WebGLProgram program;
 
   /// What the pipeline was built with, or null to keep guessing from the
@@ -198,6 +225,8 @@ final class WebGlProgram {
   /// leaves those attachments as they were, as the other backends do.
   final Set<int>? fragmentOutputs;
 
+  /// The floats one interleaved vertex takes: every attribute's component
+  /// count, summed.
   int get vertexFloats {
     var total = 0;
     for (final a in attributes) {
@@ -207,15 +236,27 @@ final class WebGlProgram {
   }
 }
 
+/// A vertex attribute of a linked program, as reflection reported it.
 final class WebGlAttribute {
+  /// The attribute at [location], [componentCount] floats wide.
   const WebGlAttribute(this.location, this.componentCount);
+
+  /// The attribute's location, which `vertexAttribPointer` takes.
   final int location;
+
+  /// How many floats the attribute reads, one to four.
   final int componentCount;
 }
 
+/// A uniform block of a linked program, as reflection reported it.
 final class WebGlBlock {
+  /// The block at [index], [sizeInBytes] long, with its members at [offsets].
   const WebGlBlock(this.index, this.sizeInBytes, this.offsets);
+
+  /// The block's index in the program, as `getUniformBlockIndex` answers.
   final int index;
+
+  /// The block's data size in bytes, std140 padding included.
   final int sizeInBytes;
 
   /// Member name to byte offset, as std140 laid it out. Reflected rather than

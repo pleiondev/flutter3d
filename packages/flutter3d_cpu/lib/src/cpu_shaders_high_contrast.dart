@@ -20,6 +20,8 @@ import 'cpu_shaders_color.dart' show decodeSurfaceNormal;
 /// stages — `v_depth` is varying eight — in its outline colour, and nothing
 /// behind what the opaque scene drew there.
 final class OutlineMaskShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `OutlineMask`.
   const OutlineMaskShader();
 
   static const String _block = 'OutlineMaskInfo';
@@ -41,6 +43,8 @@ final class OutlineMaskShader extends CpuFragmentShader {
 
 /// `post/high_contrast.frag`: flatten, tone, outline, roles.
 final class HighContrastShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `HighContrast`.
   const HighContrastShader();
 
   static const String _block = 'HighContrastInfo';

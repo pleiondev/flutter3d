@@ -58,11 +58,14 @@ const int _backendSteps = 30;
 /// builds the loops it needs through [build], never sharing one with
 /// another check.
 final class PluginSession {
+  /// A session over the plugin [create] makes, run inside [harness].
   PluginSession(this.create, this.harness);
 
   /// Makes the plugin under test, fresh each call.
   final Flutter3dPlugin Function() create;
 
+  /// The world, registries and dependencies every loop of the session is built
+  /// with.
   final PluginHarness harness;
 
   Snapshot? _start;

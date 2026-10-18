@@ -26,6 +26,8 @@ import 'cpu_shaders_color.dart';
 /// fragment stage reads. A drift between the two is a sky that is either
 /// invisible or in front of the world.
 final class SkyVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SkyVertex` and `SkyPhysicalVertex`.
   const SkyVertexShader();
 
   /// The ray, then the six vec4s of preset.
@@ -45,6 +47,8 @@ final class SkyVertexShader extends CpuVertexShader {
 
 /// `sky_cube.vert`: the same triangle, carrying a tint instead of a preset.
 final class SkyCubeVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SkyCubeVertex`.
   const SkyCubeVertexShader();
 
   @override
@@ -67,6 +71,8 @@ final class SkyCubeVertexShader extends CpuVertexShader {
 /// engine to draw a triangle is not a backend. `tonemapNeutral` is the same
 /// bargain. What keeps the two honest is a test that evaluates both.
 final class SkyShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Sky`.
   const SkyShader();
 
   @override
@@ -133,6 +139,8 @@ final class SkyShader extends CpuFragmentShader {
 /// once, where the conformance suite can check it against the other two
 /// backends rather than against a reading of the code.
 final class SkyCubeShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SkyCube`.
   const SkyCubeShader();
 
   @override
@@ -173,6 +181,8 @@ final class SkyCubeShader extends CpuFragmentShader {
 /// stars' hash, where a `fract` decides whether a cell holds a star, and there
 /// every product is rounded to single precision, as the GPU computes it.
 final class SkyPhysicalShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SkyPhysical`.
   const SkyPhysicalShader();
 
   static const int _viewSteps = 16;

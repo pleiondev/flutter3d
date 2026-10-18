@@ -2238,29 +2238,70 @@ final class WebGlDevice extends GraphicsDevice
 /// shows `WebGlDevice` alone — so no `package:web` type is in the package's
 /// API.
 extension WebGlDeviceInternals on WebGlDevice {
+  /// The canvas the context draws into and the presenter shows.
   web.HTMLCanvasElement get canvas => _canvas;
+
+  /// `EXT_disjoint_timer_query_webgl2` where it counts timestamps, or null
+  /// where it was not granted or answers no timestamp bits.
   web.EXT_disjoint_timer_query_webgl2? get timerQuery => _timerQuery;
 
   /// The frame timer, while something listens on `onGpuTimings`.
   WebGlFrameTimer? get frameTimer =>
       _timingListener == null ? null : _frameTimer;
+
+  /// `OVR_multiview2`, or null where the context does not offer it and a stereo
+  /// frame takes one pass per view.
   web.OVR_multiview2? get multiviewExtension => _multiview;
+
+  /// The device's own stages, compiled on first use.
   WebGlShaderLibrary get shaderLibrary => _library;
+
+  /// `WEBGL_multi_draw`, or null where it was not granted and `multiDraw`
+  /// loops.
   web.WEBGL_multi_draw? get multiDrawExtension => _multiDrawExtension;
+
+  /// `OES_draw_buffers_indexed`, which sets a blend for one draw buffer; null
+  /// leaves the plain blend functions, which set every draw buffer at once.
   web.OES_draw_buffers_indexed? get drawBuffersIndexed => _drawBuffersIndexed;
+
+  /// `WEBGL_draw_instanced_base_vertex_base_instance` as a plain object the
+  /// encoder calls by name, or null where it was not granted.
   JSObject? get baseVertexBaseInstanceExtension =>
       _baseVertexBaseInstanceExtension;
+
+  /// Vertex attribute locations switched on in the context. Context state, so
+  /// it outlives the encoder that enabled them; an encoder switches them all
+  /// off before it unbinds the vertex buffers.
   Set<int> get enabledAttributeLocations => _enabledAttributeLocations;
+
+  /// Vertex attribute locations carrying a non-zero divisor, kept on the device
+  /// for the same reason as [enabledAttributeLocations].
   Set<int> get instancedAttributeLocations => _instancedAttributeLocations;
+
+  /// The buffers a uniform block is filled in before `bufferData` copies it,
+  /// one per block size, for the device's life.
   UniformScratch get uniformScratch => _uniformScratch;
 
   /// The GL error the last blit to the canvas left, for a debugger reading
   /// why the canvas stayed empty.
   int get lastBlitError => _lastBlitError;
+
+  /// Which compressed-texture extensions the context has, queried once when the
+  /// device opened.
   CompressedTextureSupport get compressedTextureSupport =>
       _compressedTextureSupport;
+
+  /// Whether the context filters a half-float texture linearly. False makes
+  /// every shadow map read as zero.
   bool get supportsFloatLinearFiltering => _supportsFloatLinearFiltering;
+
+  /// Records that a draw left the declared slot [what] unbound, once per slot
+  /// per device.
   void reportUnbound(String what) => _reportUnbound(what);
+
+  /// Links the refused pair [unlinked] behind [handle] again, returning the
+  /// program, or null when it still will not link (reported) or the record says
+  /// it is left refused.
   WebGlProgram? linkRefused(
     PipelineHandle handle,
     WebGlUnlinkedPipeline unlinked,

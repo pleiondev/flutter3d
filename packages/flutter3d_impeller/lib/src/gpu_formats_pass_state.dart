@@ -14,6 +14,8 @@ import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [LoadAction] to its `package:flutter_gpu` equivalent.
 extension LoadActionToGpu on LoadAction {
+  /// Returns flutter_gpu's load action of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.LoadAction toGpu() => switch (this) {
     LoadAction.dontCare => gpu.LoadAction.dontCare,
     LoadAction.load => gpu.LoadAction.load,
@@ -27,6 +29,8 @@ extension LoadActionToGpu on LoadAction {
 
 /// Maps the engine's [StoreAction] to its `package:flutter_gpu` equivalent.
 extension StoreActionToGpu on StoreAction {
+  /// Returns flutter_gpu's store action of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.StoreAction toGpu() => switch (this) {
     StoreAction.dontCare => gpu.StoreAction.dontCare,
     StoreAction.store => gpu.StoreAction.store,
@@ -42,6 +46,8 @@ extension StoreActionToGpu on StoreAction {
 
 /// Maps the engine's [PrimitiveType] to its `package:flutter_gpu` equivalent.
 extension PrimitiveTypeToGpu on PrimitiveType {
+  /// Returns flutter_gpu's primitive type of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.PrimitiveType toGpu() => switch (this) {
     PrimitiveType.triangle => gpu.PrimitiveType.triangle,
     PrimitiveType.triangleStrip => gpu.PrimitiveType.triangleStrip,
@@ -57,6 +63,8 @@ extension PrimitiveTypeToGpu on PrimitiveType {
 
 /// Maps the engine's [CullMode] to its `package:flutter_gpu` equivalent.
 extension CullModeToGpu on CullMode {
+  /// Returns flutter_gpu's cull mode of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.CullMode toGpu() => switch (this) {
     CullMode.none => gpu.CullMode.none,
     CullMode.frontFace => gpu.CullMode.frontFace,
@@ -70,6 +78,7 @@ extension CullModeToGpu on CullMode {
 
 /// Maps the engine's [WindingOrder] to its `package:flutter_gpu` equivalent.
 extension WindingOrderToGpu on WindingOrder {
+  /// Returns flutter_gpu's winding order of the same name. Every value has one.
   gpu.WindingOrder toGpu() => switch (this) {
     WindingOrder.clockwise => gpu.WindingOrder.clockwise,
     WindingOrder.counterClockwise => gpu.WindingOrder.counterClockwise,
@@ -78,6 +87,8 @@ extension WindingOrderToGpu on WindingOrder {
 
 /// Maps the engine's [PolygonMode] to its `package:flutter_gpu` equivalent.
 extension PolygonModeToGpu on PolygonMode {
+  /// Returns flutter_gpu's polygon mode of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.PolygonMode toGpu() => switch (this) {
     PolygonMode.fill => gpu.PolygonMode.fill,
     PolygonMode.line => gpu.PolygonMode.line,
@@ -91,6 +102,8 @@ extension PolygonModeToGpu on PolygonMode {
 /// Maps the engine's [CompareFunction] to its `package:flutter_gpu`
 /// equivalent.
 extension CompareFunctionToGpu on CompareFunction {
+  /// Returns flutter_gpu's compare function of the same name. Every value has
+  /// one.
   gpu.CompareFunction toGpu() => switch (this) {
     CompareFunction.never => gpu.CompareFunction.never,
     CompareFunction.always => gpu.CompareFunction.always,
@@ -106,6 +119,8 @@ extension CompareFunctionToGpu on CompareFunction {
 /// Maps the engine's [StencilOperation] to its `package:flutter_gpu`
 /// equivalent.
 extension StencilOperationToGpu on StencilOperation {
+  /// Returns flutter_gpu's stencil operation of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.StencilOperation toGpu() => switch (this) {
     StencilOperation.keep => gpu.StencilOperation.keep,
     StencilOperation.zero => gpu.StencilOperation.zero,
@@ -131,6 +146,8 @@ extension StencilOperationToGpu on StencilOperation {
 /// `setStencilConfig` reads the fields out at once rather than holding the
 /// object.
 extension StencilStateToGpu on StencilState {
+  /// Returns a new `StencilConfig` with the compare function, the three
+  /// operations and both masks translated.
   gpu.StencilConfig toGpu() => gpu.StencilConfig(
     compareFunction: compare.toGpu(),
     stencilFailureOperation: failOp.toGpu(),
@@ -143,6 +160,10 @@ extension StencilStateToGpu on StencilState {
 
 /// Maps the engine's [BlendFactor] to its `package:flutter_gpu` equivalent.
 extension BlendFactorToGpu on BlendFactor {
+  /// Returns flutter_gpu's blend factor of the same name. Throws an
+  /// [UnsupportedCapabilityException] for the four second-source factors, which
+  /// flutter_gpu lacks, and a [DeviceResourceException] for any other value it
+  /// has none for.
   gpu.BlendFactor toGpu() => switch (this) {
     BlendFactor.zero => gpu.BlendFactor.zero,
     BlendFactor.one => gpu.BlendFactor.one,
@@ -183,6 +204,10 @@ extension BlendFactorToGpu on BlendFactor {
 
 /// Maps the engine's [BlendOperation] to its `package:flutter_gpu` equivalent.
 extension BlendOperationToGpu on BlendOperation {
+  /// Returns flutter_gpu's blend operation of the same name. Throws an
+  /// [UnsupportedCapabilityException] for `min` and `max`, which flutter_gpu
+  /// lacks, and a [DeviceResourceException] for any other value it has none
+  /// for.
   gpu.BlendOperation toGpu() => switch (this) {
     BlendOperation.add => gpu.BlendOperation.add,
     BlendOperation.subtract => gpu.BlendOperation.subtract,

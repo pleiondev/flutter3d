@@ -18,6 +18,8 @@ import 'cpu_shaders_layout.dart';
 /// Writes no surface: the GLSL declares `F3D_NO_SURFACE_BUFFER`, and the
 /// surface underneath keeps describing itself, as under `XrayShader`.
 final class PlanarReflectionShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `PlanarReflection`.
   const PlanarReflectionShader();
 
   @override
@@ -60,6 +62,8 @@ final class PlanarReflectionShader extends CpuFragmentShader {
 /// `render_texture_encode.frag`: the light times the exposure, clipped to
 /// one and encoded as sRGB.
 final class RenderTextureEncodeShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `RenderTextureEncode`.
   const RenderTextureEncodeShader();
 
   @override

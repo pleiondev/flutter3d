@@ -18,6 +18,8 @@ import 'cpu_shaders_surface.dart';
 
 /// `unlit.frag`: the albedo, written into the HDR target as light.
 final class UnlitShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Unlit` and `UnlitOpaque`.
   const UnlitShader();
 
   @override
@@ -58,6 +60,8 @@ final class UnlitShader extends CpuFragmentShader {
 /// not visible — and SSAO and reflections read that buffer as the nearest
 /// surface. See `renderer_xray_pass.dart`.
 final class XrayShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Xray`.
   const XrayShader();
 
   @override
@@ -82,6 +86,8 @@ final class XrayShader extends CpuFragmentShader {
 /// `lambert.frag`: pure diffuse, the cheapest model that still reads as
 /// three-dimensional.
 final class LambertShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Lambert` and `LambertOpaque`.
   const LambertShader();
 
   @override
@@ -118,6 +124,8 @@ final class LambertShader extends CpuFragmentShader {
 
 /// `blinn_phong.frag`: a Phong highlight on top of the albedo.
 final class BlinnPhongShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `BlinnPhong` and `BlinnPhongOpaque`.
   const BlinnPhongShader();
 
   @override
@@ -166,14 +174,6 @@ final class BlinnPhongShader extends CpuFragmentShader {
   }
 }
 
-/// `pbr.frag`: Cook-Torrance with GGX, height-correlated Smith, Schlick.
-///
-/// Formulations follow the BRDF the glTF specification describes, so an
-/// imported material lands on the same look. Image-based lighting is here when
-/// a scene supplies an environment: `frame_params.w` carries the cube's level
-/// count and is zero when there is none, and the flat hemispheric ambient
-/// stands in then. Operation for operation with `pbr.frag`, because thirty
-/// golden images compare the two.
 /// `MultiscatterScale` from `pbr.frag` — `L1`: from the albedo of the lobe
 /// it scales, at the roughness that lobe is evaluated at.
 Vector3 _multiscatterScale(Vector3 f0, Surface s, ShaderBindings b) {
@@ -529,6 +529,7 @@ final class _Layers {
 /// 1.0 breaking. Breaking in 1.0.0-rc.1: they took the GLSL hooks'
 /// arguments one by one.
 abstract base class PbrHooks {
+  /// Hooks that change nothing; a subclass overrides the ones it fills.
   const PbrHooks();
 
   /// `ShadeSurfaceHook`: rewrites [PbrSurfaceContext.surface] once its maps
@@ -608,7 +609,16 @@ final class PbrLightTypeContext {
   final Vector4 params;
 }
 
+/// `pbr.frag`: Cook-Torrance with GGX, height-correlated Smith and Schlick,
+/// following the BRDF the glTF specification describes.
+///
+/// Image-based lighting when the scene supplies an environment
+/// (`frame_params.w` carries the cube's level count, zero for none), the flat
+/// hemispheric ambient otherwise. Operation for operation with `pbr.frag`,
+/// because golden images compare the two.
 final class PbrShader extends CpuFragmentShader {
+  /// `pbr.frag`, the engine's own stage: no [hooks], not [layered].
+  /// `builtinCpuShaders` files it under `Pbr` and `PbrOpaque`.
   const PbrShader() : layered = false, hooks = null;
 
   /// `pbr_layered.frag`: the same stage with `F3D_LAYERED` — `M1`.
@@ -1269,6 +1279,8 @@ Vector3 _fresnelIridescence(
 
 /// `toon.frag`: the diffuse response quantised into bands, plus a rim term.
 final class ToonShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Toon` and `ToonOpaque`.
   const ToonShader();
 
   @override

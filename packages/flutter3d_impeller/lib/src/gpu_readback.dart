@@ -48,6 +48,8 @@ import 'staging_pool.dart';
 
 /// The staging pool and the copy. One per device.
 final class GpuReadback {
+  /// A readback with an empty pool, calling [onRejectedSubmission] for each
+  /// copy the queue refuses.
   GpuReadback({required this.onRejectedSubmission});
 
   /// Told when the queue refuses the copy, so the device's own counter of
@@ -68,6 +70,10 @@ final class GpuReadback {
   int get debugStagingCount => _made;
   int _made = 0;
 
+  /// Reads [region] of [texture], or all of it when [region] is null, as RGBA
+  /// bytes, four a pixel, row-major from the top. Fails with a [StateError]
+  /// when the queue refuses the copy or the staging texture reads back as
+  /// nothing.
   Future<ByteData> read(TextureHandle texture, ScreenRect? region) {
     final rect = readbackRegionOf(texture, region);
     final staging = _take(rect.width, rect.height, texture.format);

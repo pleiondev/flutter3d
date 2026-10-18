@@ -28,6 +28,9 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 /// over — and on Impeller it could not, at all, which made "write your own post
 /// effect" a thing that worked on two backends out of three.
 final class GpuShaderLibrary with ShaderLibrary {
+  /// A library over the engine's bundle, with the extra libraries searched
+  /// first, in order, so a plugin's stage wins over the engine's of the same
+  /// name.
   GpuShaderLibrary(this._library, [this._extra = const <gpu.ShaderLibrary>[]]);
 
   final gpu.ShaderLibrary _library;

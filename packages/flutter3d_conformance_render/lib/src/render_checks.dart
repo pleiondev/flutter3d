@@ -22,6 +22,7 @@ import 'package:vector_math/vector_math.dart';
 /// it should look for. A data class, and it grows: a point added to the
 /// frame later arrives as a member here with a null default.
 final class PluginRenderPoints {
+  /// Points named for the checks, every one unset by default and so not asked.
   const PluginRenderPoints({
     this.nodes = const <String>[],
     this.litModel,
@@ -88,6 +89,8 @@ final class PluginRenderPoints {
 /// and a file in its format, with the size it decodes to where the check
 /// should hold it to one.
 final class PluginCodecPoint {
+  /// The codec [name] with a [sample] file, held to [width] by [height] where
+  /// those are given.
   const PluginCodecPoint({
     required this.name,
     required this.sample,
@@ -104,6 +107,8 @@ final class PluginCodecPoint {
   /// The width and height, in texels, the sample decodes to; null for
   /// any.
   final int? width;
+
+  /// The height in texels the sample decodes to; null for any.
   final int? height;
 }
 

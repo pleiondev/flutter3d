@@ -16,15 +16,6 @@ import 'cpu_shaders_color.dart' show orthographic;
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_surface.dart';
 
-/// `ShadowFactor`: how much of the directional light survives here.
-///
-/// One — not zero — outside the map, off the caster, or with shadows off. A
-/// fragment beyond the shadow volume is unshadowed, and getting that backwards
-/// puts a hard edge across the scene at the edge of the map.
-///
-/// [lightNDotL] is the light's `n_dot_l`, which `ShadowFactor` is handed with
-/// the light and no longer reads: the offset measures the slope along the
-/// map's own axes instead.
 /// What the see-through casters between the sun and the fragment last given
 /// to [shadowFactor] let through — `light_transmittance` in `surface.glsl`,
 /// and the same arrangement: set as a side effect, white whenever the call
@@ -32,6 +23,16 @@ import 'cpu_shaders_surface.dart';
 /// visibility.
 final Vector3 shadowTransmittance = Vector3.all(1.0);
 
+/// `ShadowFactor` from `shadow.glsl`: the fraction of light [lightIndex] that
+/// reaches surface [s], nought in full shadow and one unshadowed.
+///
+/// One — not zero — outside the map, off the caster, for any light but the
+/// shadowed one, with no map bound, or with the shadow strength at nought: a
+/// fragment beyond the shadow volume is unshadowed, and getting that
+/// backwards puts a hard edge across the scene at the edge of the map. Sets [shadowTransmittance] as a side
+/// effect. [lightNDotL] is accepted and no longer read: the offset measures the
+/// slope along the map's own axes. [c] supplies the fragment's derivatives
+/// where the filter wants them.
 double shadowFactor(
   Surface s,
   ShaderBindings b,

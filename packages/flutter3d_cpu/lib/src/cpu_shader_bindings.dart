@@ -13,6 +13,8 @@ import 'cpu_texture.dart';
 /// name: the engine writes `bindUniformBlock(shader, 'FragInfo', {...})` and a
 /// backend looks the members up. A Dart shader does the same lookup.
 final class ShaderBindings {
+  /// Bindings that look each member up afresh on every read; see
+  /// [ShaderBindings.forDraw] for the caching form a draw uses.
   const ShaderBindings(
     this.blocks,
     this.textures, {

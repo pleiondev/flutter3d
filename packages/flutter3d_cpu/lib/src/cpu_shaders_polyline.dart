@@ -19,6 +19,8 @@ const double _kNear = 1e-4;
 
 /// The polyline vertex stage — `polyline.vert`.
 final class PolylineVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `PolylineVertex`.
   const PolylineVertexShader();
 
   @override

@@ -53,6 +53,9 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
   );
 }
 
+/// Checks that a pass can clear a 32-pixel target of [device]'s
+/// `hdrColorFormat` without throwing: a format that is sampleable but not
+/// renderable would leave every frame transparent black.
 Future<void> checkHdrRenderable(GraphicsDevice device) async {
   // The engine renders linear HDR and tone maps at the end, so it opens a pass
   // against whatever this getter names. A format that is samplable but not
@@ -81,6 +84,9 @@ Future<void> checkHdrRenderable(GraphicsDevice device) async {
       .submit();
 }
 
+/// Checks that a clear covers the whole attachment whatever the scissor: a
+/// 64-pixel target is cleared green under an eight-pixel scissor, and every
+/// pixel has to read back green.
 Future<void> checkClearCoversAll(GraphicsDevice device) async {
   // The rule the point-light atlas depends on: it clears once and then draws
   // tile by tile, so a clear bounded by the scissor would leave most of it as
@@ -129,6 +135,9 @@ Future<void> checkClearCoversAll(GraphicsDevice device) async {
   );
 }
 
+/// Checks that row zero is the top: a four-by-four texture uploaded with red
+/// rising downwards has to read back with its first and last rows where they
+/// were written.
 Future<void> checkRowOrder(GraphicsDevice device) async {
   // Row zero is the top. A backend measuring from the bottom has to flip on the
   // way in, the way out, or both — and a caller cannot tell which way round it

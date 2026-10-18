@@ -22,6 +22,8 @@ import 'cpu_texture.dart';
 /// [access] is enforced: loading a write-only binding or storing into a
 /// read-only one throws a [StateError], as a compiler would refuse it.
 final class CpuStorageTexture {
+  /// A binding over [planes] as they are, with no checks;
+  /// [CpuStorageTexture.bind] is the checked way in.
   CpuStorageTexture(this.planes, this.format, this.access);
 
   /// Level [mipLevel] of [texture] as a storage binding, after every check
@@ -76,10 +78,18 @@ final class CpuStorageTexture {
 
   /// Every layer (or 3D slice) of the bound level, in order.
   final List<CpuTexture> planes;
+
+  /// The texture's format: a store keeps a value as that format would.
   final TextureFormat format;
+
+  /// What the stage may do: a load from a write-only binding or a store into a
+  /// read-only one throws a [StateError].
   final StorageTextureAccess access;
 
+  /// Width of the bound level, in texels.
   int get width => planes.first.width;
+
+  /// Height of the bound level, in texels.
   int get height => planes.first.height;
 
   /// Layers of an array, or slices of a 3D level; one otherwise.

@@ -26,6 +26,8 @@ Vector2 _halfMotion(double x, double y, Vector4 scale, double most) {
 
 /// `velocity_tile_max.frag`: the longest motion along one axis of a tile.
 final class VelocityTileMaxShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VelocityTileMax`.
   const VelocityTileMaxShader();
 
   @override
@@ -64,6 +66,8 @@ final class VelocityTileMaxShader extends CpuFragmentShader {
 /// `velocity_neighbor_max.frag`: the longest motion in a tile and the eight
 /// around it.
 final class VelocityNeighborMaxShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VelocityNeighborMax`.
   const VelocityNeighborMaxShader();
 
   @override
@@ -91,6 +95,8 @@ final class VelocityNeighborMaxShader extends CpuFragmentShader {
 /// `motion_blur.frag`: the gather along each neighbourhood's dominant
 /// motion, composited as the time each sample covers the pixel.
 final class MotionBlurShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `MotionBlur`.
   const MotionBlurShader();
 
   static double _far(double depth) => depth <= 0.0 ? 1e9 : depth;

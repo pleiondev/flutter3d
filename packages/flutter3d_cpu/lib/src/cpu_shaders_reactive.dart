@@ -31,6 +31,8 @@ bool _hidden(ShaderBindings b, FragmentContext c, double depth) {
 /// `post/reactive.frag`: a blended surface, drawn through the velocity
 /// vertex stages — `v_depth` is varying eight.
 final class ReactiveShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Reactive`.
   const ReactiveShader();
 
   @override
@@ -46,6 +48,8 @@ final class ReactiveShader extends CpuFragmentShader {
 /// `particle.vert` — colour in 0..3, the quad's coordinates in 4..5, the
 /// world position in 6..8.
 final class ReactiveSpriteShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ReactiveSprite`.
   const ReactiveSpriteShader();
 
   @override

@@ -75,6 +75,8 @@ Vector4 _velocityOut(
 /// `velocity.vert`: a moved mesh through this frame's and last frame's
 /// matrices. The pipeline's layout declares the position alone.
 final class VelocityVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VelocityVertex`.
   const VelocityVertexShader();
 
   @override
@@ -116,6 +118,8 @@ final class VelocityVertexShader extends CpuVertexShaderByIndex {
 /// `velocity_skinned.vert`: skinned by this frame's palette and by last
 /// frame's, which arrives as a 4 × 64 float texture of columns.
 final class VelocitySkinnedVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VelocitySkinnedVertex`.
   const VelocitySkinnedVertexShader();
 
   // Position, then joints, then weights: the layout declares these three.
@@ -196,6 +200,8 @@ final class VelocitySkinnedVertexShader extends CpuVertexShaderByIndex {
 /// `velocity_instanced.vert`: each instance placed by its transform now
 /// (slot 1) and by last frame's (slot 2).
 final class VelocityInstancedVertexShader extends CpuVertexShaderByIndex {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VelocityInstancedVertex`.
   const VelocityInstancedVertexShader();
 
   // Position, then three rows now, then three rows then.
@@ -260,6 +266,8 @@ final class VelocityInstancedVertexShader extends CpuVertexShaderByIndex {
 /// `post/velocity.frag`: the two clip positions, divided here, differenced
 /// in UV — for a fragment the scene's surface buffer says is in front.
 final class VelocityShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Velocity`.
   const VelocityShader();
 
   @override
@@ -283,6 +291,8 @@ final class VelocityShader extends CpuFragmentShader {
 
 /// `camera_velocity.frag`: how far this pixel moved because the camera did.
 final class CameraVelocityShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `CameraVelocity`.
   const CameraVelocityShader();
 
   /// No motion, full weight: a fresh one each time, since a caller owns it.

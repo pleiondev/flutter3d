@@ -12,6 +12,8 @@ import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [StorageMode] to its `package:flutter_gpu` equivalent.
 extension StorageModeToGpu on StorageMode {
+  /// Returns flutter_gpu's storage mode of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.StorageMode toGpu() => switch (this) {
     StorageMode.hostVisible => gpu.StorageMode.hostVisible,
     StorageMode.devicePrivate => gpu.StorageMode.devicePrivate,
@@ -26,6 +28,7 @@ extension StorageModeToGpu on StorageMode {
 /// Maps `package:flutter_gpu`'s storage mode back to the engine's
 /// [StorageMode].
 extension StorageModeFromGpu on gpu.StorageMode {
+  /// Returns the engine's storage mode of the same name; every value has one.
   StorageMode toEngine() => switch (this) {
     gpu.StorageMode.hostVisible => StorageMode.hostVisible,
     gpu.StorageMode.devicePrivate => StorageMode.devicePrivate,
@@ -37,6 +40,8 @@ extension StorageModeFromGpu on gpu.StorageMode {
 /// one-way, unlike its neighbours: [TextureHandle] carries the engine's type,
 /// so nothing ever reads one back off a device.
 extension TextureTypeToGpu on TextureType {
+  /// Returns flutter_gpu's texture type of the same name. Throws a
+  /// [DeviceResourceException] for a value flutter_gpu has none for.
   gpu.TextureType toGpu() => switch (this) {
     TextureType.texture2D => gpu.TextureType.texture2D,
     TextureType.texture2DMultisample => gpu.TextureType.texture2DMultisample,
@@ -52,6 +57,10 @@ extension TextureTypeToGpu on TextureType {
 /// Maps the engine's [TextureFormat] to `package:flutter_gpu`'s
 /// `PixelFormat` — same values, different name on that side.
 extension TextureFormatToGpu on TextureFormat {
+  /// Returns flutter_gpu's pixel format of the same name. Throws
+  /// [unmirroredFormat]'s refusal for an extended format flutter_gpu has no
+  /// `PixelFormat` for, and a [DeviceResourceException] for any other value it
+  /// lacks.
   gpu.PixelFormat toGpu() => switch (this) {
     TextureFormat.unknown => gpu.PixelFormat.unknown,
     TextureFormat.a8UNormInt => gpu.PixelFormat.a8UNormInt,
@@ -130,6 +139,7 @@ DeviceResourceException unmirroredFormat(TextureFormat format) =>
 /// Maps `package:flutter_gpu`'s `PixelFormat` back to the engine's
 /// [TextureFormat].
 extension TextureFormatFromGpu on gpu.PixelFormat {
+  /// Returns the engine's texture format of the same name; every value has one.
   TextureFormat toEngine() => switch (this) {
     gpu.PixelFormat.unknown => TextureFormat.unknown,
     gpu.PixelFormat.a8UNormInt => TextureFormat.a8UNormInt,

@@ -89,7 +89,12 @@ final class PngStripWriter {
     _chunk('IHDR', header.buffer.asUint8List());
   }
 
+  /// Width of the image in pixels, as the header says; every strip has rows of
+  /// this many pixels.
   final int width;
+
+  /// Height of the image in pixels: [close] throws unless exactly this many
+  /// rows were added.
   final int height;
 
   /// Where the bytes go, in order.

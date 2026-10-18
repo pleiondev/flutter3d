@@ -17,6 +17,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// `ShaderCompileException` read from what it said: the stage, the line and
 /// column of each error and the source line, for a tool to point at.
 final class ShaderBundleBuildException extends ResourceException {
+  /// A failure described by [message], with what `impellerc` said as [cause]
+  /// when it refused a stage.
   const ShaderBundleBuildException(this.message, {this.cause});
   @override
   final String message;

@@ -86,6 +86,8 @@ Vector3 _rgb(Vector4 v) => Vector3(v.x, v.y, v.z);
 /// `temporal_accumulate.frag` — `R3`: a noisy effect blended into its own
 /// history, clamped to this frame's neighbourhood.
 final class TemporalAccumulateShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `TemporalAccumulate`.
   const TemporalAccumulateShader();
 
   @override
@@ -134,6 +136,8 @@ final class TemporalAccumulateShader extends CpuFragmentShader {
 
 /// `temporal_resolve.frag`: this frame blended into the ones before it.
 final class TemporalResolveShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `TemporalResolve`.
   const TemporalResolveShader();
 
   @override

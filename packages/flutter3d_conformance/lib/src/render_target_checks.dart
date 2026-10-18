@@ -27,6 +27,9 @@ import '../flutter3d_conformance.dart';
 
 const int _size = 8;
 
+/// Checks that a pass aimed at one face and level of a cube lands there and
+/// nowhere else, the second level only where the device renders to mip levels.
+/// Declines on a device with no cube textures.
 Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
   if (!device.features.has(DeviceFeature.cubeTextures)) {
     decline(device, 'has no cube textures, so no pass renders into a face');

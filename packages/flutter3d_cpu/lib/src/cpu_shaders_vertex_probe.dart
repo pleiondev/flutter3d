@@ -18,6 +18,8 @@ import 'cpu_shader.dart';
 
 /// `probe/vertex_texture.vert`: sample, and pass what was sampled through.
 final class VertexTextureProbeVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VertexTextureProbeVertex`.
   const VertexTextureProbeVertexShader();
 
   @override
@@ -43,6 +45,8 @@ final class VertexTextureProbeVertexShader extends CpuVertexShader {
 
 /// `probe/vertex_texture.frag`: what the vertex stage sampled, unchanged.
 final class VertexTextureProbeShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VertexTextureProbe`.
   const VertexTextureProbeShader();
 
   @override

@@ -64,6 +64,14 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   // `labelOf`, nothing can take a CPU away, and a pipeline links in the
   // calling turn either way.
 
+  /// A device for frames of [width] by [height] pixels that runs the stages in
+  /// [shaders].
+  ///
+  /// [maxColorAttachments] (three by default) sets the limit, at sixteen bytes
+  /// a sample each. [supportsIndependentBlend] adds that feature, and
+  /// [withhold] takes any implemented feature away, so a test can see a refusal
+  /// with real pixels behind it. [materialCompiler] compiles a bundle's
+  /// material stages; null refuses such a bundle.
   CpuDevice({
     required this.width,
     required this.height,
@@ -247,8 +255,12 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   @override
   final List<TextureFormat> hdrOutputFormats;
 
+  /// Width of the frame the caller sizes its targets by, in pixels. The device
+  /// keeps it for its callers and does not read it itself.
   final int width;
 
+  /// Height of the frame the caller sizes its targets by, in pixels; see
+  /// [width].
   final int height;
 
   @override

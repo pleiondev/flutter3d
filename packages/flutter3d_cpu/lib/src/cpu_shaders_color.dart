@@ -30,6 +30,9 @@ double toSrgb(double c) => c < 0.0031308
     ? c * 12.92
     : 1.055 * portablePow5Over12(math.max(c, 0.0)) - 0.055;
 
+/// GLSL's `smoothstep`: nought below [edge0], one above [edge1], a Hermite
+/// curve between. Two equal edges are a step at [edge0] rather than the NaN the
+/// division would give.
 double smoothstep(double edge0, double edge1, double x) {
   // **Two equal edges are a step, not a division.** GLSL leaves this
   // undefined; Dart does not, and what it does is `0/0`, which is a NaN that
@@ -41,6 +44,8 @@ double smoothstep(double edge0, double edge1, double x) {
   return t * t * (3.0 - 2.0 * t);
 }
 
+/// GLSL's `fract`: the part of [x] above its floor, in `[0, 1)` for negative
+/// [x] too.
 double fract(double x) => x - x.floor();
 
 /// `EncodeOctahedral` from `color.glsl`: a unit normal in two channels.

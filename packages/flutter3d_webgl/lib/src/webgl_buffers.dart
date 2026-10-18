@@ -209,6 +209,8 @@ Future<void> webglFinishedSoFar(web.WebGL2RenderingContext gl) async {
 /// A mapping of a buffer range: a copy of its bytes, since WebGL2 maps
 /// nothing into host memory, written back by [unmap] for [MapMode.write].
 final class WebGlMapping extends MappedBuffer {
+  /// A mapping holding [bytes], the range's contents copied out at
+  /// [offsetInBytes]; the buffer is already marked mapped.
   WebGlMapping(
     this._gl,
     this._buffer,
@@ -219,7 +221,12 @@ final class WebGlMapping extends MappedBuffer {
 
   final web.WebGL2RenderingContext _gl;
   final WebGlBuffer _buffer;
+
+  /// Where the mapped range starts in the buffer, in bytes; [unmap] writes back
+  /// to here.
   final int offsetInBytes;
+
+  /// What the mapping is for: only [MapMode.write] is copied back at [unmap].
   final MapMode mode;
 
   @override

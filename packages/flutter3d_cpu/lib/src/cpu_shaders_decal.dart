@@ -23,6 +23,8 @@ const double _albedoFloor = 0.08;
 /// `decal.frag`: the factor a decal multiplies the scene by, or the term it
 /// adds, by `params.w`.
 final class DecalShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Decal`.
   const DecalShader();
 
   @override

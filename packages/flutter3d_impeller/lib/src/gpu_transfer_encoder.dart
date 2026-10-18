@@ -24,6 +24,8 @@ import 'gpu_texture.dart';
 /// The copies of one transfer pass, recorded as work and handed to the queue
 /// in order at [submit].
 final class GpuTransferEncoder extends TransferEncoder {
+  /// A transfer pass checking each copy against the device's features and
+  /// calling [onRejectedSubmission] when the queue refuses its work.
   GpuTransferEncoder(this._features, {required this.onRejectedSubmission});
 
   final DeviceFeatures _features;

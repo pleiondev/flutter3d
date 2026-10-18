@@ -68,8 +68,13 @@ final class GpuFrame {
   /// Buffers submitted whose completion the queue has not reported.
   int outstanding = 0;
 
+  /// Whether the frame is closed to new passes, set when the next frame begins;
+  /// until then [settleIfDone] does nothing.
   bool encoded = false;
   bool _settled = false;
+
+  /// Callbacks run once, in order, when the frame settles: encoded, nothing
+  /// being encoded and nothing outstanding.
   final List<void Function()> whenDone = <void Function()>[];
 
   /// Gives up on passes opened and never submitted.
@@ -81,6 +86,10 @@ final class GpuFrame {
   /// [outstanding], and it is untouched here.
   void abandonUnsubmitted() => encoding = 0;
 
+  /// Settles the frame once it is [encoded] and neither [encoding] nor
+  /// [outstanding] is above nought: runs [whenDone] and reports the timed
+  /// passes, if any, to the timings listener. Does nothing before then or a
+  /// second time.
   void settleIfDone() {
     if (_settled || !encoded || encoding > 0 || outstanding > 0) return;
     _settled = true;

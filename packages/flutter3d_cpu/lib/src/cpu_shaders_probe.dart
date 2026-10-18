@@ -36,6 +36,8 @@ Vector3 probeFaceDirection(int face, double s, double t) {
 /// cross-backend comparison of `probe-car` rests on, and a transcription of a
 /// transcription is one drift further from the thing it stands for.
 final class ProbePrefilterShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ProbePrefilter`.
   const ProbePrefilterShader();
 
   @override

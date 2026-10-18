@@ -30,6 +30,8 @@ double _henyeyGreenstein(double cosine, double g) {
 
 /// `volumetric_fog.frag`: in-scatter in rgb, transmittance in alpha.
 final class VolumetricFogShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VolumetricFog`.
   const VolumetricFogShader();
 
   @override
@@ -280,6 +282,8 @@ Vector3 _clusterLight(
 /// `volumetric_fog_upsample.frag`: the four nearest fog texels, weighed by
 /// their bilinear share and by how near their depth is to the pixel's.
 final class VolumetricFogUpsampleShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `VolumetricFogUpsample`.
   const VolumetricFogUpsampleShader();
 
   @override

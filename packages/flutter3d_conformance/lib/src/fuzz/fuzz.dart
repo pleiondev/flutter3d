@@ -36,6 +36,8 @@ import '../../flutter3d_conformance.dart' show DeviceFactory;
 /// JavaScript number carries it exactly, where `dart:math`'s `Random` makes
 /// no promise across platforms.
 final class FuzzRandom {
+  /// A generator seeded with [seed]; equal seeds give equal sequences on every
+  /// platform.
   FuzzRandom(int seed) : _state = (seed % 2147483646) + 1;
 
   int _state;
@@ -50,8 +52,10 @@ final class FuzzRandom {
   double between(double lo, double hi) =>
       lo + (hi - lo) * (below(1024) / 1024.0);
 
+  /// True [percent] times in a hundred, [percent] from nought to a hundred.
   bool chance(int percent) => below(100) < percent;
 
+  /// An element of [from], each equally likely; [from] must not be empty.
   T pick<T>(List<T> from) => from[below(from.length)];
 }
 
@@ -60,6 +64,8 @@ typedef FuzzVertex = ({double x, double y, double z, List<double> rgba});
 
 /// A draw and the state it is drawn with.
 final class FuzzDraw {
+  /// A draw of [triangles] into [viewport], with no scissor, no blend, no depth
+  /// write and an always-passing depth test unless given.
   const FuzzDraw({
     required this.viewport,
     required this.triangles,
@@ -70,10 +76,21 @@ final class FuzzDraw {
     this.exponent = 0,
   });
 
+  /// Where clip space maps to on the target, in pixels from the top left.
   final ScreenRect viewport;
+
+  /// The rectangle the draw is cut to, in pixels; null for the whole target.
   final ScreenRect? scissor;
+
+  /// The blend the draw is made with; null replaces what is there.
   final BlendState? blend;
+
+  /// Whether the draw writes depth; only meaningful on a program with a depth
+  /// target.
   final bool depthWrite;
+
+  /// The depth test the draw is made with; `always` on a program with no depth
+  /// target.
   final CompareFunction depthCompare;
 
   /// Three vertices per triangle, in the order they are drawn.
@@ -82,6 +99,7 @@ final class FuzzDraw {
   /// The vertices are stored times `2^exponent` and the matrix undoes it.
   final int exponent;
 
+  /// How many triangles the draw has.
   int get triangleCount => triangles.length ~/ 3;
 
   /// A copy with the given fields replaced. A `clear…` flag resets that
@@ -109,6 +127,8 @@ final class FuzzDraw {
 
 /// A pass over one colour target, and optionally a depth target.
 final class FuzzProgram {
+  /// A pass over a [width] by [height] target cleared to [clear], with a depth
+  /// target when [depth], drawing [draws] in order.
   const FuzzProgram({
     required this.width,
     required this.height,
@@ -117,12 +137,22 @@ final class FuzzProgram {
     required this.draws,
   });
 
+  /// Width of the colour target, in pixels.
   final int width;
+
+  /// Height of the colour target, in pixels.
   final int height;
+
+  /// The clear colour as four channels, red to alpha, each nought to one.
   final List<double> clear;
+
+  /// Whether the pass has a depth target as well as the colour one.
   final bool depth;
+
+  /// The draws, in the order they are made.
   final List<FuzzDraw> draws;
 
+  /// Returns the same pass drawing [draws] instead.
   FuzzProgram withDraws(List<FuzzDraw> draws) => FuzzProgram(
     width: width,
     height: height,
@@ -341,8 +371,14 @@ abstract final class FuzzTransform {
 /// Draw [draw]'s first [at] triangles, then the rest, as two draws with the
 /// same state. The same triangles in the same order.
 final class SplitDraw extends FuzzTransform {
+  /// Splits draw [draw] after triangle [at].
   const SplitDraw(this.draw, this.at);
+
+  /// Index of the draw split in the program's [FuzzProgram.draws].
   final int draw;
+
+  /// How many triangles go in the first half; the transform does not apply
+  /// unless it is between one and the draw's count less one.
   final int at;
   @override
   Set<int> get involves => <int>{draw};
@@ -366,7 +402,11 @@ final class SplitDraw extends FuzzTransform {
 /// Draw [draw] and the one after it in the other order, where no pixel is
 /// touched by both.
 final class SwapDisjointDraws extends FuzzTransform {
+  /// Swaps draw [draw] with the one after it.
   const SwapDisjointDraws(this.draw);
+
+  /// Index of the first of the two draws swapped; the transform does not apply
+  /// when their pixels may overlap or either draws nothing.
   final int draw;
   @override
   Set<int> get involves => <int>{draw, draw + 1};
@@ -397,8 +437,14 @@ final class SwapDisjointDraws extends FuzzTransform {
 /// Store draw [draw]'s positions times `2^exponent` and put `2^-exponent`
 /// into its matrix. Both are exact, so clip space does not move by a bit.
 final class FoldPowerOfTwo extends FuzzTransform {
+  /// Folds `2^exponent` into draw [draw].
   const FoldPowerOfTwo(this.draw, this.exponent);
+
+  /// Index of the draw whose positions are scaled.
   final int draw;
+
+  /// The power of two the positions are multiplied by and the matrix divides
+  /// by; nought does not apply.
   final int exponent;
   @override
   Set<int> get involves => <int>{draw};
@@ -481,6 +527,8 @@ bool _overlap((int, int, int, int) a, (int, int, int, int) b) =>
 
 /// A program and a rewrite of it that a device drew differently.
 final class FuzzFinding {
+  /// A finding of [transform] on [seed]'s [program], changing [differingBytes]
+  /// bytes.
   const FuzzFinding({
     required this.seed,
     required this.program,
@@ -488,9 +536,17 @@ final class FuzzFinding {
     required this.differingBytes,
   });
 
+  /// The seed the program was generated from.
   final int seed;
+
+  /// The program, as generated or as `shrinkFinding` cut it down.
   final FuzzProgram program;
+
+  /// The rewrite the device drew differently from the program.
   final FuzzTransform transform;
+
+  /// How many bytes of the read-back frame differed between the program and its
+  /// rewrite, at least one.
   final int differingBytes;
 
   @override

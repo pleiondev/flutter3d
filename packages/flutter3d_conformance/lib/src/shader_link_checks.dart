@@ -3,6 +3,8 @@ import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 
 import '../flutter3d_conformance.dart';
 
+/// Checks that [device]'s library answers every name in `requiredShaders`,
+/// failing with the missing names.
 Future<void> checkShaderNames(GraphicsDevice device) async {
   // The one requirement GraphicsDevice cannot express. The engine asks a
   // library for entry points by name, so a backend written from the interface
@@ -23,6 +25,9 @@ Future<void> checkShaderNames(GraphicsDevice device) async {
   );
 }
 
+/// Checks that every stage pair the engine builds links on [device]: each
+/// lighting model under each mesh vertex layout, and the other pairs it draws
+/// with.
 Future<void> checkLinking(GraphicsDevice device) async {
   // Compiling is not linking. A stage pair can hold two shaders that each
   // compile and refuse to link together, and the one that fails is not the one

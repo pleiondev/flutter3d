@@ -23,11 +23,18 @@ import 'portable_log2.dart';
 /// from. Converted on the way out, in `readPixels`, which is the only place the
 /// distinction can be observed.
 final class CpuTexture {
+  /// A [width] by [height] texture of [format], every texel transparent black.
   CpuTexture(this.width, this.height, this.format)
     : pixels = Float32List(width * height * 4);
 
+  /// Width in texels.
   final int width;
+
+  /// Height in texels.
   final int height;
+
+  /// The format the engine asked for. The texels are floats whatever it says;
+  /// it decides how they are converted in and out.
   final TextureFormat format;
 
   /// RGBA per pixel, row-major from the top.
@@ -68,6 +75,7 @@ final class CpuTexture {
   /// slices, and each entry of the base's [levels] carries its own.
   List<CpuTexture>? slices;
 
+  /// Returns [depth], allocating it filled with one on first use.
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
@@ -81,6 +89,7 @@ final class CpuTexture {
   /// clamping ones have to add.
   Uint8List? stencil;
 
+  /// Returns [stencil], allocating it at nought on first use.
   Uint8List stencilBuffer() => stencil ??= Uint8List(width * height);
 
   /// The array a pass named through `ColorTarget.face` and
@@ -171,13 +180,22 @@ final class CpuTexture {
 /// it did not look like a sampler bug in the picture — it looked like the
 /// checkerboard was very slightly the wrong size.
 final class BoundTexture {
+  /// [texture] as read through [sampler].
   const BoundTexture(this.texture, this.sampler);
 
+  /// The texels, with their levels, layers and faces.
   final CpuTexture texture;
+
+  /// The filters and address modes every sample through this binding uses.
   final SamplerDescriptor sampler;
 
+  /// Width of the base level, in texels.
   int get width => texture.width;
+
+  /// Height of the base level, in texels.
   int get height => texture.height;
+
+  /// The base level's RGBA floats, row-major from the top.
   Float32List get pixels => texture.pixels;
 
   /// Samples a cube in `direction`, which need not be normalised.

@@ -24,6 +24,13 @@ import 'cpu_vertex_fetch.dart';
 /// device's record of the pipelines whose draws are skipped; [scratch] is
 /// the device's lists the rasteriser works in, one set for every pass.
 final class CpuEncoder extends PassEncoder with CommandEncoder {
+  /// Opens the render pass the descriptor describes: writes its beginning
+  /// timestamp and clears every attachment whose load action says so, the whole
+  /// attachment whatever the scissor, leaving a read-only depth or stencil
+  /// alone.
+  ///
+  /// Throws an [ArgumentError] when the descriptor's occlusion query set is not
+  /// of `QueryType.occlusion`.
   CpuEncoder(
     this._descriptor, {
     required DeviceFeatures features,

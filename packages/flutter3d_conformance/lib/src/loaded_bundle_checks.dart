@@ -15,6 +15,7 @@ import '../flutter3d_conformance.dart';
 ///
 /// A class rather than a record, so it can carry more in a minor.
 final class OwnShaderSection {
+  /// A section [id] of [bytes], in a bundle stamped with [sdk].
   const OwnShaderSection({
     required this.id,
     required this.bytes,
@@ -64,6 +65,9 @@ List<ShaderBundleStage> _engineStages() => <ShaderBundleStage>[
     ShaderBundleStage(shader.name, fragment: shader.fragment),
 ];
 
+/// Checks that [device] refuses bytes that are not a bundle with a
+/// [ShaderBundleException], and that its own shaders packed as a bundle ([own],
+/// or none) load into a library answering every engine name.
 Future<void> checkLoadedLibrary(
   GraphicsDevice device,
   OwnShaderSection? own,

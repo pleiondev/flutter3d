@@ -29,6 +29,9 @@ import 'webgl_shaders.dart';
 
 /// One pass, recorded straight into the context. See the library note above.
 final class WebGlEncoder extends PassEncoder with CommandEncoder {
+  /// Opens the pass [descriptor] describes on a framebuffer of its own:
+  /// attaches its targets, resets the pass state the contract starts from, and
+  /// clears whole attachments whatever the scissor.
   WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
     : _descriptor = descriptor,
       _targetHeight = descriptor.colors.isNotEmpty

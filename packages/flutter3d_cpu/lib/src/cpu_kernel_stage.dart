@@ -19,6 +19,7 @@ import 'cpu_texel_codec.dart' show settleTexel;
 /// A kernel's compute stage. A reload points [kernel] at the new source
 /// under the handle already handed out.
 final class CpuKernelStage extends CpuComputeShader with CpuStorageReader {
+  /// The stage for [kernel], remembering the [source] it was read from.
   CpuKernelStage(this.source, this.kernel);
 
   /// The text the kernel was read from, so a reload whose source did not

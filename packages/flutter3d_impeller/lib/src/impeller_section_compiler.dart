@@ -18,6 +18,7 @@ import 'package:flutter3d_shaders/backend.dart';
 ///
 /// Registered by `registerGpuBackend(compilers:)` beside the device.
 final class ImpellerSectionCompiler extends MaterialCompiler {
+  /// Holds no state; `registerGpuBackend` registers one beside the device.
   const ImpellerSectionCompiler();
 
   @override

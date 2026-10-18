@@ -25,6 +25,8 @@ import 'gpu_capabilities.dart' show impellerBackendName;
 
 /// One pipeline `createPipeline` handed out, linked on demand.
 final class GpuPipeline<T extends Object> {
+  /// A pipeline called [name] that links, when first asked for, with the
+  /// builder it is handed.
   GpuPipeline(this.name, this._build);
 
   /// `vertex+fragment`, as the handle names it.

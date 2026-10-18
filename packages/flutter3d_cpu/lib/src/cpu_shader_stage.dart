@@ -80,6 +80,8 @@ abstract base class CpuVertexShaderByIndex extends CpuVertexShader {
 /// grows a third one should not change the signature of the twenty-three that
 /// did not.
 final class FragmentContext {
+  /// A context with the coordinate at nought and no derivatives, surface or
+  /// albedo; the rasteriser fills it per fragment.
   FragmentContext();
 
   /// `gl_FragCoord`: window x and y, window depth in z, and `1/w` in w.
@@ -107,6 +109,9 @@ final class FragmentContext {
   /// two — so it changes which mip is picked only for a surface seen at a sharp
   /// angle, and by one level when it does.
   Float32List? ddx;
+
+  /// How fast each varying moves down the screen, per pixel; filled and
+  /// approximated as [ddx] is, and null when [ddx] is.
   Float32List? ddy;
 
   /// What the stage wrote to attachment one, or null if it wrote nothing.
@@ -208,20 +213,30 @@ abstract base mixin class CpuStorageReader {
 
 /// A stage, which is one or the other.
 final class CpuStage {
+  /// A vertex stage; [fragment] and [compute] are null.
   const CpuStage.vertex(this.vertex) : fragment = null, compute = null;
+
+  /// A fragment stage; [vertex] and [compute] are null.
   const CpuStage.fragment(this.fragment) : vertex = null, compute = null;
 
   /// A compute stage — `H6`.
   const CpuStage.compute(this.compute) : vertex = null, fragment = null;
 
+  /// The vertex shader, or null when this is a fragment or compute stage.
   final CpuVertexShader? vertex;
+
+  /// The fragment shader, or null when this is a vertex or compute stage.
   final CpuFragmentShader? fragment;
+
+  /// The compute shader, or null when this is a vertex or fragment stage.
   final CpuComputeShader? compute;
 }
 
 /// What a compute stage is handed: its storage buffers and uniform blocks,
 /// by the names the GLSL gives them.
 final class CpuComputeBindings {
+  /// Bindings for one dispatch: the [storage] buffers and uniform [blocks], and
+  /// any sampled [textures] and [storageTextures].
   CpuComputeBindings(
     this.storage,
     this.blocks, {
@@ -232,6 +247,8 @@ final class CpuComputeBindings {
   /// The buffers themselves, not copies: a stage writes into them. A buffer
   /// bound with a range is that range.
   final Map<String, ByteData> storage;
+
+  /// Block name to member name to floats, exactly as the engine wrote them.
   final Map<String, Map<String, Float32List>> blocks;
 
   /// Sampled textures with their samplers — `ComputeEncoder.bindTexture`.

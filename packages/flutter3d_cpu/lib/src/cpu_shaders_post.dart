@@ -24,6 +24,8 @@ import 'cpu_shaders_color.dart';
 /// there is no way to see that in a fixture whose picture is roughly
 /// symmetric.
 final class FullscreenVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `FullscreenVertex`.
   const FullscreenVertexShader();
 
   @override
@@ -39,6 +41,8 @@ final class FullscreenVertexShader extends CpuVertexShader {
 
 /// `composite.frag`: add the bloom, expose, tone map, encode.
 final class CompositeShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Composite`.
   const CompositeShader();
 
   /// `Distort` in `composite.frag`: radially by `1 + k·r²` on the frame's
@@ -388,6 +392,8 @@ double _bayerCell(double x, double y) {
 /// this file keeps: the two are compared by golden images and a shortcut here
 /// would read as a backend disagreeing about the picture.
 final class FxaaShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Fxaa`.
   const FxaaShader();
 
   /// `SearchStep` from `fxaa.frag`, the first step (one texel) included:
@@ -679,6 +685,8 @@ double _hash(double x, double y) {
 /// floor or a range that drifted here would meter a scene as a different
 /// brightness and read as a tuning problem.
 final class LuminanceShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Luminance`.
   const LuminanceShader();
 
   @override
@@ -711,6 +719,8 @@ final class LuminanceShader extends CpuFragmentShader {
 /// whole block was drawn and how near its nearest depth comes to that —
 /// `C3`. `HiZOcclusion.accept` is the other end.
 final class DepthPyramidShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `DepthPyramid`.
   const DepthPyramidShader();
 
   @override
@@ -762,6 +772,8 @@ final class DepthPyramidShader extends CpuFragmentShader {
 
 /// `field_decay.frag`: every texel times a factor plus a constant — `H5`.
 final class FieldDecayShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `FieldDecay`.
   const FieldDecayShader();
 
   @override
@@ -784,6 +796,8 @@ final class FieldDecayShader extends CpuFragmentShader {
 /// It exists to answer whether a backend writes the second target at all, so
 /// there is nothing to get right here except writing both.
 final class MrtProbeShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `MrtProbe`.
   const MrtProbeShader();
 
   @override
@@ -798,6 +812,8 @@ final class MrtProbeShader extends CpuFragmentShader {
 /// an approximated Lanczos-2 stretched along the edge, and the result held
 /// between the four nearest.
 final class EasuShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Easu`.
   const EasuShader();
 
   @override
@@ -922,6 +938,8 @@ final class EasuShader extends CpuFragmentShader {
 /// `local_exposure.frag`: how well exposed each place would be at three
 /// exposures — `R7`.
 final class LocalExposureShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `LocalExposure`.
   const LocalExposureShader();
 
   static double _luma(Vector4 c) => 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
@@ -966,6 +984,8 @@ final class LocalExposureShader extends CpuFragmentShader {
 /// `local_exposure_blur.frag`: the weights blurred along one axis, and on
 /// the second run the exposure in stops — `R7`.
 final class LocalExposureBlurShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `LocalExposureBlur`.
   const LocalExposureBlurShader();
 
   @override
@@ -998,6 +1018,8 @@ final class LocalExposureBlurShader extends CpuFragmentShader {
 /// texel, taken as the stage takes it — bilinear taps on the corners inside
 /// the block, rows outside and columns inside, in the stage's order.
 final class SceneColorCopyShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `SceneColorCopy`.
   const SceneColorCopyShader();
 
   @override
@@ -1026,6 +1048,8 @@ final class SceneColorCopyShader extends CpuFragmentShader {
 /// layers, covering as much of the pixel as they do together, premultiplied
 /// for the source-over it is drawn with.
 final class WboitResolveShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `WboitResolve`.
   const WboitResolveShader();
 
   @override

@@ -29,6 +29,8 @@ import 'webgl_textures.dart';
 
 /// One transfer pass. See the library note.
 final class WebGlTransferEncoder extends TransferEncoder {
+  /// A transfer pass on the device's context; a call after [submit] throws a
+  /// [StateError].
   WebGlTransferEncoder(this._device, this._gl);
 
   final WebGlDevice _device;

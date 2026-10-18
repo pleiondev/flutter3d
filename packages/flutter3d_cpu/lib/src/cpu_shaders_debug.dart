@@ -12,6 +12,8 @@ import 'cpu_shaders_surface.dart' show uvFootprint;
 
 /// `debug_line.vert`: position and colour, through one matrix.
 final class DebugLineVertexShader extends CpuVertexShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `DebugLineVertex`.
   const DebugLineVertexShader();
 
   @override
@@ -29,6 +31,8 @@ final class DebugLineVertexShader extends CpuVertexShader {
 
 /// `debug_line.frag`: the colour, unchanged.
 final class DebugLineShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `DebugLine`.
   const DebugLineShader();
 
   @override
@@ -47,6 +51,8 @@ final class DebugLineShader extends CpuFragmentShader {
 /// cutoff in `IdInfo.mask.x`, and a fragment under it is discarded before the
 /// id is written, so a click through the hole answers with what is behind it.
 final class ObjectIdShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ObjectId`.
   const ObjectIdShader();
 
   @override
@@ -75,6 +81,8 @@ final class ObjectIdShader extends CpuFragmentShader {
 /// so it is converted to linear here and the composite's encode hands the
 /// original back, provided tone mapping and exposure are off.
 final class NormalsShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Normals`.
   const NormalsShader();
 
   @override

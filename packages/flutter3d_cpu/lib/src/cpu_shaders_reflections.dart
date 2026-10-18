@@ -58,6 +58,8 @@ double pixelNoise(ShaderBindings b, double x, double y) =>
 /// read the surface buffer upside down on every backend whose row zero is at
 /// the top, which is Impeller and this one. See `UvFromNdc` in reflections.frag.
 final class ReflectionsShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `Reflections`.
   const ReflectionsShader();
 
   @override
@@ -236,6 +238,8 @@ final class ReflectionsShader extends CpuFragmentShader {
 /// Mirrors the GLSL operation for operation, the contract every shader in
 /// this package keeps.
 final class LightShaftsShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `LightShafts`.
   const LightShaftsShader();
 
   @override
@@ -365,6 +369,8 @@ final class LightShaftsShader extends CpuFragmentShader {
 /// out of the two implementations, which is the only thing keeping this one
 /// honest.
 final class DepthOfFieldShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `DepthOfField`.
   const DepthOfFieldShader();
 
   /// `kGolden` from the shader.
@@ -494,6 +500,8 @@ final class DepthOfFieldShader extends CpuFragmentShader {
 /// tile — `gfx-34n`. The columns and the neighbourhood after it are the
 /// motion blur's own passes.
 final class DofTileMaxShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `DofTileMax`.
   const DofTileMaxShader();
 
   @override
@@ -538,6 +546,8 @@ final class DofTileMaxShader extends CpuFragmentShader {
 /// rather than an enum for the same reason the GLSL has one: it is part of a
 /// uniform layout four backends read.
 final class ViewportShadeShader extends CpuFragmentShader {
+  /// Keeps no state, so one const instance serves every draw;
+  /// `builtinCpuShaders` files it under `ViewportShade`.
   const ViewportShadeShader();
 
   @override

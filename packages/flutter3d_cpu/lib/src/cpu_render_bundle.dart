@@ -14,9 +14,12 @@ import 'cpu_shader.dart';
 
 /// What a [RenderBundle] holds here: the calls, in order.
 final class CpuRenderBundle {
+  /// A bundle of [calls], copied into an unmodifiable list.
   CpuRenderBundle(List<void Function(PassEncoder)> calls)
     : calls = List<void Function(PassEncoder)>.unmodifiable(calls);
 
+  /// The recorded calls, in order; replaying the bundle runs each against the
+  /// pass.
   final List<void Function(PassEncoder)> calls;
 }
 
@@ -33,6 +36,8 @@ final class CpuRenderBundle {
 /// queries and nested bundles belong to the pass replaying it.
 final class CpuRenderBundleEncoder extends PassEncoder
     with RenderBundleEncoder {
+  /// Records into a bundle the descriptor describes, checking each call against
+  /// the device's features and format support as it is made.
   CpuRenderBundleEncoder(
     this._descriptor, {
     required this._features,

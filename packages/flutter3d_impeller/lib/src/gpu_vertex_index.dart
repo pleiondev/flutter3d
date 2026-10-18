@@ -123,9 +123,16 @@ BufferLayout defaultSlotZero(String stage) {
 /// Where a pipeline's index buffers go: the slot of each, or null for an
 /// index the stage does not read.
 final class IndexStreamSlots {
+  /// The slots of the [vertex] and [instance] index buffers, each null when the
+  /// stage does not read it.
   const IndexStreamSlots({this.vertex, this.instance});
 
+  /// The vertex buffer slot of the per-vertex index stream, or null when the
+  /// stage does not read the vertex index.
   final int? vertex;
+
+  /// The vertex buffer slot of the per-instance index stream, or null when the
+  /// stage does not read the instance index.
   final int? instance;
 }
 

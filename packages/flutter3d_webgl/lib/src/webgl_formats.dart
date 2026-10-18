@@ -55,11 +55,14 @@ int? cullModeToGl(CullMode mode) => switch (mode) {
   _ => throw webglRefusal('cullModeToGl', 'WebGL2 has no cull face for $mode'),
 };
 
+/// The `frontFace` constant for [order]: `CW` or `CCW`.
 int windingOrderToGl(WindingOrder order) => switch (order) {
   WindingOrder.clockwise => web.WebGLRenderingContext.CW,
   WindingOrder.counterClockwise => web.WebGLRenderingContext.CCW,
 };
 
+/// The draw mode for [type]. Throws a `DeviceResourceException` for a type
+/// WebGL2 has no primitive for.
 int primitiveTypeToGl(PrimitiveType type) => switch (type) {
   PrimitiveType.triangle => web.WebGLRenderingContext.TRIANGLES,
   PrimitiveType.triangleStrip => web.WebGLRenderingContext.TRIANGLE_STRIP,
@@ -72,6 +75,9 @@ int primitiveTypeToGl(PrimitiveType type) => switch (type) {
   ),
 };
 
+/// The blend function constant for [factor], the dual-source ones as
+/// `WEBGL_blend_func_extended`'s values. Throws a `DeviceResourceException` for
+/// a factor WebGL2 has no constant for.
 int blendFactorToGl(BlendFactor factor) => switch (factor) {
   BlendFactor.zero => web.WebGLRenderingContext.ZERO,
   BlendFactor.one => web.WebGLRenderingContext.ONE,
@@ -124,6 +130,8 @@ int blendOperationToGl(BlendOperation op) => switch (op) {
   ),
 };
 
+/// `UNSIGNED_SHORT` or `UNSIGNED_INT` for [type]. Throws a
+/// `DeviceResourceException` for any other index type.
 int indexTypeToGl(IndexType type) => switch (type) {
   IndexType.int16 => web.WebGLRenderingContext.UNSIGNED_SHORT,
   IndexType.int32 => web.WebGLRenderingContext.UNSIGNED_INT,
@@ -426,6 +434,9 @@ int minFilterToGl(MinMagFilter filter, MipFilter mip) =>
       ),
     };
 
+/// The wrap constant for [mode]. Throws an [UnsupportedCapabilityException] for
+/// `clampToBorder`, which WebGL2 lacks, and a `DeviceResourceException` for a
+/// mode it has no wrap for.
 int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => web.WebGLRenderingContext.CLAMP_TO_EDGE,
   SamplerAddressMode.repeat => web.WebGLRenderingContext.REPEAT,
@@ -475,6 +486,8 @@ bool canDrawPolygonMode(PolygonMode mode) => switch (mode) {
 /// reverse; [rgtc] (BC5) and [bptc] (BC7) are newer and the least reliably
 /// present of the six.
 final class CompressedTextureSupport {
+  /// An answer given outright; the device starts from all false until it has
+  /// queried its context.
   const CompressedTextureSupport({
     required this.etc2,
     required this.s3tc,
@@ -484,6 +497,8 @@ final class CompressedTextureSupport {
     required this.astc,
   });
 
+  /// Asks [gl] for each extension, which also unlocks its formats' tokens for
+  /// `compressedTexImage2D`.
   factory CompressedTextureSupport.query(web.WebGL2RenderingContext gl) =>
       CompressedTextureSupport(
         etc2: gl.getExtension('WEBGL_compressed_texture_etc') != null,
@@ -493,18 +508,33 @@ final class CompressedTextureSupport {
         bptc: gl.getExtension('EXT_texture_compression_bptc') != null,
         astc: gl.getExtension('WEBGL_compressed_texture_astc') != null,
       );
+
+  /// `WEBGL_compressed_texture_etc`: ETC2 and EAC, granted in practice
+  /// everywhere.
   final bool etc2;
+
+  /// `WEBGL_compressed_texture_s3tc`: BC1 to BC3, linear.
   final bool s3tc;
+
+  /// `WEBGL_compressed_texture_s3tc_srgb`: BC1 to BC3 in sRGB.
   final bool s3tcSrgb;
+
+  /// `EXT_texture_compression_rgtc`: BC4 and BC5.
   final bool rgtc;
+
+  /// `EXT_texture_compression_bptc`: BC6H and BC7.
   final bool bptc;
 
+  /// `WEBGL_compressed_texture_astc`: ASTC, common on mobile GPUs and rare on
+  /// desktop.
   final bool astc;
 }
 
 /// What a WebGL2 context was granted at creation, as far as which formats it
 /// can do what with — the input [webglTextureFormatSupport] answers from.
 final class WebGlFormatCaps {
+  /// What the context was granted, extension by extension, and the result of
+  /// the multisample probe.
   const WebGlFormatCaps({
     required this.colorBufferFloat,
     required this.floatLinear,
@@ -528,6 +558,7 @@ final class WebGlFormatCaps {
   /// advertise it and then refuse.
   final bool halfFloatMultisample;
 
+  /// Which compressed families the context can sample.
   final CompressedTextureSupport compressed;
 }
 

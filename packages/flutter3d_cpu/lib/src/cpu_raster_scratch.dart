@@ -44,8 +44,14 @@ final class CpuRasterScratch {
   /// A triangle's window x, y and depth and its `1/w`, one a corner. Wide
   /// enough for a line's two.
   final Float64List sx = Float64List(3);
+
+  /// Each corner's window y, in pixels down from the top.
   final Float64List sy = Float64List(3);
+
+  /// Each corner's window depth, as the viewport maps it.
   final Float64List sz = Float64List(3);
+
+  /// Each corner's `1/w`, which perspective-correct interpolation divides by.
   final Float64List invW = Float64List(3);
 
   /// Three lists of [count] varyings, one a corner, all zero: what a draw's

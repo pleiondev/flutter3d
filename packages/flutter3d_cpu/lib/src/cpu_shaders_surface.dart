@@ -120,9 +120,17 @@ typedef UvFootprint = ({
 
 /// The maps a lit material reads, in `kMapBaseColor`'s order — `C8`.
 const int kMapBaseColor = 0;
+
+/// Index of the metallic-roughness map.
 const int kMapMetallicRoughness = 1;
+
+/// Index of the tangent-space normal map.
 const int kMapNormal = 2;
+
+/// Index of the ambient occlusion map.
 const int kMapOcclusion = 3;
+
+/// Index of the emissive map.
 const int kMapEmissive = 4;
 
 /// Where a material map is read and the footprint of a pixel there, as
@@ -203,6 +211,8 @@ MappedUv mapUv(
 /// each one modifies a field. A copy-returning version would read better and
 /// would be a different program.
 final class Surface {
+  /// A surface with every field given; [occlusion] starts at one and [emissive]
+  /// at black.
   Surface(
     this.albedo,
     this.alpha,
@@ -215,11 +225,17 @@ final class Surface {
     this.nDotV,
     this.tangent,
   );
+
+  /// Base colour in linear RGB, which the base colour map multiplies into.
   Vector3 albedo;
 
   /// Opacity, nought to one.
   double alpha;
+
+  /// Unit normal in world space, which the normal map perturbs.
   Vector3 normal;
+
+  /// The fragment's position in world space, in world units.
   final Vector3 world;
 
   /// Hemispheric and already scaled by the scene's strength: the sky above,
@@ -246,6 +262,9 @@ final class Surface {
   /// Neutral until a map says otherwise, so a model that samples nothing still
   /// has a complete surface.
   double occlusion = 1.0;
+
+  /// Light the surface gives off, linear RGB, added after lighting; black until
+  /// [applyEmissiveMap] sets it.
   Vector3 emissive = Vector3.zero();
 }
 
@@ -457,6 +476,10 @@ Vector3 sampleLightmap(Float32List v, ShaderBindings b, FragmentContext c) {
   );
 }
 
+/// Sets [Surface.emissive] from the emissive map, decoded from sRGB and scaled
+/// by `FragInfo.emissive` and the strength in `material2.w`. Leaves the surface
+/// as it is when no map is bound. [transformed] reads the map through the
+/// material's UV transform.
 void applyEmissiveMap(
   Surface s,
   Float32List v,

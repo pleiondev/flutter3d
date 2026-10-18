@@ -19,6 +19,7 @@ import 'cpu_texture.dart';
 /// copy recorded before a render pass but submitted after it has to wait
 /// for the submit to land after that pass's draws, as it would on a queue.
 final class CpuTransferEncoder extends TransferEncoder {
+  /// A transfer pass that checks each copy against the device's features.
   CpuTransferEncoder(this._features);
 
   final DeviceFeatures _features;
