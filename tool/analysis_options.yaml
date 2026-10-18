@@ -1,2 +1,0 @@
-# Every package under tool/ is a tool, not an API: the apps' options.
-include: ../analysis_options.apps.yaml

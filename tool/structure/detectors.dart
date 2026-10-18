@@ -6244,6 +6244,48 @@ abstract final class FrameResourceIds {
     'a guarded call is the rule kept',
   );
 
+  // The doc-comment rule in the options. The first is the applications' file
+  // as it was; the quiet one is an app's own, which only includes the root.
+  fires(
+    'the doc rule let off',
+    docRuleIn(
+      'include: analysis_options.yaml\n\n'
+      'analyzer:\n  errors:\n    public_member_api_docs: ignore\n',
+    ).weakened.contains('ignore'),
+    'public_member_api_docs: ignore under the errors',
+  );
+  fires(
+    'the doc rule let off',
+    docRuleIn(
+      'linter:\n  rules:\n    public_member_api_docs: false\n',
+    ).weakened.contains('false'),
+    'the lint switched off in the linter\'s map',
+  );
+  fires(
+    'the doc rule let off',
+    docRuleIn(
+      'include:\n  - ../../analysis_options.apps.yaml\n  - extra.yaml\n',
+    ).includes.first.endsWith('analysis_options.apps.yaml'),
+    'an include in the list form',
+  );
+  fires(
+    'the doc rule let off',
+    docRuleIn(
+      'analyzer:\n  errors:\n    public_member_api_docs: error\n',
+    ).isError,
+    'the root\'s own setting',
+  );
+  quiet(
+    'the doc rule let off',
+    docRuleIn(
+      'include: ../../analysis_options.yaml\n\n'
+      '# public_member_api_docs: ignore was this file once\n'
+      'analyzer:\n  exclude:\n    - build/**\n',
+    ).weakened.isEmpty,
+    'an app\'s include of the root, with the old setting in a comment',
+    'a comment sets nothing, and an include is not a weakening',
+  );
+
   // Compute: a pass opened outside the layer, a static cache, an encoder
   // that does not check, a test knob in the API, an undocumented tolerance.
   fires(
@@ -7001,6 +7043,64 @@ List<(String, String)> siblingPinsIn(String source, Set<String> packages) =>
         if (packages.contains(m.group(1)) && !m.group(2)!.contains(r'$'))
           (m.group(1)!, m.group(2)!),
     ];
+
+// ------------------------------------- the doc-comment rule, in the options
+
+/// What one analysis options file says about `public_member_api_docs`: the
+/// files it includes, every value it gives the rule short of an error, and
+/// whether it makes the rule an error itself.
+///
+/// **The applications were let off by a file of their own.** It was the
+/// root's options less this one rule, and every app, demo, example and tool
+/// included it instead of the root: about 3,100 public members that said
+/// nothing, and a green analysis over all of them, because staying green was
+/// what the file was for. A tree goes quiet this way in one of three lines —
+/// an `include:` of something other than the root, `public_member_api_docs:
+/// ignore` (or `info`, `warning`) under the analyser's errors, or
+/// `public_member_api_docs: false` in the linter's rules — and those are the
+/// three this reads.
+///
+/// Read as lines, not parsed: a comment is dropped before anything is
+/// matched, so an options file explaining the rule does not break it. Both
+/// shapes of `include:` are read, the one value and the list.
+({List<String> includes, List<String> weakened, bool isError}) docRuleIn(
+  String options,
+) {
+  final includes = <String>[];
+  final weakened = <String>[];
+  var isError = false;
+  var listingIncludes = false;
+  for (final raw in options.split('\n')) {
+    final line = raw.split('#').first.trimRight();
+    if (line.trim().isEmpty) continue;
+    final include = RegExp(r'^include:\s*(.*)$').firstMatch(line);
+    if (include != null) {
+      final value = include.group(1)!.trim();
+      listingIncludes = value.isEmpty;
+      if (!listingIncludes) includes.add(value.replaceAll(RegExp('[\'"]'), ''));
+      continue;
+    }
+    if (listingIncludes) {
+      final item = RegExp(r'^\s+-\s*(\S+)').firstMatch(line);
+      if (item != null) {
+        includes.add(item.group(1)!.replaceAll(RegExp('[\'"]'), ''));
+        continue;
+      }
+      listingIncludes = false;
+    }
+    final set = RegExp(
+      r'^\s*public_member_api_docs\s*:\s*(\S+)',
+    ).firstMatch(line);
+    if (set == null) continue;
+    final value = set.group(1)!;
+    if (value == 'error') {
+      isError = true;
+    } else if (value != 'true') {
+      weakened.add(value);
+    }
+  }
+  return (includes: includes, weakened: weakened, isError: isError);
+}
 
 // ------------------------------------------------- platform channel names
 

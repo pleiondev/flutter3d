@@ -617,6 +617,10 @@ List<Rule> get allRules => <Rule>[
     run: _platformCallsCatchMissing,
   ),
   (
+    name: 'every tree is held to the doc-comment rule',
+    run: _everyTreeHeldToDocs,
+  ),
+  (
     name: 'a container format\'s fixtures hold every section kind it writes',
     run: _sectionKindsInFixtures,
   ),
@@ -788,6 +792,101 @@ List<Finding> _platformCallsCatchMissing() => <Finding>[
                 'throws out of a call the game never wrapped',
           ),
 ];
+
+/// Every tree in the workspace is held to `public_member_api_docs` as an
+/// error: the root's options make it one, and every other analysis options
+/// file under `packages/`, `apps/`, `examples/` and `tool/` reaches the root
+/// through its includes and sets the rule to nothing less on the way
+/// ([docRuleIn]).
+///
+/// **The apps, the demos, the examples and the tools are held too.** They
+/// were let off once, by a file of their own, on the argument that nothing
+/// imports an app's `lib/`. But an app is where somebody reads how the
+/// engine is meant to be used, and the showcase prints its pages' source
+/// whole; an undocumented field there is the same missing sentence as one in
+/// a package. A tree that is let off again is let off in its options, which
+/// is where this looks.
+///
+/// `cloud/` is the one tree left out: its three services sit outside the pub
+/// workspace, the root's options exclude them, and `tool/ci.sh` analyses each
+/// under its own `package:lints` after its own `pub get`.
+///
+/// Mutation: put back `analysis_options.apps.yaml` with
+/// `public_member_api_docs: ignore` under its errors and point
+/// `apps/flutter3d_demo_reef/analysis_options.yaml` at it, and this names
+/// both files; point the reef's `include:` at
+/// `package:flutter_lints/flutter.yaml` instead, and this names the reef's.
+List<Finding> _everyTreeHeldToDocs() {
+  final rootOptions = File('${repositoryRoot.path}/analysis_options.yaml');
+  final found = <Finding>[
+    if (!docRuleIn(rootOptions.readAsStringSync()).isError)
+      Finding(
+        'analysis_options.yaml',
+        'no longer makes `public_member_api_docs` an error, so no tree is '
+            'held to it',
+      ),
+  ];
+  final optionsFile = RegExp(r'^analysis_options(\.[^/]+)?\.yaml$');
+  final skipped = RegExp(r'/(build|\.dart_tool|node_modules|Pods)/');
+  for (final where in const <String>['packages', 'apps', 'examples', 'tool']) {
+    final dir = Directory('${repositoryRoot.path}/$where');
+    if (!dir.existsSync()) continue;
+    for (final file in dir.listSync(recursive: true).whereType<File>()) {
+      if (skipped.hasMatch(file.path)) continue;
+      if (!optionsFile.hasMatch(file.uri.pathSegments.last)) continue;
+      final problem = _docRuleProblem(file, rootOptions);
+      if (problem != null) found.add(Finding(_inRepository(file), problem));
+    }
+  }
+  final apps = File('${repositoryRoot.path}/analysis_options.apps.yaml');
+  if (apps.existsSync()) {
+    final problem = _docRuleProblem(apps, rootOptions);
+    if (problem != null) {
+      found.add(Finding('analysis_options.apps.yaml', problem));
+    }
+  }
+  return found;
+}
+
+/// Why [file] lets its tree off the doc-comment rule, or null when it does
+/// not: it weakens the rule, or its includes run out before the root.
+///
+/// The first relative include is followed, file by file, and each file on
+/// the way is read for a weakening too — an options file one include up
+/// that switches the rule off lets off everything that includes it.
+String? _docRuleProblem(File file, File root) {
+  final seen = <String>{};
+  var at = file;
+  while (at.absolute.path != root.absolute.path) {
+    if (!seen.add(at.absolute.path)) {
+      return 'includes itself through `${at.uri.pathSegments.last}`';
+    }
+    final read = docRuleIn(at.readAsStringSync());
+    final how = identical(at, file)
+        ? 'sets'
+        : 'includes ${_inRepository(at)}, which sets';
+    if (read.weakened.isNotEmpty) {
+      return '$how `public_member_api_docs` to `${read.weakened.first}`: '
+          'every tree documents its public members, as an error';
+    }
+    final relative = read.includes.where(
+      (String it) => !it.startsWith('package:'),
+    );
+    if (relative.isEmpty) {
+      final instead = read.includes.isEmpty
+          ? 'includes nothing'
+          : 'includes `${read.includes.first}`';
+      return '$instead rather than the root\'s options, so '
+          '`public_member_api_docs` does not hold here: include the root';
+    }
+    final next = File.fromUri(at.absolute.uri.resolve(relative.first));
+    if (!next.existsSync()) {
+      return 'includes `${relative.first}`, which is not there';
+    }
+    at = next;
+  }
+  return null;
+}
 
 /// Every published package is on the engine's number
 /// (`offTheEngineNumber`), the platform plugins that name no sibling
