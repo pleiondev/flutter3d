@@ -13,15 +13,22 @@ import 'xapi_statement.dart';
 /// idempotent form, so retrying a submission that timed out but actually
 /// landed cannot double a student's record the way a second `POST` could.
 final class XapiClient {
+  /// A client sending to [lrs] over [httpClient], or one of its own when
+  /// null.
   XapiClient({required this.lrs, http.Client? httpClient})
     : _http = httpClient ?? http.Client(),
       _ownsHttpClient = httpClient == null;
 
+  /// The record store statements go to, and the header that authorises
+  /// them.
   final XapiLrsSettings lrs;
 
   final http.Client _http;
   final bool _ownsHttpClient;
 
+  /// PUTs [statement] to the LRS under its own id, as xAPI 1.0.3. Throws an
+  /// [XapiException] with the LRS's response when it answers anything but
+  /// 200 or 204.
   Future<void> send(XapiStatement statement) async {
     final uri = lrs.statementsEndpoint.replace(
       queryParameters: {'statementId': statement.id},

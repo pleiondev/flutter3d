@@ -7,6 +7,11 @@ import 'mixer.dart';
 /// compiler check every reference — the same reason weapons and monsters are
 /// declared that way.
 final class SoundDef {
+  /// A sound called [name], played from [asset]: by default a one-shot on
+  /// [AudioBus.sfx] at its own gain and speed, falling off as
+  /// [InverseRolloff], four at once at most. Asserts a gain of nought or
+  /// more, a [maxInstances] and a [rate] above nought, and a
+  /// [rateVariance] from nought up to but not including one.
   const SoundDef({
     required this.name,
     required this.asset,
@@ -33,8 +38,11 @@ final class SoundDef {
   /// the file as recorded.
   final double gain;
 
+  /// Whether it plays round and round until stopped; false plays it once
+  /// and lets the voice go when the file runs out.
   final bool loop;
 
+  /// How it gets quieter with distance, and how far it carries at all.
   final Attenuation attenuation;
 
   /// How fast to play it. One is the file's own speed.

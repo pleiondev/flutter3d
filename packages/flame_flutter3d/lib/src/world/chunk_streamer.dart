@@ -13,6 +13,8 @@
 /// where it adds and removes them. Call [cover] from the game's `update`,
 /// with the range of indices the camera can see.
 final class ChunkStreamer<C> {
+  /// A streamer holding no pieces yet, making them with [build] and letting
+  /// them go with [drop].
   ChunkStreamer({required this.build, required this.drop});
 
   /// Makes the piece at an index, adding whatever it holds to the game.

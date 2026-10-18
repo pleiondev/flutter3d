@@ -14,6 +14,9 @@ import 'package:flutter3d/flutter3d.dart';
 /// unless told otherwise; asking for the clip already playing does nothing,
 /// so a game can ask every frame for the clip its state wants.
 base class ModelAnimationComponent extends Component {
+  /// A component advancing [player], blending changes of clip over
+  /// [crossFade] seconds (0.15 by default), and playing the clip [start]
+  /// names at once when it is given.
   ModelAnimationComponent(this.player, {this.crossFade = 0.15, String? start})
     : _current = start {
     if (start != null) player.playNamed(start);
@@ -70,6 +73,8 @@ base class ModelAnimationComponent extends Component {
 /// is how most of the cartridge era moved. The meshes are shared; only the
 /// one [node] draws changes, and only when the frame does.
 base class MeshFlipbookComponent extends Component {
+  /// A flipbook swapping [node]'s mesh through [frames], two a second by
+  /// default. Asserts at least one frame.
   MeshFlipbookComponent({
     required this.node,
     required this.frames,

@@ -26,6 +26,7 @@ final class _Ran<S> {
 /// state it left: what [RollbackSession.agreedEnd] answers, the same on
 /// every machine.
 final class AgreedEnding<S> {
+  /// The ending found at [step], which left [after].
   const AgreedEnding({required this.step, required this.after});
 
   /// The step the ending came on, in the session's own counting.
@@ -126,6 +127,12 @@ final class AgreedEnding<S> {
 /// step on every machine. **Keep advancing after the end** for a while: the
 /// others may still be waiting for this one's last frames.
 final class RollbackSession<S> {
+  /// A session on [wire], hearing it from now until [dispose].
+  ///
+  /// Asserts two to thirty-two [players], a [localSlot] among them, an
+  /// [inputDelay] and a [redundancy] of nought or more, and a
+  /// [maxRollbackFrames] and a [maxStepsAhead] above nought. [elapsed] is
+  /// the shared monotonic stopwatch when null.
   RollbackSession({
     required this.wire,
     required this.captureLocalFrame,
@@ -161,6 +168,8 @@ final class RollbackSession<S> {
 
   late final Registration _hearing;
 
+  /// The wire frames go out on, unreliably, and come in on; other messages
+  /// on it go to [onMessage].
   final PeerWire wire;
 
   /// Which player this machine drives: the wire's [PeerWire.slot] unless
@@ -184,11 +193,24 @@ final class RollbackSession<S> {
   /// hit, and show who it is waiting for.
   final void Function(RollbackStep step) applyAndStep;
 
+  /// Takes the whole game's state as it stands before a step, kept while
+  /// the step is in the window.
   final S Function() save;
+
+  /// Puts the whole game back in a state [save] took, before a corrected
+  /// step and every one since are run again.
   final void Function(S state) restore;
 
+  /// How many steps after its capture a hand is applied, a count; two by
+  /// default, nought to run every unconfirmed step on a guess.
   final int inputDelay;
+
+  /// How many of the latest steps keep the state a correction needs, a
+  /// count; eight by default. A correction further back is dropped.
   final int maxRollbackFrames;
+
+  /// How many earlier steps' frames each message carries beside its own,
+  /// a count; eight by default.
   final int redundancy;
 
   /// How far past the step about to run a peer's frame is kept for later:
@@ -606,6 +628,7 @@ final class SettledStep<S> {
 /// it back, so the report of a party of phones is put together from what
 /// each phone wrote.
 final class RollbackStats {
+  /// The counters and times as given; [RollbackSession.stats] makes one.
   const RollbackStats({
     required this.steps,
     required this.rollbacks,
@@ -672,6 +695,8 @@ final class RollbackStats {
   double get droppedCorrectionShare =>
       steps == 0 ? 0.0 : droppedCorrections / steps;
 
+  /// The counters by name and the three times in whole microseconds, under
+  /// keys ending in `Us`: one machine's line of a party's report.
   Map<String, Object?> toJson() => <String, Object?>{
     'steps': steps,
     'rollbacks': rollbacks,

@@ -22,13 +22,19 @@ import 'plane.dart';
 /// a split screen. Screen points stay the canvas's, and the camera's lens
 /// is that part's shape. Null is the whole canvas.
 final class BridgeProjector {
+  /// A projector through [camera] onto a canvas [viewSize] says, the whole
+  /// of it unless [viewport] names a part.
   BridgeProjector({
     required this.camera,
     required this.viewSize,
     this.viewport,
   });
 
+  /// The scene camera whose view and lens the projection goes through.
   final CameraNode camera;
+
+  /// The canvas's size in logical pixels, read on every call so a resize
+  /// is followed: the Flame game's `size`.
   final Vector2 Function() viewSize;
 
   /// The part of the canvas [camera] draws into, read on every call; null

@@ -71,6 +71,13 @@ final class LabClock {
 /// resumes from precisely where the original was rather than from the
 /// nearest checkpoint before it.
 final class PendulumLabRun {
+  /// Runs a pendulum [startLength] metres long for [steps] steps of
+  /// [labFixedDt], with a checkpoint digest every [checkpointEvery] steps.
+  ///
+  /// [lengthAt], when given, is asked before each step for the length in
+  /// metres, with the step number from one and the length so far: a
+  /// student's panel turning the knob. Null keeps [startLength] throughout.
+  /// Throws an [ArgumentError] for a length that is not positive.
   factory PendulumLabRun({
     required double startLength,
     required int steps,
@@ -139,7 +146,12 @@ final class PendulumLabRun {
     required List<Map<String, Object?>> states,
   }) : _states = List<Map<String, Object?>>.unmodifiable(states);
 
+  /// The pendulum as it stands after the last step. A branch steps its own
+  /// copy and leaves this one alone.
   final PendulumSimulation pendulum;
+
+  /// The step the run ends after, a count from the start of the original
+  /// run: a branch counts the steps before it branched too.
   final int steps;
 
   /// A digest every [PendulumSimulation]-agnostic `checkpointEvery` steps —
@@ -239,6 +251,8 @@ final class PendulumLabRun {
 /// [PendulumLabRun.divergenceFrom]'s own answer: where two runs parted, and
 /// what each one's own length knob read there.
 final class PendulumDivergence {
+  /// The divergence at [checkpoint], with each run's length there in
+  /// metres.
   const PendulumDivergence({
     required this.checkpoint,
     required this.assignmentLength,

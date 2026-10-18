@@ -75,6 +75,8 @@ Future<Speakers> openSpeakers({
 /// No audio device would open: a headless machine, a container, a build
 /// whose audio plugin never linked. A game catches it and plays silent.
 final class AudioDeviceException extends ResourceException {
+  /// An exception saying why there is no sound, with the backend's own
+  /// error as [cause] when there was one.
   const AudioDeviceException(this.message, {this.cause});
 
   @override
@@ -91,6 +93,7 @@ final class AudioDeviceException extends ResourceException {
 /// the window closes. [backend] is any [AudioBackend], so a test or a host
 /// with its own device hands one in the same shape.
 final class Speakers {
+  /// The pair of an open [backend] and the [scene] playing through it.
   const Speakers({required this.backend, required this.scene});
 
   /// The device the scene plays through.

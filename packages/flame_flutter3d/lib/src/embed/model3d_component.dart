@@ -54,6 +54,9 @@ import 'shared_device.dart';
 /// device is `flutter3d_app`'s `openDevice`; a test opens another through
 /// `package:flame_flutter3d/testing.dart`.
 base class Model3dComponent extends PositionComponent {
+  /// A component drawing [model] into its own rectangle, seen from
+  /// [viewFrom], `(0.6, 0.4, 1.0)` when null, on [device] or the shared one
+  /// when null.
   Model3dComponent({
     this.model,
     this.animation,

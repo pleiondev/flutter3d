@@ -40,6 +40,8 @@ typedef LoopState = ({int step, Snapshot state});
 /// rollback.advance();
 /// ```
 final class EngineRollback {
+  /// Keeps [loop] in step over [wire]; every other parameter is handed to
+  /// the [RollbackSession] as it is, with the same defaults and asserts.
   EngineRollback({
     required this.loop,
     required PeerWire wire,

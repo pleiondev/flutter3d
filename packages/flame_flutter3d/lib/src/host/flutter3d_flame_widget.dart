@@ -77,6 +77,9 @@ final class BorrowedRenderer {
 /// would had the widget gone. Before, the new game was drawn over the old
 /// one's scene and never had its own opened.
 final class Flutter3dFlameWidget extends StatelessWidget {
+  /// A widget hosting [game] over a 1280 by 720 device unless told
+  /// otherwise, taking the focus when it appears. Asserts a game without
+  /// `HasFlutter3d` is given both a [camera] and a [buildScene].
   const Flutter3dFlameWidget({
     super.key,
     required this.game,
@@ -174,6 +177,9 @@ final class Flutter3dFlameWidget extends StatelessWidget {
   /// screen, which `SceneSurface` already resizes the render target to
   /// independently of this.
   final int width;
+
+  /// The [GraphicsDevice]'s backing height in pixels, as [width] is its
+  /// width; 720 by default.
   final int height;
 
   @override

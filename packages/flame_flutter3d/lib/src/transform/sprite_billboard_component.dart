@@ -38,6 +38,9 @@ import 'object3d_component.dart';
 /// pixel art wants, or [smooth] for lettering; `tint` and `opacity` colour
 /// and fade it.
 base class SpriteBillboardComponent extends Object3dComponent {
+  /// A card one metre tall showing [sprite] or playing [animation], made
+  /// on [device] through [atlas], or an atlas of its own when null. Asserts
+  /// exactly one of [sprite] and [animation].
   SpriteBillboardComponent({
     Sprite? sprite,
     SpriteAnimation? animation,
@@ -67,6 +70,8 @@ base class SpriteBillboardComponent extends Object3dComponent {
          direction: SyncDirection.flameToScene,
        );
 
+  /// The device the card's mesh and, through the atlas, its texture are
+  /// made on.
   final GraphicsDevice device;
 
   /// How tall the card stands, in metres.

@@ -63,6 +63,10 @@ import 'physics_step_component.dart';
 /// directly — this bridge relays the event onward, it does not replace the
 /// flutter3d-side one.
 final class CollisionBridge with CollisionListener {
+  /// A bridge from [collider]'s contacts to [component], set as the
+  /// collider's listener at once. [plane] defaults to the component's own;
+  /// throws an [ArgumentError] when it is null and [component] is not an
+  /// [Object3dComponent].
   CollisionBridge({
     required this.collider,
     required this.component,

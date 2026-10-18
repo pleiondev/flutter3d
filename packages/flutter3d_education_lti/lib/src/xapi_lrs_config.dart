@@ -6,6 +6,7 @@
 /// is the finished `Authorization` header value (`'Basic base64(...)'` or
 /// `'Bearer ...'`), built by the caller.
 final class XapiLrsSettings {
+  /// Settings sending to [statementsEndpoint] with [authorizationHeader].
   const XapiLrsSettings({
     required this.statementsEndpoint,
     required this.authorizationHeader,
@@ -24,5 +25,8 @@ final class XapiLrsSettings {
   /// `https://lrs.example.test/xapi/statements`.
   final Uri statementsEndpoint;
 
+  /// The whole `Authorization` header value sent with every statement,
+  /// scheme included (`Basic …` or `Bearer …`). A secret: keep it out of
+  /// logs.
   final String authorizationHeader;
 }

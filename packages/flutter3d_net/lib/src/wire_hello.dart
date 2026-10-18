@@ -45,6 +45,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// so no machine a 1.x build meets sends its bare shapes; from 3.1 on the
 /// rule above holds as written.
 final class WireHello {
+  /// A hello naming [simulation], and this build's protocol unless told
+  /// another, as a test of an older machine does.
   const WireHello({
     required this.simulation,
     this.protocolMajor = currentProtocolMajor,
@@ -68,7 +70,12 @@ final class WireHello {
     simulation: SimulationVersion.engineOnly,
   );
 
+  /// The protocol's major this machine speaks; another machine's has to
+  /// equal it. Nought for a hello from before versions.
   final int protocolMajor;
+
+  /// The protocol's minor this machine speaks; two machines on one major
+  /// speak the lower of their minors.
   final int protocolMinor;
 
   /// The game's simulation — see the class doc.

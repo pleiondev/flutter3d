@@ -7,6 +7,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// swallowing it: an AGS failure is usually a scope the platform never
 /// granted this deployment, and that only shows up in the response body.
 final class AgsException extends ResourceException {
+  /// The failure, with the request and the platform's response in
+  /// [message].
   const AgsException(this.message);
 
   @override

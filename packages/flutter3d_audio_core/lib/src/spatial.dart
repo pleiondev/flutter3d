@@ -17,6 +17,8 @@ final Vector3 _toSound = Vector3.zero();
 /// propagation graph, a head size — without every renderer's signature
 /// changing. Made and reused by `AudioScene`; copy what you keep.
 final class SpatialQuery {
+  /// A query of [emitter] as [listener] hears it, in [world], the standard
+  /// world when null, with no walls unless [occlusion] is given.
   SpatialQuery({
     required this.listener,
     required this.emitter,
@@ -96,6 +98,7 @@ final class SpatialResult {
 /// `base`, so a member added in a later minor arrives with a default:
 /// [beginMix] is one.
 abstract base class SpatialRenderer {
+  /// A renderer; a subclass says how it hears.
   const SpatialRenderer();
 
   /// Called once a mix, before any [render], with the listener placed. A
@@ -113,6 +116,7 @@ abstract base class SpatialRenderer {
 /// The two ears' shares of a panned sound: what [EqualPowerPanner.gains]
 /// answers.
 final class PanGains {
+  /// The shares [left] and [right], each a linear factor.
   const PanGains({required this.left, required this.right});
 
   /// The left ear's gain, a linear factor from 0 to 1.

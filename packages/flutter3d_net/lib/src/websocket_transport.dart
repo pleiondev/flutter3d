@@ -31,6 +31,8 @@ import 'peer_wire.dart';
 /// binary frame, and a frame of either kind from a machine that sent bytes
 /// as base64 inside JSON is delivered as bytes all the same.
 final class WebSocketTransport extends PeerWire {
+  /// A wire over an already opened channel, delivering from now on. A text
+  /// frame that is not a JSON object is passed over.
   WebSocketTransport(this._channel) {
     _channel.stream.listen((raw) {
       switch (raw) {

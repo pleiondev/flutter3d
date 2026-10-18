@@ -39,6 +39,8 @@ import 'wire_hello.dart';
 /// run yet. Each channel hears only messages sent on its own tag, and a
 /// channel nobody is listening to drops what arrives.
 final class PeerRoom {
+  /// A room on [wire] as [slot], hearing it from now until [leave]. Asserts
+  /// a [slot] of nought or one.
   PeerRoom(
     this.wire, {
     required this.slot,
@@ -55,6 +57,8 @@ final class PeerRoom {
   /// other listeners keep theirs. The wire itself is left open.
   void leave() => _hearing.cancel();
 
+  /// The relay's wire both machines share; the room says its hellos on it
+  /// and carries every [channel] over it.
   final PeerWire wire;
 
   /// Nought for whoever made the room, one for whoever joined it.

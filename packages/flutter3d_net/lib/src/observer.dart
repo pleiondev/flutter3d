@@ -28,12 +28,14 @@ final class ObserverMode {
   /// replay.
   static const ObserverMode poses = ObserverMode._('poses');
 
+  /// Every mode this build knows, which [byName] looks a name up in.
   static const List<ObserverMode> values = <ObserverMode>[tape, poses];
 
   /// The mode [name] names; null for one this build does not know.
   static ObserverMode? byName(String name) =>
       values.where((m) => m.name == name).firstOrNull;
 
+  /// The mode as the wire spells it under `"mode"`: `tape` or `poses`.
   final String name;
 
   @override
@@ -49,15 +51,22 @@ final class ObserverMode {
 final class ObserverSnapshot {
   const ObserverSnapshot._(this.name);
 
+  /// The whole state, which an observer restores or draws on its own. The
+  /// only kind 1.0 sends and reads.
   static const ObserverSnapshot full = ObserverSnapshot._('full');
+
+  /// The change since the last snapshot sent. Named for a later minor; a
+  /// 1.0 observer passes over a start that carries one and joins again.
   static const ObserverSnapshot delta = ObserverSnapshot._('delta');
 
+  /// Every kind this build knows, which [byName] looks a name up in.
   static const List<ObserverSnapshot> values = <ObserverSnapshot>[full, delta];
 
   /// The kind [name] names; null for one this build does not know.
   static ObserverSnapshot? byName(String name) =>
       values.where((s) => s.name == name).firstOrNull;
 
+  /// The kind as the wire spells it under `"snapshot"`: `full` or `delta`.
   final String name;
 
   @override
@@ -70,8 +79,12 @@ final class ObserverSnapshot {
 /// **Per observer**, so a dashboard that charts one gauge is not sent a
 /// plant's thousand; the feed addresses each its own message.
 final class ObserverFilter {
+  /// A filter passing the readings of [probes], or every reading when it
+  /// is null.
   const ObserverFilter({this.probes});
 
+  /// Reads a filter as [toJson] writes it. Anything without a `probes`
+  /// list, null included, reads as [everything].
   factory ObserverFilter.fromJson(Object? json) => switch (json) {
     {'probes': final List<Object?> ids} => ObserverFilter(
       probes: <String>{for (final id in ids) '$id'},
@@ -94,6 +107,8 @@ final class ObserverFilter {
     ],
   };
 
+  /// The filter as an observer's join message carries it: the probe ids
+  /// sorted, or an empty object for every probe.
   Map<String, Object?> toJson() => <String, Object?>{
     if (probes case final ids?) 'probes': (ids.toList()..sort()),
   };
@@ -123,6 +138,8 @@ abstract final class ObserverMessages {
 /// [ObserverMode.poses]) and then every step after it, each addressed to it
 /// alone through the relay's observer path with its own [ObserverFilter].
 final class ObserverFeed {
+  /// A feed on [wire] of [simulation], listening for observers from now
+  /// until [close].
   ObserverFeed({
     required this.wire,
     required this.simulation,
@@ -131,6 +148,8 @@ final class ObserverFeed {
     _listening = wire.listenFrom((heard) => _hear(heard.from, heard.message));
   }
 
+  /// The wire observers join on and are sent to, each message addressed
+  /// to one observer's slot.
   final PeerWire wire;
 
   /// The simulation the feed runs: whether its profile is bit-exact decides
@@ -266,6 +285,8 @@ final class ObserverRestore {
 /// and all, so its own copy runs the same steps; in [ObserverMode.poses] it
 /// is handed each step's published state, to [show].
 final class SimulationObserver {
+  /// An observer on [wire] running [simulation], listening from now until
+  /// [close]. Nothing is sent until [join].
   SimulationObserver({
     required this.wire,
     required this.simulation,
@@ -279,6 +300,8 @@ final class SimulationObserver {
     _listening = wire.listenFrom((heard) => _hear(heard.from, heard.message));
   }
 
+  /// The wire it joins on and hears the feed from; messages addressed to
+  /// another slot are passed over.
   final PeerWire wire;
 
   /// The simulation this machine runs, which decides whether it is sent the

@@ -8,13 +8,18 @@ import 'units.dart';
 /// are what every settings screen has ever shown, and a game with dialogue or
 /// with a separate slider for footsteps declares its own without asking.
 final class AudioBus {
+  /// The bus called [name]; two buses of one name are the same bus.
   const AudioBus(this.name);
 
+  /// What the bus is called: what it is compared by, and the key its
+  /// volume is saved under in [Mixer.toJson].
   final String name;
 
   /// Everything, and the slider labelled "volume".
   static const AudioBus master = AudioBus('master');
 
+  /// The soundtrack, and the slider labelled "music": what a game turns
+  /// down without losing its effects.
   static const AudioBus music = AudioBus('music');
 
   /// Everything that is not music. The default for a [SoundDef].
@@ -69,6 +74,8 @@ final class AudioBus {
 /// Snapshots blend and ducks move only when [advance] is called with the
 /// seconds that passed; `AudioScene.update` does it once a mix.
 final class Mixer {
+  /// A mixer with every bus full, then each of [volumes] set as
+  /// [setVolume] sets it.
   Mixer([Map<AudioBus, double>? volumes]) {
     if (volumes != null) {
       for (final entry in volumes.entries) {
@@ -77,6 +84,8 @@ final class Mixer {
     }
   }
 
+  /// Reads the volumes [toJson] wrote, by bus name. An entry that is not a
+  /// number is passed over.
   factory Mixer.fromJson(Map<String, Object?> json) {
     final mixer = Mixer();
     for (final entry in json.entries) {
@@ -95,6 +104,8 @@ final class Mixer {
   /// never been written must not mute anything.
   double volumeOf(AudioBus bus) => _volumes[bus] ?? 1.0;
 
+  /// Sets the player's slider for [bus] to [volume], a linear gain clamped
+  /// to `[0, 1]`.
   void setVolume(AudioBus bus, double volume) =>
       _volumes[bus] = volume.clamp(0.0, 1.0);
 
@@ -376,6 +387,9 @@ final class Mixer {
     }
   }
 
+  /// The volumes set, by bus name in sorted order: the player's settings
+  /// to save. Levels, effects and parents are the game's and are not
+  /// written.
   Map<String, Object?> toJson() => <String, Object?>{
     for (final name
         in _volumes.keys.map((AudioBus b) => b.name).toList()..sort())

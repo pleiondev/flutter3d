@@ -4,16 +4,32 @@
 /// because `lti-04` reads more of the AGS claim than `LtiLaunchClaims`
 /// exposes today (the `lineitem` URL) and will want these names again.
 abstract final class LtiClaim {
+  /// The claim naming the kind of launch, `LtiResourceLinkRequest` for the
+  /// one this tool handles.
   static const messageType =
       'https://purl.imsglobal.org/spec/lti/claim/message_type';
+
+  /// The claim naming the platform's deployment of this tool, which the
+  /// validator checks against `LtiPlatformSettings.deploymentId`.
   static const deploymentId =
       'https://purl.imsglobal.org/spec/lti/claim/deployment_id';
+
+  /// The claim naming the URL the platform means the launch to open.
   static const targetLinkUri =
       'https://purl.imsglobal.org/spec/lti/claim/target_link_uri';
+
+  /// The claim listing the user's role URIs in the context.
   static const roles = 'https://purl.imsglobal.org/spec/lti/claim/roles';
+
+  /// The claim describing the link launched, an object whose `id` names it.
   static const resourceLink =
       'https://purl.imsglobal.org/spec/lti/claim/resource_link';
+
+  /// The claim describing the course, an object whose `id` names it.
   static const context = 'https://purl.imsglobal.org/spec/lti/claim/context';
+
+  /// The AGS claim: the line item URL under `lineitem` and the granted
+  /// scopes under `scope`.
   static const agsEndpoint =
       'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint';
 }
@@ -31,10 +47,14 @@ abstract final class LtiClaim {
 final class LtiMessageType {
   const LtiMessageType._(this.name);
 
+  /// `LtiResourceLinkRequest`: a student or a teacher opening the tool from
+  /// a link in the course.
   static const LtiMessageType resourceLinkRequest = LtiMessageType._(
     'resourceLinkRequest',
   );
 
+  /// Any other message type, or none: verified all the same, and left to
+  /// the route to turn away.
   static const LtiMessageType other = LtiMessageType._('other');
 
   /// Every value this version names, in declaration order. A later version
@@ -57,6 +77,9 @@ final class LtiMessageType {
   /// writes for this value. Never renamed within a major.
   final String name;
 
+  /// Reads the [LtiClaim.messageType] claim's value: [resourceLinkRequest]
+  /// for `LtiResourceLinkRequest`, [other] for anything else, null
+  /// included.
   static LtiMessageType fromClaim(Object? value) => switch (value) {
     'LtiResourceLinkRequest' => LtiMessageType.resourceLinkRequest,
     _ => LtiMessageType.other,
@@ -70,6 +93,8 @@ final class LtiMessageType {
 /// `id_token`'s payload, not a copy of it. `raw` carries the rest for a
 /// caller that needs a claim this type does not name yet.
 final class LtiLaunchClaims {
+  /// Claims as given; [LtiLaunchClaims.fromPayload] reads them from a
+  /// verified token.
   const LtiLaunchClaims({
     required this.subject,
     required this.deploymentId,
@@ -83,6 +108,10 @@ final class LtiLaunchClaims {
     required this.raw,
   });
 
+  /// Reads the claims out of a verified `id_token` [payload], never
+  /// refusing: a missing text claim reads as empty, a missing list as
+  /// empty, and a missing link, context or AGS claim as null. A claim of
+  /// the wrong type throws the cast's `TypeError`.
   factory LtiLaunchClaims.fromPayload(Map<String, dynamic> payload) {
     final resourceLink = payload[LtiClaim.resourceLink];
     final context = payload[LtiClaim.context];
@@ -122,11 +151,27 @@ final class LtiLaunchClaims {
   /// identification (`lti-01`/`lti-02`).
   final String subject;
 
+  /// The platform's deployment of this tool the launch came through;
+  /// empty when the claim is missing.
   final String deploymentId;
+
+  /// The kind of launch; [LtiMessageType.other] for one this tool does not
+  /// handle.
   final LtiMessageType messageType;
+
+  /// The URL the platform means the launch to open; empty when the claim
+  /// is missing.
   final String targetLinkUri;
+
+  /// The user's role URIs in the course, as the platform sent them; empty
+  /// when it sent none.
   final List<String> roles;
+
+  /// The platform's id for the link launched; null without a resource link
+  /// claim.
   final String? resourceLinkId;
+
+  /// The platform's id for the course; null without a context claim.
   final String? contextId;
 
   /// Where `lti-01`'s AGS client posts a score, when the platform granted

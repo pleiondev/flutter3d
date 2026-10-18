@@ -19,6 +19,9 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 /// 0.9 rad, 5.3 %. A student timing a swing from the default start against
 /// T₀ is two per cent out for that reason, not for the integrator's.
 final class PendulumSimulation {
+  /// A pendulum [lengthMeters] long, held at rest [startAngle] radians from
+  /// vertical (0.6 by default). Throws an [ArgumentError] for a length that
+  /// is not positive.
   PendulumSimulation({
     required double lengthMeters,
     this.gravity = standardGravity,

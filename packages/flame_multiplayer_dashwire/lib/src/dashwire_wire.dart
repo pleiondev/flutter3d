@@ -22,10 +22,13 @@ import 'package:flame_multiplayer/flame_multiplayer.dart';
 /// byte, so the two cannot be taken for each other; a machine that sent its
 /// bytes as base64 inside a JSON frame is heard as bytes all the same.
 final class DashwireWire extends PeerWire {
+  /// A wire over [connection], listening to its messages from now on.
   DashwireWire(this.connection) {
     _subscription = connection.messages.listen(_hear);
   }
 
+  /// The dashwire connection this sends on and hears from. While it is
+  /// closed, sends are dropped and [state] is [WireState.closed].
   final WireConnection connection;
 
   @override

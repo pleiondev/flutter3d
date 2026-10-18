@@ -38,6 +38,8 @@ final class ExperimentSubstance {
   /// `solvent`), or null.
   final String? role;
 
+  /// The substance as a `.f3d.experiment` file writes it, without `role`
+  /// when it is null.
   Map<String, Object?> toJson() => <String, Object?>{'id': id, 'role': ?role};
 }
 
@@ -71,10 +73,16 @@ final class ExperimentParameter {
   /// The value the experiment starts with.
   final Quantity value;
 
-  /// The least and the most it may be set to, or null for no bound.
+  /// The least it may be set to, in a unit that measures what [value]
+  /// does, or null for no lower bound.
   final Quantity? min;
+
+  /// The most it may be set to, in a unit that measures what [value]
+  /// does, or null for no upper bound.
   final Quantity? max;
 
+  /// The parameter as a `.f3d.experiment` file writes it, without a bound
+  /// that is null.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'value': value.toJson(),
@@ -85,6 +93,7 @@ final class ExperimentParameter {
 
 /// A probe the experiment reads, and the level entity it is on.
 final class ExperimentProbe {
+  /// The [probe], carried by the level entity named [on] when one is given.
   const ExperimentProbe({required this.probe, this.on});
 
   /// The instrument: what it reads, in which unit, where.
@@ -97,6 +106,8 @@ final class ExperimentProbe {
   /// The probe's id: what an expected reading names.
   String get id => probe.id;
 
+  /// The probe's own fields as a `.f3d.experiment` file writes them, with
+  /// `on` added when it is not null.
   Map<String, Object?> toJson() => <String, Object?>{
     ...probe.toJson(),
     'on': ?on,
@@ -141,6 +152,8 @@ final class ExpectedReading {
       (reading.valueIn(value.unit) - value.value).abs() <=
       tolerance.value * tolerance.unit.scale / value.unit.scale;
 
+  /// The reading as a `.f3d.experiment` file writes it: probe, value and
+  /// tolerance.
   Map<String, Object?> toJson() => <String, Object?>{
     'probe': probe,
     'value': value.toJson(),
@@ -189,6 +202,8 @@ final class ExperimentStep {
   /// The question it asks, or null.
   final CheckQuestion? check;
 
+  /// The step as a `.f3d.experiment` file writes it, leaving out an empty
+  /// [set] or [expect] and a null [title], [run] or [check].
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'title': ?title,
@@ -229,14 +244,18 @@ final class ExperimentUnknown {
   /// The id of the parameter it is.
   final String parameter;
 
-  /// Where it may lie.
+  /// The least it may be, in a unit that measures what [max] does.
   final Quantity min;
+
+  /// The most it may be, in a unit that measures what [min] does.
   final Quantity max;
 
   /// What is believed of it before any observation, as written
   /// (`{"kind": "uniform"}`); empty for nothing.
   final Map<String, Object?> prior;
 
+  /// The unknown as a `.f3d.experiment` file writes it, without an empty
+  /// [prior].
   Map<String, Object?> toJson() => <String, Object?>{
     'parameter': parameter,
     'min': min.toJson(),
@@ -274,6 +293,8 @@ final class ExperimentObservation {
   /// How far it may be off, as a difference, or null for unstated.
   final Quantity? uncertainty;
 
+  /// The observation as a `.f3d.experiment` file writes it, without a null
+  /// [uncertainty].
   Map<String, Object?> toJson() => <String, Object?>{
     'probe': probe,
     'at': at.toJson(),

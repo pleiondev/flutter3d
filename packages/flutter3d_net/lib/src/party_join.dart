@@ -48,6 +48,7 @@ abstract final class RelayMessages {
 /// A class rather than a record, so a seat can later carry more of what
 /// the relay said without breaking a caller.
 final class PartySeat {
+  /// The seat the relay gave, as [joinParty] puts it together.
   const PartySeat({
     required this.wire,
     required this.slot,

@@ -77,6 +77,8 @@ WireHello _helloIn(Map<String, Object?> message) =>
 /// last settled step, then every step after it. One whose hello this host
 /// cannot play with is told so and sent nothing; [refusals] says why.
 final class PartyTape<S> {
+  /// A tape on [wire], sent by the machine in slot [host], slot nought by
+  /// default, with states written by [encode].
   PartyTape({
     required this.wire,
     required this.encode,
@@ -84,6 +86,8 @@ final class PartyTape<S> {
     this.hello = WireHello.engineOnly,
   });
 
+  /// The party's wire: settled steps go out on it, reliably, and the
+  /// spectators' requests come in on it.
   final PeerWire wire;
 
   /// A state as something a wire carries.
@@ -169,6 +173,8 @@ final class PartyTape<S> {
 /// pace. A host it cannot play with — another protocol major, another
 /// simulation — is not watched: [refusal] says why.
 final class PartyTapeWatcher<S> {
+  /// A spectator on [wire], hearing the host from now on. It asks for
+  /// nothing until [ask] is called.
   PartyTapeWatcher({
     required this.wire,
     required this.decode,
@@ -179,9 +185,20 @@ final class PartyTapeWatcher<S> {
     wire.listenFrom((heard) => hear(heard.from, heard.message));
   }
 
+  /// The party's wire, which the spectator asks on and hears the tape
+  /// from.
   final PeerWire wire;
+
+  /// Reads a state the host sent, as the host's `PartyTape.encode` wrote
+  /// it.
   final S Function(Object? encoded) decode;
+
+  /// Puts the spectator's game in the state the host sent, once, before
+  /// the first step is played.
   final void Function(S state) restore;
+
+  /// Runs one settled step on its frames, keyed by slot: what [advance]
+  /// calls for each step in order.
   final void Function(Map<int, Map<String, Object?>> frames) applyAndStep;
 
   /// The versions this machine says when it asks for the tape.
@@ -220,6 +237,10 @@ final class PartyTapeWatcher<S> {
     );
   }
 
+  /// Takes a message from slot [from]: the host's start or refusal, or a
+  /// settled step. Messages that are not the party's, steps from a machine
+  /// other than the one that started the tape, and everything after a
+  /// refusal are ignored. The constructor wires this to [wire].
   void hear(int from, Map<String, Object?> message) {
     if (message[PeerWire.engineKey] != _party || _refusal != null) return;
     final to = message['to'];
@@ -283,6 +304,8 @@ final class PartyTapeWatcher<S> {
 /// the second. The state goes out with the authority's own hello, so each
 /// client judges it the same way.
 final class AuthorityServer<S> {
+  /// An authority on [wire] for [players] slots, hearing clients' hands
+  /// from now on and sending its state every [snapshotEvery] steps.
   AuthorityServer({
     required this.wire,
     required this.players,
@@ -295,11 +318,26 @@ final class AuthorityServer<S> {
     wire.listenFrom((heard) => receive(heard.from, heard.message));
   }
 
+  /// The party's wire: hands come in on it, and the state goes out on it
+  /// unreliably.
   final PeerWire wire;
+
+  /// How many slots the party has, a count including the authority's own,
+  /// which sends no hands and is left out of the frames.
   final int players;
+
+  /// Runs one step of the game on every other slot's frame, keyed by slot;
+  /// a slot whose next hand has not come gets its last one again, or an
+  /// empty frame before its first.
   final void Function(Map<int, Map<String, Object?>> frames) applyAndStep;
+
+  /// Takes the game's state as it stands, for a snapshot.
   final S Function() save;
+
+  /// Writes a state as something the wire carries.
   final Object? Function(S state) encode;
+
+  /// How many steps pass between snapshots, a count; three by default.
   final int snapshotEvery;
 
   /// The versions this machine runs the party on, which every client's
@@ -307,6 +345,8 @@ final class AuthorityServer<S> {
   final WireHello hello;
 
   int _step = 0;
+
+  /// How many steps [advance] has run, a count from nought.
   int get step => _step;
 
   final Map<int, Map<int, Map<String, Object?>>> _queued =
@@ -320,6 +360,10 @@ final class AuthorityServer<S> {
   /// sentence naming the version to update to.
   Map<int, String> get refusals => Map<int, String>.unmodifiable(_refusals);
 
+  /// Takes a client's hands from slot [from] and queues the ones not yet
+  /// run. The first must carry a hello this authority accepts: without one
+  /// it is dropped, and with one it refuses it lands in [refusals]. The
+  /// constructor wires this to [wire].
   void receive(int from, Map<String, Object?> message) {
     if (!_is(message, _inputs)) return;
     if (!_met.contains(from)) {
@@ -388,6 +432,8 @@ final class AuthorityServer<S> {
 /// authority it cannot play with is not followed: [refusal] says why, and
 /// its states are not taken.
 final class PredictingClient<S> {
+  /// A client on [wire], hearing the authority's states from now on and
+  /// sending each hand along with the [redundancy] before it.
   PredictingClient({
     required this.wire,
     required this.captureLocalFrame,
@@ -400,14 +446,28 @@ final class PredictingClient<S> {
     wire.listenFrom((heard) => receive(heard.from, heard.message));
   }
 
+  /// The party's wire: hands go out on it unreliably, and the authority's
+  /// states come in on it.
   final PeerWire wire;
+
+  /// Reads this machine's hands for the step: what [advance] sends and
+  /// predicts with.
   final Map<String, Object?> Function() captureLocalFrame;
 
   /// Runs one step of this machine's copy on its own [frame] alone — the
   /// others as the last state the authority sent left them.
   final void Function(Map<String, Object?> frame) predict;
+
+  /// Puts this machine's copy in a state the authority sent, before the
+  /// hands it has not run are predicted again on top.
   final void Function(S state) restore;
+
+  /// Reads a state the authority sent, as its `AuthorityServer.encode`
+  /// wrote it.
   final S Function(Object? encoded) decode;
+
+  /// How many of the latest unacknowledged hands each message carries, a
+  /// count; eight by default, so a lost message is made up by the next.
   final int redundancy;
 
   /// The versions this machine says to the authority.
@@ -432,6 +492,8 @@ final class PredictingClient<S> {
   /// How many steps were run again on top of a state from the authority.
   int replayed = 0;
 
+  /// One step of this machine: reads its hands, sends them numbered with
+  /// the unacknowledged ones before them, and predicts the step at once.
   void advance() {
     final frame = captureLocalFrame();
     _unacknowledged[++_sequence] = frame;
@@ -456,6 +518,11 @@ final class PredictingClient<S> {
     predict(frame);
   }
 
+  /// Takes the authority's state from slot [from]: restores it, drops the
+  /// hands it says it ran and predicts the rest again. A state older than
+  /// the last one taken is ignored; one whose hello this machine refuses
+  /// sets [refusal], and nothing is taken after that. The constructor
+  /// wires this to [wire].
   void receive(int from, Map<String, Object?> message) {
     if (!_is(message, _snapshot) || _refusal != null) return;
     final reason = hello.refusal(_helloIn(message));

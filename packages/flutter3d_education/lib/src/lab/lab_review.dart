@@ -5,12 +5,16 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// `ls-e-01`'s acceptance: "преподаватель видит на шкале rp-02, на каком
 /// шаге студент выставил длину, отличную от задания".
 final class LabDivergence {
+  /// The divergence at [step], with the [assigned] and [actual] values
+  /// read there.
   const LabDivergence({
     required this.step,
     required this.assigned,
     required this.actual,
   });
 
+  /// The first step, as the student's trace numbers it, whose recorded
+  /// value is further than the tolerance from the assignment's.
   final int step;
 
   /// The assignment's value at that step, in the unit of the parameter it

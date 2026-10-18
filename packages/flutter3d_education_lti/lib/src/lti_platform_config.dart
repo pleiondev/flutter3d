@@ -7,6 +7,8 @@
 /// waits for the cloud track's team projects, and until then one platform is
 /// one set of these fields, not a tenant.
 final class LtiPlatformSettings {
+  /// One registration, with no token endpoint unless [authTokenUrl] is
+  /// given.
   const LtiPlatformSettings({
     required this.issuer,
     required this.clientId,

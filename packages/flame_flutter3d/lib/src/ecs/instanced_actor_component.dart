@@ -30,6 +30,8 @@ import '../host/step_clock.dart';
 /// `InstancedObject3dComponent`: the transform written is the body's place in
 /// the scene as it is.
 base class InstancedActorComponent extends Component with StepFollower {
+  /// A component drawing [actor] as a slot of [batch], raised by [lift],
+  /// nought by default.
   InstancedActorComponent({
     required this.actor,
     required this.batch,
@@ -39,6 +41,8 @@ base class InstancedActorComponent extends Component with StepFollower {
     super.priority,
   });
 
+  /// The flutter3d_sim actor drawn; when the simulation takes it out, this
+  /// component and its slot go too.
   final Actor actor;
 
   /// The batch this actor takes a slot in.
@@ -143,12 +147,15 @@ base class InstancedActorComponent extends Component with StepFollower {
 /// away. For a sim's own list of short-lived things the game mirrors one
 /// component per item.
 base class InstancedPoseComponent extends Component {
+  /// A component taking a slot of [batch] while [place] says the thing is
+  /// still there.
   InstancedPoseComponent({
     required this.batch,
     required this.place,
     super.priority,
   });
 
+  /// The batch the thing takes a slot in from mount until it is gone.
   final InstancedMeshNode batch;
 
   /// Where the thing is now; false once it is gone.

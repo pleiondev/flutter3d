@@ -31,6 +31,8 @@ import 'object3d_component.dart' show shownInFlame;
 base class Node3dComponent extends Component
     with HasVisibility, Drawn3d
     implements OpacityProvider {
+  /// A component drawing [node] in [scene], at copies of [position],
+  /// [rotation] and [scale]: the origin, no turn and one when null.
   Node3dComponent({
     required this.node,
     required this.scene,
@@ -203,6 +205,8 @@ base class Move3dEffect extends ComponentEffect<Node3dComponent> {
 /// frame, on any `EffectController`: Flame's `RotateEffect`, about any
 /// axis.
 base class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
+  /// An effect turning by [angle] radians about [axis], normalised, over
+  /// what [controller] runs.
   Rotate3dEffect.by(
     Vector3 axis,
     this.angle,
@@ -235,6 +239,8 @@ base class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
 /// effect starts, on any `EffectController`: Flame's `ScaleEffect`, on
 /// each axis.
 base class Scale3dEffect extends ComponentEffect<Node3dComponent> {
+  /// An effect scaling to a copy of [scale], a multiplier on each axis,
+  /// over what [controller] runs.
   Scale3dEffect.to(
     Vector3 scale,
     super.controller, {

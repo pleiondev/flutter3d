@@ -46,6 +46,8 @@ abstract base class AudioBackend {
   /// it here and do not keep it.
   void update(VoiceUpdate voice);
 
+  /// Silences [voice] for good; the scene does not hand it back after
+  /// this.
   void stop(VoiceId voice);
 
   /// False once a one-shot has run out, so the mixer can forget it.
@@ -102,6 +104,7 @@ abstract base mixin class MixingBackend {
 /// nothing for it; a backend reads it during [AudioBackend.start] and does
 /// not keep it.
 final class VoiceStart {
+  /// A start of [asset] with the given levels, clear unless [muffle] says.
   VoiceStart({
     required this.asset,
     required this.gain,
@@ -140,6 +143,7 @@ final class VoiceStart {
 /// One object for the reason [VoiceStart] gives, and **reused** the same
 /// way: one per scene, set before every update.
 final class VoiceUpdate {
+  /// An update of [voice] to the given levels, clear unless [muffle] says.
   VoiceUpdate({
     required this.voice,
     required this.gain,
@@ -172,6 +176,7 @@ final class VoiceUpdate {
 /// One object for the reason [VoiceStart] gives, and **reused** the same
 /// way.
 final class VoiceRoute {
+  /// The route of [voice] onto [bus].
   VoiceRoute({required this.voice, required this.bus});
 
   /// The voice [AudioBackend.start] answered.
@@ -186,6 +191,7 @@ final class VoiceRoute {
 /// One object for the reason [VoiceStart] gives, and **reused** the same
 /// way: one per scene, set for each bus.
 final class BusMix {
+  /// What [bus], under [parent], does: its own [gain] and [effects].
   BusMix({
     required this.bus,
     required this.parent,
@@ -212,6 +218,7 @@ final class BusMix {
 /// One object for the reason [VoiceStart] gives, and **reused** the same
 /// way.
 final class VoicePlacement {
+  /// The placement of [voice] where [spatial] says.
   VoicePlacement({required this.voice, required this.spatial});
 
   /// The voice [AudioBackend.start] answered.
@@ -243,7 +250,10 @@ abstract base mixin class DirectionalBackend {
 ///
 /// Made with `SilentBackend()` for a test, a server or a muted build.
 final class SilentBackend extends AudioBackend {
+  /// Every asset [preload] was asked for, in order, repeats included.
   final List<String> preloaded = <String>[];
+
+  /// Every voice [start] began, in start order, stopped ones included.
   final List<SilentVoice> started = <SilentVoice>[];
 
   /// Voices still running, in start order.
@@ -321,6 +331,7 @@ final class SilentBackend extends AudioBackend {
 /// One recorded voice. Public because a test reads it, and a type a test has
 /// to reach for is part of the interface whether or not it looks like one.
 final class SilentVoice {
+  /// A live, unpaused, clear voice of [asset] as it was started.
   SilentVoice({
     required this.id,
     required this.asset,
@@ -330,7 +341,10 @@ final class SilentVoice {
     required this.loop,
   });
 
+  /// Its place in the backend's start order, counting from nought.
   final int id;
+
+  /// The sound's file, as [VoiceStart.asset] named it.
   final String asset;
 
   /// How loud it plays, a linear gain.
@@ -343,12 +357,18 @@ final class SilentVoice {
   /// a loop whose speed is the point — see there. A unitless multiplier on
   /// the file's own speed.
   double rate;
+
+  /// Whether it was started to play round and round until stopped.
   final bool loop;
+
+  /// Whether it still plays: false once stopped or finished.
   bool isAlive = true;
 
   /// Whether the backend's pause holds it: true for a voice started while
   /// the backend was paused, until it resumes.
   bool isPaused = false;
+
+  /// How many times the scene has updated it since its start, a count.
   int updates = 0;
 
   /// The last muffle handed over, so a test can see a wall reach the voice.

@@ -13,6 +13,8 @@ import '../transform/object3d_component.dart';
 /// `LineStripNode` in the `HasFlutter3d` game's scene, [width] pixels
 /// across, and goes, its mesh with it, when this component does.
 base class TrailComponent extends Component {
+  /// A white trail three pixels wide, a point every half metre, at most 48,
+  /// unless told otherwise.
   TrailComponent({
     this.spacing = 0.5,
     this.length = 48,
@@ -22,6 +24,9 @@ base class TrailComponent extends Component {
 
   /// How far the component moves between points, in metres.
   final double spacing;
+
+  /// The most points the trail keeps, a count; the oldest goes as a new one
+  /// comes.
   final int length;
 
   /// How wide the line is drawn, in pixels.

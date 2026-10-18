@@ -12,6 +12,8 @@ import 'package:pointycastle/export.dart' as pc;
 /// registered this tool can check the assertion the same way this package
 /// checks the platform's `id_token`.
 final class LtiToolCredentials {
+  /// This tool's identity at one platform: [clientId] and the key pair
+  /// published under [kid].
   const LtiToolCredentials({
     required this.clientId,
     required this.kid,
@@ -24,7 +26,14 @@ final class LtiToolCredentials {
   /// no separate "user" a client-credentials grant is signing in as).
   final String clientId;
 
+  /// The key id the assertion's header carries, and the one [publicKey] is
+  /// served under in this tool's JWKS, so the platform picks the right key.
   final String kid;
+
+  /// The half that signs each client assertion with RS256; kept secret.
   final pc.RSAPrivateKey privateKey;
+
+  /// The half the platform verifies the assertion with, published under
+  /// [kid].
   final pc.RSAPublicKey publicKey;
 }

@@ -16,6 +16,8 @@ import 'lti_platform_config.dart';
 /// so a launch does not fetch the keyset every time, the same reasoning
 /// this package's only network dependency (`http`) exists for at all.
 final class LtiLaunchValidator {
+  /// A validator for [platform], fetching its keys over [httpClient] or one
+  /// of its own when null, and keeping them for [jwksCacheTtl].
   LtiLaunchValidator({
     required this.platform,
     http.Client? httpClient,
@@ -23,7 +25,12 @@ final class LtiLaunchValidator {
   }) : _http = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null;
 
+  /// The platform launches are checked against: its issuer, client id,
+  /// deployment and key set.
   final LtiPlatformSettings platform;
+
+  /// How long fetched keys are kept before the key set is fetched again;
+  /// an hour by default.
   final Duration jwksCacheTtl;
 
   final http.Client _http;

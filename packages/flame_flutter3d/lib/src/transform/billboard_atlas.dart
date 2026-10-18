@@ -19,8 +19,10 @@ import 'package:vector_math/vector_math.dart' show Matrix4;
 /// What it made is the game's until [dispose], which gives it back after the
 /// frames in flight when handed the renderer.
 final class BillboardAtlas {
+  /// An empty atlas making its textures and cards on [device].
   BillboardAtlas(this.device);
 
+  /// The device the sheets are uploaded to and the cards made on.
   final GraphicsDevice device;
 
   /// Keyed by how it is sampled as well as by the picture: a caller asking

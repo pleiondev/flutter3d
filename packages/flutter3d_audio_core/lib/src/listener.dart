@@ -33,6 +33,8 @@ import 'pose.dart';
 ///
 /// Units: metres, metres per second, the engine's Y-up right-handed frame.
 final class AudioListener {
+  /// Ears at copies of [position], the origin when null, facing [forward],
+  /// minus Z when null, with [up], plus Y when null.
   AudioListener({Vector3? position, Vector3? forward, Vector3? up})
     : position = position?.clone() ?? Vector3.zero(),
       forward = forward?.clone() ?? Vector3(0.0, 0.0, -1.0),

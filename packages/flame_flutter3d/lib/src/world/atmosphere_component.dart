@@ -19,6 +19,8 @@ import '../host/has_flutter3d.dart';
 /// `Flutter3dFlameWidget` handed a `clearColor` of its own draws that
 /// instead, as it says: leave it out for the day to show.
 base class AtmosphereComponent extends Component {
+  /// A day of [cycle], starting at [time] and passing at [rate], nought and
+  /// one by default, lighting [sun] when given.
   AtmosphereComponent({
     required this.cycle,
     this.sun,
@@ -26,6 +28,7 @@ base class AtmosphereComponent extends Component {
     this.rate = 1.0,
   }) : current = cycle.at(time);
 
+  /// The day's keyframes: sky, fog and sun at each time of its period.
   final AtmosphereCycle cycle;
 
   /// The light the sun's colour and intensity go onto, if any.

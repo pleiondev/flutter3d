@@ -18,6 +18,9 @@ import 'random_token.dart';
 /// gets is reused across scores until it is close to expiring, not
 /// refetched per submission.
 final class AgsClient {
+  /// A client for [platform], signing its grants with [credentials], over
+  /// [httpClient] or one of its own when null. Throws an [ArgumentError]
+  /// when the platform has no `authTokenUrl`.
   AgsClient({
     required this.platform,
     required this.credentials,
@@ -35,7 +38,12 @@ final class AgsClient {
   static const _scoreScope =
       'https://purl.imsglobal.org/spec/lti-ags/scope/score';
 
+  /// The platform scores go to: its token endpoint grants the access token
+  /// and is the audience of the client assertion.
   final LtiPlatformSettings platform;
+
+  /// This tool's client id and private key, which sign the client
+  /// assertion of each grant, named by its `kid`.
   final LtiToolCredentials credentials;
 
   final http.Client _http;

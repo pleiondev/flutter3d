@@ -19,6 +19,8 @@ import 'package:flutter3d_net/flutter3d_net.dart' show PeerSend, PeerWire;
 /// one of its channels (`room.channel('ghost')`), so a machine on another
 /// protocol or simulation is refused by the room's hello.
 final class PeerFeed {
+  /// A feed over [transport], listening from now on, that sends on one
+  /// [tell] in [every]. Asserts [every] is above nought.
   PeerFeed(this.transport, {this.every = 1}) : assert(every > 0) {
     transport.listen((Map<String, Object?> message) {
       if (message[PeerWire.engineKey] != _feed) return;
@@ -32,6 +34,8 @@ final class PeerFeed {
     });
   }
 
+  /// The wire both machines tell on, unreliably; a game's own messages on
+  /// it pass by untouched.
   final PeerWire transport;
 
   /// What the feed's messages name under [PeerWire.engineKey].

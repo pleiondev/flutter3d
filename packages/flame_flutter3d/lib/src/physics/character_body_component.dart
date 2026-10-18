@@ -29,6 +29,8 @@ import '../transform/object3d_component.dart';
 /// already moved it to, and the body was drawn with no smoothing at all.
 base class CharacterBodyComponent extends Object3dComponent
     with CollisionCallbacks, FixedStepUpdate, StepFollower {
+  /// A component drawing [body] through [node] in [scene] on [plane],
+  /// moved by [drive] when given or stepped by [stepper] otherwise.
   CharacterBodyComponent({
     required this.body,
     required super.node,

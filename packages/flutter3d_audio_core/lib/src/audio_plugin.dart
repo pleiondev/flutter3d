@@ -33,6 +33,9 @@ import 'mix_snapshot.dart';
 /// camera moves fast enough for that to be heard passes [phase] as
 /// `LoopPhase.render`.
 final class AudioPlugin extends Flutter3dPlugin {
+  /// A plugin mixing [scene] as heard by [listener] in [phase], adding the
+  /// [ducking] rules to each new scene's mixer. Asserts [phase] runs once a
+  /// frame.
   AudioPlugin({
     required this.scene,
     required this.listener,

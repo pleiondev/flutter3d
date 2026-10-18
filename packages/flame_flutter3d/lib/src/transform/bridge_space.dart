@@ -30,8 +30,11 @@ abstract base mixin class BridgeSpace {
 /// coordinates keeps Flame's hitboxes meaning "side by side on the road",
 /// however the road turns under them.
 final class CurvilinearSpace implements BridgeSpace {
+  /// A space laid along [path].
   CurvilinearSpace(this.path);
 
+  /// The centre line of the strip: Flame's `-y` is the distance along it
+  /// and `x` the distance to its right.
   final OpenPath path;
 
   final Vector3 _right = Vector3.zero();

@@ -35,6 +35,9 @@ import '../transform/object3d_component.dart';
 /// camera has nothing to be kept out of. A `CameraDirector` can take
 /// [virtualCamera] like any other.
 final class FlameChaseCamera {
+  /// A chase camera writing to [camera], framing [target] as
+  /// [FlameChaseFraming] does with the same defaults, kept out of the walls
+  /// of [world] when one is given.
   FlameChaseCamera({
     required this.camera,
     required Object3dComponent target,
@@ -68,8 +71,15 @@ final class FlameChaseCamera {
   /// craft goes down.
   CameraRig get rig => virtualCamera.rig;
 
+  /// The bridged component followed: [FlameChaseFraming.target].
   Object3dComponent get target => framing.target;
+
+  /// A copy of where the camera stands from the target, in scene units:
+  /// [FlameChaseFraming.offset].
   Vector3 get offset => framing.offset.clone();
+
+  /// A copy of the point looked at from the target, in scene units:
+  /// [FlameChaseFraming.lookOffset].
   Vector3 get lookOffset => framing.lookOffset.clone();
 
   /// How much of the target's x the camera follows: a fraction.
@@ -95,6 +105,8 @@ final class FlameChaseCamera {
 /// Where a chase camera wants to be: [offset] from a bridged component, part
 /// way across, looking at [lookOffset] from it.
 final class FlameChaseFraming extends CameraFraming {
+  /// A framing of [target] from [offset], looking at [lookOffset], following
+  /// all of its x and put there outright unless told otherwise.
   FlameChaseFraming({
     required this.target,
     required this.offset,
@@ -152,11 +164,14 @@ final class FlameChaseFraming extends CameraFraming {
 /// order it by priority than call it from a tick. Give it a priority above
 /// whatever moves the target, so it follows this frame's move.
 final class FlameChaseCameraComponent extends Component {
+  /// A component advancing [chase] every frame, at the camera's priority
+  /// unless told otherwise.
   FlameChaseCameraComponent(
     this.chase, {
     super.priority = BridgePriority.camera,
   });
 
+  /// The chase camera advanced by the frame's seconds in [update].
   final FlameChaseCamera chase;
 
   @override

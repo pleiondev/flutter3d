@@ -20,6 +20,9 @@ import 'chase_camera.dart' show FlameChaseCamera;
 /// A [VirtualCamera] with a [ViewFraming], as [FlameChaseCamera] is: the
 /// easing, the shake and the pull out of walls are its [CameraRig]'s.
 final class ViewCamera {
+  /// A camera writing to [camera] the shot [view] answers, easing there at
+  /// [stiffness] (four by default) and kept out of the walls of [world]
+  /// when one is given.
   ViewCamera({
     required this.camera,
     required bool Function(Vector3 eye, Vector3 target) view,
@@ -62,6 +65,7 @@ final class ViewCamera {
 
 /// Where a function says a camera should be, asked once a frame.
 final class ViewFraming extends CameraFraming {
+  /// A framing asking [view], closing at [stiffness], four by default.
   ViewFraming({required this.view, this.stiffness = 4.0});
 
   /// Writes the eye and the point looked at into the two vectors it is
@@ -94,11 +98,14 @@ final class ViewFraming extends CameraFraming {
 /// A [ViewCamera] run as a Flame component, after whatever moves what it
 /// frames.
 final class ViewCameraComponent extends Component {
+  /// A component advancing [viewCamera] every frame, at the camera's
+  /// priority unless told otherwise.
   ViewCameraComponent(
     this.viewCamera, {
     super.priority = BridgePriority.camera,
   });
 
+  /// The camera advanced by the frame's seconds in [update].
   final ViewCamera viewCamera;
 
   @override

@@ -71,6 +71,8 @@ final class PlaneAxis {
 /// [PlaneAxis.y] for a ground plane's height, [PlaneAxis.z] for a backdrop's
 /// depth — and Flame's `x`/`y` become whichever two flutter3d axes are left.
 final class BridgePlane with BridgeSpace {
+  /// The plane where [axis] stays at [constant], Flame's `y` unflipped
+  /// unless [flipY] is set.
   const BridgePlane({
     required this.axis,
     required this.constant,

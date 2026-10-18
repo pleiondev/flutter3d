@@ -26,6 +26,7 @@ import '../transform/plane.dart';
 /// behind it: dark smoke, soot. One component is one blend, so a game with
 /// both keeps two, each its own pool and its own draw.
 base class Particles3dComponent extends Component {
+  /// A component drawing [system], placing Flame points on [plane].
   Particles3dComponent({required this.system, required this.plane});
 
   /// The pool every burst goes into.

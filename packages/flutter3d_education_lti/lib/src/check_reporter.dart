@@ -37,6 +37,8 @@ final class CheckAnswer {
   /// named after.
   final String id;
 
+  /// The question answered: its accepted answers and how many tries it
+  /// allows.
   final CheckQuestion question;
 
   /// What the student wrote.
@@ -55,6 +57,8 @@ final class CheckAnswer {
 
 /// What [CheckReporter.record] got to the learning platform.
 final class CheckDelivery {
+  /// What reached each destination, with nothing skipped and nothing
+  /// refused unless [skipped] and [failures] say.
   const CheckDelivery({
     required this.graded,
     required this.stated,

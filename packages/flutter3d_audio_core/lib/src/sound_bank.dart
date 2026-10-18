@@ -41,6 +41,8 @@ import 'sound.dart';
 /// that swaps its hand-written list for a bank changes the declaration and not
 /// a single call site.
 final class SoundBank extends Iterable<SoundDef> {
+  /// A bank of [sounds], in order. Throws an [ArgumentError] when two of
+  /// them share a name.
   SoundBank(Iterable<SoundDef> sounds)
     : sounds = List<SoundDef>.unmodifiable(sounds) {
     final seen = <String>{};
@@ -84,8 +86,10 @@ final class SoundBank extends Iterable<SoundDef> {
 /// It arrived twice, identically, in two applications' `soundtrack.dart`. What
 /// each game keeps is the deciding; this is only the shape of an answer.
 final class Heard {
+  /// [sound], heard at [at].
   const Heard(this.sound, this.at);
 
+  /// The sound the step decided to make.
   final SoundDef sound;
 
   /// Where in the world it happened, for the panning. Not where the listener

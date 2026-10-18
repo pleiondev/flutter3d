@@ -45,6 +45,8 @@ import 'package:flutter3d_net/flutter3d_net.dart' show PeerSend, PeerWire;
 /// its channels (`room.channel('turns')`), so a machine on another protocol
 /// or simulation is refused by the room's hello before a turn is played.
 final class BatonStream {
+  /// Turns over [transport], listening from now on, with this machine
+  /// starting as the player when [holding] and as the watcher otherwise.
   BatonStream(
     this.transport, {
     required bool holding,
@@ -59,6 +61,8 @@ final class BatonStream {
     transport.listen(_arrive);
   }
 
+  /// The wire the turns go over, every message reliably; a game's own
+  /// messages on it pass by untouched.
   final PeerWire transport;
 
   /// A frame of the other machine's turn, to draw.
@@ -71,6 +75,8 @@ final class BatonStream {
   /// The baton, and the state the turn starts from: this machine plays now.
   final void Function(Map<String, Object?> state) onBaton;
 
+  /// How many frames a watcher may fall behind before [step] replays more
+  /// than one at a time, a count; four by default.
   final int catchUpAfter;
 
   /// Whether this machine is the one playing.

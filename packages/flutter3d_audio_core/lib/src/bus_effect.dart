@@ -12,6 +12,7 @@ import 'dart:math' as math;
 /// `base`, so an effect added later arrives with defaults: a game declares
 /// its own by extending this, and a backend that does not know it skips it.
 abstract base class BusEffect {
+  /// An effect; a subclass says what it does.
   const BusEffect();
 
   /// This effect at [weight] of its strength, from 0 (it does nothing) to 1
@@ -31,6 +32,7 @@ abstract base class BusEffect {
 /// `flutter3d_audio`'s filter turns back into a cutoff. A voice behind a
 /// wall on a muffled bus is as dull as the duller of the two.
 final class LowPassEffect extends BusEffect {
+  /// A low pass at [cutoffHz] hertz. Asserts it is above nought.
   const LowPassEffect(this.cutoffHz) : assert(cutoffHz > 0.0);
 
   /// Where the filter sits, in hertz.
@@ -81,6 +83,9 @@ final class LowPassEffect extends BusEffect {
 /// is here so that a snapshot written today — a cave, a hall — names its
 /// reverb now and is heard with it on the first backend that has one.
 final class ReverbEffect extends BusEffect {
+  /// A reverb sent [wet] of the bus, 0.3 by default, with a tail of
+  /// [decaySeconds] seconds, 1.5 by default. Asserts [wet] is from nought
+  /// to one and [decaySeconds] is above nought.
   const ReverbEffect({this.wet = 0.3, this.decaySeconds = 1.5})
     : assert(wet >= 0.0 && wet <= 1.0),
       assert(decaySeconds > 0.0);

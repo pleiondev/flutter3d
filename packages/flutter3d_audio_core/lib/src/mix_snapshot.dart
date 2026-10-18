@@ -28,6 +28,8 @@ import 'mixer.dart';
 /// mixer.enterSnapshot(underWater);
 /// ```
 final class MixSnapshot {
+  /// A snapshot called [name], blending in and out over a quarter of a
+  /// second unless told otherwise. Asserts neither blend is negative.
   const MixSnapshot(
     this.name, {
     this.levels = const <AudioBus, double>{},
@@ -66,6 +68,9 @@ final class MixSnapshot {
 /// by [depthDecibels], reaching it over [attackSeconds] and coming back over
 /// [releaseSeconds] once [trigger] falls quiet.
 final class DuckRule {
+  /// [target] ducked by [trigger]: −12 dB by default, in over 0.08 s and
+  /// back over 0.6 s, once [trigger] is above −40 dB. Asserts a depth of
+  /// nought or less and no negative time.
   const DuckRule({
     required this.trigger,
     required this.target,

@@ -31,6 +31,8 @@ import 'cell_grid_component.dart';
 /// One tile is [cell] metres, the tile's top left at `(0, 0)` of this
 /// component.
 base class TiledWorld3d extends PositionComponent {
+  /// A world of [map], one metre a tile unless [cell] says, its size the
+  /// map's in metres.
   TiledWorld3d({
     required this.map,
     required this.device,
@@ -45,8 +47,13 @@ base class TiledWorld3d extends PositionComponent {
   /// The level, as `flame_tiled` or `TileMapParser` read it.
   final TiledMap map;
 
+  /// The device the tile layers' blocks are made on.
   final GraphicsDevice device;
+
+  /// The scene the tile layers' blocks are drawn in.
   final Scene scene;
+
+  /// The plane the map lies on, Flame's `x` and `y` across it.
   final BridgePlane plane;
 
   /// The look of a tile layer's blocks.

@@ -11,15 +11,27 @@ import 'cell_grid_component.dart';
 /// changing what the type means, so it stays an enum and a `switch` over it may
 /// name every case.
 enum GridHeading {
+  /// Standing still in the middle of a cell.
   none(0, 0),
+
+  /// Towards the row above, Flame's `y` falling.
   up(0, -1),
+
+  /// Towards the row below, Flame's `y` rising.
   down(0, 1),
+
+  /// Towards the column to the left.
   left(-1, 0),
+
+  /// Towards the column to the right.
   right(1, 0);
 
   const GridHeading(this.dx, this.dy);
 
+  /// The step across columns, in cells: minus one, nought or one.
   final int dx;
+
+  /// The step across rows, in cells: minus one up, nought or one down.
   final int dy;
 
   /// The way back.
@@ -52,6 +64,8 @@ enum GridHeading {
 /// Flame's effects and hitboxes on what it moves go on working, and
 /// [onArrive] is told each middle of a cell reached, for a dot to be eaten.
 base class GridMover extends Component with FixedStepUpdate {
+  /// A mover on [grid] at [speed] metres a second, standing until given a
+  /// heading, not wrapping unless [wraps].
   GridMover({
     required this.grid,
     required this.speed,

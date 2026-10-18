@@ -24,6 +24,8 @@ import 'cutoff.dart';
 /// What it could not do it says through [onIssue], in the engine's one
 /// [Issue] type, which `flutter3d_app` reports through as well.
 final class SoLoudBackend extends AudioBackend {
+  /// A backend over [soloud], `SoLoud.instance` when null, reporting through
+  /// [onIssue], or to `debugPrint` when null. Nothing opens until `open`.
   SoLoudBackend({SoLoud? soloud, IssueSink? onIssue})
     : _soloud = soloud ?? SoLoud.instance,
       onIssue = onIssue ?? _printIssue;

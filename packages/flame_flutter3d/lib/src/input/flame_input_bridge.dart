@@ -51,6 +51,7 @@ import '../host/updates_at_root.dart';
 /// pad support constructs a [PadInput] directly, beside this bridge, both
 /// pointed at the shared [inputState].
 final class FlameInputBridge {
+  /// A bridge writing the keys [actions] binds into [inputState].
   FlameInputBridge({required this.actions, required this.inputState})
     : _actionInput = ActionInput(state: inputState, map: actions);
 
@@ -333,6 +334,7 @@ final class _PadFeed extends Component {
 /// over `Gamepad(index: 1)` is the second player's controller, the second
 /// to connect, as its light says.
 final class PlayerInputs {
+  /// The [players], player one first. Asserts at least one.
   PlayerInputs(this.players) : assert(players.isNotEmpty, 'nobody playing');
 
   /// Player one first.
@@ -375,6 +377,7 @@ final class PlayerInputs {
 /// What counts as asking to join, and what a claimed seat chooses — a class,
 /// a colour — are the game's; this only keeps who is holding what.
 final class PlayerSeats {
+  /// Seats for [candidates], nobody seated yet. Asserts at least one.
   PlayerSeats(this.candidates)
     : assert(candidates.isNotEmpty, 'nothing to hold');
 

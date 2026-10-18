@@ -11,12 +11,18 @@ import 'package:flutter3d_sim/flutter3d_sim.dart' show CatchUp, WorldTiming;
 /// an `EngineLoop` (`HasFixedStep.engineLoop`); this is only for the two
 /// components that still step themselves when the game does not.
 final class StepCut {
+  /// A cutter of frames into steps of [timing]'s size, at most as many a
+  /// frame as [catchUp] allows.
   StepCut({
     this.timing = const WorldTiming(),
     this.catchUp = const CatchUp.announce(),
   });
 
+  /// The size of one step, in seconds.
   final WorldTiming timing;
+
+  /// How many steps one frame may take, and what happens to the time a
+  /// slow frame owes beyond them.
   final CatchUp catchUp;
 
   double _accumulator = 0.0;

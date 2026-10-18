@@ -32,10 +32,14 @@ import 'spatial.dart';
 /// Units: metres, metres per second, linear gain, a rate as a multiple of
 /// the recording's own speed.
 final class AudioEmitter {
+  /// An emitter of [sound] at a copy of [at], the origin when null, on
+  /// [bus], the sound's own when null. It is heard once a scene holds it;
+  /// [AudioScene.play] makes one that is.
   AudioEmitter({required this.sound, Vector3? at, AudioBus? bus})
     : position = at?.clone() ?? Vector3.zero(),
       bus = bus ?? sound.bus;
 
+  /// The sound it plays: the asset, its gain, its rate and how it falls off.
   final SoundDef sound;
 
   /// Where it is: metres from the origin the listener's position is
@@ -146,6 +150,8 @@ final class AudioEmitter {
   /// [AudioScene.update] from the occlusion callback and handed to the
   /// backend beside the gain.
   double muffle = 0.0;
+
+  /// Whether the last mix heard it at all: an [audibleGain] above nought.
   bool get isAudible => audibleGain > 0.0;
 
   bool _stopped = false;
@@ -198,6 +204,10 @@ final class AudioEmitter {
 ///
 /// `AudioPlugin` runs it in the engine loop's `audio` phase.
 final class AudioScene {
+  /// A scene playing through [backend], at most [maxVoices] at once, 24 by
+  /// default. A null [mixer] is a fresh one, a null `random` a generator
+  /// seeded with 1, and a null [world] the standard world. Asserts
+  /// [maxVoices] is above nought.
   AudioScene({
     required this.backend,
     this.maxVoices = 24,
@@ -243,6 +253,7 @@ final class AudioScene {
         (1.0 + (_random.nextDouble() * 2.0 - 1.0) * sound.rateVariance);
   }
 
+  /// The device the voices are played on, as [update] asks for them.
   final AudioBackend backend;
 
   /// What each bus is turned to. Read every frame, so moving a slider is heard
@@ -269,9 +280,13 @@ final class AudioScene {
   /// Everything currently held, audible or not.
   List<AudioEmitter> get emitters => List<AudioEmitter>.unmodifiable(_emitters);
 
+  /// How many held emitters have a voice on the backend now, a count of at
+  /// most [maxVoices].
   int get voiceCount =>
       _emitters.where((AudioEmitter e) => e._voice != null).length;
 
+  /// Has the backend load every asset of [bank] once, so the first play of
+  /// each is not held up decoding it. An asset named twice loads once.
   Future<void> preload(Iterable<SoundDef> bank) async {
     final seen = <String>{};
     for (final sound in bank) {

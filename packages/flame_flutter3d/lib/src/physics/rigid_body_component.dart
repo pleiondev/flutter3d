@@ -41,6 +41,8 @@ import 'physics_step_component.dart';
 /// transform bridge's.
 base class RigidBodyComponent extends Object3dComponent
     with CollisionCallbacks, StepFollower {
+  /// A component drawing [body] through [node] in [scene] on [plane], the
+  /// physics moving Flame; the rest is as [Object3dComponent]'s.
   RigidBodyComponent({
     required this.body,
     required super.node,

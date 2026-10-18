@@ -3,6 +3,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 
 /// Why `XapiClient.send` could not deliver a statement to the LRS.
 final class XapiException extends ResourceException {
+  /// The failure, with the request and the LRS's response in [message].
   const XapiException(this.message);
 
   @override

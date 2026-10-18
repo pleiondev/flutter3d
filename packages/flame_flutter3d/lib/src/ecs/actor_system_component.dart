@@ -61,6 +61,9 @@ import 'actor_component.dart';
 /// [ActorSystem.step] explains. Exactly one of the two.
 final class ActorSystemComponent extends Component
     with FixedStepUpdate, StepClock {
+  /// A component stepping [system] at the fixed rate [timing] sets,
+  /// catching up as [catchUp] says. Asserts exactly one of [focus] and
+  /// [foci] is given.
   ActorSystemComponent({
     required this.system,
     this.focus,

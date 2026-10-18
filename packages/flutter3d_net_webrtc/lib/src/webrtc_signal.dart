@@ -45,6 +45,7 @@ Map<String, RTCDataChannelInit> dataChannelInits() =>
 /// channel is unordered but still retransmits — a late frame there costs
 /// latency, never correctness.
 final class UnreliableChannelInit extends RTCDataChannelInit {
+  /// An init with `ordered` false and `maxRetransmits` nought.
   UnreliableChannelInit() {
     ordered = false;
     maxRetransmits = 0;
@@ -62,30 +63,52 @@ final class UnreliableChannelInit extends RTCDataChannelInit {
 /// [kind] is `offer`, `answer` or `ice`; an offer and an answer carry [sdp],
 /// an ICE candidate [candidate], [sdpMid] and [sdpMLineIndex].
 final class Signal {
+  /// The offering side's session description, [sdp].
   const Signal.offer(String this.sdp)
     : kind = offerKind,
       candidate = null,
       sdpMid = null,
       sdpMLineIndex = null;
 
+  /// The answering side's session description, [sdp], in reply to an
+  /// offer.
   const Signal.answer(String this.sdp)
     : kind = answerKind,
       candidate = null,
       sdpMid = null,
       sdpMLineIndex = null;
 
+  /// One ICE [candidate], with the media section it belongs to when the
+  /// side that gathered it said.
   const Signal.ice(String this.candidate, {this.sdpMid, this.sdpMLineIndex})
     : kind = iceKind,
       sdp = null;
 
+  /// The [kind] of a [Signal.offer], as the wire spells it.
   static const String offerKind = 'offer';
+
+  /// The [kind] of a [Signal.answer], as the wire spells it.
   static const String answerKind = 'answer';
+
+  /// The [kind] of a [Signal.ice], as the wire spells it.
   static const String iceKind = 'ice';
 
+  /// Which of the three it is: [offerKind], [answerKind] or [iceKind].
   final String kind;
+
+  /// The session description of an offer or an answer; null for an ICE
+  /// candidate.
   final String? sdp;
+
+  /// The ICE candidate line; null for an offer or an answer.
   final String? candidate;
+
+  /// The media stream id the candidate belongs to; null for an offer, an
+  /// answer, or a candidate that did not say.
   final String? sdpMid;
+
+  /// The index from nought of the media section the candidate belongs to;
+  /// null for an offer, an answer, or a candidate that did not say.
   final int? sdpMLineIndex;
 
   /// The message on the wire: `{"f3d": "signal", "v": 1, "kind": …, …}`.
@@ -108,21 +131,28 @@ sealed class SignalRead {
 /// Not a signal at all: a game's message, or another of the engine's
 /// protocols sharing the signalling wire. Left alone.
 final class NotASignal extends SignalRead {
+  /// The answer for a message that is not a signal.
   const NotASignal();
 }
 
 /// A signal of this version, read.
 final class SignalOf extends SignalRead {
+  /// The answer carrying [signal].
   const SignalOf(this.signal);
 
+  /// The signal the message held, every field it needs present.
   final Signal signal;
 }
 
 /// A signal this build cannot use: another version, an unknown kind, or a
 /// field missing or of the wrong type. [reason] says which.
 final class SignalRefused extends SignalRead {
+  /// The refusal, with [otherVersion] set when the version is what is
+  /// wrong.
   const SignalRefused(this.reason, {this.otherVersion = false});
 
+  /// Why it cannot be used, as a sentence fragment naming the version, the
+  /// kind or the field (`an offer without an sdp`).
   final String reason;
 
   /// Whether the far side speaks another signalling version, which no

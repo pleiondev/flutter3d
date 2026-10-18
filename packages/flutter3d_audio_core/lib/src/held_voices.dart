@@ -21,6 +21,8 @@ typedef Held = ({int key, Vector3 at, double gain, double rate});
 /// given — so a mixer snapshot or a ducking rule reaches held voices as it
 /// reaches everything else.
 final class HeldVoices {
+  /// Voices of [sound] on [bus], the sound's own when null. Nothing plays
+  /// until [hold].
   HeldVoices(this.sound, {AudioBus? bus}) : bus = bus ?? sound.bus;
 
   /// What each voice plays: a looping sound.

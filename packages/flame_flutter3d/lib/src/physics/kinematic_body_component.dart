@@ -30,6 +30,8 @@ import '../transform/object3d_component.dart';
 /// frame before, since the steps run before this frame's effects.
 base class KinematicBodyComponent extends Object3dComponent
     with FixedStepUpdate {
+  /// A component moving [collider] to where Flame puts it, drawn through
+  /// [node] in [scene] on [plane].
   KinematicBodyComponent({
     required this.collider,
     required super.node,

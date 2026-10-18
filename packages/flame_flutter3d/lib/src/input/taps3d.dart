@@ -68,6 +68,7 @@ base mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
 /// the tap, the pointer's kind — without breaking an override written
 /// against 1.0. One per tap, asked of every candidate under it.
 final class Tap3dProbe {
+  /// The tap at [screen], seen through [projector].
   const Tap3dProbe({required this.screen, required this.projector});
 
   /// The tap, in logical pixels from the top left.
@@ -102,6 +103,8 @@ bool _covers(BridgeProjector projector, Aabb3 box, Vector2 screen) {
 /// ray misses although its screen rectangle is hit.
 base class Taps3dComponent extends PositionComponent
     with TapCallbacks, HasGameReference<HasFlutter3d> {
+  /// A component hearing every tap on the game and handing it to the
+  /// nearest `Tap3dCallbacks` under it.
   Taps3dComponent({super.priority});
 
   /// The component each finger went down on, until it lifts.

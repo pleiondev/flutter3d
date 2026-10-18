@@ -25,6 +25,7 @@ final class WireState {
   /// Closed, from either end; nothing more is carried.
   static const WireState closed = WireState._('closed');
 
+  /// The state in lower case, as [toString] prints it after `WireState.`.
   final String name;
 
   @override
@@ -72,6 +73,7 @@ final class WireState {
 /// adapter writes [send], and calls [deliver] with every message that
 /// arrives; the rest has bodies.
 abstract base class PeerWire {
+  /// A wire with no listeners yet.
   PeerWire();
 
   /// The key the engine's own messages carry, naming which of its
@@ -218,6 +220,7 @@ abstract base class PeerWire {
 /// **One object, so a minor can hand a wire more** — a channel, a priority,
 /// an expiry — without breaking an adapter written against 1.0.
 final class PeerSend {
+  /// A send of [message], reliable unless [reliable] is false.
   const PeerSend({required this.message, this.reliable = true});
 
   /// The message: JSON values only.
@@ -230,6 +233,7 @@ final class PeerSend {
 
 /// What [PeerWire.sendBytes] is handed, for the reason [PeerSend] gives.
 final class PeerSendBytes {
+  /// A send of [bytes], reliable unless [reliable] is false.
   const PeerSendBytes({required this.bytes, this.reliable = true});
 
   /// The bytes.
@@ -242,6 +246,8 @@ final class PeerSendBytes {
 /// What [PeerWire.deliver] is handed by an adapter, for each message the
 /// connection brings, for the reason [PeerSend] gives.
 final class PeerDelivery {
+  /// The arrival of [message] from slot [from], or from the other machine
+  /// of two when [from] is null.
   const PeerDelivery({required this.message, this.from});
 
   /// The message as it arrived.
@@ -254,6 +260,8 @@ final class PeerDelivery {
 
 /// What [PeerWire.deliverBytes] is handed, for the reason [PeerSend] gives.
 final class PeerBytesDelivery {
+  /// The arrival of [bytes] from slot [from], or from the other machine of
+  /// two when [from] is null.
   const PeerBytesDelivery({required this.bytes, this.from});
 
   /// The bytes as they arrived.
@@ -270,6 +278,7 @@ final class PeerBytesDelivery {
 /// over which channel — without breaking a listener written against 1.0.
 /// One per delivered message, heard by every listener.
 final class PeerMessage {
+  /// [message] as slot [from] sent it.
   const PeerMessage({required this.from, required this.message});
 
   /// The slot of the machine that sent it.
@@ -282,6 +291,7 @@ final class PeerMessage {
 /// Bytes as a [PeerWire.listenBytes] listener hears them, for the reason
 /// [PeerMessage] gives.
 final class PeerBytes {
+  /// [bytes] as slot [from] sent them.
   const PeerBytes({required this.from, required this.bytes});
 
   /// The slot of the machine that sent them.
@@ -469,6 +479,9 @@ final class _OverPeer extends PeerWire {
 /// test asks, the same losses for the same seed — the party's
 /// [LoopbackWire].
 final class LoopbackParty {
+  /// A party of [size] machines, messages [delaySteps] ticks late and a
+  /// [lossRate] share of unreliable ones lost, drawn from [seed]. Asserts
+  /// at least two machines.
   LoopbackParty(
     this.size, {
     this.delaySteps = 0,
@@ -477,6 +490,8 @@ final class LoopbackParty {
   }) : _random = math.Random(seed),
        assert(size >= 2, 'a party is at least two');
 
+  /// How many machines the party has, a count of at least two; their
+  /// slots run from nought to one less than it.
   final int size;
 
   /// How many [tick]s a message takes to arrive.

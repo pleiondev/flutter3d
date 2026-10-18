@@ -22,6 +22,7 @@ abstract final class LtiLaunchException extends ResourceException {
 /// initiation handed out — either a forged launch, or a launch replayed
 /// against the wrong session.
 final class LtiStateMismatchException extends LtiLaunchException {
+  /// The refusal, with a fixed message.
   const LtiStateMismatchException()
     : super('state does not match the one this login started with');
 }
@@ -30,6 +31,7 @@ final class LtiStateMismatchException extends LtiLaunchException {
 /// verification — wraps whatever `dart_jsonwebtoken` or the JWKS fetch found
 /// wrong, named in [message].
 final class LtiTokenInvalidException extends LtiLaunchException {
+  /// The refusal, saying in [message] what failed.
   const LtiTokenInvalidException(super.message);
 }
 
@@ -39,11 +41,13 @@ final class LtiTokenInvalidException extends LtiLaunchException {
 /// not "something is misconfigured" — the two want different messages to a
 /// student.
 final class LtiTokenExpiredException extends LtiLaunchException {
+  /// The refusal, with a fixed message.
   const LtiTokenExpiredException() : super('id_token has expired');
 }
 
 /// The `id_token`'s `nonce` does not match the one this login started with.
 final class LtiNonceMismatchException extends LtiLaunchException {
+  /// The refusal, with a fixed message.
   const LtiNonceMismatchException()
     : super('nonce does not match the one this login started with');
 }
@@ -53,6 +57,8 @@ final class LtiNonceMismatchException extends LtiLaunchException {
 /// tool at the platform, or a platform sending a deployment this tool was
 /// never told about.
 final class LtiDeploymentMismatchException extends LtiLaunchException {
+  /// The refusal, naming the deployment the token [claimed] and the one
+  /// [expected].
   const LtiDeploymentMismatchException(String claimed, String expected)
     : super(
         'deployment_id "$claimed" does not match the registered '

@@ -39,6 +39,8 @@ import 'plane.dart';
 base class InstancedObject3dComponent extends PositionComponent
     with HasVisibility, Bridged3d
     implements OpacityProvider {
+  /// A component taking a slot of [batch], placed on [plane] at
+  /// [elevation], nought by default, untinted unless [color] is given.
   InstancedObject3dComponent({
     required this.batch,
     required this.plane,

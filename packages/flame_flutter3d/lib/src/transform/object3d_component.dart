@@ -90,6 +90,9 @@ enum SyncDirection {
 base class Object3dComponent extends PositionComponent
     with HasVisibility, Bridged3d
     implements OpacityProvider {
+  /// A component bridging [node] in [scene] on [plane], at [elevation],
+  /// nought by default, the scene moving Flame unless [direction] says
+  /// otherwise.
   Object3dComponent({
     required this.node,
     required this.scene,

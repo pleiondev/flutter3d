@@ -8,6 +8,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// — without this class knowing what an entity is: it only ever compared
 /// two JSON trees and wrote down where they first stopped matching.
 final class SnapshotDivergence {
+  /// The divergence at [step] and [path], with each side's value there.
   const SnapshotDivergence({
     required this.step,
     required this.path,
@@ -26,7 +27,12 @@ final class SnapshotDivergence {
   /// on one side, a list on the other).
   final String path;
 
+  /// What the first run's snapshot (`a` of [diffRuns]) holds at [path], as
+  /// `firstDifferingPath` reports it.
   final Object? expected;
+
+  /// What the second run's snapshot (`b` of [diffRuns]) holds at [path],
+  /// as `firstDifferingPath` reports it.
   final Object? found;
 
   @override

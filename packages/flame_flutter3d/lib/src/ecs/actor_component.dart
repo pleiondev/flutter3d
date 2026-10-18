@@ -50,6 +50,9 @@ import 'actor_system_component.dart';
 /// owns its actors and the component only draws one.
 final class ActorComponent extends Object3dComponent
     with CollisionCallbacks, StepFollower {
+  /// A component drawing [actor] through [node] in [scene] on [plane], the
+  /// simulation moving Flame by default; the rest is as
+  /// [Object3dComponent]'s.
   ActorComponent({
     required this.actor,
     required super.node,

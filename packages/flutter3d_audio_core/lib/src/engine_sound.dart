@@ -13,10 +13,13 @@ import 'sound.dart';
 /// centred on, it is played at the ratio between the two, which is exactly what
 /// running an engine faster sounds like.
 final class LoopBand {
+  /// A band of [sound] recorded at [center], heard [width] either side of
+  /// it, 0.35 by default. Asserts both are above nought.
   const LoopBand({required this.sound, required this.center, this.width = 0.35})
     : assert(center > 0.0),
       assert(width > 0.0);
 
+  /// The recording, which has to loop: [BlendedLoop] asserts it does.
   final SoundDef sound;
 
   /// The value this band was recorded at, in whatever unit the driving value
@@ -52,6 +55,9 @@ final class LoopBand {
 /// half — is quieter than either end, and an engine gets a dip in the middle of
 /// its range that reads as the sound cutting out.
 final class BlendedLoop {
+  /// Starts every band of [bands] on [scene] at a copy of [at], the origin
+  /// when null, all silent until the first [update]. Asserts at least one
+  /// band, each a loop.
   BlendedLoop({required this.scene, required List<LoopBand> bands, Vector3? at})
     : bands = List<LoopBand>.unmodifiable(bands),
       _position = at?.clone() ?? Vector3.zero() {
@@ -66,7 +72,10 @@ final class BlendedLoop {
     _weights = List<double>.filled(this.bands.length, 0.0);
   }
 
+  /// The scene the bands play in, one emitter each.
   final AudioScene scene;
+
+  /// The recordings crossfaded, in the order given.
   final List<LoopBand> bands;
 
   final Vector3 _position;

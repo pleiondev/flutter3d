@@ -22,6 +22,7 @@ RsaKeyPair generateRsaKeyPair() {
 /// An RSA key pair, as [generateRsaKeyPair] makes one: the half a platform
 /// verifies with and the half this tool signs with.
 final class RsaKeyPair {
+  /// The pair of [publicKey] and the [privateKey] that matches it.
   const RsaKeyPair({required this.publicKey, required this.privateKey});
 
   /// The half that verifies, published as a JWK.

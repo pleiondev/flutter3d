@@ -55,6 +55,9 @@ final class GridCell {
 /// `RectangleHitbox()` round the whole grid, as a shield uses, says only
 /// that something reached it.
 base class CellGridComponent extends Object3dComponent {
+  /// A component drawing [grid]'s cells as blocks of [material] on
+  /// [device], one merged mesh unless [instanced], without hitboxes unless
+  /// [hitboxes]. The blocks are built at once.
   CellGridComponent({
     required this.grid,
     required this.device,
@@ -79,8 +82,13 @@ base class CellGridComponent extends Object3dComponent {
     }
   }
 
+  /// The cells: which are there, and how big one is in metres.
   final CellGrid grid;
+
+  /// The device the blocks' meshes are made on.
   final GraphicsDevice device;
+
+  /// The look every block is drawn with.
   final engine.RenderMaterial material;
 
   /// How deep the blocks stand; a cell's size unless given.

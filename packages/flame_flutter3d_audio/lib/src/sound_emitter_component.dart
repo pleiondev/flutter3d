@@ -19,6 +19,8 @@ import 'audio_scene_component.dart';
 /// component's scene position; anywhere else, from the listener. [gain] and
 /// [rate] are read every frame, so an engine can climb with the throttle.
 base class SoundEmitterComponent extends Component {
+  /// An emitter of [sound], sounding while [isPlaying], at [gain] and [rate]
+  /// times the sound's own, both unitless multipliers defaulting to one.
   SoundEmitterComponent(
     this.sound, {
     this.isPlaying = true,

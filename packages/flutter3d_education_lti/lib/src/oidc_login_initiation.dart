@@ -5,6 +5,7 @@ import 'random_token.dart';
 /// initiation request, and the two values the caller must keep to check
 /// against the launch that follows.
 final class OidcLoginRedirect {
+  /// The redirect to [uri], carrying [state] and [nonce].
   const OidcLoginRedirect({
     required this.uri,
     required this.state,
@@ -38,11 +39,15 @@ final class OidcLoginRedirect {
 /// the caller does, and hands them back to `LtiLaunchValidator.verify` when
 /// the launch (the `id_token` POST to `/launch`) arrives.
 final class OidcLoginInitiation {
+  /// A builder of redirects to [platform] that send the launch back to
+  /// [toolLaunchUri].
   const OidcLoginInitiation({
     required this.platform,
     required this.toolLaunchUri,
   });
 
+  /// The platform whose authorization endpoint the redirect goes to,
+  /// naming its client id.
   final LtiPlatformSettings platform;
 
   /// This tool's own launch endpoint — where the platform's authorization

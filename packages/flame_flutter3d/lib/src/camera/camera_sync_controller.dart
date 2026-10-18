@@ -77,6 +77,9 @@ import 'camera_sync_component.dart';
 /// after calling [advance]; this class only guarantees the two lenses agree
 /// with each other under its own convention, consistently, every frame.
 final class CameraSyncController {
+  /// A controller keeping [camera] and [viewfinder] together on [plane],
+  /// the scene driving Flame unless [direction] says otherwise. The
+  /// camera's rotation now is its rest; [eyeOffset] is copied.
   CameraSyncController({
     required this.camera,
     required this.viewfinder,

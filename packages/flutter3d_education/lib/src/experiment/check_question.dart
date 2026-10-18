@@ -98,6 +98,8 @@ final class CheckQuestion {
     return answers.any((answer) => answer.trim().toLowerCase() == normalized);
   }
 
+  /// The question as an experiment step's `check` writes it, without
+  /// `attempts` when it is one.
   Map<String, Object?> toJson() => <String, Object?>{
     'question': question,
     'answers': answers,
