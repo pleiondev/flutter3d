@@ -71,6 +71,8 @@ part 'staging.dart';
 enum Phase {
   /// On the water at the start of a stretch, waiting for the player.
   ready,
+
+  /// In the air, and the river moving under it.
   flying,
 
   /// Down, and the pause before the next jet.
@@ -81,7 +83,16 @@ enum Phase {
 }
 
 /// What brought the last jet down.
-enum Crash { bank, collision, fuel }
+enum Crash {
+  /// A wing or the nose over land rather than water.
+  bank,
+
+  /// A craft, a bridge still standing or a gunner's shot flown into.
+  collision,
+
+  /// The tank ran dry.
+  fuel,
+}
 
 /// The run on the river: the jet, the pieces and the course.
 ///
@@ -110,7 +121,12 @@ final class RiverGame extends FlameGame
     clearColor = LinearColor.fromSrgb(_haze.x, _haze.y, _haze.z);
   }
 
+  /// Whether the craft models are loaded over the primitives once the river
+  /// is open.
   final bool models;
+
+  /// Whether the reeds and the blast flashes are drawn as sprites in the
+  /// scene.
   final bool billboards;
 
   /// The reeds and the flash, once drawn; null until then, and in a game
@@ -197,7 +213,13 @@ final class RiverGame extends FlameGame
 
   /// Metres per second up the river: cruising, pushed forward, held back.
   static const double cruiseSpeed = 16.0;
+
+  /// Metres a second up the river with the stick pushed forward. See
+  /// [cruiseSpeed].
   static const double fastSpeed = 26.0;
+
+  /// Metres a second up the river with the stick held back. See
+  /// [cruiseSpeed].
   static const double slowSpeed = 9.0;
 
   /// Metres per second across it at full stick.
@@ -205,6 +227,8 @@ final class RiverGame extends FlameGame
 
   /// A shot's own speed, on top of the jet's.
   static const double shotSpeed = 60.0;
+
+  /// Seconds between the jet's shots while the trigger is held.
   static const double shotInterval = 0.2;
 
   /// How close the jet has to come before a tanker or a helicopter starts
@@ -219,17 +243,28 @@ final class RiverGame extends FlameGame
   /// test uses: a little under the drawing, so a wingtip over the sand is a
   /// near miss rather than a crash.
   static const double wingReach = 0.75;
+
+  /// The length ahead of the jet's centre the bank test reaches, in metres.
+  /// See [wingReach].
   static const double noseReach = 0.9;
 
   /// The water, which everything is placed on: what floats at its own level,
   /// what flies at an `elevation` of [flightHeight] above it.
   static final BridgePlane river = BridgePlane.ground();
 
+  /// The river this run flies.
   final Course course;
+
+  /// The run's score, jets, fuel and checkpoint; a fresh one each new game.
   RunState run = RunState();
+
+  /// Where the run is: waiting, flying, down or over.
   Phase phase = Phase.ready;
 
+  /// What the jet reads each step, written by the keys or the touch controls.
   final InputState input = InputState();
+
+  /// Where Flame's key events go to become [input].
   late final FlameInputBridge inputBridge = FlameInputBridge(
     actions: ActionMap(
       actions: ActionSet.common,
@@ -264,6 +299,7 @@ final class RiverGame extends FlameGame
     inputState: input,
   );
 
+  /// The player's jet.
   late final JetComponent jet;
   late final GraphicsDevice _device;
   late final Scene _scene;
@@ -292,6 +328,7 @@ final class RiverGame extends FlameGame
   Iterable<TargetComponent> get targets =>
       _stretches.chunks.expand((stretch) => stretch.targets);
 
+  /// Every bridge in play.
   Iterable<BridgeComponent> get bridges =>
       _stretches.chunks.map((stretch) => stretch.bridge).nonNulls;
 
@@ -303,6 +340,8 @@ final class RiverGame extends FlameGame
 
   /// The on-screen stick and trigger, on a device with no keys.
   JoystickComponent? joystick;
+
+  /// Whether the game is played with the on-screen stick.
   bool get touch => joystick != null;
 
   @override
@@ -707,6 +746,7 @@ final class RiverGame extends FlameGame
   String? banner;
   double _bannerFor = 0.0;
 
+  /// Shows [text] across the middle of the panel for [seconds].
   void say(String text, {double seconds = 2.5}) {
     banner = text;
     _bannerFor = seconds;

@@ -9,6 +9,8 @@ part of 'river_game.dart';
 /// Flame's own viewport and paints with Flame's own canvas.
 final class RiverHud extends PositionComponent
     with HasGameReference<RiverGame> {
+  /// The height of the panel along the bottom of the screen, in logical
+  /// pixels.
   static const double panelHeight = 78.0;
   static const double _gaugeWidth = 200.0;
   static const double _gaugeHeight = 22.0;

@@ -15,6 +15,7 @@ Quaternion _roll(double angle) =>
 /// bridge's [visual] node turns it up the river and banks it into a turn.
 final class JetComponent extends Object3dComponent
     with CollisionCallbacks, HasGameReference<RiverGame> {
+  /// The player's jet, drawn by [node] in [scene], flying at [flightHeight].
   JetComponent({required super.node, required super.scene})
     : super(
         plane: RiverGame.river,
@@ -56,12 +57,14 @@ final class JetComponent extends Object3dComponent
     visual.setRotation(_upRiver * _roll(bank));
   }
 
+  /// Puts the jet back on screen, level, for a new start.
   void show() {
     isVisible = true;
     bank = 0.0;
     visual.setRotation(_upRiver);
   }
 
+  /// Takes the jet off screen, as it is down.
   void hide() => isVisible = false;
 
   /// Anything but a depot is a crash: a bridge still standing, a craft, a
@@ -97,6 +100,8 @@ final class JetComponent extends Object3dComponent
 /// scenery, not something to crash into.
 final class TargetComponent extends Object3dComponent
     with HasGameReference<RiverGame>, FixedStepUpdate {
+  /// A target laid out by [plan], kept to [channel] across the river, drawn
+  /// by [node] in [scene].
   TargetComponent({
     required this.plan,
     required super.node,
@@ -142,13 +147,19 @@ final class TargetComponent extends Object3dComponent
   /// Seconds from waking to a gunner's first shot.
   static const double firstShot = 0.2;
 
+  /// Where the course laid the target, and what it is.
   final TargetPlan plan;
 
   /// The stand-in helicopter's blades, spun while it flies. Null for every
   /// other target, and left alone once a model has replaced them.
   SceneNode? rotor;
 
+  /// Which way it moves across the river: 1 towards +x, −1 towards −x.
+  /// Turned round at the edge of its channel.
   int heading;
+
+  /// Whether the jet has come within [RiverGame.wakeRange]; until it has, the
+  /// target keeps its place.
   bool awake = false;
 
   /// Hit, and going down the way its kind does.
@@ -291,6 +302,8 @@ final class TargetComponent extends Object3dComponent
 /// pivot at its own bank end; they swing down into the river, and sink.
 final class BridgeComponent extends Object3dComponent
     with HasGameReference<RiverGame>, FixedStepUpdate {
+  /// The bridge ending [section], [span] wide, its halves hanging from [left]
+  /// and [right], [shield] lit while it cannot fall.
   BridgeComponent({
     required this.section,
     required this.span,
@@ -310,16 +323,21 @@ final class BridgeComponent extends Object3dComponent
 
   /// The index of the section it ends.
   final int section;
+
+  /// How wide the bridge is across the river, in metres.
   final double span;
 
   /// The pivots the two halves hang from, at the bank ends.
   final SceneNode left;
+
+  /// The pivot the right half hangs from, at its bank end. See [left].
   final SceneNode right;
 
   /// Glowing rails, lit while [RiverGame.shielded] says it cannot fall: a
   /// pilot sees the task is not done before a shot bounces off.
   final SceneNode shield;
 
+  /// Whether the bridge has been shot down.
   bool down = false;
   double _falling = 0.0;
 
@@ -369,6 +387,7 @@ final class BridgeComponent extends Object3dComponent
 /// handful in the air, and they are one draw.
 final class ShotComponent extends InstancedObject3dComponent
     with CollisionCallbacks, HasGameReference<RiverGame>, FixedStepUpdate {
+  /// A shot from the jet at [position], flying up the river at [speed].
   ShotComponent({
     required super.batch,
     required super.position,
@@ -383,6 +402,8 @@ final class ShotComponent extends InstancedObject3dComponent
          anchor: Anchor.center,
        );
 
+  /// How fast the shot flies up the river, in metres a second: its own speed
+  /// on top of the jet's.
   final double speed;
   double _life = 0.9;
   bool _spent = false;
@@ -429,6 +450,7 @@ final class ShotComponent extends InstancedObject3dComponent
 /// the jet was when it was fired.
 final class EnemyShotComponent extends Object3dComponent
     with CollisionCallbacks, FixedStepUpdate {
+  /// A gunner's shot from [position], flying at [velocity].
   EnemyShotComponent({
     required super.node,
     required super.scene,
@@ -442,8 +464,11 @@ final class EnemyShotComponent extends Object3dComponent
          anchor: Anchor.center,
        );
 
+  /// How fast a gunner's shot flies, in metres a second.
   static const double speed = 20.0;
 
+  /// Which way and how fast the shot flies, on the river's plane, in metres a
+  /// second.
   final Vector2 velocity;
   double _life = 2.5;
 

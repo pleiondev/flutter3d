@@ -45,7 +45,9 @@ Future<void> main() async {
 bool hasTouchControls(TargetPlatform platform) =>
     platform == TargetPlatform.android || platform == TargetPlatform.iOS;
 
+/// The game as an application: [RiverScreen] in a [MaterialApp].
 class RiverApp extends StatelessWidget {
+  /// The application; it takes nothing.
   const RiverApp({super.key});
 
   @override
@@ -56,7 +58,10 @@ class RiverApp extends StatelessWidget {
   );
 }
 
+/// The game's one screen: the river in a Flame widget, the craft models and
+/// the sprites loaded.
 class RiverScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and makes its own [RiverGame].
   const RiverScreen({super.key});
 
   @override

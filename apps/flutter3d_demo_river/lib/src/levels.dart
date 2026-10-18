@@ -11,6 +11,8 @@ import 'course.dart' show TargetKind;
 
 /// What a level's stretches are populated with.
 final class Mix {
+  /// A mix of [tanker], [helicopter], [depot] and [jet] shares, the rest at
+  /// the first level's values unless told.
   const Mix({
     required this.tanker,
     required this.helicopter,
@@ -28,8 +30,14 @@ final class Mix {
   /// How the targets divide between the kinds. They need not add up to
   /// one; each is a share of their sum.
   final double tanker;
+
+  /// The helicopters' share. See [tanker].
   final double helicopter;
+
+  /// The depots' share. See [tanker].
   final double depot;
+
+  /// The enemy jets' share; none at the first level. See [tanker].
   final double jet;
 
   /// The chance a tanker or a helicopter moves at all once woken.
@@ -46,6 +54,8 @@ final class Mix {
 
   /// The river's half-width, narrowest and widest.
   final double narrowest;
+
+  /// The river's widest half-width, in metres. See [narrowest].
   final double widest;
 
   /// Metres between one target and the next, least and most.
@@ -70,6 +80,8 @@ final class Mix {
 /// One level: a name, a line of briefing, how many bridges long it is, and
 /// the task that unshields its last one.
 final class Level {
+  /// A level called [name], briefed with [briefing], [bridges] long and
+  /// populated by [mix], its last bridge shielded until [task] is done.
   const Level({
     required this.name,
     required this.briefing,
@@ -78,9 +90,16 @@ final class Level {
     this.task = const <TargetKind, int>{},
   });
 
+  /// What the level is called, as it is announced.
   final String name;
+
+  /// The line said under the name as the jet flies in.
   final String briefing;
+
+  /// How many bridges long the level is; the last ends it.
   final int bridges;
+
+  /// What the level's stretches are populated with, and how the river runs.
   final Mix mix;
 
   /// How many of each kind have to go down before the last bridge of the
@@ -188,14 +207,20 @@ const List<Level> campaign = <Level>[
 
 /// A level placed on the river: which sections it covers.
 final class Stage {
+  /// [level], as the [index]th of the campaign, starting at section
+  /// [first].
   const Stage(this.index, this.level, this.first);
 
   /// Its place in [campaign].
   final int index;
+
+  /// The level placed here.
   final Level level;
 
   /// Its first section, and its last: the one whose bridge ends it.
   final int first;
+
+  /// Its last section, whose bridge ends it. See [first].
   int get last => first + level.bridges - 1;
 }
 

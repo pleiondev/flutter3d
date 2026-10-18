@@ -57,6 +57,7 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
     // camera — so the water is put where they are now.
     : super(priority: 1000);
 
+  /// Whether to draw less of what falls, for a phone.
   final bool light;
 
   /// The water, once its look has loaded; null before, and where the look
@@ -128,6 +129,7 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
 
 /// The reaches of shallow water along the stretch of river in sight.
 final class RiverWater {
+  /// The water along [game]'s river, drawn and lit through [elements].
   RiverWater({required RiverGame game, required this.elements})
     : _game = game,
       // A course of its own, laid out by the same seed: reading the game's

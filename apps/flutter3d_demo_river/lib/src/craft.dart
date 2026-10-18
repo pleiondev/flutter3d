@@ -2,14 +2,24 @@ part of 'river_game.dart';
 
 /// Which model plays which part.
 enum Craft {
+  /// The player's jet.
   player('assets/models/jet_player.glb', 2.3, floats: false),
+
+  /// An enemy jet.
   enemyJet('assets/models/jet_enemy.glb', 2.5, floats: false),
+
+  /// A helicopter.
   helicopter('assets/models/helicopter.glb', 2.8, floats: false),
+
+  /// A tanker, the first of two hulls.
   tankerA('assets/models/tanker_a.glb', 3.7, floats: true),
+
+  /// A tanker, the second hull.
   tankerB('assets/models/tanker_b.glb', 3.7, floats: true);
 
   const Craft(this.file, this.length, {required this.floats});
 
+  /// The model's asset.
   final String file;
 
   /// Nose to tail once fitted, in metres: about the length of the hitbox
@@ -28,6 +38,7 @@ enum Craft {
     offset: floats ? Vector3(0.0, -0.15, 0.0) : null,
   );
 
+  /// How every craft is worn, for the wardrobe that dresses them.
   static Map<Craft, ModelLook> get looks => <Craft, ModelLook>{
     for (final craft in values) craft: craft.look,
   };
