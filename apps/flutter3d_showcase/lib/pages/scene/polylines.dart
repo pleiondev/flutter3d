@@ -114,13 +114,24 @@ final class PolylinesDemo extends ShowcaseDemo {
   /// pixels, which their widths are measured against. The page starts them at
   /// 1280 by 720.
   void setViewport(double width, double height) {
+    _drawnWidth = width;
+    _drawnHeight = height;
     for (final RenderMaterial material in _materials) {
       final viewport = material.polylineViewport!;
       viewport[0] = width;
       viewport[1] = height;
     }
   }
+
+  /// Every frame, before it is drawn: a route six pixels wide stays six
+  /// pixels wide whatever the canvas measures.
+  @override
+  void resize(DemoContext context, int width, int height) =>
+      setViewport(width.toDouble(), height.toDouble());
   // #endregion resize
+
+  double _drawnWidth = _viewportWidth;
+  double _drawnHeight = _viewportHeight;
 
   @override
   void verify(Scene scene, FrameResult frame) {
@@ -134,8 +145,8 @@ final class PolylinesDemo extends ShowcaseDemo {
       final viewport = material.polylineViewport;
       return material.lighting == LightingModel.polyline &&
           viewport != null &&
-          viewport[0] == _viewportWidth &&
-          viewport[1] == _viewportHeight;
+          viewport[0] == _drawnWidth &&
+          viewport[1] == _drawnHeight;
     });
     if (_lines.length != 3 ||
         !geometryMatches ||

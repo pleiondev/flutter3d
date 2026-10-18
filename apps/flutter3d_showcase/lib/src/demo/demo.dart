@@ -160,6 +160,10 @@ abstract class ShowcaseDemo {
   /// Called every frame with the seconds since the last, before it is drawn.
   void update(DemoContext context, double dt) {}
 
+  /// Called before every frame with the size in pixels it is about to be
+  /// drawn at, for a page whose scene measures something in pixels.
+  void resize(DemoContext context, int width, int height) {}
+
   /// Lets go of what the page holds beyond its scene — a physics core's
   /// world — when the page is left. Nothing by default.
   void dispose() {}

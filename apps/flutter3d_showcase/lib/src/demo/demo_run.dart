@@ -69,6 +69,7 @@ final class DemoRun {
 
   /// One frame at [width] by [height] pixels.
   FrameResult render(int width, int height) {
+    demo.resize(context, width, height);
     context.orbit.syncProjectionDepth(context.camera);
     return context.renderer.render(
       width: width,
