@@ -34,6 +34,9 @@ import 'pad_snapshot.dart';
 /// A method channel would not do: an `invokeMethod` is a future, and a
 /// simulation cannot take a value that is stale by an unknown amount.
 final class MethodChannelGamepad extends GamepadPlatform {
+  /// The channel `dev.flutter3d/gamepad/events` the native side pushes
+  /// connections and samples onto, subscribed at the first read rather than
+  /// at construction.
   @visibleForTesting
   final EventChannel eventChannel = const EventChannel(
     'dev.flutter3d/gamepad/events',

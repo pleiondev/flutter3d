@@ -37,10 +37,13 @@ import 'edit_mesh.dart';
 final class ElementLevel {
   const ElementLevel._(this.name);
 
+  /// Vertices: an id is a vertex number.
   static const ElementLevel vertex = ElementLevel._('vertex');
 
+  /// Edges: an id is the half-edge `EditMesh.edgeOf` chose for the edge.
   static const ElementLevel edge = ElementLevel._('edge');
 
+  /// Faces: an id is a face number.
   static const ElementLevel face = ElementLevel._('face');
 
   /// Every value this version names, in declaration order. A later version
@@ -170,8 +173,13 @@ final class Selection {
   /// The element a person picked last, or [EditMesh.none].
   final int active;
 
+  /// How many elements are selected, a count.
   int get length => ids.length;
+
+  /// Whether nothing is selected.
   bool get isEmpty => ids.isEmpty;
+
+  /// Whether at least one element is selected.
   bool get isNotEmpty => ids.isNotEmpty;
 
   /// Whether [id] is selected, by binary search.
@@ -185,13 +193,19 @@ final class Selection {
   Selection withIds(Iterable<int> replacement) =>
       Selection.of(level, replacement, active: active);
 
+  /// Returns the elements in either selection, at this one's level and
+  /// with this one's active element. [other]'s level is not checked.
   Selection union(Selection other) => withIds(<int>[...ids, ...other.ids]);
 
+  /// Returns this selection's elements that [other] does not hold; the
+  /// active element survives only if it is not removed.
   Selection difference(Selection other) => withIds(<int>[
     for (final id in ids)
       if (!other.contains(id)) id,
   ]);
 
+  /// Returns the elements both selections hold; the active element
+  /// survives only if [other] holds it too.
   Selection intersection(Selection other) => withIds(<int>[
     for (final id in ids)
       if (other.contains(id)) id,

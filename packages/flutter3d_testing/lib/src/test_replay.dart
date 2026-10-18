@@ -13,6 +13,8 @@ import 'render_frame.dart';
 
 /// What a game is handed to build the run a tape is replayed into.
 final class ReplayStart {
+  /// The start of a replay of [demo], fed through [input], drawn on
+  /// [device].
   const ReplayStart({
     required this.demo,
     required this.input,

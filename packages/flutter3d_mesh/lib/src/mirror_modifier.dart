@@ -3,6 +3,7 @@ part of 'modifier.dart';
 /// A thin [Modifier] wrapper storing [mirror]'s own parameters, the same
 /// split [ArrayModifier] makes between "the geometry" and "the stack step".
 final class MirrorModifier extends Modifier {
+  /// A mirror across the plane through the origin facing [normal].
   const MirrorModifier({
     required this.normal,
     this.mergeDistance,

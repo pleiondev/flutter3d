@@ -32,6 +32,8 @@ typedef QualityScene =
 /// A class rather than a record, so a row can later carry more measures
 /// without breaking a reader.
 final class QualityMeasurement {
+  /// A row: [setting], what it [cost] and how far its picture moved by
+  /// [flip].
   const QualityMeasurement({
     required this.setting,
     required this.cost,

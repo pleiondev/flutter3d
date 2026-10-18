@@ -16,6 +16,8 @@ part of 'modifier.dart';
 /// real work worth doing when something actually depends on it rather than
 /// carried here on the chance it might.
 final class ArrayModifier extends Modifier {
+  /// An array of [count] copies spaced by [offset], welded within
+  /// [mergeDistance] metres when it is not null.
   const ArrayModifier({
     required this.count,
     required this.offset,

@@ -32,6 +32,7 @@ import 'edit_mesh.dart';
 /// Mass (this solid's own volume, at unit density — a caller scales by its
 /// own material density), centroid, and inertia tensor about that centroid.
 final class MeshInertia {
+  /// Inertia of [mass] about [centroid], described by [tensor].
   const MeshInertia({
     required this.mass,
     required this.centroid,
@@ -41,6 +42,8 @@ final class MeshInertia {
   /// Numerically the volume in cubic metres: mass in kilograms at a density of
   /// one kilogram per cubic metre.
   final double mass;
+
+  /// The centre of mass in the mesh's own space, in metres.
   final Vector3 centroid;
 
   /// The symmetric inertia tensor about [centroid]. `tensor.entry(0, 0)` is
@@ -53,6 +56,8 @@ final class MeshInertia {
 /// The principal axes of a [MeshInertia]: the frame in which the tensor is
 /// diagonal, moments sorted largest first.
 final class PrincipalInertia {
+  /// Principal [moments] along [axes], for a body of [mass] centred at
+  /// [centroid].
   const PrincipalInertia({
     required this.moments,
     required this.axes,
@@ -70,6 +75,9 @@ final class PrincipalInertia {
   /// As [MeshInertia.mass]: the volume in cubic metres, mass in kilograms at
   /// unit density.
   final double mass;
+
+  /// As [MeshInertia.centroid]: the centre of mass in the mesh's own
+  /// space, in metres.
   final Vector3 centroid;
 }
 
@@ -237,23 +245,30 @@ PrincipalInertia principalAxesOf(MeshInertia inertia) {
 
 /// A box, positioned and oriented — the numbers `CollisionBox` needs.
 final class FittedCuboid {
+  /// A box at [center], turned by [orientation], reaching [halfExtents]
+  /// along its own axes.
   const FittedCuboid({
     required this.center,
     required this.orientation,
     required this.halfExtents,
   });
 
+  /// The box's centre in the mesh's own space, in metres.
   final Vector3 center;
 
   /// Columns are the box's own local x/y/z axes in world space.
   final Matrix3 orientation;
+
+  /// Half the box's size along each of its own axes, in metres.
   final Vector3 halfExtents;
 }
 
 /// A sphere — trivially unoriented.
 final class FittedSphere {
+  /// A sphere of [radius] metres at [center].
   const FittedSphere({required this.center, required this.radius});
 
+  /// The sphere's centre in the mesh's own space, in metres.
   final Vector3 center;
 
   /// In metres.
@@ -263,6 +278,7 @@ final class FittedSphere {
 /// A capsule: a cylinder of [radius] and [height], capped by two hemispheres
 /// of the same radius, centred at [center] and running along [axis].
 final class FittedCapsule {
+  /// A capsule at [center] along [axis], [radius] and [height] metres.
   const FittedCapsule({
     required this.center,
     required this.axis,
@@ -270,6 +286,7 @@ final class FittedCapsule {
     required this.height,
   });
 
+  /// The midpoint of the capsule's axis in the mesh's own space, in metres.
   final Vector3 center;
 
   /// Unit vector along the capsule's own long axis.
@@ -425,6 +442,7 @@ final class TriangleIndices {
 /// the narrow-phase that would test against raw triangles is a caller's own
 /// job, one layer up, not this generator's.
 final class StaticMeshShape {
+  /// A soup of [triangles] indexing into [vertices].
   const StaticMeshShape({required this.vertices, required this.triangles});
 
   /// Every vertex position, in mesh order.
@@ -469,6 +487,7 @@ StaticMeshShape staticMeshShape(EditMesh mesh) {
 /// [centroid] already computed (both integrate the same way
 /// [computeMeshInertia] does, over this hull's own triangulated faces).
 final class ConvexHull {
+  /// A hull of [faces] over [points], enclosing [volume] about [centroid].
   const ConvexHull({
     required this.points,
     required this.faces,
@@ -476,11 +495,18 @@ final class ConvexHull {
     required this.centroid,
   });
 
+  /// The positions [faces] index into, in metres; may include points that
+  /// ended up inside the hull and no face uses.
   final List<Vector3> points;
+
+  /// The hull's triangles, wound so their normals face outwards.
   final List<TriangleIndices> faces;
 
   /// In cubic metres (m³).
   final double volume;
+
+  /// The centre of the enclosed volume, in metres; a seed point when the
+  /// volume is too small to divide by.
   final Vector3 centroid;
 }
 
@@ -648,12 +674,17 @@ ConvexHull? computeConvexHull(List<Vector3> points) {
 
 /// One piece of a [decomposeConvex] result.
 final class ConvexPiece {
+  /// A piece shaped as [hull].
   const ConvexPiece({required this.hull});
 
+  /// The convex shape of this piece.
   final ConvexHull hull;
 
   /// The hull's volume, in cubic metres (m³).
   double get volume => hull.volume;
+
+  /// A copy of the hull's centroid, in metres; changing it leaves the hull
+  /// alone.
   Vector3 get centroid => hull.centroid.clone();
 }
 

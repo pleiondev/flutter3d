@@ -12,7 +12,10 @@ import 'package:flutter3d/flutter3d.dart';
 final class Eye {
   const Eye._(this.index, this.label);
 
+  /// The left eye: index nought, drawn in the left half of a target.
   static const Eye left = Eye._(0, 'left');
+
+  /// The right eye: index one, drawn in the right half of a target.
   static const Eye right = Eye._(1, 'right');
 
   /// In the order a projection layer lists them, which is also the order the
@@ -22,6 +25,7 @@ final class Eye {
   /// Where this eye sits in a runtime's view list.
   final int index;
 
+  /// A lower-case name for logs and [toString], such as `left`.
   final String label;
 
   @override
@@ -40,6 +44,9 @@ final class Eye {
 /// The eyes are children of the head so that an interpupillary distance is
 /// stated once, in metres, in the space where metres mean something.
 final class StereoRig {
+  /// A rig with its eyes [interpupillaryDistance] apart (metres) and
+  /// clipping from [near] to [far] (metres); its stage is called [name], or
+  /// `stage` when null.
   StereoRig({
     this.interpupillaryDistance = 0.064,
     this.near = 0.05,
@@ -77,6 +84,7 @@ final class StereoRig {
   /// headset's business; a phone's is the screen's.
   bool _projectionsAreGiven = false;
 
+  /// Returns the camera node for [eye], a child of [head].
   CameraNode camera(Eye eye) => identical(eye, Eye.left) ? _left : _right;
 
   /// The pair, side by side in one target: two [CameraView]s kept for the

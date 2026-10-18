@@ -30,6 +30,7 @@ double triangleAspectRatio(Vector3 p0, Vector3 p1, Vector3 p2) {
 /// value rather than four so the two ends of that comparison cannot
 /// accidentally be measured two different ways.
 final class MeshQualityStats {
+  /// Stats as already measured; [MeshQualityStats.of] measures a mesh.
   const MeshQualityStats({
     required this.edgeCount,
     required this.triangleCount,
@@ -95,14 +96,17 @@ final class MeshQualityStats {
       maxAspectRatio: maxAspect,
     );
   }
+
+  /// Distinct edges measured, a count; a twin pair counts once.
   final int edgeCount;
 
+  /// Live triangles measured, a count.
   final int triangleCount;
 
-  /// In metres.
+  /// The mean length of [edgeCount] edges, in metres.
   final double meanEdgeLength;
 
-  /// In metres.
+  /// The standard deviation of the edge lengths, in metres.
   final double edgeLengthStdDev;
 
   /// The mean [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
@@ -128,6 +132,7 @@ final class MeshQualityStats {
 
 /// What [isotropicRemesh] did, and how the mesh measured before and after.
 final class RemeshReport {
+  /// A report of a remesh run; [isotropicRemesh] is what makes one.
   const RemeshReport({
     required this.iterations,
     required this.targetEdgeLength,
@@ -138,14 +143,27 @@ final class RemeshReport {
     required this.after,
   });
 
+  /// How many split, collapse, flip and smooth passes ran, a count of at
+  /// least one.
   final int iterations;
 
-  /// In metres.
+  /// The edge length the passes aimed at, in metres.
   final double targetEdgeLength;
+
+  /// Edges split for being too long, a count over every iteration.
   final int edgeSplits;
+
+  /// Edges collapsed for being too short, a count over every iteration.
   final int edgeCollapses;
+
+  /// Edges flipped to even out vertex valence, a count over every
+  /// iteration.
   final int edgeFlips;
+
+  /// The mesh as it measured before the first pass.
   final MeshQualityStats before;
+
+  /// The mesh as it measured after the last pass.
   final MeshQualityStats after;
 
   @override

@@ -7,11 +7,16 @@ import 'pointer_lock_platform_interface.dart';
 
 /// Talks to the native side over a method channel and an event channel.
 final class MethodChannelPointerLock extends PointerLockPlatform {
+  /// The channel `capture`, `release` and `reset` are sent on, named
+  /// `dev.flutter3d/flutter3d_pointer_lock`.
   @visibleForTesting
   final MethodChannel methodChannel = const MethodChannel(
     'dev.flutter3d/flutter3d_pointer_lock',
   );
 
+  /// The channel the native side multiplexes its events onto: a
+  /// `Float64List` delta, an `int` capture state (one for captured) and, on
+  /// a phone or a tablet, a `bool` for whether a mouse is connected.
   @visibleForTesting
   final EventChannel eventChannel = const EventChannel(
     'dev.flutter3d/flutter3d_pointer_lock/events',

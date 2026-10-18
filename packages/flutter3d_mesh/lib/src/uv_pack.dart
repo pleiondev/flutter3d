@@ -17,6 +17,7 @@ import 'package:vector_math/vector_math.dart';
 /// Where one island landed, and whether packing turned it a quarter turn to
 /// get there.
 final class PackedIsland {
+  /// An island placed at [offset], turned a quarter when [rotated].
   const PackedIsland({required this.offset, required this.rotated});
 
   /// The island's own bottom-left corner in the shared square, already at
@@ -33,6 +34,7 @@ final class PackedIsland {
 /// The whole layout: where every island landed, and how much of the square
 /// they actually cover.
 final class PackResult {
+  /// A layout of [islands] at [scale], covering [fillRatio] of the square.
   const PackResult({
     required this.islands,
     required this.scale,

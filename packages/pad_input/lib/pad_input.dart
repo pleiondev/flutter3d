@@ -51,6 +51,11 @@ export 'src/pad_snapshot.dart';
 
 /// The gamepad a player is holding.
 final class Gamepad {
+  /// A reader for the controller in slot [index], through [platform] (the
+  /// shared [GamepadPlatform.instance] when null) with [deadzone] applied.
+  ///
+  /// Asserts that [index] is from nought to below
+  /// [GamepadPlatform.maxPads].
   Gamepad({
     GamepadPlatform? platform,
     Deadzone deadzone = const Deadzone(),
@@ -103,6 +108,9 @@ final class Gamepad {
   /// Whether this build can see a gamepad at all.
   bool get isSupported => _platform.isSupported;
 
+  /// Each attach and detach the platform reports, as it happens.
+  ///
+  /// Never fires where [isSupported] is false.
   Stream<PadConnection> get connectionChanges => _platform.connectionChanges;
 
   final List<double> _stick = <double>[0.0, 0.0];

@@ -55,8 +55,10 @@ abstract final class ParametricShape {
 
 /// A box, centred on the origin.
 final class ParametricCuboid extends ParametricShape {
+  /// A box of [size]; null makes a one-metre cube.
   ParametricCuboid({Vector3? size}) : size = size ?? Vector3(1, 1, 1);
 
+  /// The full extent along X, Y and Z, in metres.
   final Vector3 size;
 
   @override
@@ -164,6 +166,8 @@ final class ParametricCuboid extends ParametricShape {
 
 /// A flat sheet in the XZ plane, facing +Y.
 final class ParametricPlane extends ParametricShape {
+  /// A sheet [width] by [depth] metres, cut into a grid of
+  /// [widthSegments] by [depthSegments] quads.
   const ParametricPlane({
     this.width = 1.0,
     this.depth = 1.0,
@@ -176,7 +180,13 @@ final class ParametricPlane extends ParametricShape {
 
   /// In metres, along Z.
   final double depth;
+
+  /// Quads across X, a count; [toEditMesh] throws an `ArgumentError` below
+  /// one.
   final int widthSegments;
+
+  /// Quads across Z, a count; [toEditMesh] throws an `ArgumentError` below
+  /// one.
   final int depthSegments;
 
   @override
@@ -236,6 +246,10 @@ final class ParametricPlane extends ParametricShape {
 
 /// A profile swept around the Y axis: the shape the rounded primitives are.
 final class ParametricLathe extends ParametricShape {
+  /// [profile] swept by [sweepAngle] from [startAngle] in [segments] steps.
+  ///
+  /// [toEditMesh] throws an `ArgumentError` for a profile of fewer than two
+  /// points or with a negative radius.
   const ParametricLathe({
     required this.profile,
     this.segments = 32,
@@ -247,6 +261,8 @@ final class ParametricLathe extends ParametricShape {
 
   /// Points in the (radius, height) half-plane, bottom to top.
   final List<Vector2> profile;
+
+  /// Steps around the Y axis over [sweepAngle], a count.
   final int segments;
 
   /// In radians about Y.
@@ -277,6 +293,8 @@ final class ParametricLathe extends ParametricShape {
 
 /// A ball, as rings of quads with a fan at each pole.
 final class ParametricSphere extends ParametricShape {
+  /// A ball of [radius] metres, [segments] around by [rings] from pole to
+  /// pole.
   const ParametricSphere({
     this.radius = 0.5,
     this.segments = 32,
@@ -285,7 +303,11 @@ final class ParametricSphere extends ParametricShape {
 
   /// In metres.
   final double radius;
+
+  /// Faces around the Y axis, a count.
   final int segments;
+
+  /// Bands of faces from the bottom pole to the top, a count.
   final int rings;
 
   @override
@@ -313,6 +335,8 @@ final class ParametricSphere extends ParametricShape {
 
 /// A cylinder or a truncated cone, with flat caps as single faces.
 final class ParametricCylinder extends ParametricShape {
+  /// A cylinder [height] metres tall, centred on the origin; a zero radius
+  /// at either end makes a cone.
   const ParametricCylinder({
     this.radiusTop = 0.5,
     this.radiusBottom = 0.5,
@@ -329,7 +353,12 @@ final class ParametricCylinder extends ParametricShape {
 
   /// In metres.
   final double height;
+
+  /// Faces around the Y axis, a count.
   final int segments;
+
+  /// Whether each end with a radius above zero is closed by a flat face;
+  /// false leaves an open tube.
   final bool capped;
 
   @override
@@ -373,6 +402,8 @@ final class ParametricCylinder extends ParametricShape {
 
 /// A ring, closed both ways round.
 final class ParametricTorus extends ParametricShape {
+  /// A ring of [radius] metres with a tube of [tubeRadius] metres, lying
+  /// in the XZ plane.
   const ParametricTorus({
     this.radius = 0.35,
     this.tubeRadius = 0.15,
@@ -385,7 +416,11 @@ final class ParametricTorus extends ParametricShape {
 
   /// In metres.
   final double tubeRadius;
+
+  /// Faces around the ring, about the Y axis, a count.
   final int segments;
+
+  /// Faces around the tube's own cross-section, a count.
   final int tubeSegments;
 
   @override

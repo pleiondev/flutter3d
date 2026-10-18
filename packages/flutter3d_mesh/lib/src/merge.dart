@@ -38,6 +38,7 @@ import 'selection.dart';
 
 /// What a merge had to decide, and how often.
 final class MergeReport {
+  /// A report of one merge; `mergeByDistance` is what makes one.
   const MergeReport({
     required this.sourceVertices,
     required this.vertices,

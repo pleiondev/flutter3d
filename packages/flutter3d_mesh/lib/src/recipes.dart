@@ -36,21 +36,25 @@ import 'parametric.dart';
 final class RecipeCategory {
   const RecipeCategory._(this.name, this.label);
 
+  /// Lamps and sconces, headed `Lighting`.
   static const RecipeCategory lighting = RecipeCategory._(
     'lighting',
     'Lighting',
   );
 
+  /// Chairs, tables, benches, shelves and cabinets, headed `Furniture`.
   static const RecipeCategory furniture = RecipeCategory._(
     'furniture',
     'Furniture',
   );
 
+  /// Mugs, vases, plates and bottles, headed `Tableware`.
   static const RecipeCategory tableware = RecipeCategory._(
     'tableware',
     'Tableware',
   );
 
+  /// Doors and windows, headed `Architecture`.
   static const RecipeCategory architecture = RecipeCategory._(
     'architecture',
     'Architecture',
@@ -87,6 +91,8 @@ final class RecipeCategory {
 
 /// One model that can be built rather than downloaded.
 final class Recipe {
+  /// A recipe called [id], shown as [name] under [category], made by
+  /// [build].
   const Recipe({
     required this.id,
     required this.name,
@@ -101,6 +107,7 @@ final class Recipe {
   /// What the gallery card calls it.
   final String name;
 
+  /// The gallery section the recipe is listed under.
   final RecipeCategory category;
 
   /// One sentence: what it is and what it is for. The same shape `ux-18`
@@ -721,8 +728,11 @@ EditMesh window({double width = 1.2, double height = 1.4}) =>
 /// turned at all, and a record's fields are all required — every leg of
 /// every chair would carry `turn: null` to say nothing.
 final class PlacedMesh {
+  /// [mesh] with its origin moved to [at] and turned by [turn].
   PlacedMesh({required this.mesh, required this.at, this.turn});
 
+  /// The part as built, in its own space; [joinMeshes] reads it and leaves
+  /// it unchanged.
   final EditMesh mesh;
 
   /// Where the part's own origin lands.

@@ -59,7 +59,7 @@ final class PacingReport {
   /// A frame longer than this, in seconds, is a spike.
   final double limit;
 
-  /// The median frame, the 99th percentile and the worst, in seconds.
+  /// The median frame, in seconds.
   final double p50;
 
   /// The 99th-percentile frame, in seconds.
@@ -74,11 +74,15 @@ final class PacingReport {
   /// The index of every frame longer than [limit], in order.
   final List<int> overLimit;
 
+  /// How many frames were timed, a count.
   int get frames => seconds.length;
 
   /// No frame over [limit].
   bool get isEven => overLimit.isEmpty;
 
+  /// Returns the report as JSON: the frame count, the limit and the
+  /// percentiles in milliseconds to a microsecond, the worst frame's index
+  /// and every frame over the limit. [seconds] is left out.
   Map<String, Object?> toJson() => <String, Object?>{
     'frames': frames,
     'limitMillis': limit * 1000.0,

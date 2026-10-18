@@ -167,6 +167,8 @@ final class AndroidPadState implements PadMirror {
         : (has.contains(AndroidAxis.gas) ? AndroidAxis.gas : null);
   }
 
+  /// Forgets the device and everything it was holding, so a later [fill]
+  /// reports no pad until [connect] is called again.
   void disconnect() {
     _deviceId = null;
     _axes.clear();

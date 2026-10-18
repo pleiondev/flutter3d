@@ -841,6 +841,7 @@ MeshData simplifyMeshWithAttributes(
 /// What [simplifyMeshWithAttributesMeasured] made, and how far it had to bend
 /// the surface to make it.
 final class SimplifiedMesh {
+  /// A simplified [mesh] that reached [error].
   const SimplifiedMesh({required this.mesh, required this.error});
 
   /// The simplified mesh.

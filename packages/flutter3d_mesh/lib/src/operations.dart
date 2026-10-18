@@ -84,6 +84,7 @@ final class OpResult {
   /// Why the operation was refused, or null.
   final String? reason;
 
+  /// Whether the operation ran: true exactly when [reason] is null.
   bool get isOk => reason == null;
 
   @override

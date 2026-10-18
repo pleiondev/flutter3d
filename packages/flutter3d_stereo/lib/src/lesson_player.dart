@@ -101,21 +101,34 @@ Vector3 _offsetVector(Object? raw) {
 /// wrapping — a viewer who presses past the last step should see the last
 /// step held, not the first step returning unannounced.
 final class LessonPlayer {
+  /// A player over [steps], on step [start] clamped into range (nought for
+  /// an empty lesson).
   LessonPlayer(this.steps, {int start = 0})
     : index = steps.isEmpty ? 0 : start.clamp(0, steps.length - 1);
 
+  /// The lesson's steps in playing order, as `orderedSteps` resolves them.
   final List<EntityDef> steps;
+
+  /// The position of the step on screen in [steps], from nought. Not
+  /// clamped when set directly; [next] and [previous] keep it in range.
   int index;
 
+  /// The step on screen, or null for a lesson with no steps.
   EntityDef? get current => steps.isEmpty ? null : steps[index];
 
+  /// Whether [previous] would do nothing: the first step is on screen.
   bool get isFirst => index <= 0;
+
+  /// Whether [next] would do nothing: the last step is on screen, or the
+  /// lesson is empty.
   bool get isLast => steps.isEmpty || index >= steps.length - 1;
 
+  /// Moves to the following step; holds on the last one.
   void next() {
     if (!isLast) index++;
   }
 
+  /// Moves to the step before; holds on the first one.
   void previous() {
     if (!isFirst) index--;
   }

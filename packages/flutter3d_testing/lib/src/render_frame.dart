@@ -12,6 +12,7 @@ import 'draw.dart';
 /// field a later frame needs (a second view, a time), and a class adds it
 /// with a default.
 final class FrameSubject {
+  /// A subject drawing [scene] from [camera].
   const FrameSubject({required this.scene, required this.camera});
 
   /// The scene to draw.
@@ -44,6 +45,8 @@ final class FrameSubject {
 /// draws a scene cost rather than only what it looked like. A class, so it
 /// can carry more again without breaking a reader.
 final class RenderedFrame {
+  /// A frame of [pixels], [width] by [height] pixels, drawn in [drawCalls]
+  /// draws.
   const RenderedFrame({
     required this.pixels,
     required this.width,
@@ -90,6 +93,7 @@ typedef FrameBuilder = FrameSubject Function(FrameRequest request);
 /// anybody has written. See `AssetRequest` in the engine for the same shape and
 /// the same reason.
 final class FrameRequest {
+  /// A request to build a frame for [device].
   const FrameRequest(this.device);
 
   /// Where meshes and textures have to be uploaded.

@@ -44,6 +44,7 @@ import 'shape_key.dart';
 
 /// What an import had to decide, and how often.
 final class MeshImportReport {
+  /// A report of one import; `importMeshData` is what makes one.
   const MeshImportReport({
     required this.sourceVertices,
     required this.weldedVertices,

@@ -37,6 +37,7 @@ import 'normals.dart';
 /// Where an element went when the mesh was compacted, or [EditMesh.none] where
 /// it was dropped.
 final class IdRemap {
+  /// A remap of [vertices] and [faces], each indexed by the old id.
   const IdRemap({required this.vertices, required this.faces});
 
   /// Old vertex number to new, indexed by the old one.
@@ -338,6 +339,9 @@ final class EditMesh {
   /// because a tombstone leaves a gap and the numbers on either side of it do
   /// not move.
   int get vertexSlotCount => _vertexSlots;
+
+  /// Face slots, live and dead: the bound a walk over faces counts up to,
+  /// checking [isFaceAlive] on each.
   int get faceSlotCount => _faceSlots;
 
   /// Half-edge slots, live and dead.
@@ -349,6 +353,8 @@ final class EditMesh {
 
   /// Elements that are actually there.
   int get vertexCount => _liveVertices;
+
+  /// Live faces, a count; tombstoned slots are not in it.
   int get faceCount => _liveFaces;
 
   /// Whether the slot holds something.
@@ -359,6 +365,9 @@ final class EditMesh {
   /// dead element and get plausible-looking numbers out of it — is the failure
   /// tombstones exist to make impossible to reach by accident.
   bool isVertexAlive(int vertex) => _vertexAlive[vertex] != 0;
+
+  /// Whether the face slot [face] holds a face rather than a tombstone.
+  /// Throws a `RangeError` past [faceSlotCount].
   bool isFaceAlive(int face) => _faceAlive[face] != 0;
 
   /// Half-edges of live faces. A dead face's half-edges are dead with it.
@@ -397,9 +406,17 @@ final class EditMesh {
   /// `V − E + F`, which is 2 for anything shaped like a sphere.
   int get eulerCharacteristic => vertexCount - edgeCount + faceCount;
 
+  /// The vertex [halfEdge] starts at.
   int originOf(int halfEdge) => _origin[halfEdge];
+
+  /// The half-edge after [halfEdge] round its face, in winding order.
   int nextOf(int halfEdge) => _next[halfEdge];
+
+  /// The half-edge running the other way along the same edge, or [none] on
+  /// a boundary. May belong to a deleted face; see [hasLiveTwin].
   int twinOf(int halfEdge) => _twin[halfEdge];
+
+  /// The face [halfEdge] bounds, or [none] for a half-edge in no face.
   int faceOf(int halfEdge) => _halfEdgeFace[halfEdge];
 
   /// Some half-edge leaving [vertex], or [none] for a vertex in no face.
@@ -2132,7 +2149,10 @@ final class EditMeshBuilder {
   /// hash and a compare, and a record is an allocation per edge.
   final Map<int, int> _byPair = <int, int>{};
 
+  /// Vertices added so far, a count; the next [addVertex] returns this.
   int get vertexCount => _outgoing.length;
+
+  /// Faces added so far, a count.
   int get faceCount => _faceHalfEdge.length;
 
   /// Adds a vertex and returns its number.

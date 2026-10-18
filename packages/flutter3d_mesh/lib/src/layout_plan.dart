@@ -84,6 +84,8 @@ final class MeshLayoutPlan {
   /// Floats in one row.
   int get floatsPerVertex => _stride;
 
+  /// Triangles the plan's faces are cut into, a count; [indices] holds
+  /// three per triangle.
   int get triangleCount => _triangleCount;
 
   /// Three indices per triangle, into the rows.

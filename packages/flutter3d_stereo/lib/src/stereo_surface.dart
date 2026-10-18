@@ -29,6 +29,7 @@ import 'stereo_viewer.dart';
 /// [renderer] is borrowed, and its device with it: the view leaves both alone
 /// when it goes.
 final class StereoSurface extends StatelessWidget {
+  /// A surface drawing [scene] through both eyes of [rig].
   const StereoSurface({
     super.key,
     required this.renderer,
@@ -42,8 +43,14 @@ final class StereoSurface extends StatelessWidget {
     this.onListenerMoved,
   });
 
+  /// The renderer the pair is drawn with; borrowed, never disposed here.
   final Renderer renderer;
+
+  /// The scene both eyes look at.
   final Scene scene;
+
+  /// The rig whose two cameras draw the halves, and whose frusta this
+  /// surface fits to its size or to [viewer] on every build.
   final StereoRig rig;
 
   /// What the frame should be drawn with, before the stereo rules are applied

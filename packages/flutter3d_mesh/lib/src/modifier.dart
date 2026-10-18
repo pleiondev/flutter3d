@@ -56,6 +56,8 @@ part 'subdivision_modifier.dart';
 
 /// What a modifier's own `apply` may read besides the mesh it is folding.
 final class ModifierContext {
+  /// A context offering [operands]; none by default, so every boolean
+  /// passes its base through.
   const ModifierContext({this.operands = const <int, EditMesh>{}});
 
   /// Another object's own mesh, by whatever id names it to whoever built
@@ -116,6 +118,7 @@ Modifier? modifierFromJson(Object? json) {
 /// A modifier's JSON that is not what its kind reads: a field missing or of
 /// the wrong shape, said in [message].
 final class ModifierFormatException extends Flutter3dFormatException {
+  /// An exception saying what was wrong in [message].
   const ModifierFormatException(this.message);
 
   @override
@@ -146,8 +149,13 @@ final class ModifierFormatException extends Flutter3dFormatException {
 /// recomputation being skipped), so identity is the only free answer
 /// available for both the base and every operand.
 final class ModifierStack {
+  /// A stack applying [modifiers] in order, with nothing cached yet.
   ModifierStack(this.modifiers);
 
+  /// The modifiers, first applied first; the list is held, not copied.
+  ///
+  /// Not part of the memo key: changing the list after an [evaluate] does
+  /// not invalidate it, so a changed stack is a new [ModifierStack].
   final List<Modifier> modifiers;
 
   EditMesh? _lastBase;

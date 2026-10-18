@@ -44,6 +44,7 @@ const double _smallestTangent = 0.01;
 /// because the arithmetic is a ratio between two lengths: turning one of them
 /// into pixels would only mean turning it back.
 final class StereoScreen {
+  /// A screen [width] by [height] metres, as measured.
   const StereoScreen({required this.width, required this.height});
 
   /// The screen's size estimated from Flutter's logical pixels.
@@ -84,6 +85,8 @@ final class StereoScreen {
 /// be written out rather than approximated by a preset: the whole point of
 /// these four numbers is that they are the ones that differ.
 final class StereoViewer {
+  /// A holder profile; every argument left out takes the Cardboard v2
+  /// figure. Distances are in metres, fields of view in radians.
   const StereoViewer({
     this.interLensDistance = 0.064,
     this.screenToLensDistance = 0.039,
@@ -193,6 +196,7 @@ final class StereoViewer {
     return smaller < _smallestTangent ? _smallestTangent : smaller;
   }
 
+  /// Returns a copy with the given fields replaced; null keeps this one's.
   StereoViewer copyWith({
     double? interLensDistance,
     double? screenToLensDistance,

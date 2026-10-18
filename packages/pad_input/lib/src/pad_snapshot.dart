@@ -28,8 +28,11 @@ final class PadSnapshot {
   final Set<String> _down = <String>{};
   final Map<String, double> _pressure = <String, double>{};
 
+  /// Returns where [axis] sits: from -1 to 1 for a stick (Y positive
+  /// downwards), from nought to one for a trigger, nought when not set.
   double axis(PadAxis axis) => _axes[axis] ?? 0.0;
 
+  /// Returns whether [button] is held.
   bool down(PadButton button) => _down.contains(button.id);
 
   /// How hard a button is held, for the two that can answer.
@@ -45,8 +48,14 @@ final class PadSnapshot {
 
   // MARK: - Writing, from a backend
 
+  /// Records [value] for [axis], unchanged: the backend owns the range and
+  /// the sign, and the dead zone is applied later by `Gamepad.read`.
   void setAxis(PadAxis axis, double value) => _axes[axis] = value;
 
+  /// Records whether [button] is [down], and how hard.
+  ///
+  /// [pressure] is the analogue travel from nought to one; null forgets any
+  /// earlier one, so [pressure] then answers one or nought from [down].
   void setDown(PadButton button, {required bool down, double? pressure}) {
     if (down) {
       _down.add(button.id);
@@ -75,6 +84,8 @@ final class PadSnapshot {
     isConnected = false;
   }
 
+  /// Makes this snapshot equal to [other]: connection, axes, held buttons
+  /// and pressures, without allocating.
   void copyFrom(PadSnapshot other) {
     isConnected = other.isConnected;
     for (final axis in PadAxis.values) {

@@ -89,18 +89,28 @@ final class MeshDomain {
 final class MeshAttribute {
   const MeshAttribute._(this.name);
 
+  /// The first texture coordinate set, per corner, so a seam can split it.
   static const MeshAttribute uv0 = MeshAttribute._('uv0');
 
+  /// The vertex colour, per corner, in linear light; white where unwritten.
   static const MeshAttribute color = MeshAttribute._('color');
 
+  /// The four skin weights, per vertex; all on the first joint where
+  /// unwritten.
   static const MeshAttribute weights = MeshAttribute._('weights');
 
+  /// The four joint indices the [weights] refer to, per vertex.
   static const MeshAttribute joints = MeshAttribute._('joints');
 
+  /// The subdivision crease weight, per edge, from nought (smooth) to one
+  /// (held through every level).
   static const MeshAttribute crease = MeshAttribute._('crease');
 
+  /// The bitfield of [EdgeFlags] on the edge domain, or of [FaceFlags] on
+  /// the face domain.
   static const MeshAttribute flags = MeshAttribute._('flags');
 
+  /// The index of the material a face is drawn with, per face.
   static const MeshAttribute materialSlot = MeshAttribute._('materialSlot');
 
   /// Every value this version names, in declaration order. A later version
@@ -165,10 +175,14 @@ abstract final class FaceFlags {
 /// somewhere between. Three named fields is what that reads like; six out
 /// parameters is what it read like before.
 final class CornerAttributes {
+  /// A corner at [uv] and [color]; null takes the origin and white, the
+  /// values an unwritten layer reads as.
   CornerAttributes({Vector2? uv, LinearColor? color})
     : uv = uv ?? Vector2.zero(),
       color = color ?? neutralColor;
 
+  /// The corner's texture coordinate in the first UV set, unitless, with
+  /// nought to one spanning the texture.
   final Vector2 uv;
 
   /// The corner's vertex colour, in linear light as every vertex colour is.
@@ -196,6 +210,9 @@ final class CornerAttributes {
 
 /// What a vertex carries besides its position.
 final class VertexAttributes {
+  /// A vertex skinned by [joints] with [weights]; null takes joint nought
+  /// at full weight, the values an unwritten layer reads as. Both are
+  /// copied.
   VertexAttributes({Vector4? joints, Vector4? weights})
     : joints = joints ?? Vector4.copy(neutralJoints),
       weights = weights ?? Vector4.copy(neutralWeights);

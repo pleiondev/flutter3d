@@ -31,6 +31,7 @@ import 'dart:typed_data';
 /// step's own mesh chunk, and `EditMesh.toBytes` carries no journal — see
 /// `writeProject` in `flutter3d_model_core`.
 final class JournalStep {
+  /// A step that wrote [indices], which held [before] beforehand.
   const JournalStep(this.indices, this.before);
 
   /// Slots that were written, in the order they were written.
@@ -53,8 +54,11 @@ final class JournalStep {
 /// is the other half of why this won the measurement: every operation on a mesh
 /// reads far more than it writes.
 final class JournaledFloats {
+  /// [length] zeroes, with an empty journal.
   JournaledFloats(int length) : _values = Float32List(length);
 
+  /// Wraps [values] without copying, with an empty journal; later writes
+  /// change the list the caller passed.
   JournaledFloats.of(Float32List values) : _values = values;
 
   Float32List _values;
@@ -69,8 +73,11 @@ final class JournaledFloats {
   /// giving up the cheap read.
   Float32List get values => _values;
 
+  /// Values the array holds, a count; [grow] may leave it larger than was
+  /// asked for.
   int get length => _values.length;
 
+  /// Returns the value at [index]. Throws a `RangeError` past [length].
   double operator [](int index) => _values[index];
 
   final List<JournalStep> _undo = <JournalStep>[];
@@ -332,8 +339,11 @@ final class JournaledFloats {
 /// plus a cast per element — is a bounds check and a virtual call in the
 /// hottest loop in the package.
 final class JournaledInts {
+  /// [length] zeroes, with an empty journal.
   JournaledInts(int length) : _values = Int32List(length);
 
+  /// Wraps [values] without copying, with an empty journal; later writes
+  /// change the list the caller passed.
   JournaledInts.of(Int32List values) : _values = values;
 
   Int32List _values;
@@ -342,8 +352,11 @@ final class JournaledInts {
   /// handed out rather than copied.
   Int32List get values => _values;
 
+  /// Values the array holds, a count; [grow] may leave it larger than was
+  /// asked for.
   int get length => _values.length;
 
+  /// Returns the value at [index]. Throws a `RangeError` past [length].
   int operator [](int index) => _values[index];
 
   final List<JournalStep> _undo = <JournalStep>[];
@@ -352,9 +365,14 @@ final class JournaledInts {
   List<int>? _openIndices;
   List<int>? _openBefore;
 
+  /// How many steps can be taken back.
   int get undoDepth => _undo.length;
+
+  /// How many steps can be put back after an undo.
   int get redoDepth => _redo.length;
 
+  /// Bytes the journal holds, both directions. See
+  /// [JournaledFloats.journalBytes].
   int get journalBytes {
     var total = 0;
     for (final step in _undo) {
@@ -366,6 +384,8 @@ final class JournaledInts {
     return total;
   }
 
+  /// Opens a step. Writes until [endStep] belong to it. Throws a
+  /// `StateError` if one is already open; see [JournaledFloats.beginStep].
   void beginStep() {
     if (_openIndices != null) {
       throw StateError('a step is already open; end it before opening another');
@@ -411,6 +431,8 @@ final class JournaledInts {
     }
   }
 
+  /// Writes [value] at [index], recording what was there, even when it is
+  /// unchanged. Throws a `StateError` when no step is open.
   void write(int index, int value) {
     final indices = _openIndices;
     if (indices == null) {
@@ -421,6 +443,8 @@ final class JournaledInts {
     _values[index] = value;
   }
 
+  /// Takes the last step back and returns true; false when there is none.
+  /// Throws a `StateError` while a step is open.
   bool undo() {
     if (_openIndices != null) {
       throw StateError('a step is open; end it before undoing');
@@ -430,6 +454,8 @@ final class JournaledInts {
     return true;
   }
 
+  /// Puts back the last undone step and returns true; false when there is
+  /// none. Throws a `StateError` while a step is open.
   bool redo() {
     if (_openIndices != null) {
       throw StateError('a step is open; end it before redoing');
@@ -462,6 +488,9 @@ final class JournaledInts {
     return JournalStep(step.indices, before);
   }
 
+  /// Drops the oldest undo steps until the journal is within [maxSteps]
+  /// (64 by default) and [maxBytes] (64 MiB by default), and returns how
+  /// many were dropped. See [JournaledFloats.trim].
   int trim({int maxSteps = 64, int maxBytes = 64 * 1024 * 1024}) {
     var dropped = 0;
     while (_undo.length > maxSteps) {
@@ -479,6 +508,9 @@ final class JournaledInts {
   /// See [JournaledFloats.dropOldestStep].
   int dropOldestStep() => _undo.isEmpty ? 0 : _undo.removeAt(0).byteCount;
 
+  /// Grows the array to hold at least [length] values, keeping what is
+  /// there and filling the new slots with [fill]; doubles when that is
+  /// larger. Not journalled; see [JournaledFloats.grow].
   void grow(int length, {int fill = 0}) {
     if (length <= _values.length) return;
     final grown = Int32List(
@@ -489,6 +521,7 @@ final class JournaledInts {
     _values = grown;
   }
 
+  /// Forgets every step. The values stay as they are.
   void clearJournal() {
     _undo.clear();
     _redo.clear();

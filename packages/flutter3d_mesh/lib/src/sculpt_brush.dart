@@ -49,13 +49,35 @@ final class BrushKind {
   /// `BrushKind.draw` is one nothing can read back.
   final String name;
 
+  /// Pushes every touched vertex along the touched set's average normal,
+  /// raising a flat-topped bump.
   static const BrushKind draw = BrushKind._('draw');
+
+  /// Builds up toward a level above the centre along the average normal,
+  /// and pulls back down what is already above it.
   static const BrushKind clay = BrushKind._('clay');
+
+  /// Moves each vertex toward the average of its neighbours as they stood
+  /// before the stroke.
   static const BrushKind smooth = BrushKind._('smooth');
+
+  /// Moves each vertex toward the plane through the centre facing the
+  /// average normal.
   static const BrushKind flatten = BrushKind._('flatten');
+
+  /// Pushes each vertex along its own normal, puffing a rounded patch up.
   static const BrushKind inflate = BrushKind._('inflate');
+
+  /// Drags the touched vertices by the centre's motion since the last
+  /// stroke; does nothing without a previous centre.
   static const BrushKind grab = BrushKind._('grab');
+
+  /// Draws each vertex toward the centre across the surface, along its own
+  /// tangent plane.
   static const BrushKind pinch = BrushKind._('pinch');
+
+  /// Pinches as [pinch] does and sinks the vertices inward, cutting a
+  /// fold.
   static const BrushKind crease = BrushKind._('crease');
 
   @override
@@ -73,8 +95,15 @@ final class BrushFalloff {
   /// See [BrushKind.name].
   final String name;
 
+  /// Influence falls in a straight line from the centre to the edge.
   static const BrushFalloff linear = BrushFalloff._('linear');
+
+  /// Influence follows a smoothstep: flat at the centre and at the edge,
+  /// steepest half way.
   static const BrushFalloff smooth = BrushFalloff._('smooth');
+
+  /// Influence follows the square of the linear falloff, concentrated at
+  /// the centre and thinning fast toward the edge.
   static const BrushFalloff sharp = BrushFalloff._('sharp');
 
   @override
@@ -101,6 +130,8 @@ double shapeFalloff(BrushFalloff falloff, double t) {
 /// how hard it pushes ([strength]) and how its influence tapers to the edge
 /// ([falloff]).
 final class MeshBrush {
+  /// A brush of [kind] reaching [radius] metres with [strength], tapered by
+  /// [falloff].
   const MeshBrush({
     required this.kind,
     required this.radius,
@@ -108,6 +139,7 @@ final class MeshBrush {
     this.falloff = BrushFalloff.smooth,
   });
 
+  /// Which behaviour the stroke applies.
   final BrushKind kind;
 
   /// In metres.
@@ -116,6 +148,8 @@ final class MeshBrush {
   /// Metres of push for draw and inflate, the clay level as a fraction of
   /// [radius], and the 0..1 fraction of the way for smooth and flatten.
   final double strength;
+
+  /// The curve the influence tapers by toward the edge; smooth by default.
   final BrushFalloff falloff;
 }
 

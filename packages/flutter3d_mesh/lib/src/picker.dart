@@ -26,9 +26,14 @@ import 'selection.dart';
 
 /// Picks elements of a mesh from where a ray points.
 final class MeshPicker {
+  /// A picker over [mesh], with [bvh] built from the same mesh.
   const MeshPicker(this.mesh, this.bvh);
 
+  /// The mesh elements are picked from, in its own space.
   final EditMesh mesh;
+
+  /// The hierarchy rays are cast through; must be current for [mesh], or
+  /// picks answer for the mesh as it was.
   final MeshBvh bvh;
 
   /// The face [ray] hits first, or [EditMesh.none].

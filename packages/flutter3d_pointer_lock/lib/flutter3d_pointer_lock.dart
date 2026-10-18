@@ -91,6 +91,10 @@ final class PointerLock {
   /// mouse when one arrives and back when it leaves.
   Stream<bool> get onSupportChanged => _platform.supportChanges;
 
+  /// Whether the platform last reported the pointer as captured.
+  ///
+  /// Follows [onStateChanged], so it turns false on a release the
+  /// application did not ask for as well as on [release].
   bool get isCaptured => _isCaptured;
 
   /// Capture and release, including releases the application did not ask for.

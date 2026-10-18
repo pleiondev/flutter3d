@@ -169,6 +169,9 @@ final class VertexFrames {
   }
 
   final Float32List _values;
+
+  /// Vertex slots the frames cover, a count: the mesh's slot count when
+  /// they were computed, dead slots included.
   final int vertexSlotCount;
 
   /// The unit normal at [vertex].

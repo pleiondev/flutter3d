@@ -45,6 +45,8 @@ abstract base class HeadTracker {
 /// is honest — a neck model guessing a translation from a rotation is a
 /// guess that reads as the room sliding about.
 final class SensorHeadTracker extends HeadTracker {
+  /// A tracker at the identity pose that opens the
+  /// `dev.flutter3d/stereo/head` channel only at [start].
   SensorHeadTracker();
 
   static const EventChannel _channel = EventChannel(
@@ -95,6 +97,8 @@ final class SensorHeadTracker extends HeadTracker {
     _subscription = null;
   }
 
+  /// Stops listening to the sensor and releases [pose]. Nothing may be
+  /// called after it.
   void dispose() {
     unawaited(stop());
     _pose.dispose();

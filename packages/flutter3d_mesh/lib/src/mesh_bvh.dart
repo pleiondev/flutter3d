@@ -34,6 +34,7 @@ import 'selection.dart';
 /// A class rather than a record, so a hit can later carry more (the normal,
 /// the barycentric weights) without breaking a reader.
 final class MeshHit {
+  /// A hit on [triangle] of [face], [distance] along the ray, at [point].
   const MeshHit({
     required this.face,
     required this.triangle,
@@ -71,6 +72,8 @@ final class MeshHit {
 
 /// A bounding-volume hierarchy over an [EditMesh], through a [MeshLayoutPlan].
 final class MeshBvh {
+  /// A hierarchy over the triangles [plan] cut [mesh] into, built now; see
+  /// [rebuild] for after an edit.
   MeshBvh(EditMesh mesh, MeshLayoutPlan plan) {
     rebuild(mesh, plan);
   }

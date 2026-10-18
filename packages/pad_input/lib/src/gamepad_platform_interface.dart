@@ -13,7 +13,13 @@ import 'platform_default.dart';
 /// **Closed for good**: connected or not: a yes or a no, kept as two states for
 /// which way it changed. No member can be added without changing what the type
 /// means, so it stays an enum and a `switch` over it may name every case.
-enum PadConnection { disconnected, connected }
+enum PadConnection {
+  /// The pad went away; whatever it was holding should be released.
+  disconnected,
+
+  /// A pad arrived and is now read.
+  connected,
+}
 
 /// The platform side of a gamepad.
 ///
@@ -25,6 +31,8 @@ enum PadConnection { disconnected, connected }
 /// test shows. What a fake platform can prove is everything on this side of the
 /// channel, and that is most of the code.
 abstract base class GamepadPlatform extends PlatformInterface {
+  /// Registers the subclass with the platform token, so [instance] accepts
+  /// it.
   GamepadPlatform() : super(token: _token);
 
   static final Object _token = Object();
@@ -34,6 +42,11 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// native backend is written with a controller in hand.
   static GamepadPlatform _instance = defaultGamepadPlatform();
 
+  /// The implementation a `Gamepad` uses when it is given none.
+  ///
+  /// Setting it replaces the platform, which is how a test installs a fake;
+  /// the setter throws an `AssertionError` for an implementation that was
+  /// not built through the [GamepadPlatform] constructor.
   static GamepadPlatform get instance => _instance;
 
   static set instance(GamepadPlatform instance) {
@@ -91,6 +104,7 @@ abstract base class GamepadPlatform extends PlatformInterface {
 /// a frame's read allocates nothing; a backend reads it during the call and
 /// does not keep it.
 final class PadReadContext {
+  /// A request to read slot [index] into [out].
   PadReadContext({required this.index, required this.out});
 
   /// The slot read: 0 for the first controller to connect.

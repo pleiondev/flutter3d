@@ -45,11 +45,17 @@ import 'normals.dart';
 /// One baked image: [size]×[size] texels of [channels] floats, row-major,
 /// with [covered] saying which texels a triangle actually reached.
 final class BakedMap {
+  /// An empty map of [size] by [size] texels, [channels] floats each, with
+  /// nothing covered.
   BakedMap(this.size, this.channels)
     : data = Float32List(size * size * channels),
       covered = Uint8List(size * size);
 
+  /// Width and height of the map, in texels; the map is square.
   final int size;
+
+  /// How many floats each texel holds: three for a normal map, one for a
+  /// scalar map.
   final int channels;
 
   /// `size * size * channels` floats, row-major, `(0, 0, …)` where nothing
@@ -64,9 +70,15 @@ final class BakedMap {
   /// [dilate] would then smear a crevice outward as if it were a gap.
   final Uint8List covered;
 
+  /// Returns [channel] of the texel at column [x], row [y]; nought where
+  /// nothing was baked. Unchecked: coordinates outside the map read another
+  /// texel or throw a `RangeError`.
   double at(int x, int y, int channel) =>
       data[(y * size + x) * channels + channel];
 
+  /// Stores [values] in the texel at column [x], row [y] and marks it
+  /// [covered]. Values past [channels] are ignored; channels past
+  /// `values.length` keep what they held.
   void write(int x, int y, List<double> values) {
     final int at = (y * size + x) * channels;
     for (var c = 0; c < channels && c < values.length; c++) {

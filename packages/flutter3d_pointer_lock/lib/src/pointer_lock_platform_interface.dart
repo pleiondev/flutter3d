@@ -14,7 +14,14 @@ import 'platform_default.dart';
 /// **Closed for good**: captured or released: a yes or a no, kept as two states
 /// for who released it. No member can be added without changing what the type
 /// means, so it stays an enum and a `switch` over it may name every case.
-enum CaptureState { released, captured }
+enum CaptureState {
+  /// The cursor is visible and free; no motion is accumulated.
+  released,
+
+  /// The cursor is hidden and held in place, and its motion arrives as
+  /// deltas.
+  captured,
+}
 
 /// The platform side of pointer capture.
 ///
@@ -23,6 +30,8 @@ enum CaptureState { released, captured }
 /// parts that are easy to get wrong (dropping a delta, missing a release) are
 /// all on the Dart side.
 abstract base class PointerLockPlatform extends PlatformInterface {
+  /// Registers the subclass with the platform token, so [instance] accepts
+  /// it.
   PointerLockPlatform() : super(token: _token);
 
   static final Object _token = Object();
@@ -32,6 +41,12 @@ abstract base class PointerLockPlatform extends PlatformInterface {
   /// compile-time choice rather than a plugin registration.
   static PointerLockPlatform _instance = defaultPointerLockPlatform();
 
+  /// The implementation every `PointerLock` talks to.
+  ///
+  /// Setting it replaces the platform, which is how a test installs a fake;
+  /// the setter throws an `AssertionError` for an implementation that was
+  /// not built through the [PointerLockPlatform] constructor (one that uses
+  /// `implements` rather than `extends`).
   static PointerLockPlatform get instance => _instance;
 
   static set instance(PointerLockPlatform instance) {
@@ -60,10 +75,19 @@ abstract base class PointerLockPlatform extends PlatformInterface {
   /// without touching this layer.
   Stream<Offset> get deltas;
 
+  /// Each change of capture state the platform reports, including releases
+  /// nobody asked for: Escape, a lost focus, a switched tab.
   Stream<CaptureState> get stateChanges;
 
+  /// Asks the platform to hide the cursor and hold it in place.
+  ///
+  /// The answer arrives on [stateChanges]; a refused capture reports nothing
+  /// and leaves the state [CaptureState.released].
   Future<void> capture();
 
+  /// Asks the platform to show the cursor again and stop reporting motion.
+  ///
+  /// The change arrives on [stateChanges] like any other.
   Future<void> release();
 
   /// Puts the platform back to an uncaptured state regardless of what it thinks

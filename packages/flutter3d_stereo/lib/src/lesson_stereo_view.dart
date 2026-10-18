@@ -23,6 +23,8 @@ import 'stereo_viewer.dart';
 /// are proven; the lens numbers are the published ones, unverified against
 /// glass.
 final class LessonStereoView extends StatefulWidget {
+  /// A stereo lesson view stepping [player] through [scene], seen from
+  /// [rig].
   const LessonStereoView({
     super.key,
     required this.renderer,
@@ -35,10 +37,20 @@ final class LessonStereoView extends StatefulWidget {
     this.onTick,
   });
 
+  /// The renderer the pair is drawn with; borrowed, never disposed here.
   final Renderer renderer;
+
+  /// The scene the lesson's nodes live in.
   final Scene scene;
+
+  /// The rig whose stage each step places and whose eyes draw the pair.
   final StereoRig rig;
+
+  /// The step state the buttons move and each frame applies.
   final LessonPlayer player;
+
+  /// The lesson's nodes by entity id, moved by a step's `offsets`. Empty
+  /// for a lesson with no `prop` or `model`.
   final Map<String, SceneNode> nodes;
 
   /// Where each of [nodes] stood as authored — `edu-00` §6's layered
@@ -46,6 +58,10 @@ final class LessonStereoView extends StatefulWidget {
   /// counterpart. Empty for a lesson with no `prop`/`model`, the same as
   /// [nodes].
   final Map<String, Vector3> restPositions;
+
+  /// The holder the phone sits in, Cardboard v2 by default; null draws a
+  /// centred pair for a phone held in the hands. See
+  /// [StereoSurface.viewer].
   final StereoViewer? viewer;
 
   /// Called once a frame, alongside [LessonPlayer.applyCurrent] — a

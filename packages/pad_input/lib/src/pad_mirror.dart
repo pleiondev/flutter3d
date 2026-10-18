@@ -28,5 +28,7 @@ abstract interface class PadMirror {
   /// the same message twice to find out.
   bool get connected;
 
+  /// Copies what the mirror holds into [out]: a disconnected snapshot when
+  /// no pad is attached.
   void fill(PadSnapshot out);
 }

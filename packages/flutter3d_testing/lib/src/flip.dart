@@ -34,11 +34,16 @@ final double defaultFlipPpd = 0.7 * (3840.0 / 0.7) * (math.pi / 180.0);
 
 /// A per-pixel FLIP error map and its mean.
 final class FlipResult {
+  /// A map of [errors] laid out [width] by [height] pixels.
   FlipResult(this.errors, this.width, this.height);
 
   /// One error per pixel, row-major from the top, each in [0, 1].
   final Float64List errors;
+
+  /// Width of the compared pictures, in pixels.
   final int width;
+
+  /// Height of the compared pictures, in pixels.
   final int height;
 
   /// The mean error — the one number the reference tool prints. From 0 to 1,

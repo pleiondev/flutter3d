@@ -92,6 +92,7 @@ final class _VertexChunk {
 /// What a brush stroke touched: which vertices moved and which chunks had to
 /// be copied to record it.
 final class BrushResult {
+  /// A result naming [touchedVertices] and [touchedChunks].
   const BrushResult({
     required this.touchedVertices,
     required this.touchedChunks,

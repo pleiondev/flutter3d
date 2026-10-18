@@ -38,6 +38,8 @@ GamepadPlatform defaultGamepadPlatform() => WebGamepad();
 /// it, which is why the acceptance checklist for this package says so: on the
 /// web, press a button before expecting a pad.
 final class WebGamepad extends GamepadPlatform {
+  /// Subscribes to the window's gamepad, focus and visibility events for the
+  /// life of the page.
   WebGamepad() {
     _listen('gamepadconnected', (web.Event _) => _announce(true));
     _listen('gamepaddisconnected', (web.Event _) => _announce(false));

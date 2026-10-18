@@ -37,46 +37,67 @@ import 'selection.dart';
 /// this package has to know about. The same shape `VertexAttribute` uses next
 /// door, for the same reason.
 final class MeshIssueKind {
+  /// A kind called [name], reported at [severity], whose ids are elements
+  /// at [level]. A caller outside this package may make its own.
   const MeshIssueKind(this.name, this.severity, this.level);
 
   /// A stable slug, which is what a report or a tool call carries.
   final String name;
 
+  /// How much an issue of this kind matters; [MeshChecks.all] sorts by it,
+  /// worst first.
   final Severity severity;
 
   /// What the ids of an issue of this kind are.
   final ElementLevel level;
 
+  /// Faces with more than four corners: a note, ids are faces.
   static const MeshIssueKind ngon = MeshIssueKind(
     'ngon',
     Severity.note,
     ElementLevel.face,
   );
+
+  /// Edges with a face on one side only: a note, ids are half-edges.
   static const MeshIssueKind boundaryEdge = MeshIssueKind(
     'boundary-edge',
     Severity.note,
     ElementLevel.edge,
   );
+
+  /// Vertices where separate sheets of surface touch at a point: a warning,
+  /// ids are vertices.
   static const MeshIssueKind nonManifoldVertex = MeshIssueKind(
     'non-manifold-vertex',
     Severity.warning,
     ElementLevel.vertex,
   );
+
+  /// Vertices no face uses: a warning, ids are vertices.
   static const MeshIssueKind isolatedVertex = MeshIssueKind(
     'isolated-vertex',
     Severity.warning,
     ElementLevel.vertex,
   );
+
+  /// Vertices within [MeshChecks.tolerance] of another: a warning, ids are
+  /// vertices.
   static const MeshIssueKind duplicateVertex = MeshIssueKind(
     'duplicate-vertex',
     Severity.warning,
     ElementLevel.vertex,
   );
+
+  /// Closed shells enclosing a negative volume, wound inwards: a warning,
+  /// ids are the shells' faces.
   static const MeshIssueKind invertedShell = MeshIssueKind(
     'inverted-shell',
     Severity.warning,
     ElementLevel.face,
   );
+
+  /// Faces on fewer than three distinct places or with no area: an error,
+  /// ids are faces.
   static const MeshIssueKind degenerateFace = MeshIssueKind(
     'degenerate-face',
     Severity.error,
@@ -89,9 +110,12 @@ final class MeshIssueKind {
 
 /// Something a check found, and where.
 final class MeshIssue {
+  /// An issue of [kind] over [ids], which are copied and sorted, described
+  /// by [message].
   MeshIssue(this.kind, Iterable<int> ids, this.message)
     : ids = Int32List.fromList(ids.toList(growable: false)..sort());
 
+  /// What was found, and at which level [ids] are.
   final MeshIssueKind kind;
 
   /// The elements, at [MeshIssueKind.level]. Ascending, so a selection made
@@ -101,6 +125,7 @@ final class MeshIssue {
   /// A sentence for a person, with the count in it.
   final String message;
 
+  /// How much this matters: the severity of its [kind].
   Severity get severity => kind.severity;
 
   /// The elements as something a viewport can highlight.
@@ -112,9 +137,12 @@ final class MeshIssue {
 
 /// Every question worth asking about a mesh before it goes anywhere.
 final class MeshChecks {
+  /// Checks over [mesh] at [tolerance] metres; null takes a millionth of
+  /// the mesh's bounding diagonal, never under 1e-9.
   MeshChecks(this.mesh, {double? tolerance})
     : tolerance = tolerance ?? _defaultTolerance(mesh);
 
+  /// The mesh every check reads; never changed by them.
   final EditMesh mesh;
 
   /// The distance under which two vertices are in the same place, and the area

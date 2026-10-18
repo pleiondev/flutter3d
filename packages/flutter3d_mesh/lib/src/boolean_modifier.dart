@@ -29,14 +29,24 @@ part of 'modifier.dart';
 /// `BooleanModifier` naming it passes its base straight through rather than
 /// looping or refusing loudly.
 final class BooleanModifier extends Modifier {
+  /// A boolean of the base mesh with object [operandId]'s mesh, placed by
+  /// [operandTransform].
   const BooleanModifier({
     required this.operation,
     required this.operandId,
     required this.operandTransform,
   });
 
+  /// Which combination is taken: union, subtraction of the operand, or
+  /// intersection.
   final CsgOperation operation;
+
+  /// The key of the operand's mesh in [ModifierContext.operands]; an id
+  /// with no entry passes the base through unchanged.
   final int operandId;
+
+  /// The operand's mesh-local space mapped into the base mesh's local
+  /// space. See the class doc.
   final Matrix4 operandTransform;
 
   @override

@@ -52,6 +52,8 @@ PointerLockPlatform defaultPointerLockPlatform() => WebPointerLock();
 /// player nothing to move; the honest answer is the one that makes the game show
 /// its touch controls instead.
 final class WebPointerLock extends PointerLockPlatform {
+  /// Subscribes to the document's `pointerlockchange`, `pointerlockerror`
+  /// and `mousemove` events for the life of the page.
   WebPointerLock() {
     // Registered once and left registered. Unsubscribing on release would mean
     // a listener whose lifetime has to be right at exactly the moments — a

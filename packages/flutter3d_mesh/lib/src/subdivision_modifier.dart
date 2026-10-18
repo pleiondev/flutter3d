@@ -15,6 +15,7 @@ part of 'modifier.dart';
 /// chooses to read it and subdivide its own copy to fewer levels — nothing
 /// this package does.
 final class SubdivisionModifier extends Modifier {
+  /// A subdivision of [levels] passes; [viewLevels] defaults to the same.
   const SubdivisionModifier({required this.levels, int? viewLevels})
     : viewLevels = viewLevels ?? levels;
 
