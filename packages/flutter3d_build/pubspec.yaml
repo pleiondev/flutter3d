@@ -70,13 +70,13 @@ dependencies:
   # `ap-05`'s cache key — a content hash of each source, alongside the
   # format and pipeline version stamps, so a rebuild with nothing changed
   # converts nothing.
-  crypto: ^3.0.0
+  crypto: ^3.0.8
 
   # `ap-07`'s encoders take raw RGBA8, and a source image is PNG or JPEG
   # bytes — decoding one is the one thing `dart:ui` usually does that this
   # package cannot reach. Pure Dart, no Flutter SDK behind it either, the
   # same as every other dependency here.
-  image: ^4.10.1
+  image: ^4.12.0
 
 dev_dependencies:
   # `RecordingDevice`, which a test wraps round the impostor bake's device to

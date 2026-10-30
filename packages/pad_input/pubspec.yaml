@@ -23,7 +23,7 @@ dependencies:
   # `navigator.getGamepads()`, which is the whole of the web backend: the
   # browser already normalises a controller to the W3C standard mapping, so
   # there is nothing for native code to do. Already used by flutter3d_webgl.
-  web: ^1.1.0
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:
