@@ -95,7 +95,7 @@ dependencies:
   # project writes into its own file has to mean the same thing next year,
   # which `Object.hashAll` does not promise across runs. Same package
   # `cloud/server` already hashes uploads with.
-  crypto: ^3.0.7
+  crypto: ^3.0.8
 
   vector_math: ^2.2.0
 
@@ -113,7 +113,7 @@ dependencies:
   # The browser's own file input and download anchor, which is all the web half
   # needs. A plugin would be a dependency whose web implementation is these same
   # ten lines.
-  web: ^1.1.0
+  web: ^1.1.2
 
   # Where a sandboxed process may write without asking: the container the
   # autosave lives in. Used by `sandbox_probe.dart`.
@@ -129,7 +129,7 @@ dependencies:
   # file picker above, "open this URL" has no honest ten-line native answer —
   # every desktop platform has its own way to hand a link to a browser — so
   # this is the one place a real plugin buys more than it costs.
-  url_launcher: ^6.3.0
+  url_launcher: ^6.3.3
 
   # `ux-38`: the split the viewport divides along, and the weights a person
   # drags it to. Pure Dart over `Flex` — no native side, so the web build

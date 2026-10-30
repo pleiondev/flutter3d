@@ -30,7 +30,7 @@ dependencies:
   flutter3d_shaders: ^0.8.2
   # Browser APIs through static JS interop. `dart:html` and `dart:web_gl` are
   # the legacy path and are not available under Wasm.
-  web: ^1.1.0
+  web: ^1.1.2
 
   vector_math: ^2.2.0
 
