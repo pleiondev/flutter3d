@@ -65,7 +65,7 @@ dependencies:
   vector_math: ^2.2.0
 
   # `localStorage`, which is where a browser build keeps what a user changed.
-  web: ^1.1.0
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:

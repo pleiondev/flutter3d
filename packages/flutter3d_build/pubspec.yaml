@@ -59,7 +59,7 @@ dependencies:
   # worse one. This package builds no code assets and never will; `code_assets`
   # is where `HookConfig.code.targetOS` lives, and `buildCodeAssets` is the
   # guard that says whether the invoker is offering it at all.
-  code_assets: ^2.1.0
+  code_assets: ^2.2.0
 
   # `ap-04`'s manifest: `glob` matches a rule's pattern against a source
   # path, `yaml` parses `flutter3d_assets.yaml` as a node tree rather than a
@@ -70,13 +70,13 @@ dependencies:
   # `ap-05`'s cache key — a content hash of each source, alongside the
   # format and pipeline version stamps, so a rebuild with nothing changed
   # converts nothing.
-  crypto: ^3.0.0
+  crypto: ^3.0.8
 
   # `ap-07`'s encoders take raw RGBA8, and a source image is PNG or JPEG
   # bytes — decoding one is the one thing `dart:ui` usually does that this
   # package cannot reach. Pure Dart, no Flutter SDK behind it either, the
   # same as every other dependency here.
-  image: ^4.10.1
+  image: ^4.12.0
 
 dev_dependencies:
   # `RecordingDevice`, which a test wraps round the impostor bake's device to
