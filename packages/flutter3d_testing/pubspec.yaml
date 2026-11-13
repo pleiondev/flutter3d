@@ -55,6 +55,6 @@ dev_dependencies:
 
   # Decodes the FLIP reference crops in `test/flip/` synchronously, the
   # package the engine already reads PNGs with.
-  image: ^4.10.1
+  image: ^4.12.0
 
 resolution: workspace
