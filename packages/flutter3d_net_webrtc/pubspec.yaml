@@ -28,7 +28,7 @@ dependencies:
   # candidate gathering. Native platform code on every platform but the web,
   # where the browser already has WebRTC and this package talks to it
   # through the same plugin's web implementation.
-  flutter_webrtc: ^1.6.2
+  flutter_webrtc: ^1.6.3
 
 dev_dependencies:
   flutter_test:
