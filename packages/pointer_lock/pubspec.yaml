@@ -25,7 +25,7 @@ dependencies:
   # "unsupported" for it. Static interop, because `dart:html` is the legacy path
   # and is not available under Wasm — the same reason flutter3d_webgl and
   # pad_input take this dependency.
-  web: ^1.1.0
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:
