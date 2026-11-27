@@ -25,7 +25,7 @@ dependencies:
 
   # `package:web` carries WebGPU's flag constants and none of its interfaces —
   # see `webgpu_interop.dart`, which declares the slice a triangle needs.
-  web: ^1.1.0
+  web: ^1.1.2
 
   vector_math: ^2.2.0
 

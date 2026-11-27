@@ -64,7 +64,7 @@ dependencies:
   path: ^1.9.0
   vector_math: ^2.2.0
   # golden_store_web.dart fetches references over HTTP.
-  web: ^1.1.0
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:
